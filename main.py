@@ -25,5 +25,8 @@ if __name__ == "__main__":
     ensure_environment(clean)
     ext = Markdown(content_dir, out_dir, toc_depth)
     for root, subdirs, files in os.walk(content_dir):
+        if "/." in root:
+            continue
+        subdirs = list(filter(lambda d: not(d.startswith(".")), subdirs))
         ext.process(root, subdirs, files)
     ext.finish()
