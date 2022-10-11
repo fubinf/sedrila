@@ -5,7 +5,7 @@ import shutil
 
 content_dir = "../propra-inf"
 out_dir = "out"
-toc_depth = 2
+toc_depth = 3
 
 def ensure_environment(clean = False):
     if clean and os.path.isdir(out_dir):
@@ -25,6 +25,8 @@ if __name__ == "__main__":
     ensure_environment(clean)
     ext = Markdown(content_dir, out_dir, toc_depth)
     for root, subdirs, files in os.walk(content_dir):
+        subdirs.sort()
+        print(subdirs)
         if "/." in root:
             continue
         subdirs = list(filter(lambda d: not(d.startswith(".")), subdirs))
