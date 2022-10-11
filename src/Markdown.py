@@ -47,7 +47,10 @@ class Blocks(markdown.blockprocessors.BlockProcessor):
             if block == "!subtoc" and not self.outer.first_pass:
                 for part in self.outer.root.split(os.sep)[1:]:
                     toc = toc["entries"][part]
-                subpath = self.outer.root.split(os.sep, 1)[1] + "/"
+                prefix = ""
+                while root.startswith("../"):
+                    root = root[3:]
+                subpath = root.split(os.sep, 1)[1] + "/"
             self.build_toc(ol, toc, subpath)
             return
         lines = block.splitlines()
