@@ -61,9 +61,10 @@ class Blocks(markdown.blockprocessors.BlockProcessor):
             else:
                 line = line.split(" ", 1)[1]
                 filename = os.path.join(self.outer.root, line)
-                match = re.match(self.RE_PARSE_TITLE, line)
-                if match:
-                    filename = os.path.join(self.outer.root, match.group(1), "overview.md")
+                if not filename.endswith(".md"):
+                    match = re.match(self.RE_PARSE_TITLE, line)
+                    if match:
+                        filename = os.path.join(self.outer.root, match.group(1), "overview.md")
             if self.outer.first_pass:
                 print("need inlining for {}".format(filename))
                 self.outer.inlines[filename] = None
