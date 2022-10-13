@@ -24,10 +24,12 @@ class Blocks(markdown.blockprocessors.BlockProcessor):
             if not title:
                 title = os.path.basename(os.path.dirname(toc["file"]))
             a = etree.SubElement(li, "a")
-            target = self.outer.out_name(True, toc["file"])
-            if target.startswith(subpath):
-                target = target[len(subpath):]
-            a.set("href", target)
+            href = self.outer.out_name(True, toc["file"])
+            if href.startswith(subpath):
+                href = href[len(subpath):]
+            a.set("href", href)
+            if self.target:
+                a.set("target", self.target)
             a.text = title
             if "entries" in toc and toc["entries"]:
                 parent = etree.SubElement(li, "ol")
@@ -39,19 +41,26 @@ class Blocks(markdown.blockprocessors.BlockProcessor):
         block = blocks.pop(0)
         if self.outer.first_pass:
             self.outer.second_pass.add(self.outer.full_name)
-        if block == "!toc" or block == "!subtoc":
+        if block.startswith("!toc") or block.startswith("!subtoc"):
+            self.target = None
+            if " " in block:
+                self.target = block.split(" ", 1)[1]
+                print("target", self.target)
             ol = etree.SubElement(parent, "ol")
             ol.set("class", "toc")
             toc = self.outer.toc
             subpath = ""
-            if block == "!subtoc" and not self.outer.first_pass:
+            if block.startswith("!subtoc") and not self.outer.first_pass:
                 for part in self.outer.root.split(os.sep)[1:]:
                     toc = toc["entries"][part]
                 prefix = ""
                 root = self.outer.root
                 while root.startswith("../"):
                     root = root[3:]
-                subpath = root.split(os.sep, 1)[1] + "/"
+                if os.sep in root:
+                    subpath = root.split(os.sep, 1)[1] + "/"
+                else:
+                    subpath = root + "/"
             self.build_toc(ol, toc, subpath)
             return
         lines = block.splitlines()
@@ -98,7 +107,18 @@ class Surrounding(markdown.postprocessors.Postprocessor):
                 self.footer = f.read()
 
     def run(self, text):
-        return self.header + text + self.footer
+        header, footer = self.header, self.footer
+        customheader = self.outer.metadata("header")
+        customfooter = self.outer.metadata("footer")
+        if customheader or customfooter:
+            header, footer = "", "" #we expect surroundings, so better reset both!
+            if os.path.isfile(os.path.join(self.outer.content_dir, customheader)):
+                with open(os.path.join(self.outer.content_dir, customheader), "r", encoding="utf8") as f:
+                    header = f.read()
+            if os.path.isfile(os.path.join(self.outer.content_dir, customfooter)):
+                with open(os.path.join(self.outer.content_dir, customfooter), "r", encoding="utf8") as f:
+                    footer = f.read()
+        return header + text + footer
 
 class Markdown():
     def __init__(self, content_dir, out_dir, toc_depth, **kwargs):
@@ -106,10 +126,15 @@ class Markdown():
         self.first_pass, self.second_pass, self.inlines = True, set(), {}
         self.toc, self.meta = self.toc_entry(), {}
         self.content_dir, self.out_dir, self.toc_depth = content_dir, out_dir, toc_depth
-        self.md = markdown.Markdown(extensions = ["admonition", "sane_lists", "smarty", "extra", "meta"])
+        self.md = markdown.Markdown(extensions = ["admonition", "sane_lists", "smarty", "extra", "meta", "md_in_html"])
         #maybe interesting: progress bar for automatic footer, mermaid
         self.md.parser.blockprocessors.register(Blocks(self, self.md.parser), "proprablocks", 100)
         self.md.postprocessors.register(Surrounding(self, self.md), "proprasurroundings", 100)
+
+    def metadata(self, key):
+        if key in self.md.Meta:
+            return self.md.Meta[key][0]
+        return None
 
     def toc_entry(self):
         return {"entries": {}, "file": None, "title": None}

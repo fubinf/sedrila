@@ -11,6 +11,9 @@ Be aware that starting files with hyperlinks will confuse the meta data plugin.
 Costum made commands:
 
 * `!toc` will create a table of contents up to a depth of 2. It reads the `title` meta data
+
+   You can provide an additional argument to define the target attribute for the generated links
+
 * `!subtoc` will do that, but only display the part of the table of contents related to this pat
 
    This will not include items of a depth that are not included in the main table of content.
@@ -26,6 +29,8 @@ Costum made commands:
 * `!overview folder title` inlines folder/
 
 In addition, an optional `src/header.html` and `src/footer.html` will be prepended/appended to each produced html file.
+
+You can define alternative header and footer files on a per file basis via the `header` and `footer` meta data. Please note that this will override both, even if only one of them is provided,
 
 # Usage
 
