@@ -13,8 +13,7 @@ class Tests(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        pass
-        #cls.environment.tearDown()
+        cls.environment.tearDown()
 
     def execute():
         suite = unittest.defaultTestLoader.loadTestsFromTestCase(Tests)
