@@ -28,7 +28,7 @@ class Blocks(markdown.blockprocessors.BlockProcessor):
             if target.startswith(subpath):
                 target = target[len(subpath):]
             a.set("href", target)
-            self.parser.parseBlocks(a, [title])
+            a.text = title
             if "entries" in toc and toc["entries"]:
                 parent = etree.SubElement(li, "ol")
         if "entries" in toc and toc["entries"]:
@@ -48,6 +48,7 @@ class Blocks(markdown.blockprocessors.BlockProcessor):
                 for part in self.outer.root.split(os.sep)[1:]:
                     toc = toc["entries"][part]
                 prefix = ""
+                root = self.outer.root
                 while root.startswith("../"):
                     root = root[3:]
                 subpath = root.split(os.sep, 1)[1] + "/"

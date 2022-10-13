@@ -30,4 +30,7 @@ In addition, an optional `src/header.html` and `src/footer.html` will be prepend
 # Usage
 
 Running main.py will produce the target directory if missing.
+
 If called with the optional argument `clean`, it will remove that directory beforehand.
+
+If called with the optional argument `test`, it will instead run some unit tests
