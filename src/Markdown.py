@@ -6,7 +6,7 @@ import shutil
 
 class Blocks(markdown.blockprocessors.BlockProcessor):
     RE_PARSE_TITLE = r'^(\S+|"[^"]+")\s*(.*)$'
-    commands = ["overview", "inline", "resources", "toc", "subtoc"]
+    commands = ["overview", "inline", "resources", "tasks", "toc", "subtoc"]
 
     def __init__(self, outer, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -45,7 +45,6 @@ class Blocks(markdown.blockprocessors.BlockProcessor):
             self.target = None
             if " " in block:
                 self.target = block.split(" ", 1)[1]
-                print("target", self.target)
             ol = etree.SubElement(parent, "ol")
             ol.set("class", "toc")
             toc = self.outer.toc
@@ -68,6 +67,9 @@ class Blocks(markdown.blockprocessors.BlockProcessor):
             match = None
             if line == "!resources":
                 filename = os.path.join(self.outer.root, "resources.md")
+            elif line == "!tasks":
+                filename = [os.path.join(self.outer.root, file) for file in self.outer.files if file != self.outer.file]
+                self.outer.redodirectory = not(self.outer.redoing)
             else:
                 line = line.split(" ", 1)[1]
                 filename = os.path.join(self.outer.root, line)
@@ -75,9 +77,13 @@ class Blocks(markdown.blockprocessors.BlockProcessor):
                     match = re.match(self.RE_PARSE_TITLE, line)
                     if match:
                         filename = os.path.join(self.outer.root, match.group(1), "overview.md")
+            if not isinstance(filename, list):
+                filename = [filename]
             if self.outer.first_pass:
-                print("need inlining for {}".format(filename))
-                self.outer.inlines[filename] = None
+                for name in filename:
+                    if name not in self.outer.inlines:
+                        print("need inlining for {}".format(name))
+                        self.outer.inlines[name] = None
                 continue
             if match:
                 title = match.group(2)
@@ -89,11 +95,12 @@ class Blocks(markdown.blockprocessors.BlockProcessor):
                 a.set("href", match.group(1) + "/index.html")
                 a.text = title
                 parent = div
-            if filename not in self.outer.inlines:
-                print("expected inline not found for {}".format(filename))
-                continue
-            if self.outer.inlines[filename]:
-                self.parser.parseBlocks(parent, self.outer.inlines[filename])
+            for name in filename:
+                if name not in self.outer.inlines:
+                    print("expected inline not found for {}".format(name))
+                    continue
+                if self.outer.inlines[name]:
+                    self.parser.parseBlocks(parent, self.outer.inlines[name])
 
 class Surrounding(markdown.postprocessors.Postprocessor):
     def __init__(self, outer,  *args, **kwargs):
@@ -111,7 +118,7 @@ class Surrounding(markdown.postprocessors.Postprocessor):
         customheader = self.outer.metadata("header")
         customfooter = self.outer.metadata("footer")
         if customheader or customfooter:
-            header, footer = "", "" #we expect surroundings, so better reset both!
+            header, footer = "", "" #we expectesurroundings, so better reset both!
             if os.path.isfile(os.path.join(self.outer.content_dir, customheader)):
                 with open(os.path.join(self.outer.content_dir, customheader), "r", encoding="utf8") as f:
                     header = f.read()
@@ -162,9 +169,13 @@ class Markdown():
                 self.inlines[self.full_name] = f.readlines()
             else:
                 self.inlines[self.full_name] = re.split(r"(?:\r?\n){2,}", f.read())
+        #remove meta data
+        if re.match(r'^\S+:\s+', self.inlines[self.full_name][0]):
+            self.inlines[self.full_name].pop(0)
 
-    def process(self, root, subdirs, files):
+    def process(self, root, subdirs, files, redoing = False):
         self.root, self.subdirs, self.files = root, subdirs, files
+        self.redodirectory, self.redoing = False, redoing
         if "resources.md" in self.files: #put resources to the end to fix inlining
             self.files.remove("resources.md")
             self.files.append("resources.md")
@@ -189,6 +200,10 @@ class Markdown():
                 toc["file"] = self.full_name
                 if "title" in self.meta:
                     toc["title"] = self.meta["title"][0]
+            if self.redodirectory and not redoing:
+                print("redoing directory")
+                self.process(root, subdirs, files, True)
+                break
 
     def finish(self):
         self.first_pass = False
