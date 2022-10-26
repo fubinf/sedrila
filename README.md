@@ -12,7 +12,8 @@ Costum made commands:
 
 * `!toc` will create a table of contents up to a depth of 2. It reads the `title` meta data
 
-   You can provide an additional argument to define the target attribute for the generated links
+   You can provide an additional argument to define the target attribute for the generated links.
+   If the provided target is #, the links will instead link to anchors.
 
 * `!subtoc` will do that, but only display the part of the table of contents related to this pat
 

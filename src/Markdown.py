@@ -28,7 +28,10 @@ class Blocks(markdown.blockprocessors.BlockProcessor):
                 href = href[len(subpath):]
             a.set("href", href)
             if self.target:
-                a.set("target", self.target)
+                if self.target == "#":
+                    a.set("href", "#" + href)
+                else:
+                    a.set("target", self.target)
             a.text = title
             if "entries" in toc and toc["entries"]:
                 parent = etree.SubElement(li, "ol")
