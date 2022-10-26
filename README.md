@@ -26,7 +26,13 @@ Costum made commands:
 
    Ideally, there will be some option to reference links provided in there in some way
 
-* `!overview folder title` inlines folder/
+* `!overview folder` inlines folder/overview.md and the title links to folder/index.html
+
+   A `target` meta data in the overview file can override the link target.
+
+* `!tasks` will inline all other files in the same folder
+
+Each inline will be wrapped in its own div, containing a class named after their respective command.
 
 In addition, an optional `src/header.html` and `src/footer.html` will be prepended/appended to each produced html file.
 

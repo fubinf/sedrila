@@ -34,7 +34,7 @@ class Tests(unittest.TestCase):
         footer = self.environment.content("src/footer.html", True, "")
         content = self.environment.content("index.html").removesuffix(footer)
         #links should be present and wrapped in some way!
-        resource_regex = r'(?:<(\S+)(?:\s[^>]+)?>\s*<a href="https://example.org/(\d+)">Link \2</a>\s*</\1>\s*){2}$'
+        resource_regex = r'<div class="resources">\s*(?:<(\S+)(?:\s[^>]+)?>\s*<a href="https://example.org/(\d+)">Link \2</a>\s*</\1>\s*){2}\s*</div>$'
         self.assertIsNotNone(re.search(resource_regex, content))
 
     def test_inlining(self):
@@ -43,7 +43,7 @@ class Tests(unittest.TestCase):
         #direct inline
         self.assertIn("inlined index", content)
         #overview
-        overview_regex = r'<div class="overview"><a href="inline/index.html">Inline Title</a>(.*)inlined overview(.*)</div>'
+        overview_regex = r'<div class="overview">(.*)<h2><a href="inline/index.html">Inline Title</a></h2>(.*)inlined overview(.*)</div>'
         self.assertIsNotNone(re.search(overview_regex, content, re.DOTALL))
 
     def test_toc(self):
