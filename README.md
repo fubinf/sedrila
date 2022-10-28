@@ -1,7 +1,7 @@
 # sedrila
 Tool infrastructure for building and running "self-driven lab" courses
 
-#Overview
+# Overview
 
 This will map markdown files present in `content` to html files in the target directory `out` in the same directory structure.
 Files that are not markdown files will be copied over.
@@ -46,3 +46,20 @@ Running main.py will produce the target directory if missing.
 If called with the optional argument `clean`, it will remove that directory beforehand.
 
 If called with the optional argument `test`, it will instead run some unit tests
+
+
+# Installation
+
+User installation (not yet implemented):
+```
+pip install sedrila
+```
+(Eventually, we will probably want to use a method that results in an executable.)
+
+Developer installation (probably in a fresh venv):
+```
+git clone git@github.com:fubinf/sedrila.git
+cd sedrila
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+```
