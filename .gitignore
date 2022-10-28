@@ -1,5 +1,8 @@
-# own output directory
+# sedrila
+*~
 out/
+out.bak/
+.idea/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -11,7 +14,6 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
 develop-eggs/
 dist/
 downloads/
