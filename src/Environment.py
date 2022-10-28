@@ -35,6 +35,10 @@ class Environment():
     def run(self):
         if not os.path.isdir(self.content_dir):
             exit("No source directory found at {}".format(self.content_dir))
+        if os.path.isfile(os.path.join("src", "style.css")):
+            shutil.copy(os.path.join("src", "style.css"), self.out_dir)
+        if os.path.isfile(os.path.join("src", "script.js")):
+            shutil.copy(os.path.join("src", "script.js"), self.out_dir)
         import src.Markdown
         ext = src.Markdown.Markdown(self.content_dir, self.out_dir, self.toc_depth)
         for root, subdirs, files in os.walk(self.content_dir):

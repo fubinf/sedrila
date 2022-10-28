@@ -110,6 +110,14 @@ class Blocks(markdown.blockprocessors.BlockProcessor):
                     content = etree.fromstring(content)
                     for child in content:
                         div.append(child)
+                    hints = self.outer.metadata_all(name, "hint", [])
+                    for hint in hints:
+                        button = etree.SubElement(div, "button")
+                        button.set("type", "button")
+                        button.set("class", "collapsible")
+                        hintdiv = etree.SubElement(div, "div")
+                        hintdiv.set("class", "hint")
+                        self.parser.parseBlocks(hintdiv, [hint])
 
 class Surrounding(markdown.postprocessors.Postprocessor):
     def __init__(self, outer,  *args, **kwargs):
@@ -136,6 +144,9 @@ class Surrounding(markdown.postprocessors.Postprocessor):
             if os.path.isfile(os.path.join(self.outer.content_dir, customfooter)):
                 with open(os.path.join(self.outer.content_dir, customfooter), "r", encoding="utf8") as f:
                     footer = f.read()
+        relativeroot = "".join(["../"] * (self.outer.out_name().count(os.path.sep) - 1))
+        header = header.replace("{root}", relativeroot)
+        footer = footer.replace("{root}", relativeroot)
         return header + text + footer
 
 class Markdown():
@@ -150,6 +161,10 @@ class Markdown():
         self.md.postprocessors.register(Surrounding(self, self.md), "proprasurroundings", 100)
 
     def metadata(self, file_or_key, filekey = None):
+        metadata = self.metadata_all(file_or_key, filekey, [None])
+        return metadata[0]
+
+    def metadata_all(self, file_or_key, filekey = None, fallback = None):
         if filekey:
             metadata = self.inlines[file_or_key]["meta"]
             key = filekey
@@ -157,8 +172,8 @@ class Markdown():
             metadata = self.md.Meta
             key = file_or_key
         if metadata and key in metadata:
-            return metadata[key][0]
-        return None
+            return metadata[key]
+        return fallback
 
     def toc_entry(self):
         return {"entries": {}, "file": None, "title": None}
