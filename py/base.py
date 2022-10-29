@@ -9,6 +9,28 @@ StrMap = tg.Mapping[str, str]
 StrAnyMap = tg.Mapping[str, tg.Any]  # JSON or YAML structures
 
 
+def read_and_check(d: StrAnyMap, target: tg.Any, m_attrs: str, o_attrs: str, f_attrs: str):
+    """
+    Transports data from YAML or JSON mapping 'd' to class object 'target' and checks attribute set of d.
+    m_attrs, o_attrs, and f_attrs are comma-separated attribute name lists.
+    m_attrs and o_attrs are transported; m_attrs and f_attrs must exist; o_attrs need not exist.
+    Raises ValueError on problems.
+    E.g. read_and_check(yaml, self, "title,shorttitle,dir", "templatedir", "chapters")
+    """
+    m_names = [a.strip() for a in m_attrs.split(',')]  # mandatory
+    o_names = [a.strip() for a in o_attrs.split(',')]  # optional
+    f_names = [a.strip() for a in f_attrs.split(',')]  # further mandatory
+    d_names = set(d.keys())
+    for m in m_names:  # transport these
+        setattr(target, m, d[m])
+    for o in o_names:  # transport these if present
+        if o in d:
+            setattr(target, o, d[o])
+    extra_attrs = d_names - set(m_names) - set(o_names) - set(f_names)
+    if extra_attrs:
+        raise ValueError(f"unexpected extra attributes found: {extra_attrs}")
+
+
 def slurp(filename: str) -> str:
     with open(filename, 'rt', encoding='utf8') as f:
         return f.read()
