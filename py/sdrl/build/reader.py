@@ -11,7 +11,8 @@ def read_and_check(config: sdrl.config.Config):
         for taskgroup in chapter.taskgroups:
             filenames = glob.glob(f"{config.chapterdir}/{chapter.slug}/{taskgroup.slug}/*.md")
             for filename in filenames:
-                taskgroup.add_task(sdrl.task.Task(filename))
+                if not filename.endswith("index.md"):
+                    taskgroup.add_task(sdrl.task.Task(filename))
     check(config)
 
     
