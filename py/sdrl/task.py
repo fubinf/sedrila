@@ -23,62 +23,37 @@ class Task:
     description: str  # description: value (possibly multiple lines)
     effort: tg.Union[int, float]  # effort: (in half hours)
     difficulty: str  # difficulty: value (one of Task.difficulty_levels)
-    enthusiasm: str  # enthusiasm: value (one of Task.enthusiasm_levels)
-    depends_on: tg.Sequence[str]  # tasknames
-    todo: tg.Sequence[tg.Any]  # list of potentially YAML stuff
+    assumes: tg.Sequence[str] = []  # tasknames: This knowledge is assumed to be present
+    requires: tg.Sequence[str] = []  # tasknames: These specific results will be reused here
+    todo: tg.Sequence[tg.Any] = []  # list of potentially YAML stuff
 
     taskgroup: str  # where the task belongs according to the config
 
     def __init__(self, file: str, text: str=None):
         """Reads task from a file or multiline string."""
-        self.srcfile = file
-        if not text:
-            text = base.slurp(file)
-        parts = text.split("---\n---\n")
-        if len(parts) < 3:
-            raise ValueError(f"{self.srcfile} is not a task file: must have three parts separated by double triple-dashes")
-        self.metadata_text = parts[0]
-        self.content = parts[1]
-        self.tutorcontent = parts[2]  # possible further parts are internal notes and are ignored
-        self._read_metadata()
+        base.read_partsfile(self, file, text)
+        # ----- get taskname from filename:
+        nameparts = os.path.basename(self.srcfile).split('.')
+        assert len(nameparts) == 2  # taskname, suffix 'md'
+        self.slug = nameparts[0]  # must be globally unique
+        base.read_and_check(self.metadata, self,
+                            m_attrs='title, description, effort, difficulty',
+                            o_attrs='assumes, requires, todo',
+                            f_attrs='')
+        #----- semantic checks:
+        ...  # TODO 2
     
     @property
-    def filename(self) -> str:
+    def outputfile(self) -> str:
         return f"{self.name}.html"
 
     @property
     def name(self) -> str:
         return self.slug
 
-    def toc_link(self) -> str:
-        return f"    <a href='{self.filename}'>{self.title}</a>"
+    def toc_link(self, level=0) -> str:
+        return f"{level*'  '}{base.div(level)}<a href='{self.outputfile}'>{self.title}</a>{base.div_end(level)}"
 
-    def _read_metadata(self):
-        """Parse and check (locally only) the metadata."""
-        # ----- get taskname from filename:
-        nameparts = os.path.basename(self.srcfile).split('.')
-        assert len(nameparts) == 2  # taskname, suffix 'md'
-        self.slug = nameparts[0]  # must be globally unique
-        try:
-            #----- parse YAML data:
-            metadata = yaml.safe_load(self.metadata_text)
-        except yaml.YAMLError as exc:
-            logger.error(f"{self.srcfile}: metadata YAML is malformed: {str(exc)}")
-        try:
-            #----- get mandatory attributes from YAML:
-            self.title = metadata['title']
-            self.description = metadata['description']  # for tooltip or proper HTML
-            self.effort = metadata['effort']
-            self.difficulty = metadata['difficulty']
-        except AttributeError as exc:
-            logger.error(f"{self.srcfile}: {str(exc)}")
-        # ----- get optional attributes from YAML:
-        self.enthusiasm = getattr(metadata, 'enthusiasm', 'medium')
-        self.depends_on = self._as_list(getattr(metadata, 'depends_on', []))
-        self.todo = self._as_list(getattr(metadata, 'todo', []))
-        #----- semantic checks:
-        ...  # TODO 2
-            
     def _as_list(self, obj) -> tg.List:
         return obj if isinstance(obj, list) else list(obj)
 

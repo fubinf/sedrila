@@ -1,4 +1,4 @@
-"""Represent and handle the contents of the sedrial.yaml config file: Config, Chapter, Taskgroup."""
+"""Represent and handle the contents of the sedrila.yaml config file: Config, Chapter, Taskgroup."""
 
 import functools
 import typing as tg
@@ -22,7 +22,16 @@ class Config:
                             m_attrs='title, shorttitle', 
                             o_attrs='chapterdir, templatedir',
                             f_attrs='chapters')
+        base.read_partsfile(self, self.inputfile)
         self.chapters = [Chapter(self, ch) for ch in configdict['chapters']]
+
+    @property
+    def inputfile(self) -> str:
+        return f"{self.chapterdir}/index.md"
+
+    @property
+    def outputfile(self) -> str:
+        return "welcome.html"
 
     @functools.cached_property
     def taskdict(self) -> tg.Mapping[str, sdrl.task.Task]:
@@ -51,18 +60,23 @@ class Chapter:
                             m_attrs='title, shorttitle, slug', 
                             o_attrs='',
                             f_attrs='taskgroups')
+        base.read_partsfile(self, self.inputfile)
         self.taskgroups = [Taskgroup(self, taskgroup) for taskgroup in chapter['taskgroups']]
 
     @property
-    def filename(self) -> str:
+    def inputfile(self) -> str:
+        return f"{self.config.chapterdir}/{self.slug}/index.md"
+
+    @property
+    def outputfile(self) -> str:
         return f"chapter-{self.slug}.html"
 
     @property
     def name(self) -> str:
         return self.slug
 
-    def toc_link(self) -> str:
-        return f"<a href='{self.filename}'>{self.shorttitle}: {self.title}</a>"
+    def toc_link(self, level=0) -> str:
+        return f"{level*'  '}<a href='{self.outputfile}'>{self.shorttitle}: {self.title}</a>"
 
 
 class Taskgroup:
@@ -79,10 +93,15 @@ class Taskgroup:
                             m_attrs='title, shorttitle, slug', 
                             o_attrs='',
                             f_attrs='taskgroups')
+        base.read_partsfile(self, self.inputfile)
         self.tasks = []
 
     @property
-    def filename(self) -> str:
+    def inputfile(self) -> str:
+        return f"{self.chapter.config.chapterdir}/{self.chapter.slug}/{self.slug}/index.md"
+
+    @property
+    def outputfile(self) -> str:
         return f"{self.name}.html"
 
     @property
@@ -93,5 +112,5 @@ class Taskgroup:
         task.taskgroup = self
         self.tasks.append(task)
     
-    def toc_link(self) -> str:
-        return f"  <a href='{self.filename}'>{self.shorttitle}: {self.title}</a>"
+    def toc_link(self, level=0) -> str:
+        return f"{level*'  '}<a href='{self.outputfile}'>{self.shorttitle}: {self.title}</a>"
