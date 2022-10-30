@@ -35,10 +35,10 @@ class Task:
         nameparts = os.path.basename(self.srcfile).split('.')
         assert len(nameparts) == 2  # taskname, suffix 'md'
         self.slug = nameparts[0]  # must be globally unique
-        b.read_and_check(self.metadata, self,
-                         m_attrs='title, description, effort, difficulty',
-                         o_attrs='assumes, requires, todo',
-                         f_attrs='')
+        b.copyattrs(self.metadata, self,
+                    m_attrs='title, description, effort, difficulty',
+                    o_attrs='assumes, requires, todo',
+                    f_attrs='')
         #----- semantic checks:
         ...  # TODO 2
     
@@ -55,7 +55,14 @@ class Task:
         return self.slug
 
     def toc_link(self, level=0) -> str:
-        return h.indented_block(f"<a href='{self.outputfile}'>{self.title}</a>", level)
+        description = h.as_attribute(self.description)
+        href = f"href='{self.outputfile}'"
+        titleattr = f"title=\"{description}\""
+        difficulty = difficulty_levels[self.difficulty-1]
+        diffclass = f"class='difficulty{self.difficulty}'"
+        circle = f"<span {diffclass} title='Difficulty: {difficulty}'>{h.DIFFICULTY_SIGN}</span>"
+        effort = f"<span title='Effort: {self.effort} hours'>{self.effort}h"
+        return h.indented_block(f"<a {href} {titleattr}>{self.title}</a> {circle} {effort}", level)
 
     def _as_list(self, obj) -> tg.List:
         return obj if isinstance(obj, list) else list(obj)

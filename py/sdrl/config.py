@@ -20,16 +20,17 @@ class Config:
     def __init__(self, configfile: str):
         yamltext = b.slurp(configfile)
         configdict: b.StrAnyMap = yaml.safe_load(yamltext)
-        b.read_and_check(configdict, self,
-                         m_attrs='title, shorttitle', 
-                         o_attrs='baseresourcedir, chapterdir, templatedir',
-                         f_attrs='chapters')
+        b.copyattrs(configdict, self,
+                    m_attrs='title, shorttitle',
+                    o_attrs='baseresourcedir, chapterdir, templatedir',
+                    f_attrs='chapters')
         b.read_partsfile(self, self.inputfile)
         self.chapters = [Chapter(self, ch) for ch in configdict['chapters']]
 
     @property
     def breadcrumb_item(self) -> str:
-        return f"<a href='welcome.html'>{self.shorttitle}</a>"
+        titleattr = f"title=\"{h.as_attribute(self.title)}\""
+        return f"<a href='welcome.html' {titleattr}>{self.shorttitle}</a>"
 
     @property
     def inputfile(self) -> str:
@@ -62,16 +63,21 @@ class Chapter:
     
     def __init__(self, config: Config, chapter: b.StrAnyMap):
         self.config = config
-        b.read_and_check(chapter, self,
-                         m_attrs='title, shorttitle, slug', 
-                         o_attrs='',
-                         f_attrs='taskgroups')
+        b.copyattrs(chapter, self,
+                    m_attrs='title, shorttitle, slug',
+                    o_attrs='',
+                    f_attrs='taskgroups')
         b.read_partsfile(self, self.inputfile)
+        b.copyattrs(self.metadata, self,
+                    m_attrs='description',
+                    o_attrs='todo',
+                    f_attrs='', overwrite=False)
         self.taskgroups = [Taskgroup(self, taskgroup) for taskgroup in chapter['taskgroups']]
 
     @property
     def breadcrumb_item(self) -> str:
-        return f"<a href='{self.outputfile}'>{self.shorttitle}</a>"
+        titleattr = f"title=\"{h.as_attribute(self.title)}\""
+        return f"<a href='{self.outputfile}' {titleattr}>{self.shorttitle}</a>"
 
     @property
     def inputfile(self) -> str:
@@ -86,10 +92,12 @@ class Chapter:
         return self.slug
 
     def toc_link(self, level=0) -> str:
-        return h.indented_block(f"<a href='{self.outputfile}'>{self.title}</a>", level)
+        titleattr = f"title=\"{h.as_attribute(self.description)}\""
+        return h.indented_block(f"<a href='{self.outputfile}' {titleattr}>{self.title}</a>", level)
 
 
 class Taskgroup:
+    description: str
     title: str
     shorttitle: str
     slug: str
@@ -99,16 +107,21 @@ class Taskgroup:
 
     def __init__(self, chapter: Chapter, taskgroup: b.StrAnyMap):
         self.chapter = chapter
-        b.read_and_check(taskgroup, self,
-                         m_attrs='title, shorttitle, slug', 
-                         o_attrs='',
-                         f_attrs='taskgroups')
+        b.copyattrs(taskgroup, self,
+                    m_attrs='title, shorttitle, slug',
+                    o_attrs='',
+                    f_attrs='taskgroups')
         b.read_partsfile(self, self.inputfile)
+        b.copyattrs(self.metadata, self,
+                    m_attrs='description',
+                    o_attrs='todo',
+                    f_attrs='', overwrite=False)
         self.tasks = []
 
     @property
     def breadcrumb_item(self) -> str:
-        return f"<a href='{self.outputfile}'>{self.shorttitle}</a>"
+        titleattr = f"title=\"{h.as_attribute(self.title)}\""
+        return f"<a href='{self.outputfile}' {titleattr}>{self.shorttitle}</a>"
 
     @property
     def inputfile(self) -> str:
@@ -127,4 +140,5 @@ class Taskgroup:
         self.tasks.append(task)
     
     def toc_link(self, level=0) -> str:
-        return h.indented_block(f"<a href='{self.outputfile}'>{self.title}</a>", level)
+        titleattr = f"title=\"{h.as_attribute(self.description)}\""
+        return h.indented_block(f"<a href='{self.outputfile}' {titleattr}>{self.title}</a>", level)
