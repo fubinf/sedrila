@@ -66,34 +66,29 @@ What you need to provide as a course author:
   - The metadata is at the top of the file in Yaml format.
   - The other two parts follow below in Markdown format.
 - Tasks are arranged in groups in two levels.
-  You need to provide one description file (in Markdown format) for each group: 
+  You need to provide an `index.md` file for each group.
+  These are structured like the task files, but with fewer metadata.
   - 'chapters' (typically 3 to 6) form the top level
-  - 'taskgroups' (typically 2 to 6 per chapter) form a second level below that [not yet implemented]
+  - 'taskgroups' (typically 2 to 6 per chapter) form a second level below that
+- A central configuration file `sedrila.yaml`, which contains global configuration data,
+  global metadata and most metadata for chapters and taskgroups.
 - Header and Footer HTML fragments to be used for the rendered HTML pages
-  (simple defaults are included)
-- A CSS file (a simple default is included)
-- One YAML configuration file that specifies the chapters, groups, headers and footers,
-  some instructions for task selection etc.
+  (simple defaults are included).
+- A CSS file (a simple default is included).
 
 
 ### `sedrila.yaml`: The global configuration file
 
 This is best explained by example:
 
-```
-title: "...",
-shorttitle: "...",
-chapters:
-  - title: "...",
-    shorttitle: "...",
-    directory: "..."
-  - title: "...",
-    shorttitle: "...",
-    directory: "..."
-```
+https://github.com/fubinf/propra-inf/blob/main/sedrila.yaml
+
+
+### Templates for HTML layout
 
 The format of the resulting HTML files is determined per page type by the Jinja2 templates
 in directory `templates`.
+For examples, see https://github.com/fubinf/propra-inf/tree/main/templates
 
 
 ## 4. Instructions for teaching assistants  TODO
@@ -108,14 +103,42 @@ Start there.
 
 # Internal technical notes
 
-## src/*
+## Bookkeeping architecture
+
+In a nutshell, the bookkeeping of _actual_ work hours worked by a student 
+and of _"earned value"_ effort hours accredited by an instructure
+is based on the following ideas:
+
+- When students commit a partial or completed task XYZ, they use a prescribed format for the commit message:  
+  `XYZ 1:23  my personal commit message`  
+  where `XYZ` is the official name of the task and
+  `1:23` means the student has worked 1 hour and 23 minutes for this commit.
+- A script can collect, accumulate, and tabulate these actual efforts for the student's information.
+  This is also useful to evidence-based improvement of the course contents.
+- When students want to show a set of solutions for tasks to an instructor,
+  they write the task names to a file `to_be_checked.yaml`
+- The instructor checks those tasks, adds checking results into that file,
+  and commits it. This commmit is cryptographcally signed.
+  The commit message says `to_be_checked.yaml checked`.
+- `sedrila.yaml` lists all instructors and their public keys.
+  This file is published along with the webpages.
+- `tasks.yaml` lists the effort values for each task and is also published along with the webpages.
+- The script that computes the "value earned" effort hours uses these two files to
+  - find all `to_be_checked.yaml checked` commits that were made by an instructor
+  - extract the list of accepted tasks from them, and
+  - tabulate those tasks and compute the total earned value hours for them.
+- That script can also tabulate what the instructor did not accept, which makes practical
+  a rule that says a task will only count if it gets accepted no later than upon second (or third?) try.
+
+
+## `src/*` (outdated, some parts to be taken over to new architecture)
 
 This will map markdown files present in `content` to html files in the target directory `out` in the same directory structure.
 Files that are not markdown files will be copied over.
 
 Be aware that starting files with hyperlinks will confuse the meta data plugin.
 
-Costum made commands:
+Custom commands:
 
 * `!toc` will create a table of contents up to a depth of 2. It reads the `title` meta data
 
@@ -146,7 +169,7 @@ In addition, an optional `src/header.html` and `src/footer.html` will be prepend
 
 You can define alternative header and footer files on a per file basis via the `header` and `footer` meta data. Please note that this will override both, even if only one of them is provided,
 
-### Usage
+**Usage**
 
 Running main.py will produce the target directory if missing.
 
