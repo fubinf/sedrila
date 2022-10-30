@@ -14,23 +14,27 @@ StrMap = tg.Mapping[str, str]
 StrAnyMap = tg.Mapping[str, tg.Any]  # JSON or YAML structures
 
 
-def read_and_check(d: StrAnyMap, target: tg.Any, m_attrs: str, o_attrs: str, f_attrs: str):
+def copyattrs(d: StrAnyMap, target: tg.Any, m_attrs: str, o_attrs: str, f_attrs: str, overwrite=True):
     """
-    Transports data from YAML or JSON mapping 'd' to class object 'target' and checks attribute set of d.
+    Copies data from YAML or JSON mapping 'd' to class object 'target' and checks attribute set of d.
     m_attrs, o_attrs, and f_attrs are comma-separated attribute name lists.
-    m_attrs and o_attrs are transported; m_attrs and f_attrs must exist; o_attrs need not exist.
+    m_attrs and o_attrs are copied; m_attrs and f_attrs must exist; o_attrs need not exist.
+    If overwrite is False, fails if attribute already exists in target.
     Raises ValueError on problems.
-    E.g. read_and_check(yaml, self, "title,shorttitle,dir", "templatedir", "chapters")
+    E.g. copyattrs(yaml, self, "title,shorttitle,dir", "templatedir", "chapters")
     """
+    def mysetattr(obj, name, value):
+        if overwrite or not hasattr(target, name):
+            setattr(obj, name, value)
     m_names = [a.strip() for a in m_attrs.split(',')]  # mandatory
     o_names = [a.strip() for a in o_attrs.split(',')]  # optional
     f_names = [a.strip() for a in f_attrs.split(',')]  # further mandatory
     d_names = set(d.keys())
     for m in m_names:  # transport these
-        setattr(target, m, d[m])
+        mysetattr(target, m, d[m])
     for o in o_names:  # transport these if present
         if o in d:
-            setattr(target, o, d[o])
+            mysetattr(target, o, d[o])
     extra_attrs = d_names - set(m_names) - set(o_names) - set(f_names)
     if extra_attrs:
         raise ValueError(f"unexpected extra attributes found: {extra_attrs}")
