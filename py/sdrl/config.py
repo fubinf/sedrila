@@ -11,6 +11,7 @@ import sdrl.task
 class Config:
     title: str
     shorttitle: str
+    baseresourcedir: str = 'baseresources'
     chapterdir: str = 'ch'
     templatedir: str = 'templates'
     chapters: tg.Sequence['Chapter']
@@ -20,7 +21,7 @@ class Config:
         configdict: base.StrAnyMap = yaml.safe_load(yamltext)
         base.read_and_check(configdict, self,
                             m_attrs='title, shorttitle', 
-                            o_attrs='chapterdir, templatedir',
+                            o_attrs='baseresourcedir, chapterdir, templatedir',
                             f_attrs='chapters')
         base.read_partsfile(self, self.inputfile)
         self.chapters = [Chapter(self, ch) for ch in configdict['chapters']]

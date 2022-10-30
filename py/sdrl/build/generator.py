@@ -1,4 +1,5 @@
 import argparse
+import glob
 import os
 import os.path
 import shutil
@@ -23,6 +24,9 @@ def generate(pargs: argparse.Namespace, config: conf.Config):
     clean_targetdir(pargs.targetdir, markerfile=f"_{base.CONFIG_FILENAME}")
     shutil.copyfile(base.CONFIG_FILENAME, f"{pargs.targetdir}/_{base.CONFIG_FILENAME}")  # mark dir as a SeDriLa instance
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(config.templatedir), autoescape=False)
+    #----- copy baseresources:
+    for filename in glob.glob(f"{config.baseresourcedir}/*"):
+        shutil.copy(filename, pargs.targetdir)
     #----- add tocs to upper structure parts:
     config.toc = toc(config)
     for chapter in config.chapters:
