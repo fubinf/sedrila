@@ -14,11 +14,17 @@ StrMap = tg.Mapping[str, str]
 StrAnyMap = tg.Mapping[str, tg.Any]  # JSON or YAML structures
 
 
+def breadcrumb(*args):
+    """Renders breadcrumb HTML fragment from list of items with breadcrumb_item property."""
+    SEPARATOR = " > "
+    return "<div>%s</div>" % SEPARATOR.join([arg.breadcrumb_item for arg in args])
+
+
 def div(level: tg.Optional[int]) -> str:
     if level is None:
         return "<span>"
     else:
-        return f"<div class='indent{max(level,4)}'>"
+        return f"<div class='indent{min(level,4)}'>"
 
 
 def div_end(level: tg.Optional[int]) -> str:

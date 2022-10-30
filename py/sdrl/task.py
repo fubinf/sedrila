@@ -44,6 +44,10 @@ class Task:
         ...  # TODO 2
     
     @property
+    def breadcrumb_item(self) -> str:
+        return f"<a href='{self.outputfile}'>{self.slug}</a>"
+
+    @property
     def outputfile(self) -> str:
         return f"{self.name}.html"
 

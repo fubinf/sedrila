@@ -62,7 +62,9 @@ def clean_targetdir(targetdir: str, markerfile: str):
 
 def render_welcome(config: conf.Config, env, targetdir: str):
     template = env.get_template("welcome.html")
-    output = template.render(title=config.title,
+    output = template.render(sitetitle=config.title,
+                             breadcrumb=base.breadcrumb(config),
+                             title=config.title,
                              toc=config.toc, fulltoc=config.toc, 
                              content=markdown.markdown(config.content))
     base.spit(f"{targetdir}/{config.outputfile}", output)
@@ -70,7 +72,9 @@ def render_welcome(config: conf.Config, env, targetdir: str):
 
 def render_chapter(chapter: sdrl.config.Chapter, env, targetdir: str):
     template = env.get_template("chapter.html")
-    output = template.render(title=chapter.title,
+    output = template.render(sitetitle=chapter.config.title,
+                             breadcrumb=base.breadcrumb(chapter.config, chapter),
+                             title=chapter.title,
                              toc=chapter.toc, fulltoc=chapter.config.toc, 
                              content=markdown.markdown(chapter.content))
     base.spit(f"{targetdir}/{chapter.outputfile}", output)
@@ -78,7 +82,9 @@ def render_chapter(chapter: sdrl.config.Chapter, env, targetdir: str):
 
 def render_taskgroup(taskgroup: sdrl.config.Taskgroup, env, targetdir: str):
     template = env.get_template("taskgroup.html")
-    output = template.render(title=taskgroup.title,
+    output = template.render(sitetitle=taskgroup.chapter.config.title,
+                             breadcrumb=base.breadcrumb(taskgroup.chapter.config, taskgroup.chapter, taskgroup),
+                             title=taskgroup.title,
                              toc=taskgroup.toc, fulltoc=taskgroup.chapter.config.toc, 
                              content=markdown.markdown(taskgroup.content))
     base.spit(f"{targetdir}/{taskgroup.outputfile}", output)
@@ -86,7 +92,10 @@ def render_taskgroup(taskgroup: sdrl.config.Taskgroup, env, targetdir: str):
 
 def render_task(task: sdrl.task.Task, env, targetdir: str):
     template = env.get_template("task.html")
-    output = template.render(title=task.title,
+    output = template.render(sitetitle=task.taskgroup.chapter.config.title,
+                             breadcrumb=base.breadcrumb(task.taskgroup.chapter.config, task.taskgroup.chapter, 
+                                                        task.taskgroup, task),
+                             title=task.title,
                              toc=task.taskgroup.toc, fulltoc=task.taskgroup.chapter.config.toc, 
                              content=markdown.markdown(task.content))
     base.spit(f"{targetdir}/{task.outputfile}", output)
@@ -95,6 +104,7 @@ def render_task(task: sdrl.task.Task, env, targetdir: str):
 def toc(structure: Structurepart, level=0) -> str:
     """Return a table-of-contents HTML fragment for the given structure via structural recursion."""
     result = []
+    print(f"toc({structure}, {level})")
     if isinstance(structure, conf.Config):
         for chapter in structure.chapters:
             result.append(toc(chapter, level))

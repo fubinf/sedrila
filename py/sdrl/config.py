@@ -27,6 +27,10 @@ class Config:
         self.chapters = [Chapter(self, ch) for ch in configdict['chapters']]
 
     @property
+    def breadcrumb_item(self) -> str:
+        return f"<a href='welcome.html'>{self.shorttitle}</a>"
+
+    @property
     def inputfile(self) -> str:
         return f"{self.chapterdir}/index.md"
 
@@ -65,6 +69,10 @@ class Chapter:
         self.taskgroups = [Taskgroup(self, taskgroup) for taskgroup in chapter['taskgroups']]
 
     @property
+    def breadcrumb_item(self) -> str:
+        return f"<a href='{self.outputfile}'>{self.shorttitle}</a>"
+
+    @property
     def inputfile(self) -> str:
         return f"{self.config.chapterdir}/{self.slug}/index.md"
 
@@ -77,7 +85,7 @@ class Chapter:
         return self.slug
 
     def toc_link(self, level=0) -> str:
-        return f"{level*'  '}<a href='{self.outputfile}'>{self.shorttitle}: {self.title}</a>"
+        return f"{level * '  '}{base.div(level)}<a href='{self.outputfile}'>{self.title}</a>{base.div_end(level)}"
 
 
 class Taskgroup:
@@ -98,6 +106,10 @@ class Taskgroup:
         self.tasks = []
 
     @property
+    def breadcrumb_item(self) -> str:
+        return f"<a href='{self.outputfile}'>{self.shorttitle}</a>"
+
+    @property
     def inputfile(self) -> str:
         return f"{self.chapter.config.chapterdir}/{self.chapter.slug}/{self.slug}/index.md"
 
@@ -114,4 +126,4 @@ class Taskgroup:
         self.tasks.append(task)
     
     def toc_link(self, level=0) -> str:
-        return f"{level*'  '}<a href='{self.outputfile}'>{self.shorttitle}: {self.title}</a>"
+        return f"{level * '  '}{base.div(level)}<a href='{self.outputfile}'>{self.title}</a>{base.div_end(level)}"
