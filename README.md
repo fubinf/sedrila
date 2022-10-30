@@ -77,14 +77,14 @@ What you need to provide as a course author:
 - A CSS file (a simple default is included).
 
 
-### `sedrila.yaml`: The global configuration file
+### 3.1 `sedrila.yaml`: The global configuration file
 
 This is best explained by example:
 
 https://github.com/fubinf/propra-inf/blob/main/sedrila.yaml
 
 
-### Templates for HTML layout
+### 3.2 Templates for HTML layout
 
 The format of the resulting HTML files is determined per page type by the Jinja2 templates
 in directory `templates`.
@@ -101,9 +101,9 @@ Your instructors need to tell you where that lives.
 Start there.
 
 
-# Internal technical notes
+# 6. Internal technical notes
 
-## Bookkeeping architecture
+## 6.1 Bookkeeping architecture
 
 In a nutshell, the bookkeeping of _actual_ work hours worked by a student 
 and of _"earned value"_ effort hours accredited by an instructure
@@ -131,7 +131,7 @@ is based on the following ideas:
   a rule that says a task will only count if it gets accepted no later than upon second (or third?) try.
 
 
-## `src/*` (outdated, some parts to be taken over to new architecture)
+## 6.2 `src/*` (outdated, some parts to be taken over to new architecture)
 
 This will map markdown files present in `content` to html files in the target directory `out` in the same directory structure.
 Files that are not markdown files will be copied over.
