@@ -8,8 +8,9 @@ import typing as tg
 import jinja2
 import markdown
 
-import base
+import base as b
 import sdrl.config as conf
+import sdrl.html as h
 import sdrl.task
 
 Structurepart = tg.Union[conf.Config, conf.Chapter, conf.Taskgroup, sdrl.task.Task]
@@ -21,8 +22,8 @@ def generate(pargs: argparse.Namespace, config: conf.Config):
     the link generation.
     Uses the basenames of the chapter and taskgroup directories as keys.
     """
-    clean_targetdir(pargs.targetdir, markerfile=f"_{base.CONFIG_FILENAME}")
-    shutil.copyfile(base.CONFIG_FILENAME, f"{pargs.targetdir}/_{base.CONFIG_FILENAME}")  # mark dir as a SeDriLa instance
+    clean_targetdir(pargs.targetdir, markerfile=f"_{b.CONFIG_FILENAME}")
+    shutil.copyfile(b.CONFIG_FILENAME, f"{pargs.targetdir}/_{b.CONFIG_FILENAME}")  # mark dir as a SeDriLa instance
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(config.templatedir), autoescape=False)
     #----- copy baseresources:
     for filename in glob.glob(f"{config.baseresourcedir}/*"):
@@ -63,48 +64,47 @@ def clean_targetdir(targetdir: str, markerfile: str):
 def render_welcome(config: conf.Config, env, targetdir: str):
     template = env.get_template("welcome.html")
     output = template.render(sitetitle=config.title,
-                             breadcrumb=base.breadcrumb(config),
+                             breadcrumb=h.breadcrumb(config),
                              title=config.title,
-                             toc=config.toc, fulltoc=config.toc, 
+                             toc=config.toc, fulltoc=config.toc,
                              content=markdown.markdown(config.content))
-    base.spit(f"{targetdir}/{config.outputfile}", output)
+    b.spit(f"{targetdir}/{config.outputfile}", output)
 
 
 def render_chapter(chapter: sdrl.config.Chapter, env, targetdir: str):
     template = env.get_template("chapter.html")
     output = template.render(sitetitle=chapter.config.title,
-                             breadcrumb=base.breadcrumb(chapter.config, chapter),
+                             breadcrumb=h.breadcrumb(chapter.config, chapter),
                              title=chapter.title,
-                             toc=chapter.toc, fulltoc=chapter.config.toc, 
+                             toc=chapter.toc, fulltoc=chapter.config.toc,
                              content=markdown.markdown(chapter.content))
-    base.spit(f"{targetdir}/{chapter.outputfile}", output)
+    b.spit(f"{targetdir}/{chapter.outputfile}", output)
 
 
 def render_taskgroup(taskgroup: sdrl.config.Taskgroup, env, targetdir: str):
     template = env.get_template("taskgroup.html")
     output = template.render(sitetitle=taskgroup.chapter.config.title,
-                             breadcrumb=base.breadcrumb(taskgroup.chapter.config, taskgroup.chapter, taskgroup),
+                             breadcrumb=h.breadcrumb(taskgroup.chapter.config, taskgroup.chapter, taskgroup),
                              title=taskgroup.title,
-                             toc=taskgroup.toc, fulltoc=taskgroup.chapter.config.toc, 
+                             toc=taskgroup.toc, fulltoc=taskgroup.chapter.config.toc,
                              content=markdown.markdown(taskgroup.content))
-    base.spit(f"{targetdir}/{taskgroup.outputfile}", output)
+    b.spit(f"{targetdir}/{taskgroup.outputfile}", output)
 
 
 def render_task(task: sdrl.task.Task, env, targetdir: str):
     template = env.get_template("task.html")
     output = template.render(sitetitle=task.taskgroup.chapter.config.title,
-                             breadcrumb=base.breadcrumb(task.taskgroup.chapter.config, task.taskgroup.chapter, 
-                                                        task.taskgroup, task),
+                             breadcrumb=h.breadcrumb(task.taskgroup.chapter.config, task.taskgroup.chapter,
+                                                     task.taskgroup, task),
                              title=task.title,
                              toc=task.taskgroup.toc, fulltoc=task.taskgroup.chapter.config.toc, 
                              content=markdown.markdown(task.content))
-    base.spit(f"{targetdir}/{task.outputfile}", output)
+    b.spit(f"{targetdir}/{task.outputfile}", output)
 
 
 def toc(structure: Structurepart, level=0) -> str:
     """Return a table-of-contents HTML fragment for the given structure via structural recursion."""
     result = []
-    print(f"toc({structure}, {level})")
     if isinstance(structure, conf.Config):
         for chapter in structure.chapters:
             result.append(toc(chapter, level))

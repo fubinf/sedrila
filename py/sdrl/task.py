@@ -3,9 +3,8 @@ import logging
 import os.path
 import typing as tg
 
-import yaml
-
-import base
+import base as b
+import sdrl.html as h
 
 logger = logging.getLogger()
 
@@ -31,15 +30,15 @@ class Task:
 
     def __init__(self, file: str, text: str=None):
         """Reads task from a file or multiline string."""
-        base.read_partsfile(self, file, text)
+        b.read_partsfile(self, file, text)
         # ----- get taskname from filename:
         nameparts = os.path.basename(self.srcfile).split('.')
         assert len(nameparts) == 2  # taskname, suffix 'md'
         self.slug = nameparts[0]  # must be globally unique
-        base.read_and_check(self.metadata, self,
-                            m_attrs='title, description, effort, difficulty',
-                            o_attrs='assumes, requires, todo',
-                            f_attrs='')
+        b.read_and_check(self.metadata, self,
+                         m_attrs='title, description, effort, difficulty',
+                         o_attrs='assumes, requires, todo',
+                         f_attrs='')
         #----- semantic checks:
         ...  # TODO 2
     
@@ -56,7 +55,7 @@ class Task:
         return self.slug
 
     def toc_link(self, level=0) -> str:
-        return f"{level*'  '}{base.div(level)}<a href='{self.outputfile}'>{self.title}</a>{base.div_end(level)}"
+        return h.indented_block(f"<a href='{self.outputfile}'>{self.title}</a>", level)
 
     def _as_list(self, obj) -> tg.List:
         return obj if isinstance(obj, list) else list(obj)

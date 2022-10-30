@@ -5,7 +5,8 @@ import typing as tg
 
 import yaml
 
-import base
+import base as b
+import sdrl.html as h
 import sdrl.task
 
 class Config:
@@ -17,13 +18,13 @@ class Config:
     chapters: tg.Sequence['Chapter']
     
     def __init__(self, configfile: str):
-        yamltext = base.slurp(configfile)
-        configdict: base.StrAnyMap = yaml.safe_load(yamltext)
-        base.read_and_check(configdict, self,
-                            m_attrs='title, shorttitle', 
-                            o_attrs='baseresourcedir, chapterdir, templatedir',
-                            f_attrs='chapters')
-        base.read_partsfile(self, self.inputfile)
+        yamltext = b.slurp(configfile)
+        configdict: b.StrAnyMap = yaml.safe_load(yamltext)
+        b.read_and_check(configdict, self,
+                         m_attrs='title, shorttitle', 
+                         o_attrs='baseresourcedir, chapterdir, templatedir',
+                         f_attrs='chapters')
+        b.read_partsfile(self, self.inputfile)
         self.chapters = [Chapter(self, ch) for ch in configdict['chapters']]
 
     @property
@@ -59,13 +60,13 @@ class Chapter:
     config: Config
     taskgroups: tg.Sequence['Taskgroup']
     
-    def __init__(self, config: Config, chapter: base.StrAnyMap):
+    def __init__(self, config: Config, chapter: b.StrAnyMap):
         self.config = config
-        base.read_and_check(chapter, self,
-                            m_attrs='title, shorttitle, slug', 
-                            o_attrs='',
-                            f_attrs='taskgroups')
-        base.read_partsfile(self, self.inputfile)
+        b.read_and_check(chapter, self,
+                         m_attrs='title, shorttitle, slug', 
+                         o_attrs='',
+                         f_attrs='taskgroups')
+        b.read_partsfile(self, self.inputfile)
         self.taskgroups = [Taskgroup(self, taskgroup) for taskgroup in chapter['taskgroups']]
 
     @property
@@ -85,7 +86,7 @@ class Chapter:
         return self.slug
 
     def toc_link(self, level=0) -> str:
-        return f"{level * '  '}{base.div(level)}<a href='{self.outputfile}'>{self.title}</a>{base.div_end(level)}"
+        return h.indented_block(f"<a href='{self.outputfile}'>{self.title}</a>", level)
 
 
 class Taskgroup:
@@ -96,13 +97,13 @@ class Taskgroup:
     chapter: Chapter
     tasks: tg.List[sdrl.task.Task]
 
-    def __init__(self, chapter: Chapter, taskgroup: base.StrAnyMap):
+    def __init__(self, chapter: Chapter, taskgroup: b.StrAnyMap):
         self.chapter = chapter
-        base.read_and_check(taskgroup, self,
-                            m_attrs='title, shorttitle, slug', 
-                            o_attrs='',
-                            f_attrs='taskgroups')
-        base.read_partsfile(self, self.inputfile)
+        b.read_and_check(taskgroup, self,
+                         m_attrs='title, shorttitle, slug', 
+                         o_attrs='',
+                         f_attrs='taskgroups')
+        b.read_partsfile(self, self.inputfile)
         self.tasks = []
 
     @property
@@ -126,4 +127,4 @@ class Taskgroup:
         self.tasks.append(task)
     
     def toc_link(self, level=0) -> str:
-        return f"{level * '  '}{base.div(level)}<a href='{self.outputfile}'>{self.title}</a>{base.div_end(level)}"
+        return h.indented_block(f"<a href='{self.outputfile}'>{self.title}</a>", level)
