@@ -54,6 +54,8 @@ git clone git@github.com:fubinf/sedrila.git
 cd sedrila
 pip install -r requirements.txt
 pip install -r requirements-dev.txt
+source /absolute/path/to/sedrila/cmd/attach_sedrila.bash.inc
+sedrila --help
 ```
 
 
