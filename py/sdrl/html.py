@@ -1,7 +1,7 @@
 """sedrila-specific HTML generation helper routines."""
 import typing as tg
 
-DIFFICULTY_SIGN = "&#x29f3;"  # &#x26ab; is always black, &#x23f9; and &#x23fa; are wrong blue symbols on Chrome and Edge
+DIFFICULTY_SIGN = "&#x26ab;&#xfe0e;"  # &#x26ab; is an icon and always black, &#xfe0e; is the text-variant selector
 # https://commons.wikimedia.org/wiki/Unicode_circle_shaped_symbols
 
 def as_attribute(text: str) -> str:
