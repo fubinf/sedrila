@@ -28,7 +28,7 @@
 
 ### 1.2 What does the `sedrila` tool do?
 
-It has these functions:
+It has these functions (the list is very preliminary):
 
 - `build` generates a SeDriLa instance from a SeDriLa template.  
   - The template is a directory tree 
@@ -36,8 +36,8 @@ It has these functions:
     with a prescribed structure that contains all the task descriptions.
   - The instance is a directory tree of static HTML pages.
   - The generation is controlled by a configuration file.
-- `evaluate` supports the teaching assistant.
-- `howfarami` tells the students how many hours are on their workhours account so far.
+- `evaluate` supports the teaching assistant.  TODO 3
+- `howfarami` tells the students how many hours are on their workhours account so far.  TODO 2
 
 
 ## 2. Installation
@@ -131,6 +131,27 @@ is based on the following ideas:
   - tabulate those tasks and compute the total earned value hours for them.
 - That script can also tabulate what the instructor did not accept, which makes practical
   a rule that says a task will only count if it gets accepted no later than upon second (or third?) try.
+
+
+## 6.2 TODO handling
+
+If something is incomplete, add a TODO marker with a priorization digit:
+- `TODO 1`: to be completed soon (within a few days)
+- `TODO 2`: to be completed once the prio 1 things are done (within days or a few weeks)
+- `TODO 3`: to be completed at some later time (usually several weeks or more into the future)
+  because it is big or never because it is not-so-important ("nice-to-have features")
+
+Add a short description of what needs to be done. Examples:
+- `TODO 1: find proper formulation`
+- `TODO 2: restructure to use ACME lib`
+- `TODO 3: add topological sorting`
+
+If you intend to do it yourself, add your name in parens:  
+`TODO 1: find proper formulation (Lutz)`
+
+Then use the IDE global search to work through these layer-by-layer.
+Demote items to a lower priority (or remove them) when they become stale.
+Kick out prio 3 items when they become unlikely.
 
 
 ## 6.2 `src/*` (outdated, some parts to be taken over to new architecture)
