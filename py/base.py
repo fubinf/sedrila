@@ -1,4 +1,5 @@
 """Shortcut typenames, global constants, basic helpers."""
+import enum
 import logging
 import typing as tg
 
@@ -12,6 +13,11 @@ TEMPLATES_DIR = "templates"
 OStr = tg.Optional[str]
 StrMap = tg.Mapping[str, str]
 StrAnyMap = tg.Mapping[str, tg.Any]  # JSON or YAML structures
+
+
+class Mode(enum.Enum):
+    STUDENT = "student"
+    INSTRUCTOR = "instructor"
 
 
 def copyattrs(d: StrAnyMap, target: tg.Any, m_attrs: str, o_attrs: str, f_attrs: str, overwrite=True):
