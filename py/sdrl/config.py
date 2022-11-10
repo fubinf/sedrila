@@ -9,9 +9,31 @@ import base as b
 import sdrl.html as h
 import sdrl.task
 
-class Config:
+class Item:
+    """Common superclass for Config (=course), Chapter, Taskgroup (but not Task, although similar)."""
     title: str
     shorttitle: str
+    metadata: b.StrAnyMap  # the YAML front matter
+    content: str
+    teachercontent: str
+    othercontent: str
+    toc: str
+
+    @property
+    def breadcrumb_item(self) -> str:
+        return "(undefined)"
+
+    @property
+    def inputfile(self) -> str:
+        return "(undefined)"
+
+    @property
+    def outputfile(self) -> str:
+        return "(undefined)"
+
+
+class Config(Item):
+    """The global configuration for this run."""
     baseresourcedir: str = 'baseresources'
     chapterdir: str = 'ch'
     templatedir: str = 'templates'
@@ -53,11 +75,8 @@ class Config:
                 for task in taskgroup.tasks:
                     yield task
 
-class Chapter:
-    title: str
-    shorttitle: str
+class Chapter(Item):
     slug: str
-    
     config: Config
     taskgroups: tg.Sequence['Taskgroup']
     
@@ -96,12 +115,9 @@ class Chapter:
         return h.indented_block(f"<a href='{self.outputfile}' {titleattr}>{self.title}</a>", level)
 
 
-class Taskgroup:
+class Taskgroup(Item):
     description: str
-    title: str
-    shorttitle: str
     slug: str
-    
     chapter: Chapter
     tasks: tg.List[sdrl.task.Task]
 

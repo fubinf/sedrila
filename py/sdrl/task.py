@@ -14,8 +14,9 @@ enthusiasm_levels = ('none', 'low', 'medium', 'high')
 class Task:
     srcfile: str  # the originating pathname
     metadata_text: str  # the entire YAML character stream
+    metadata: b.StrAnyMap  # the YAML front matter
     content: str  # the entire first markdown block
-    tutorcontent: str  # the entire second markdown block
+    teachercontent: str  # the entire second markdown block
     slug: str  # the key by which we access the Task object
     
     title: str  # title: value
