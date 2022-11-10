@@ -50,7 +50,7 @@ def read_partsfile(self, file: str, text: str = None):
     """
     Read file with 3+ double triple dash separated parts. Store parts data in self:
     part 1 in self.metadata_text and self.metadata,
-    part 2 in self.content, part 3 in self.teachercontent, parts 4..n in self.othercontents.
+    part 2 in self.content, part 3 in self.instructorcontent, parts 4..n in self.othercontents.
     Complain if there are fewer than 3 parts or metadata is not YAML.
     """
     #----- obtain file contents:
@@ -64,7 +64,7 @@ def read_partsfile(self, file: str, text: str = None):
                          (self.srcfile, len(parts)))
     self.metadata_text = parts[0]
     self.content = parts[1]
-    self.teachercontent = parts[2] 
+    self.instructorcontent = parts[2] 
     self.othercontents = parts[3:]
     #----- parse metadata
     try:

@@ -15,7 +15,7 @@ class Item:
     shorttitle: str
     metadata: b.StrAnyMap  # the YAML front matter
     content: str
-    teachercontent: str
+    instructorcontent: str
     othercontent: str
     toc: str
 

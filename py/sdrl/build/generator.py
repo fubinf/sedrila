@@ -83,7 +83,7 @@ def render_welcome(config: conf.Config, env, targetdir: str, mode: b.Mode):
     b.spit(f"{targetdir}/{config.outputfile}", output)
 
 
-def render_chapter(chapter: sdrl.config.Chapter, env, targetdir: str, mode: b.Mode):
+def render_chapter(chapter: conf.Chapter, env, targetdir: str, mode: b.Mode):
     template = env.get_template("chapter.html")
     output = template.render(sitetitle=chapter.config.title,
                              breadcrumb=h.breadcrumb(chapter.config, chapter),
@@ -93,7 +93,7 @@ def render_chapter(chapter: sdrl.config.Chapter, env, targetdir: str, mode: b.Mo
     b.spit(f"{targetdir}/{chapter.outputfile}", output)
 
 
-def render_taskgroup(taskgroup: sdrl.config.Taskgroup, env, targetdir: str, mode: b.Mode):
+def render_taskgroup(taskgroup: conf.Taskgroup, env, targetdir: str, mode: b.Mode):
     template = env.get_template("taskgroup.html")
     output = template.render(sitetitle=taskgroup.chapter.config.title,
                              breadcrumb=h.breadcrumb(taskgroup.chapter.config, taskgroup.chapter, taskgroup),
@@ -136,7 +136,7 @@ def toc(structure: Structurepart, level=0) -> str:
 
 
 def _content_for(item, mode: b.Mode) -> str:
-    return      item.content if mode == b.Mode.STUDENT else item.teachercontent
+    return      item.content if mode == b.Mode.STUDENT else item.instructorcontent
 
 
 def _instructor_targetdir(pargs: argparse.Namespace) -> str:

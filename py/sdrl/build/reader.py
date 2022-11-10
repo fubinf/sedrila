@@ -1,11 +1,10 @@
 import glob
 import typing as tg
 
-import base
-import sdrl.config
+import sdrl.config as conf
 import sdrl.task
 
-def read_and_check(config: sdrl.config.Config):
+def read_and_check(config: conf.Config):
     """Reads all task files into memory and performs consistency checking."""
     for chapter in config.chapters:
         for taskgroup in chapter.taskgroups:
@@ -16,5 +15,5 @@ def read_and_check(config: sdrl.config.Config):
     check(config)
 
     
-def check(config: sdrl.config.Config):
+def check(config: conf.Config):
     pass  # TODO 2

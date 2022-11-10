@@ -16,7 +16,7 @@ class Task:
     metadata_text: str  # the entire YAML character stream
     metadata: b.StrAnyMap  # the YAML front matter
     content: str  # the entire first markdown block
-    teachercontent: str  # the entire second markdown block
+    instructorcontent: str  # the entire second markdown block
     slug: str  # the key by which we access the Task object
     
     title: str  # title: value
