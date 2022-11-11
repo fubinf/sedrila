@@ -27,13 +27,14 @@ def generate(pargs: argparse.Namespace, config: conf.Config):
     """
     targetdir_s = pargs.targetdir  # for students
     targetdir_i = _instructor_targetdir(pargs)  # for instructors
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader(config.templatedir), autoescape=False)
+    #----- prepare directories:
     backup_targetdir(targetdir_i, markerfile=f"_{b.CONFIG_FILENAME}")  # must do _i first if it is a subdir of _s
     backup_targetdir(targetdir_s, markerfile=f"_{b.CONFIG_FILENAME}")
     os.mkdir(targetdir_s)
     os.mkdir(targetdir_i)
     shutil.copyfile(b.CONFIG_FILENAME, f"{targetdir_s}/_{b.CONFIG_FILENAME}")  # mark dir as a SeDriLa instance
     shutil.copyfile(b.CONFIG_FILENAME, f"{targetdir_i}/_{b.CONFIG_FILENAME}")  # mark dir as a SeDriLa instance
-    env = jinja2.Environment(loader=jinja2.FileSystemLoader(config.templatedir), autoescape=False)
     #----- copy baseresources:
     for filename in glob.glob(f"{config.baseresourcedir}/*"):
         shutil.copy(filename, targetdir_s)
@@ -58,6 +59,9 @@ def generate(pargs: argparse.Namespace, config: conf.Config):
     for taskname, task in config.taskdict.items():
         render_task(task, env, targetdir_s, b.Mode.STUDENT)
         render_task(task, env, targetdir_i, b.Mode.INSTRUCTOR)
+    #------ report outcome:
+    print(f"wrote student files to  '{targetdir_s}'")
+    print(f"wrote instructor files to  '{targetdir_i}'")
 
 
 def backup_targetdir(targetdir: str, markerfile: str):
