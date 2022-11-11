@@ -9,7 +9,6 @@ import sdrl.html as h
 logger = logging.getLogger()
 
 difficulty_levels = ('verylow', 'low', 'medium', 'high')
-enthusiasm_levels = ('none', 'low', 'medium', 'high')
 
 class Task:
     srcfile: str  # the originating pathname
@@ -60,10 +59,9 @@ class Task:
         href = f"href='{self.outputfile}'"
         titleattr = f"title=\"{description}\""
         difficulty = difficulty_levels[self.difficulty-1]
-        diffclass = f"class='difficulty{self.difficulty}'"
-        circle = f"<span {diffclass} title='Difficulty: {difficulty}'>{h.DIFFICULTY_SIGN}</span>"
+        diffsymbol = h.difficulty_symbol(difficulty)
         effort = f"<span title='Effort: {self.effort} hours'>{self.effort}h"
-        return h.indented_block(f"<a {href} {titleattr}>{self.title}</a> {circle} {effort}", level)
+        return h.indented_block(f"<a {href} {titleattr}>{self.title}</a> {diffsymbol} {effort}", level)
 
     def _as_list(self, obj) -> tg.List:
         return obj if isinstance(obj, list) else list(obj)

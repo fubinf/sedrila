@@ -15,6 +15,12 @@ def breadcrumb(*args):
     return "<div>%s</div>" % SEPARATOR.join([arg.breadcrumb_item for arg in args])
 
 
+def difficulty_symbol(level: int) -> str:
+    diffclass = f"class='difficulty{level}'"
+    circle = f"<span {diffclass} title='Difficulty: {difficulty_symbol}'>{DIFFICULTY_SIGN}</span>"
+    return circle
+
+
 def indented_block(text: str, level: tg.Optional[int]) -> str:
     return "".join([
         level * " " if level is not None else "",
