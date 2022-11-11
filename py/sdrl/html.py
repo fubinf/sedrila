@@ -4,6 +4,8 @@ import typing as tg
 DIFFICULTY_SIGN = "&#x26ab;&#xfe0e;"  # &#x26ab; is an icon and always black, &#xfe0e; is the text-variant selector
 # https://commons.wikimedia.org/wiki/Unicode_circle_shaped_symbols
 
+difficulty_levels = ('verylow', 'low', 'medium', 'high')
+
 def as_attribute(text: str) -> str:
     """Cleans text so that it can appear between double quotes in an HTML attribute."""
     return text.replace('"', "'").replace("\n", " ")  # no doublequotes, no line breaks
@@ -16,8 +18,9 @@ def breadcrumb(*args):
 
 
 def difficulty_symbol(level: int) -> str:
+    difficulty_text = difficulty_levels[level - 1]
     diffclass = f"class='difficulty{level}'"
-    circle = f"<span {diffclass} title='Difficulty: {difficulty_symbol}'>{DIFFICULTY_SIGN}</span>"
+    circle = f"<span {diffclass} title='Difficulty: {difficulty_text}'>{DIFFICULTY_SIGN}</span>"
     return circle
 
 

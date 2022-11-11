@@ -8,8 +8,6 @@ import sdrl.html as h
 
 logger = logging.getLogger()
 
-difficulty_levels = ('verylow', 'low', 'medium', 'high')
-
 class Task:
     srcfile: str  # the originating pathname
     metadata_text: str  # the entire YAML character stream
@@ -58,8 +56,7 @@ class Task:
         description = h.as_attribute(self.description)
         href = f"href='{self.outputfile}'"
         titleattr = f"title=\"{description}\""
-        difficulty = difficulty_levels[self.difficulty-1]
-        diffsymbol = h.difficulty_symbol(difficulty)
+        diffsymbol = h.difficulty_symbol(self.difficulty)
         effort = f"<span title='Effort: {self.effort} hours'>{self.effort}h"
         return h.indented_block(f"<a {href} {titleattr}>{self.title}</a> {diffsymbol} {effort}", level)
 
