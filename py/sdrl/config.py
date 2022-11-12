@@ -45,7 +45,7 @@ class Config(Item):
         b.copyattrs(configdict, self,
                     m_attrs='title, shorttitle',
                     o_attrs='baseresourcedir, chapterdir, templatedir',
-                    f_attrs='chapters')
+                    f_attrs='chapters, instructors')
         b.read_partsfile(self, self.inputfile)
         self.chapters = [Chapter(self, ch) for ch in configdict['chapters']]
 
