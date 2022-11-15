@@ -17,7 +17,7 @@ def configure_argparser(subparser):
 
 
 def execute(pargs: argparse.Namespace):
-    course = sdrl.course.Course(pargs.config)
+    course = sdrl.course.Course(pargs.config, read_contentfiles=True)
     sdrl.build.reader.read_and_check(course)
     sdrl.build.generator.generate(pargs, course)
 

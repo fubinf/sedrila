@@ -11,12 +11,11 @@ import base as b
 import sdrl.course
 import sdrl.html as h
 import sdrl.markdown as md
-import sdrl.task
 
 
 OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR = "cino2r2s2tu"  # quasi-anagram of "instructors"
 
-Structurepart = tg.Union[sdrl.course.Item, sdrl.task.Task]
+Structurepart = tg.Union[sdrl.course.Item, sdrl.course.Task]
 
 def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     """
@@ -107,7 +106,7 @@ def render_taskgroup(taskgroup: sdrl.course.Taskgroup, env, targetdir: str, mode
     b.spit(f"{targetdir}/{taskgroup.outputfile}", output)
 
 
-def render_task(task: sdrl.task.Task, env, targetdir: str, mode: b.Mode):
+def render_task(task: sdrl.course.Task, env, targetdir: str, mode: b.Mode):
     template = env.get_template("task.html")
     output = template.render(sitetitle=task.taskgroup.chapter.course.title,
                              breadcrumb=h.breadcrumb(task.taskgroup.chapter.course, task.taskgroup.chapter,
@@ -132,7 +131,7 @@ def toc(structure: Structurepart, level=0) -> str:
         result.append(structure.toc_link(level))  # Taskgroup toc_link
         for task in structure.tasks:
             result.append(toc(task, level+1))
-    elif isinstance(structure, sdrl.task.Task):
+    elif isinstance(structure, sdrl.course.Task):
         result.append(structure.toc_link(level))  # Task toc_link
     else:
         assert False
