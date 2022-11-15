@@ -43,9 +43,9 @@ class Config(Item):
         yamltext = b.slurp(configfile)
         configdict: b.StrAnyMap = yaml.safe_load(yamltext)
         b.copyattrs(configdict, self,
-                    m_attrs='title, shorttitle',
+                    m_attrs='title, shorttitle, instructors',
                     o_attrs='baseresourcedir, chapterdir, templatedir',
-                    f_attrs='chapters, instructors')
+                    f_attrs='chapters')
         b.read_partsfile(self, self.inputfile)
         self.chapters = [Chapter(self, ch) for ch in configdict['chapters']]
 
