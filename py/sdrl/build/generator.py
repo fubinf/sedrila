@@ -1,5 +1,6 @@
 import argparse
 import glob
+import json
 import os
 import os.path
 import shutil
@@ -58,6 +59,8 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     for taskname, task in course.taskdict.items():
         render_task(task, env, targetdir_s, b.Mode.STUDENT)
         render_task(task, env, targetdir_i, b.Mode.INSTRUCTOR)
+    #----- generate metadata file:
+    write_metadata(course, f"{targetdir_s}/{sdrl.course.METADATA_FILE}")
     #------ report outcome:
     print(f"wrote student files to  '{targetdir_s}'")
     print(f"wrote instructor files to  '{targetdir_i}'")
@@ -136,6 +139,11 @@ def toc(structure: Structurepart, level=0) -> str:
     else:
         assert False
     return "\n".join(result)
+
+
+def write_metadata(course: sdrl.course.Course, filename: str):
+    with open(filename, 'wt', encoding='utf8') as f:
+        json.dump(course.as_json(), f, ensure_ascii=False, indent=2)
 
 
 def _content_for(item, mode: b.Mode) -> str:

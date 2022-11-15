@@ -11,6 +11,8 @@ import base as b
 import sdrl.html as h
 
 
+METADATA_FILE = "course.json"  # in student build directory
+
 class Task:
     srcfile: str  # the originating pathname
     metadata_text: str  # the entire YAML character stream
@@ -56,7 +58,8 @@ class Task:
         return self.slug
 
     def as_json(self) -> b.StrAnyMap:
-        return dict(title=self.title, effort=self.effort, difficulty=self.difficulty,
+        return dict(slug=self.slug,
+                    title=self.title, effort=self.effort, difficulty=self.difficulty,
                     assumes=self.assumes, requires=self.requires)
 
     @classmethod
@@ -64,6 +67,7 @@ class Task:
         """Alternative constructor."""
         self = cls.__new__()
         self.taskgroup = taskgroup
+        self.slug = task['slug']
         self.title = task['title']
         self.effort = task['effort']
         self.difficulty = task['difficulty']
