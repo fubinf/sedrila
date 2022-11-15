@@ -3,6 +3,7 @@ import enum
 import logging
 import typing as tg
 
+import requests
 import yaml
 
 logger = logging.getLogger()
@@ -75,9 +76,14 @@ def read_partsfile(self, file: str, text: str = None):
         logger.error(f"{self.srcfile}: metadata YAML is malformed: {str(exc)}")
 
 
-def slurp(filename: str) -> str:
-    with open(filename, 'rt', encoding='utf8') as f:
-        return f.read()
+def slurp(resource: str) -> str:
+    """Reads local file (via filename) or http resource (via URL)."""
+    if resource.startswith('http:') or resource.startswith('https://'):
+        response = requests.get(resource)
+        return response.text
+    else:
+        with open(resource, 'rt', encoding='utf8') as f:
+            return f.read()
 
 
 def spit(filename: str, content: str):
