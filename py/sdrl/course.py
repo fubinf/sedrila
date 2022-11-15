@@ -1,4 +1,4 @@
-"""Represent and handle the contents of the sedrila.yaml config file: Config, Chapter, Taskgroup."""
+"""Represent and handle the contents of the sedrila.yaml config file: course, Chapter, Taskgroup."""
 
 import functools
 import typing as tg
@@ -10,7 +10,7 @@ import sdrl.html as h
 import sdrl.task
 
 class Item:
-    """Common superclass for Config (=course), Chapter, Taskgroup (but not Task, although similar)."""
+    """Common superclass for course, Chapter, Taskgroup (but not Task, although similar)."""
     title: str
     shorttitle: str
     metadata: b.StrAnyMap  # the YAML front matter
@@ -32,7 +32,7 @@ class Item:
         return "(undefined)"
 
 
-class Config(Item):
+class Course(Item):
     """The global configuration for this run."""
     baseresourcedir: str = 'baseresources'
     chapterdir: str = 'ch'
@@ -77,11 +77,11 @@ class Config(Item):
 
 class Chapter(Item):
     slug: str
-    config: Config
+    course: Course
     taskgroups: tg.Sequence['Taskgroup']
     
-    def __init__(self, config: Config, chapter: b.StrAnyMap):
-        self.config = config
+    def __init__(self, course: Course, chapter: b.StrAnyMap):
+        self.course = course
         b.copyattrs(chapter, self,
                     mustcopy_attrs='title, shorttitle, slug',
                     cancopy_attrs='',
@@ -100,7 +100,7 @@ class Chapter(Item):
 
     @property
     def inputfile(self) -> str:
-        return f"{self.config.chapterdir}/{self.slug}/index.md"
+        return f"{self.course.chapterdir}/{self.slug}/index.md"
 
     @property
     def outputfile(self) -> str:
@@ -141,7 +141,7 @@ class Taskgroup(Item):
 
     @property
     def inputfile(self) -> str:
-        return f"{self.chapter.config.chapterdir}/{self.chapter.slug}/{self.slug}/index.md"
+        return f"{self.chapter.course.chapterdir}/{self.chapter.slug}/{self.slug}/index.md"
 
     @property
     def outputfile(self) -> str:

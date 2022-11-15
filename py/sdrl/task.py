@@ -24,7 +24,7 @@ class Task:
     requires: tg.Sequence[str] = []  # tasknames: These specific results will be reused here
     todo: tg.Sequence[tg.Any] = []  # list of potentially YAML stuff
 
-    taskgroup: str  # where the task belongs according to the config
+    taskgroup: str  # where the task belongs
 
     def __init__(self, file: str, text: str=None):
         """Reads task from a file or multiline string."""

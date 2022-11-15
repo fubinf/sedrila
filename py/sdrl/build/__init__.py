@@ -3,7 +3,7 @@ import argparse
 import base as b
 import sdrl.build.generator
 import sdrl.build.reader
-import sdrl.config as conf
+import sdrl.course
 
 help = """Creates and renders an instance of a SeDriLa course.
 Checks consistency of the course description beforehands.
@@ -17,7 +17,7 @@ def configure_argparser(subparser):
 
 
 def execute(pargs: argparse.Namespace):
-    config = conf.Config(pargs.config)
-    sdrl.build.reader.read_and_check(config)
-    sdrl.build.generator.generate(pargs, config)
+    course = sdrl.course.Course(pargs.config)
+    sdrl.build.reader.read_and_check(course)
+    sdrl.build.generator.generate(pargs, course)
 
