@@ -34,9 +34,9 @@ class Task:
         assert len(nameparts) == 2  # taskname, suffix 'md'
         self.slug = nameparts[0]  # must be globally unique
         b.copyattrs(self.metadata, self,
-                    m_attrs='title, description, effort, difficulty',
-                    o_attrs='assumes, requires, todo',
-                    f_attrs='')
+                    mustcopy_attrs='title, description, effort, difficulty',
+                    cancopy_attrs='assumes, requires, todo',
+                    mustexist_attrs='')
         #----- semantic checks:
         ...  # TODO 2
     

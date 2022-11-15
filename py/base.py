@@ -20,11 +20,12 @@ class Mode(enum.Enum):
     INSTRUCTOR = "instructor"
 
 
-def copyattrs(d: StrAnyMap, target: tg.Any, m_attrs: str, o_attrs: str, f_attrs: str, overwrite=True):
+def copyattrs(d: StrAnyMap, target: tg.Any, mustcopy_attrs: str, cancopy_attrs: str, mustexist_attrs: str, overwrite=True):
     """
     Copies data from YAML or JSON mapping 'd' to class object 'target' and checks attribute set of d.
-    m_attrs, o_attrs, and f_attrs are comma-separated attribute name lists.
-    m_attrs and o_attrs are copied; m_attrs and f_attrs must exist; o_attrs need not exist.
+    mustcopy_attrs, cancopy_attrs, and mustexist_attrs are comma-separated attribute name lists.
+    mustcopy_attrs and cancopy_attrs are copied; mustcopy_attrs and mustexist_attrs must exist; 
+    cancopy_attrs need not exist.
     If overwrite is False, fails if attribute already exists in target.
     Raises ValueError on problems.
     E.g. copyattrs(yaml, self, "title,shorttitle,dir", "templatedir", "chapters")
@@ -32,9 +33,9 @@ def copyattrs(d: StrAnyMap, target: tg.Any, m_attrs: str, o_attrs: str, f_attrs:
     def mysetattr(obj, name, value):
         if overwrite or not hasattr(target, name):
             setattr(obj, name, value)
-    m_names = [a.strip() for a in m_attrs.split(',')]  # mandatory
-    o_names = [a.strip() for a in o_attrs.split(',')]  # optional
-    f_names = [a.strip() for a in f_attrs.split(',')]  # further mandatory
+    m_names = [a.strip() for a in mustcopy_attrs.split(',')]  # mandatory
+    o_names = [a.strip() for a in cancopy_attrs.split(',')]  # optional
+    f_names = [a.strip() for a in mustexist_attrs.split(',')]  # further mandatory
     d_names = set(d.keys())
     for m in m_names:  # transport these
         mysetattr(target, m, d[m])

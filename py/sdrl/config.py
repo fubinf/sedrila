@@ -43,9 +43,9 @@ class Config(Item):
         yamltext = b.slurp(configfile)
         configdict: b.StrAnyMap = yaml.safe_load(yamltext)
         b.copyattrs(configdict, self,
-                    m_attrs='title, shorttitle, instructors',
-                    o_attrs='baseresourcedir, chapterdir, templatedir',
-                    f_attrs='chapters')
+                    mustcopy_attrs='title, shorttitle, instructors',
+                    cancopy_attrs='baseresourcedir, chapterdir, templatedir',
+                    mustexist_attrs='chapters')
         b.read_partsfile(self, self.inputfile)
         self.chapters = [Chapter(self, ch) for ch in configdict['chapters']]
 
@@ -83,14 +83,14 @@ class Chapter(Item):
     def __init__(self, config: Config, chapter: b.StrAnyMap):
         self.config = config
         b.copyattrs(chapter, self,
-                    m_attrs='title, shorttitle, slug',
-                    o_attrs='',
-                    f_attrs='taskgroups')
+                    mustcopy_attrs='title, shorttitle, slug',
+                    cancopy_attrs='',
+                    mustexist_attrs='taskgroups')
         b.read_partsfile(self, self.inputfile)
         b.copyattrs(self.metadata, self,
-                    m_attrs='description',
-                    o_attrs='todo',
-                    f_attrs='', overwrite=False)
+                    mustcopy_attrs='description',
+                    cancopy_attrs='todo',
+                    mustexist_attrs='', overwrite=False)
         self.taskgroups = [Taskgroup(self, taskgroup) for taskgroup in chapter['taskgroups']]
 
     @property
@@ -124,14 +124,14 @@ class Taskgroup(Item):
     def __init__(self, chapter: Chapter, taskgroup: b.StrAnyMap):
         self.chapter = chapter
         b.copyattrs(taskgroup, self,
-                    m_attrs='title, shorttitle, slug',
-                    o_attrs='',
-                    f_attrs='taskgroups')
+                    mustcopy_attrs='title, shorttitle, slug',
+                    cancopy_attrs='',
+                    mustexist_attrs='taskgroups')
         b.read_partsfile(self, self.inputfile)
         b.copyattrs(self.metadata, self,
-                    m_attrs='description',
-                    o_attrs='todo',
-                    f_attrs='', overwrite=False)
+                    mustcopy_attrs='description',
+                    cancopy_attrs='todo',
+                    mustexist_attrs='', overwrite=False)
         self.tasks = []
 
     @property
