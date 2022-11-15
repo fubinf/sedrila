@@ -42,6 +42,11 @@ class Task:
                     mustcopy_attrs='title, description, effort, difficulty',
                     cancopy_attrs='assumes, requires, todo',
                     mustexist_attrs='')
+        # ----- ensure assumes and requires are lists:
+        if isinstance(self.assumes, str):
+            self.assumes = [self.assumes]
+        if isinstance(self.requires, str):
+            self.requires = [self.requires]
         # ----- semantic checks:
         ...  # TODO 2
 
