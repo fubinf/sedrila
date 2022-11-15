@@ -27,26 +27,33 @@ class Task:
     difficulty: str  # difficulty: value (one of Task.difficulty_levels)
     assumes: tg.Sequence[str] = []  # tasknames: This knowledge is assumed to be present
     requires: tg.Sequence[str] = []  # tasknames: These specific results will be reused here
-    todo: tg.Sequence[tg.Any] = []  # list of potentially YAML stuff
+    workhours: float  # time student has worked on this according to commit msgs
 
     taskgroup: str  # where the task belongs
 
-    def __init__(self, file: str, text: str = None):
-        """Reads task from a file or multiline string."""
+    def __init__(self, file: str, text: str = None, 
+                 taskgroup: tg.Optional['Taskgroup']=None, task: tg.Optional[b.StrAnyMap]=None):
+        """Reads task from a file or multiline string or initializes via from_json."""
+        if taskgroup:
+            assert not file
+            self.from_json(taskgroup, task)
+            return
         b.read_partsfile(self, file, text)
-        # ----- get taskname from filename:
+        # ----- get taskdata from filen:
         nameparts = os.path.basename(self.srcfile).split('.')
         assert len(nameparts) == 2  # taskname, suffix 'md'
         self.slug = nameparts[0]  # must be globally unique
         b.copyattrs(self.metadata, self,
                     mustcopy_attrs='title, description, effort, difficulty',
-                    cancopy_attrs='assumes, requires, todo',
+                    cancopy_attrs='assumes, requires',
                     mustexist_attrs='')
         # ----- ensure assumes and requires are lists:
         if isinstance(self.assumes, str):
             self.assumes = [self.assumes]
         if isinstance(self.requires, str):
             self.requires = [self.requires]
+        # ----- initialize further attributes:
+        self.workhours = 0.0
         # ----- semantic checks:
         ...  # TODO 2
 
@@ -67,10 +74,8 @@ class Task:
                     title=self.title, effort=self.effort, difficulty=self.difficulty,
                     assumes=self.assumes, requires=self.requires)
 
-    @classmethod
-    def from_json(cls, taskgroup: 'Taskgroup', task: b.StrAnyMap) -> 'Task':
+    def from_json(self, taskgroup: 'Taskgroup', task: b.StrAnyMap):
         """Alternative constructor."""
-        self = cls.__new__()
         self.taskgroup = taskgroup
         self.slug = task['slug']
         self.title = task['title']
@@ -78,7 +83,7 @@ class Task:
         self.difficulty = task['difficulty']
         self.assumes = task['assumes']
         self.requires = task['requires']
-        return self
+        self.workhours = 0.0
 
     def toc_link(self, level=0) -> str:
         description = h.as_attribute(self.description)
@@ -130,6 +135,7 @@ class Course(Item):
     baseresourcedir: str = 'baseresources'
     chapterdir: str = 'ch'
     templatedir: str = 'templates'
+    instructors: tg.List[b.StrAnyMap]
     chapters: tg.Sequence['Chapter']
     
     def __init__(self, configfile: str, read_contentfiles: bool):
@@ -170,6 +176,7 @@ class Course(Item):
         result = dict(baseresourcedir=self.baseresourcedir, 
                       chapterdir=self.chapterdir,
                       templatedir=self.templatedir,
+                      instructors=self.instructors,
                       chapters=[chapter.as_json() for chapter in self.chapters])
         result.update(super().as_json())
         return result
@@ -196,10 +203,10 @@ class Chapter(Item):
                     mustexist_attrs='taskgroups')
         if read_contentfiles:
             b.read_partsfile(self, self.inputfile)
-        b.copyattrs(self.metadata, self,
-                    mustcopy_attrs='description',
-                    cancopy_attrs='todo',
-                    mustexist_attrs='', overwrite=False)
+            b.copyattrs(self.metadata, self,
+                        mustcopy_attrs='description',
+                        cancopy_attrs='todo',
+                        mustexist_attrs='', overwrite=False)
         self.taskgroups = [Taskgroup(self, taskgroup, read_contentfiles) for taskgroup in chapter['taskgroups']]
 
     @property
@@ -240,19 +247,18 @@ class Taskgroup(Item):
         self.chapter = chapter
         b.copyattrs(taskgroup, self,
                     mustcopy_attrs='title, shorttitle, slug',
-                    cancopy_attrs='',
+                    cancopy_attrs='tasks',
                     mustexist_attrs='taskgroups')
         if read_contentfiles:
             b.read_partsfile(self, self.inputfile)
-        b.copyattrs(self.metadata, self,
-                    mustcopy_attrs='description',
-                    cancopy_attrs='todo',
-                    mustexist_attrs='', overwrite=False)
+            b.copyattrs(self.metadata, self,
+                        mustcopy_attrs='description',
+                        cancopy_attrs='todo',
+                        mustexist_attrs='', overwrite=False)
         if read_contentfiles:
             self.tasks = []  # will be added by reader
         else:
-            self.tasks = [Task.from_json(self, task, read_contentfiles)
-                          for task in taskgroup['tasks']]
+            self.tasks = [Task(file=None, taskgroup=self, task=task) for task in taskgroup['tasks']]
 
     @property
     def breadcrumb_item(self) -> str:

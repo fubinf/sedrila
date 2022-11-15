@@ -20,10 +20,7 @@ def get_commits() -> tg.Sequence[Commit]:
     result = []
     gitcmd = ["git", "log", f"--format=format:{LOG_FORMAT}"]
     gitrun = sp.run(gitcmd, capture_output=True, encoding='utf8', text=True)
-    # print(gitrun.stderr, end="")
     for line in gitrun.stdout.split('\n'):
-        print(repr(line))
-        # for hash, email, tstamp, fngrprnt, subj in line.split(LOG_FORMAT_SEPARATOR):
         hash, email, tstamp, fngrprnt, subj = tuple(line.split(LOG_FORMAT_SEPARATOR))
         c = Commit(hash, email, 
                    dt.datetime.fromtimestamp(int(tstamp), tz=dt.timezone.utc),
