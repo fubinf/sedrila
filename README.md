@@ -36,8 +36,8 @@ It has these functions (the list is very preliminary):
     with a prescribed structure that contains all the task descriptions.
   - The instance is a directory tree of static HTML pages.
   - The generation is controlled by a configuration file.
-- `evaluate` supports the teaching assistant.  TODO 3
-- `howfarami` tells the students how many hours are on their workhours account so far.  TODO 2
+- `instructor` supports instructors when evaluating student solutions.  TODO 3
+- `student` tells the students how many hours are on their workhours account so far.  TODO 2
 
 
 ## 2. Installation
@@ -108,25 +108,26 @@ Start there.
 ## 6.1 Bookkeeping architecture
 
 In a nutshell, the bookkeeping of _actual_ work hours worked by a student 
-and of _"earned value"_ effort hours accredited by an instructure
+and of _"earned value"_ effort hours (called "timevalue") certified by an instructor
 is based on the following ideas:
 
 - When students commit a partial or completed task XYZ, they use a prescribed format for the commit message:  
-  `XYZ 1:23  my personal commit message`  
+  `XYZ 1:24h  my personal commit message`  
   where `XYZ` is the official name of the task and
-  `1:23` means the student has worked 1 hour and 23 minutes for this commit.
+  `1:24h` means the student has worked 1 hour and 24 minutes for this commit.
+  Decimal fractions (`1.4h`) are possible as well.
 - A script can collect, accumulate, and tabulate these actual efforts for the student's information.
   This is also useful to evidence-based improvement of the course contents.
 - When students want to show a set of solutions for tasks to an instructor,
-  they write the task names to a file `to_be_checked.yaml`
+  they write the task names to a file `submission.yaml`
 - The instructor checks those tasks, adds checking results into that file,
   and commits it. This commmit is cryptographcally signed.
-  The commit message says `to_be_checked.yaml checked`.
-- `sedrila.yaml` lists all instructors and their public keys.
-  This file is published along with the webpages.
-- `tasks.yaml` lists the effort values for each task and is also published along with the webpages.
-- The script that computes the "value earned" effort hours uses these two files to
-  - find all `to_be_checked.yaml checked` commits that were made by an instructor
+  The commit message says `submission.yaml checked`.
+- `course.json` is published along with the webpages.
+  It lists all tasks with their dependencies and timevalues
+  and all instructors and their public keys.
+- The script that computes the "value earned" effort hours uses `course.json` to
+  - find all `submission.yaml checked` commits that were made by an instructor
   - extract the list of accepted tasks from them, and
   - tabulate those tasks and compute the total earned value hours for them.
 - That script can also tabulate what the instructor did not accept, which makes practical
@@ -138,8 +139,8 @@ is based on the following ideas:
 If something is incomplete, add a TODO marker with a priorization digit:
 - `TODO 1`: to be completed soon (within a few days)
 - `TODO 2`: to be completed once the prio 1 things are done (within days or a few weeks)
-- `TODO 3`: to be completed at some later time (usually several weeks or more into the future)
-  because it is big or never because it is not-so-important ("nice-to-have features")
+- `TODO 3`: to be completed at some later time (usually several weeks or more into the future,
+  because it is big) or never (because it is not-so-important: "nice-to-have features")
 
 Add a short description of what needs to be done. Examples:
 - `TODO 1: find proper formulation`
@@ -152,50 +153,3 @@ If you intend to do it yourself, add your name in parens:
 Then use the IDE global search to work through these layer-by-layer.
 Demote items to a lower priority (or remove them) when they become stale.
 Kick out prio 3 items when they become unlikely.
-
-
-## 6.2 `src/*` (outdated, some parts to be taken over to new architecture)
-
-This will map markdown files present in `content` to html files in the target directory `out` in the same directory structure.
-Files that are not markdown files will be copied over.
-
-Be aware that starting files with hyperlinks will confuse the meta data plugin.
-
-Custom commands:
-
-* `!toc` will create a table of contents up to a depth of 2. It reads the `title` meta data
-
-   You can provide an additional argument to define the target attribute for the generated links.
-   If the provided target is #, the links will instead link to anchors.
-
-* `!subtoc` will do that, but only display the part of the table of contents related to this pat
-
-   This will not include items of a depth that are not included in the main table of content.
-
-* `!inline file` will inline the contents of another file.
-
-   This will _not_ create an html file for that file and it will only work in sub-directories
-
-* `!resources` is just a shortcut for `!inline resources.md`
-
-   Ideally, there will be some option to reference links provided in there in some way
-
-* `!overview folder` inlines folder/overview.md and the title links to folder/index.html
-
-   A `target` meta data in the overview file can override the link target.
-
-* `!tasks` will inline all other files in the same folder
-
-Each inline will be wrapped in its own div, containing a class named after their respective command.
-
-In addition, an optional `src/header.html` and `src/footer.html` will be prepended/appended to each produced html file.
-
-You can define alternative header and footer files on a per file basis via the `header` and `footer` meta data. Please note that this will override both, even if only one of them is provided,
-
-**Usage**
-
-Running main.py will produce the target directory if missing.
-
-If called with the optional argument `clean`, it will remove that directory beforehand.
-
-If called with the optional argument `test`, it will instead run some unit tests
