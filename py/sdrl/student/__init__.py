@@ -1,6 +1,6 @@
 import argparse
 
-help = """How far am I? Determines how many hours worth of accepted tasks a student has accumulated so far. 
+help = """Reports on course execution so far, in particular how many hours worth of accepted tasks a student has accumulated. 
 """
 
 def configure_argparser(subparser):
@@ -9,5 +9,5 @@ def configure_argparser(subparser):
 
 
 def execute(pargs: argparse.Namespace):
-    print("'howfarami' subcommand is not yet implemented")
+    print("'student' subcommand is not yet implemented")
 

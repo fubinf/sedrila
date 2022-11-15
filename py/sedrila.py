@@ -4,8 +4,8 @@ import argparse
 import typing as tg
 
 import sdrl.build  # for course developers and instructors
-import sdrl.evaluate  # for teaching assistants
-import sdrl.howfarami  # for students
+import sdrl.instructor
+import sdrl.student
 
 description = "Tool for 'self-driven lab' (SeDriLa) university courses."
 
