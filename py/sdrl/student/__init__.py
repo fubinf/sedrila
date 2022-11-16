@@ -2,6 +2,7 @@ import argparse
 import re
 import typing as tg
 
+import base as b
 import sdrl.git
 import sdrl.course
 
@@ -17,6 +18,14 @@ def execute(pargs: argparse.Namespace):
     metadatafile = f"{pargs.where}/{sdrl.course.METADATA_FILE}"
     course = sdrl.course.Course(metadatafile, read_contentfiles=False)
     commits = sdrl.git.get_commits()
+    accumulate_workhours_per_task(commits, course)
+    report_student_work_so_far(course)
+    #----- report timevalues obtained:
+    print("Signed commits:")
+    print(get_submission_checked_commits(course, commits))
+
+
+def accumulate_workhours_per_task(commits, course):
     workhours = get_workhours(commits)
     for taskname, workhours in sorted(workhours):
         if taskname in course.taskdict:
@@ -24,16 +33,21 @@ def execute(pargs: argparse.Namespace):
             task.workhours += workhours
         else:
             pass  # ignore non-existing tasknames quietly
-    print("Your work so far:")
-    workhours_total = 0.0
-    timevalue_total = 0.0
-    for taskname in sorted((t.slug for t in course.all_tasks())):
-        task = course.taskdict[taskname]
-        if task.workhours != 0.0:
-            workhours_total += task.workhours
-            timevalue_total += task.effort
-            print(f"{taskname}\t{task.workhours}  (timevalue: {task.effort})")
-    print(f"TOTAL:\t\t{workhours_total}  (timevalue: {timevalue_total})")
+
+
+def get_submission_checked_commits(course: sdrl.course.Course, 
+                                   commits: tg.Sequence[sdrl.git.Commit]) -> tg.Sequence[str]:
+    """List of hashes of properly instructor-signed commits of finished submission checks."""
+    submission_checked_regexp = r"submission.yaml checked"
+    allowed_signers = [b.as_fingerprint(instructor['keyfingerprint']) 
+                       for instructor in course.instructors]
+    result = []
+    for commit in commits:
+        right_subject = re.match(submission_checked_regexp, commit.subject) is not None
+        right_signer = commit.key_fingerprint and b.as_fingerprint(commit.key_fingerprint) in allowed_signers
+        if right_subject and right_signer:
+            result.append(commit.hash)
+    return result
 
 
 def get_workhours(commits: tg.Sequence[sdrl.git.Commit]) -> tg.Sequence[tg.Tuple[str, float]]:
@@ -58,3 +72,25 @@ def parse_taskname_workhours(commit_msg: str) -> tg.Optional[tg.Tuple[str, float
     else:
         workhours = float(mm.group(3)) + float(mm.group(4)) / 60  # hh:mm format
     return (taskname, workhours)
+
+
+def report_student_work_so_far(course):
+    print("Your work so far:")
+    triples, workhours_total, timevalue_total = student_work_so_far(course)
+    for taskname, workhours, timevalue in triples:
+        print(f"{taskname}\t{workhours}  (timevalue: {timevalue})")
+    print(f"TOTAL:\t\t{workhours_total}  (timevalue: {timevalue_total})")
+
+
+def student_work_so_far(course) -> tg.Tuple[tg.Sequence[tg.Tuple[str, float, float]], float, float]:
+    workhours_total = 0.0
+    timevalue_total = 0.0
+    result = []
+    for taskname in sorted((t.slug for t in course.all_tasks())):
+        task = course.taskdict[taskname]
+        if task.workhours != 0.0:
+            workhours_total += task.workhours
+            timevalue_total += task.effort
+            result.append((taskname, task.workhours, task.effort))  # one result triple
+    return (result, workhours_total, timevalue_total)  # overall result triple
+

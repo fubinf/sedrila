@@ -1,0 +1,46 @@
+{
+  "baseresourcedir": "baseresources",
+  "chapterdir": "ch",
+  "templatedir": "templates",
+  "instructors": [
+    {
+      "nameish": "Dummy Instructor",
+      "account": "dummy",
+      "keyfingerprint": "--"
+    }
+  ],
+  "chapters": [
+    {
+      "slug": "basis",
+      "shorttitle": "Basis",
+      "title": "Basis: Necessary Preliminaries",
+      "taskgroups": [
+        {
+          "slug": "linuxcli",
+          "tasks": [
+            {
+              "slug": "A",
+              "title": "Install a Linux work environment via WSL (on Windows only)",
+              "effort": 1.0,
+              "difficulty": 2,
+              "assumes": [],
+              "requires": []
+            },
+            {
+              "slug": "B",
+              "title": "Install a Linux work environment on MacOS X (on Mac OS X only)",
+              "effort": 2.5,
+              "difficulty": 3,
+              "assumes": [],
+              "requires": []
+            }
+          ],
+          "title": "Linux-Umgebung schaffen",
+          "shorttitle": "LinuxCLI"
+        }
+      ]
+    }
+  ],
+  "title": "Dummy SeDriLa for testing",
+  "shorttitle": "SeDriLa-D"
+}

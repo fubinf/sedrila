@@ -21,7 +21,12 @@ class Mode(enum.Enum):
     INSTRUCTOR = "instructor"
 
 
-def copyattrs(d: StrAnyMap, target: tg.Any, mustcopy_attrs: str, cancopy_attrs: str, mustexist_attrs: str, overwrite=True):
+def as_fingerprint(raw: str) -> str:
+    """Canonicalize fingerprint: all-lowercase, no blanks"""
+    return raw.replace(' ', '').lower()
+
+
+def copyattrs(source: StrAnyMap, target: tg.Any, mustcopy_attrs: str, cancopy_attrs: str, mustexist_attrs: str, overwrite=True):
     """
     Copies data from YAML or JSON mapping 'd' to class object 'target' and checks attribute set of d.
     mustcopy_attrs, cancopy_attrs, and mustexist_attrs are comma-separated attribute name lists.
@@ -34,16 +39,16 @@ def copyattrs(d: StrAnyMap, target: tg.Any, mustcopy_attrs: str, cancopy_attrs: 
     def mysetattr(obj, name, value):
         if overwrite or not hasattr(target, name):
             setattr(obj, name, value)
-    m_names = [a.strip() for a in mustcopy_attrs.split(',')]  # mandatory
-    o_names = [a.strip() for a in cancopy_attrs.split(',')]  # optional
-    f_names = [a.strip() for a in mustexist_attrs.split(',')]  # further mandatory
-    d_names = set(d.keys())
-    for m in m_names:  # transport these
-        mysetattr(target, m, d[m])
-    for o in o_names:  # transport these if present
-        if o in d:
-            mysetattr(target, o, d[o])
-    extra_attrs = d_names - set(m_names) - set(o_names) - set(f_names)
+    mustcopy_names = [a.strip() for a in mustcopy_attrs.split(',')]  # mandatory
+    cancopy_names = [a.strip() for a in cancopy_attrs.split(',')]  # optional
+    mustexist_names = [a.strip() for a in mustexist_attrs.split(',')]  # further mandatory
+    source_names = set(source.keys())
+    for m in mustcopy_names:  # transport these
+        mysetattr(target, m, source[m])
+    for o in cancopy_names:  # transport these if present
+        if o in source:
+            mysetattr(target, o, source[o])
+    extra_attrs = source_names - set(mustcopy_names) - set(cancopy_names) - set(mustexist_names)
     if extra_attrs:
         raise ValueError(f"unexpected extra attributes found: {extra_attrs}")
 
