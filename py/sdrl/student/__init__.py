@@ -40,10 +40,21 @@ def get_workhours(commits: tg.Sequence[sdrl.git.Commit]) -> tg.Sequence[tg.Tuple
     """Extract all pairs of (taskname, workhours) from commit list."""
     result = []
     for commit in commits:
-        worktime_regexp = r"(\w+)\s+(\d+(?:\.\d+)) ?h\b"  # "MyTask117 3.5h remainder of commit msg"
-        mm = re.match(worktime_regexp, commit.subject)
-        if not mm:
-            continue  # not the format we're looking for
-        taskname, worktime = mm.group(1), float(mm.group(2))
-        result.append((taskname, worktime))
+        pair = parse_taskname_workhours(commit.subject)
+        if pair:
+            result.append(pair)
     return result
+
+
+def parse_taskname_workhours(commit_msg: str) -> tg.Optional[tg.Tuple[str, float]]:
+    """Return pair of (taskname, workhours) from commit message if present, or None otherwise."""
+    worktime_regexp = r"(\w+)\s+(?:(\d+(?:\.\d+)?)|(\d+):(\d\d)) ?h\b"  # "MyTask117 3.5h" or "SomeStuff 3:45h"
+    mm = re.match(worktime_regexp, commit_msg)
+    if not mm:
+        return None  # not the format we're looking for
+    taskname = mm.group(1)
+    if mm.group(2):  # decimal time
+        workhours = float(mm.group(2))
+    else:
+        workhours = float(mm.group(3)) + float(mm.group(4)) / 60  # hh:mm format
+    return (taskname, workhours)
