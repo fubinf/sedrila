@@ -5,11 +5,9 @@ import os
 import re
 import subprocess
 import tempfile
-import typing as tg
 
-import base as b
 import sdrl.course
-import sdrl.git
+import git
 import sdrl.student
 
 class HomeHereContextMgr:
@@ -54,7 +52,7 @@ def test_student_work_so_far():
         create_git_repo()
         #----- initialize application environment:
         course = sdrl.course.Course(sdrl.course.METADATA_FILE, read_contentfiles=False)
-        commits = sdrl.git.get_commits()
+        commits = git.get_commits()
         sdrl.student.accumulate_workhours_per_task(commits, course)
         # ----- report workhours and timevalue per task:
         triples, workhours_total, timevalue_total = sdrl.student.student_work_so_far(course)

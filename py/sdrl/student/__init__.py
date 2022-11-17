@@ -5,7 +5,7 @@ import typing as tg
 import yaml
 
 import base as b
-import sdrl.git
+import git
 import sdrl.course
 
 help = """Reports on course execution so far, in particular how many hours worth of accepted tasks a student has accumulated. 
@@ -27,7 +27,7 @@ def configure_argparser(subparser):
 def execute(pargs: argparse.Namespace):
     metadatafile = f"{pargs.where}/{sdrl.course.METADATA_FILE}"
     course = sdrl.course.Course(metadatafile, read_contentfiles=False)
-    commits = sdrl.git.get_commits()
+    commits = git.get_commits()
     workhours = get_workhours(commits)
     accumulate_workhours_per_task(workhours, course)
     hashes = get_submission_checked_commits(course, commits)
@@ -64,14 +64,14 @@ def get_all_checked_tuples(hashes: tg.Sequence[str]) -> tg.Sequence[CheckedTuple
     """Collect the individual checks across all 'submission.yaml checked' commits."""
     result = []
     for refid in hashes:
-        submission = yaml.safe_load(sdrl.git.get_file_version(refid, SUBMISSION_FILE, encoding='utf8'))
+        submission = yaml.safe_load(git.get_file_version(refid, SUBMISSION_FILE, encoding='utf8'))
         for taskname, tasknote in submission['submission'].items():
             result.append((refid, taskname, tasknote))
     return result
 
 
-def get_submission_checked_commits(course: sdrl.course.Course, 
-                                   commits: tg.Sequence[sdrl.git.Commit]) -> tg.Sequence[str]:
+def get_submission_checked_commits(course: sdrl.course.Course,
+                                   commits: tg.Sequence[git.Commit]) -> tg.Sequence[str]:
     """List of hashes of properly instructor-signed commits of finished submission checks."""
     submission_checked_regexp = r"submission.yaml checked"
     allowed_signers = [b.as_fingerprint(instructor['keyfingerprint']) 
@@ -85,7 +85,7 @@ def get_submission_checked_commits(course: sdrl.course.Course,
     return result
 
 
-def get_workhours(commits: tg.Sequence[sdrl.git.Commit]) -> tg.Sequence[WorkEntry]:
+def get_workhours(commits: tg.Sequence[git.Commit]) -> tg.Sequence[WorkEntry]:
     """Extract all pairs of (taskname, workhours) from commit list."""
     result = []
     for commit in commits:
