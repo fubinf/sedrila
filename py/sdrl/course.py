@@ -27,7 +27,9 @@ class Task:
     difficulty: str  # difficulty: value (one of Task.difficulty_levels)
     assumes: tg.Sequence[str] = []  # tasknames: This knowledge is assumed to be present
     requires: tg.Sequence[str] = []  # tasknames: These specific results will be reused here
-    workhours: float  # time student has worked on this according to commit msgs
+    workhours: float = 0.0  # time student has worked on this according to commit msgs
+    accepted: bool = False  # whether instructor has ever marked it 'accept'
+    rejections: int = 0  # how often instructor has marked it 'reject'
 
     taskgroup: str  # where the task belongs
 
@@ -52,8 +54,6 @@ class Task:
             self.assumes = [self.assumes]
         if isinstance(self.requires, str):
             self.requires = [self.requires]
-        # ----- initialize further attributes:
-        self.workhours = 0.0
         # ----- semantic checks:
         ...  # TODO 2
 
@@ -83,7 +83,6 @@ class Task:
         self.difficulty = task['difficulty']
         self.assumes = task['assumes']
         self.requires = task['requires']
-        self.workhours = 0.0
 
     def toc_link(self, level=0) -> str:
         description = h.as_attribute(self.description)

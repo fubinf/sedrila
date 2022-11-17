@@ -1,4 +1,4 @@
-"""Reading information from the git repo."""
+"""Technical operations for reading information from git repos."""
 import dataclasses
 import datetime as dt
 import subprocess as sp
@@ -27,3 +27,11 @@ def get_commits() -> tg.Sequence[Commit]:
                    fngrprnt, subj)
         result.append(c)
     return result
+
+
+def get_file_version(refid: str, filename: str, encoding=None) -> tg.AnyStr:
+    raw = sp.check_output(f"git show {refid}:{filename}", shell=True)
+    if encoding:
+        return raw.decode(encoding=encoding)
+    else:
+        return raw
