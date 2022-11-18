@@ -9,7 +9,7 @@ import yaml
 
 import base as b
 import sdrl.html as h
-
+import sdrl.markdown as md
 
 METADATA_FILE = "course.json"  # in student build directory
 
@@ -95,6 +95,15 @@ class Task:
     def _as_list(self, obj) -> tg.List:
         return obj if isinstance(obj, list) else list(obj)
 
+    @staticmethod
+    def expand(name: str, arg1: str, arg2: str) -> str:
+        assert name == "DIFF"
+        level = int(arg1)
+        return h.difficulty_symbol(level)
+
+
+md.register_macros(macros=[('DIFF', 1, Task.expand)])
+
 
 class Item:
     """Common superclass for course, Chapter, Taskgroup (but not Task, although similar)."""
@@ -153,6 +162,7 @@ class Course(Item):
         if read_contentfiles:
             b.read_partsfile(self, self.inputfile)
         self.chapters = [Chapter(self, ch, read_contentfiles) for ch in configdict['chapters']]
+        self.register_macros()
 
     @property
     def breadcrumb_item(self) -> str:
@@ -188,6 +198,10 @@ class Course(Item):
             for taskgroup in chapter.taskgroups:
                 for task in taskgroup.tasks:
                     yield task
+    
+    def register_macros(self):
+        ...
+
 
 class Chapter(Item):
     slug: str
