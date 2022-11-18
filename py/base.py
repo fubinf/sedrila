@@ -1,12 +1,13 @@
 """Shortcut typenames, global constants, basic helpers."""
 import enum
-import logging
+import sys
 import typing as tg
 
 import requests
 import yaml
 
-logger = logging.getLogger()
+outstream = sys.stdout
+num_errors = 0
 
 CONFIG_FILENAME = "sedrila.yaml"  # plain filename, no directory possible
 TEMPLATES_DIR = "templates"
@@ -78,7 +79,7 @@ def read_partsfile(self, file: str, text: str = None):
         # ----- parse YAML data:
         self.metadata = yaml.safe_load(self.metadata_text)
     except yaml.YAMLError as exc:
-        logger.error(f"{self.srcfile}: metadata YAML is malformed: {str(exc)}")
+        error(f"{self.srcfile}: metadata YAML is malformed: {str(exc)}")
 
 
 def slurp(resource: str) -> str:
@@ -94,3 +95,31 @@ def slurp(resource: str) -> str:
 def spit(filename: str, content: str):
     with open(filename, 'wt', encoding='utf8') as f:
         f.write(content)
+
+
+def debug(msg: str):
+    print(msg)
+
+
+def info(msg: str):
+    print(msg)
+
+
+def warning(msg: str):
+    print(msg)
+
+
+def error(msg: str):
+    global num_errors
+    num_errors += 1
+    print(msg)
+
+
+def critical(msg: str):
+    print(msg)
+    sys.exit(num_errors)
+
+
+def exit_if_errors(msg: str=""):
+    if num_errors > 0:
+        critical(f"{num_errors} error{'s' if num_errors else ''}. Exiting.")
