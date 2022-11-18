@@ -132,9 +132,9 @@ def student_work_so_far(course) -> tg.Tuple[tg.Sequence[ReportEntry], float, flo
         if task.workhours != 0.0:
             workhours_total += task.workhours
             if task.accepted:
-                timevalue_total += task.effort
+                timevalue_total += task.timevalue
             ra_list = task.rejections * [REJECT_MARK] + ([ACCEPT_MARK] if task.accepted else [])
             ra_string = ", ".join(ra_list)
-            result.append((taskname, task.workhours, task.effort, ra_string))  # one result tuple
+            result.append((taskname, task.workhours, task.timevalue, ra_string))  # one result tuple
     return (result, workhours_total, timevalue_total)  # overall result triple
 

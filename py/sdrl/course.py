@@ -23,7 +23,7 @@ class Task:
 
     title: str  # title: value
     description: str  # description: value (possibly multiple lines)
-    effort: tg.Union[int, float]  # effort: (in half hours)
+    timevalue: tg.Union[int, float]  # task timevalue: (in hours)
     difficulty: str  # difficulty: value (one of Task.difficulty_levels)
     assumes: tg.Sequence[str] = []  # tasknames: This knowledge is assumed to be present
     requires: tg.Sequence[str] = []  # tasknames: These specific results will be reused here
@@ -46,7 +46,7 @@ class Task:
         assert len(nameparts) == 2  # taskname, suffix 'md'
         self.slug = nameparts[0]  # must be globally unique
         b.copyattrs(self.metadata, self,
-                    mustcopy_attrs='title, description, effort, difficulty',
+                    mustcopy_attrs='title, description, timevalue, difficulty',
                     cancopy_attrs='assumes, requires',
                     mustexist_attrs='')
         # ----- ensure assumes and requires are lists:
@@ -71,7 +71,7 @@ class Task:
 
     def as_json(self) -> b.StrAnyMap:
         return dict(slug=self.slug,
-                    title=self.title, effort=self.effort, difficulty=self.difficulty,
+                    title=self.title, timevalue=self.timevalue, difficulty=self.difficulty,
                     assumes=self.assumes, requires=self.requires)
 
     def from_json(self, taskgroup: 'Taskgroup', task: b.StrAnyMap):
@@ -79,7 +79,7 @@ class Task:
         self.taskgroup = taskgroup
         self.slug = task['slug']
         self.title = task['title']
-        self.effort = task['effort']
+        self.timevalue = task['timevalue']
         self.difficulty = task['difficulty']
         self.assumes = task['assumes']
         self.requires = task['requires']
@@ -89,8 +89,8 @@ class Task:
         href = f"href='{self.outputfile}'"
         titleattr = f"title=\"{description}\""
         diffsymbol = h.difficulty_symbol(self.difficulty)
-        effort = f"<span title='Effort: {self.effort} hours'>{self.effort}h"
-        return h.indented_block(f"<a {href} {titleattr}>{self.title}</a> {diffsymbol} {effort}", level)
+        timevalue = f"<span title='Timevalue: {self.timevalue} hours'>{self.timevalue}h"
+        return h.indented_block(f"<a {href} {titleattr}>{self.title}</a> {diffsymbol} {timevalue}", level)
 
     def _as_list(self, obj) -> tg.List:
         return obj if isinstance(obj, list) else list(obj)
