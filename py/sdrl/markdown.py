@@ -79,3 +79,5 @@ def render_markdown(markdown_markup: str) -> str:
     return markdown.markdown(expand_macros(markdown_markup), 
                              extensions=extensions, 
                              extension_configs=extension_configs)
+
+register_macros(macros=[('TOC', 0, lambda m, a1, a2: f"[{m}]")])
