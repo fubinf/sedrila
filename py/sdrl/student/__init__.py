@@ -17,7 +17,7 @@ REJECT_MARK = "REJECT"
 
 CheckedTuple = tg.Tuple[str, str, str]  # hash, taskname, tasknote
 WorkEntry = tg.Tuple[str, float]  # taskname, workhours
-
+ReportEntry = tg.Tuple[str, float, float, str]  # taskname, workhoursum, timevalue, RRa
 
 def configure_argparser(subparser):
     subparser.add_argument('where',
@@ -33,7 +33,8 @@ def execute(pargs: argparse.Namespace):
     hashes = get_submission_checked_commits(course, commits)
     checked_tuples = get_all_checked_tuples(hashes)
     accumulate_timevalues_and_attempts(checked_tuples, course)
-    report_student_work_so_far(course)
+    entries, workhours_total, timevalue_total = student_work_so_far(course)
+    report_student_work_so_far(entries, workhours_total, timevalue_total)
     #----- report timevalues obtained:
     print("Signed commits:")
 
@@ -41,11 +42,14 @@ def execute(pargs: argparse.Namespace):
 def accumulate_timevalues_and_attempts(checked_tuples: tg.Sequence[CheckedTuple], course: sdrl.course.Course):
     """Reflect the check_tuples data in the course data structure."""
     for refid, taskname, tasknote in checked_tuples:
+        print("tuple:", refid, taskname, tasknote)
         task = course.task(taskname)
         if tasknote.startswith(ACCEPT_MARK):
             task.accepted = True
+            print(taskname, "accepted")
         elif tasknote.startswith(REJECT_MARK):
             task.rejections += 1
+            print(taskname, "rejected")
         else:
             pass  # unmodified entry: instructor has not checked it
             
@@ -78,6 +82,7 @@ def get_submission_checked_commits(course: sdrl.course.Course,
                        for instructor in course.instructors]
     result = []
     for commit in commits:
+        print("commit.subject, fpr:", commit.subject, commit.key_fingerprint)
         right_subject = re.match(submission_checked_regexp, commit.subject) is not None
         right_signer = commit.key_fingerprint and b.as_fingerprint(commit.key_fingerprint) in allowed_signers
         if right_subject and right_signer:
@@ -109,18 +114,16 @@ def parse_taskname_workhours(commit_msg: str) -> tg.Optional[WorkEntry]:
     return (taskname, workhours)
 
 
-def report_student_work_so_far(course):
+def report_student_work_so_far(entries: tg.Sequence[ReportEntry], 
+                               workhours_total: float, timevalue_total: float):
     print("Your work so far:")
-    triples, workhours_total, timevalue_total = student_work_so_far(course)
-    print("taskname\t\tworkhours\ttimevalue (R ejections, a cceptance)")
-    for taskname, workhours, timevalue in triples:
-        task = course.task(taskname)
-        ra_string = task.rejections * "R" + ("a" if task.accepted else "")
-        print(f"{taskname}\t{workhours}\t{timevalue} {ra_string})")
+    print("taskname\t\tworkhours\ttimevalue\nreject/accept)")
+    for taskname, workhours, timevalue, ra_string in entries:
+        print(f"{taskname}\t{workhours}\t{timevalue}\t{ra_string})")
     print(f"TOTAL:\t\t{workhours_total}\t{timevalue_total})")
 
 
-def student_work_so_far(course) -> tg.Tuple[tg.Sequence[tg.Tuple[str, float, float]], float, float]:
+def student_work_so_far(course) -> tg.Tuple[tg.Sequence[ReportEntry], float, float]:
     workhours_total = 0.0
     timevalue_total = 0.0
     result = []
@@ -130,6 +133,8 @@ def student_work_so_far(course) -> tg.Tuple[tg.Sequence[tg.Tuple[str, float, flo
             workhours_total += task.workhours
             if task.accepted:
                 timevalue_total += task.effort
-            result.append((taskname, task.workhours, task.effort))  # one result triple
+            ra_list = task.rejections * [REJECT_MARK] + ([ACCEPT_MARK] if task.accepted else [])
+            ra_string = ", ".join(ra_list)
+            result.append((taskname, task.workhours, task.effort, ra_string))  # one result tuple
     return (result, workhours_total, timevalue_total)  # overall result triple
 
