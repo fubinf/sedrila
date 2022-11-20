@@ -3,6 +3,7 @@
 import functools
 import json
 import os
+import re
 import typing as tg
 
 import yaml
@@ -51,11 +52,9 @@ class Task:
                     mustexist_attrs='')
         # ----- ensure assumes and requires are lists:
         if isinstance(self.assumes, str):
-            self.assumes = [self.assumes]
+            self.assumes = re.split(r", *", self.assumes)
         if isinstance(self.requires, str):
-            self.requires = [self.requires]
-        # ----- semantic checks:
-        ...  # TODO 2
+            self.requires = re.split(r", *", self.requires)
 
     @property
     def breadcrumb_item(self) -> str:
@@ -190,8 +189,8 @@ class Course(Item):
         result.update(super().as_json())
         return result
 
-    def task(self, taskname: str) -> Task:
-        return self.taskdict[taskname]
+    def task(self, taskname: str) -> tg.Optional[Task]:
+        return self.taskdict.get(taskname)
 
     def all_tasks(self) -> tg.Generator[Task, None, None]:
         for chapter in self.chapters:
