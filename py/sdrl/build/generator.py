@@ -62,6 +62,7 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     #----- generate metadata file:
     write_metadata(course, f"{targetdir_s}/{sdrl.course.METADATA_FILE}")
     #------ report outcome:
+    print_volume_report(course)
     print(f"wrote student files to  '{targetdir_s}'")
     print(f"wrote instructor files to  '{targetdir_i}'")
 
@@ -77,6 +78,20 @@ def backup_targetdir(targetdir: str, markerfile: str):
             raise ValueError(f"will not remove '{targetdir_bak}': it is not a SeDriLa instance")
         shutil.rmtree(targetdir_bak)
     os.rename(targetdir, targetdir_bak)
+
+
+def print_volume_report(course: sdrl.course.Course):
+    print("==== Difficulty\t#Tasks\ttimevalue")
+    for difficulty, numtasks, timevalue in course.volume_report_per_difficulty():
+        print("%-12s\t%3d\t%5.1f" %
+              (f"{difficulty}:{h.difficulty_levels[difficulty-1]}", numtasks, timevalue))
+    print("%-12s\t%3d\t%5.1f" %
+          ("TOTAL", len(course.taskdict), sum((t.timevalue for t in course.all_tasks()))))
+    print("==== Chapter          \t#Tasks\ttimevalue")
+    for chaptername, numtasks, timevalue in course.volume_report_per_chapter():
+        print("%-22s\t%3d\t%5.1f" %
+              (chaptername, numtasks, timevalue))
+    print("====")
 
 
 def render_welcome(course: sdrl.course.Course, env, targetdir: str, mode: b.Mode):

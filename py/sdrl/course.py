@@ -202,6 +202,24 @@ class Course(Item):
     def register_macros(self):
         ...
 
+    def volume_report_per_chapter(self) -> tg.Sequence[tg.Tuple[str, int, float]]:
+        """Tuples of (chaptername, num_tasks, timevalue_sum)"""
+        result = []
+        for chapter in self.chapters:
+            num_tasks = sum((1 for t in self.all_tasks() if t.taskgroup.chapter == chapter))
+            timevalue_sum = sum((t.timevalue for t in self.all_tasks() if t.taskgroup.chapter == chapter))
+            result.append((chapter.shorttitle, num_tasks, timevalue_sum))
+        return result
+
+    def volume_report_per_difficulty(self) -> tg.Sequence[tg.Tuple[int, int, float]]:
+        """Tuples of (difficulty, num_tasks, timevalue_sum)"""
+        result = []
+        for difficulty in range(1, len(h.difficulty_levels)+1):
+            num_tasks = sum((1 for t in self.all_tasks() if t.difficulty == difficulty))
+            timevalue_sum = sum((t.timevalue for t in self.all_tasks() if t.difficulty == difficulty))
+            result.append((difficulty, num_tasks, timevalue_sum))
+        return result
+
 
 class Chapter(Item):
     slug: str
