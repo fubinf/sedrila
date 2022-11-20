@@ -1,4 +1,5 @@
 """Shortcut typenames, global constants, basic helpers."""
+import os
 import enum
 import sys
 import typing as tg
@@ -56,10 +57,14 @@ def copyattrs(source: StrAnyMap, target: tg.Any, mustcopy_attrs: str, cancopy_at
 
 def read_partsfile(self, file: str, text: str = None):
     """
-    Read file with 3+ double triple dash separated parts. Store parts data in self:
+    Supports reading two different formats.
+
+    Legacy format with 3+ double triple dash separated parts. Store parts data in self:
     part 1 in self.metadata_text and self.metadata,
     part 2 in self.content, part 3 in self.instructorcontent, parts 4..n in self.othercontents.
     Complain if there are fewer than 3 parts or metadata is not YAML.
+
+    The new format will handle different types based on admonitions. Metadata is separated by a blank line
     """
     #----- obtain file contents:
     self.srcfile = file
@@ -67,13 +72,15 @@ def read_partsfile(self, file: str, text: str = None):
         text = slurp(file)
     #----- store parts:
     parts = text.split("---\n---\n")
-    if len(parts) < 3:
-        raise ValueError("%s is not a parts file: must have three parts separated by double triple-dashes (found: %s)" %
-                         (self.srcfile, len(parts)))
-    self.metadata_text = parts[0]
-    self.content = parts[1]
-    self.instructorcontent = parts[2] 
-    self.othercontents = parts[3:]
+    if len(parts) >= 3: #legacy mode
+        self.metadata_text = parts[0]
+        self.content = parts[1]
+        self.instructorcontent = parts[2] 
+        self.othercontents = parts[3:]
+    else:
+        #this assumes that metadata will always be present, but that should not be an issue
+        self.metadata_text, self.content = text.split(os.linesep + os.linesep, 1)
+        self.instructorcontent = None
     #----- parse metadata
     try:
         # ----- parse YAML data:

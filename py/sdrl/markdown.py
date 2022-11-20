@@ -7,12 +7,15 @@ import markdown
 import base as b
 import sdrl.html as h
 
+import xml.etree.ElementTree as etree
+
 Macroexpander = tg.Callable[[str, str, str], str]
 Macrodef = tg.Union[tg.Tuple[str, int], tg.Tuple[str, int, Macroexpander]]  # name, num_args, expander
 
 macrodefs: tg.Mapping[str, tg.Tuple[int, Macroexpander]] = dict()
 
-extensions = ['attr_list', 'fenced_code', 'toc']
+extensions = ['admonition', 'attr_list', 'fenced_code', 'toc']
+# https://python-markdown.github.io/extensions/admonition/
 # https://python-markdown.github.io/extensions/attr_list/
 # https://python-markdown.github.io/extensions/fenced_code_blocks/
 # https://python-markdown.github.io/extensions/toc/
@@ -22,6 +25,9 @@ extensions = ['attr_list', 'fenced_code', 'toc']
 extension_configs = {
     'toc': {
         # 'slugify':  perhaps replace with numbering-aware version 
+    },
+    'admonition_filter': {
+        'hidden': ['instructor']
     }
 }
 
@@ -52,7 +58,6 @@ def expand_macro(mm: re.Match) -> str:
     #----- expand:
     return expander(macroname, arg1, arg2)
 
-
 def register_macro(name: str, numargs: int, expander: Macroexpander):
     global macrodefs
     assert name not in macrodefs
@@ -71,13 +76,25 @@ def register_macros(*, macros: tg.Sequence[Macrodef], expander: tg.Optional[Macr
             assert len(macrodef) == 3
             register_macro(*macrodef)
 
-def render_markdown(markdown_markup: str) -> str:
+class AdmonitionFilter(markdown.treeprocessors.Treeprocessor):
+    def run(self, root):
+        for divparent in root.findall('.//div/..'): #sadly, etree does not support contains()
+            for div in divparent.findall('div'):
+                if not('class' in div.attrib and 'admonition' in div.attrib['class']):
+                    continue
+                if self.md.mode and self.md.mode.value in div.attrib['class']:
+                    continue #instructors are allowed to see instructor admonitions
+                divparent.remove(div)
+
+md = markdown.Markdown(extensions=extensions, extension_configs=extension_configs)
+if 'admonition_filter' in extension_configs and 'hidden' in extension_configs['admonition_filter']:
+    md.treeprocessors.register(AdmonitionFilter(md), "admonition_filter", 100)
+def render_markdown(markdown_markup: str, mode: b.Mode = None) -> str:
     """
     Generates HTML from Markdown in sedrila manner.
     See https://python-markdown.github.io/
     """
-    return markdown.markdown(expand_macros(markdown_markup), 
-                             extensions=extensions, 
-                             extension_configs=extension_configs)
+    md.mode = mode
+    return md.reset().convert(expand_macros(markdown_markup))
 
 register_macros(macros=[('TOC', 0, lambda m, a1, a2: f"[{m}]")])
