@@ -11,7 +11,8 @@ import pytest
 import base as b
 import git
 import sdrl.course
-import sdrl.student
+import sdrl.repo as r
+import sdrl.subcmd.student
 
 GIT_USER = "user@example.org"
 
@@ -38,7 +39,7 @@ def create_git_repo():
     os.system("git commit --allow-empty -m'hello'")
     os.system("git commit --allow-empty -m'A 3.25h'")
     os.system("git commit --allow-empty -m'A 0:45h'")
-    b.spit("submission.yaml", f"submission:\n A: {sdrl.student.REJECT_MARK}  some comment about the problem\n")
+    b.spit("submission.yaml", f"submission:\n A: {r.REJECT_MARK}  some comment about the problem\n")
     os.system("git add submission.yaml")
     os.system("git commit -S -m'submission.yaml checked'")
     os.system("gpgconf --kill gpg-agent")
@@ -68,15 +69,15 @@ def test_student_work_so_far():
         #----- initialize application environment:
         course = sdrl.course.Course(sdrl.course.METADATA_FILE, read_contentfiles=False)
         commits = git.get_commits()
-        workhours = sdrl.student.get_workhours(commits)
-        sdrl.student.accumulate_workhours_per_task(workhours, course)
-        hashes = sdrl.student.get_submission_checked_commits(course, commits)
+        workhours = r.get_workhours(commits)
+        r.accumulate_workhours_per_task(workhours, course)
+        hashes = r.get_submission_checked_commits(course, commits)
         print("hashes:", hashes)
-        checked_tuples = sdrl.student.get_all_checked_tuples(hashes)
+        checked_tuples = r.get_all_checked_tuples(hashes)
         print("checked_tuples:", checked_tuples)
-        sdrl.student.accumulate_timevalues_and_attempts(checked_tuples, course)
+        r.accumulate_timevalues_and_attempts(checked_tuples, course)
         # ----- report workhours and timevalue per task:
-        entries, workhours_total, timevalue_total = sdrl.student.student_work_so_far(course)
+        entries, workhours_total, timevalue_total = r.student_work_so_far(course)
         print("ReportEntries: ", entries)
         assert workhours_total == 4.0
         assert timevalue_total == 0.0
@@ -85,7 +86,7 @@ def test_student_work_so_far():
 
 
 def test_parse_taskname_workhours():
-    func = sdrl.student.parse_taskname_workhours
+    func = r.parse_taskname_workhours
     assert func("mystuff 1h remaining msg") == ("mystuff", 1.0)
     assert func("mystuff 1h") == ("mystuff", 1.0)
     assert func("mystuff 1 h") == ("mystuff", 1.0)

@@ -3,9 +3,9 @@
 import argparse
 import typing as tg
 
-import sdrl.build  # for course developers and instructors
-import sdrl.instructor
-import sdrl.student
+import sdrl.subcmd.author  # for course developers
+import sdrl.subcmd.instructor  # for people who check submissions
+import sdrl.subcmd.student  # for course students 
 
 description = "Tool for 'self-driven lab' (SeDriLa) university courses."
 
@@ -15,19 +15,20 @@ functiontype = type(lambda: 1)  # TODO: get this from stdlib
 
 def main():  # uses sys.argv
     """Calls subcommand given on command line"""
-    argparser = setup_argparser(sdrl, description)
+    subcmd_package = sdrl.subcmd
+    argparser = setup_argparser(subcmd_package, description)
     pargs = argparser.parse_args()
     subcmd = pargs.subcmd
     submodulename = subcmd.replace('-', '_')  # CLI command my-command corresponds to module sdrl.my_command
-    module = getattr(sdrl, submodulename)
+    module = getattr(subcmd_package, submodulename)
     module.execute(pargs)
 
 
-def setup_argparser(superpkg: str, description: str) -> argparse.ArgumentParser:
+def setup_argparser(superpkg, description: str) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=description)
     subparsers = parser.add_subparsers(dest='subcmd', required=True)
     for attrname in dir(superpkg):
-        myattr = getattr(sdrl, attrname)
+        myattr = getattr(superpkg, attrname)
         if not isinstance(myattr, moduletype):
             continue  # skip non-modules
         submodule = myattr  # now we know it _is_ a module

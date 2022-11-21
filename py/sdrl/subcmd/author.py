@@ -13,10 +13,36 @@ import sdrl.course
 import sdrl.html as h
 import sdrl.markdown as md
 
+help = """Creates and renders an instance of a SeDriLa course.
+Checks consistency of the course description beforehands.
+"""
 
 OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR = "cino2r2s2tu"  # quasi-anagram of "instructors"
 
 Structurepart = tg.Union[sdrl.course.Item, sdrl.course.Task]
+
+def configure_argparser(subparser):
+    subparser.add_argument('--config', default=b.CONFIG_FILENAME,
+                           help="SeDriLa configuration description YAML file")
+    subparser.add_argument('targetdir',
+                           help="Directory to which output will be written")
+
+
+def execute(pargs: argparse.Namespace):
+    course = sdrl.course.Course(pargs.config, read_contentfiles=True)
+    read_and_check(course)
+    generate(pargs, course)
+
+
+def check(course: sdrl.course.Course):
+    for task in course.all_tasks():
+        for assumed in task.assumes:
+            if not course.task(assumed):
+                b.error(f"{task.slug}:\t assumed task '{assumed}' does not exist")
+        for required in task.requires:
+            if not course.task(required):
+                b.error(f"{task.slug}:\t required task '{required}' does not exist")
+
 
 def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     """
@@ -94,6 +120,17 @@ def print_volume_report(course: sdrl.course.Course):
     print("====")
 
 
+def read_and_check(course: sdrl.course.Course):
+    """Reads all task files into memory and performs consistency checking."""
+    for chapter in course.chapters:
+        for taskgroup in chapter.taskgroups:
+            filenames = glob.glob(f"{course.chapterdir}/{chapter.slug}/{taskgroup.slug}/*.md")
+            for filename in filenames:
+                if not filename.endswith("index.md"):
+                    taskgroup.add_task(sdrl.course.Task(filename))
+    check(course)
+
+
 def render_welcome(course: sdrl.course.Course, env, targetdir: str, mode: b.Mode):
     template = env.get_template("welcome.html")
     output = template.render(sitetitle=course.title,
@@ -169,3 +206,5 @@ def _instructor_targetdir(pargs: argparse.Namespace) -> str:
     default = f"{pargs.targetdir}/{OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR}"
     has_instructor_targetdir = getattr(pargs, 'instructor_targetdir', False)
     return pargs.instructor_targetdir if has_instructor_targetdir else default
+
+

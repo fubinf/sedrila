@@ -1,4 +1,7 @@
-import argparse
+"""
+Logic for handling information coming from git repos: 
+effort commits, submissions, submission checks.
+"""
 import re
 import typing as tg
 
@@ -7,8 +10,6 @@ import yaml
 import base as b
 import git
 import sdrl.course
-
-help = """Reports on course execution so far or prepares submission to instructor."""
 
 SUBMISSION_FILE = "submission.yaml"
 SUBMISSION_COMMIT_MSG = "submission.yaml"
@@ -20,28 +21,6 @@ REJECT_MARK = "REJECT"
 CheckedTuple = tg.Tuple[str, str, str]  # hash, taskname, tasknote
 WorkEntry = tg.Tuple[str, float]  # taskname, workhours
 ReportEntry = tg.Tuple[str, float, float, int, bool]  # taskname, workhoursum, timevalue, rejections, accepted
-
-def configure_argparser(subparser):
-    subparser.add_argument('course_url',
-                           help="where to find course description")
-    subparser.add_argument('--submission', action='store_true',
-                           help=f"generate {SUBMISSION_FILE} with possible tasks to be checked by instructor")
-
-
-def execute(pargs: argparse.Namespace):
-    metadatafile = f"{pargs.course_url}/{sdrl.course.METADATA_FILE}"
-    course = sdrl.course.Course(metadatafile, read_contentfiles=False)
-    commits = git.get_commits()
-    workhours = get_workhours(commits)
-    accumulate_workhours_per_task(workhours, course)
-    hashes = get_submission_checked_commits(course, commits)
-    checked_tuples = get_all_checked_tuples(hashes)
-    accumulate_timevalues_and_attempts(checked_tuples, course)
-    entries, workhours_total, timevalue_total = student_work_so_far(course)
-    if pargs.submission:
-        prepare_submission_file(course, entries, pargs.course_url)
-    else:
-        report_student_work_so_far(course, entries, workhours_total, timevalue_total)
 
 
 def accumulate_timevalues_and_attempts(checked_tuples: tg.Sequence[CheckedTuple], course: sdrl.course.Course):
@@ -57,7 +36,7 @@ def accumulate_timevalues_and_attempts(checked_tuples: tg.Sequence[CheckedTuple]
             print(taskname, "rejected")
         else:
             pass  # unmodified entry: instructor has not checked it
-            
+
 
 def accumulate_workhours_per_task(workentries: tg.Sequence[WorkEntry], course: sdrl.course.Course):
     """Reflect the workentries data in the course data structure."""
@@ -82,7 +61,7 @@ def get_all_checked_tuples(hashes: tg.Sequence[str]) -> tg.Sequence[CheckedTuple
 def get_submission_checked_commits(course: sdrl.course.Course,
                                    commits: tg.Sequence[git.Commit]) -> tg.Sequence[str]:
     """List of hashes of properly instructor-signed commits of finished submission checks."""
-    allowed_signers = [b.as_fingerprint(instructor['keyfingerprint']) 
+    allowed_signers = [b.as_fingerprint(instructor['keyfingerprint'])
                        for instructor in course.instructors]
     result = []
     for commit in commits:
@@ -118,41 +97,6 @@ def parse_taskname_workhours(commit_msg: str) -> tg.Optional[WorkEntry]:
     return (taskname, workhours)
 
 
-def prepare_submission_file(course: sdrl.course.Course, entries: tg.Sequence[ReportEntry],
-                            course_url: str):
-    #----- write file:
-    with open(SUBMISSION_FILE, 'wt', encoding='utf8') as f:
-        yaml.safe_dump(submission_file_entries(course, entries), f)
-    b.info(f"Wrote file '{SUBMISSION_FILE}'.")
-    #----- give instructions for next steps:
-    b.info(f"1. Remove all entries from it that you do not want to submit yet.")
-    b.info(f"2. Commit it with commit message '{SUBMISSION_COMMIT_MSG}'.")
-    b.info(f"3. Then send the following to your instructor by email:")
-    b.info(f"  Subject: Please check submission")
-    b.info(f"  sedrila instructor --submission {course_url} {git.get_remote_origin()}")
-    show_instructors(course)
-
-
-def report_student_work_so_far(course: sdrl.course.Course, entries: tg.Sequence[ReportEntry], 
-                               workhours_total: float, timevalue_total: float):
-    print("Your work so far:")
-    print("taskname\t\tworkhours\ttimevalue\treject/accept")
-    for taskname, workhours, timevalue, rejections, accepted in entries:
-        task = course.taskdict[taskname]
-        ra_list = task.rejections * [REJECT_MARK] + ([ACCEPT_MARK] if task.accepted else [])
-        ra_string = ", ".join(ra_list)
-        print(f"{taskname}\t{workhours}\t{timevalue}\t{ra_string}")
-    print(f"TOTAL:\t\t{workhours_total}\t{timevalue_total}")
-
-
-def show_instructors(course, with_gitaccount=False):
-    b.info("The instructors for this course are:")
-    for instructor in course.instructors:
-        b.info(f"  {instructor['nameish']} <{instructor['email']}>")
-        if with_gitaccount:
-            b.info(f"     git account: {instructor['gitaccount']}")
-
-
 def student_work_so_far(course) -> tg.Tuple[tg.Sequence[ReportEntry], float, float]:
     workhours_total = 0.0
     timevalue_total = 0.0
@@ -176,4 +120,4 @@ def submission_file_entries(course: sdrl.course.Course, entries: tg.Sequence[Rep
         if not accepted:
             candidates[taskname] = CHECK_MARK
     return candidates
-    
+

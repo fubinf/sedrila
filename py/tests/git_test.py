@@ -14,5 +14,5 @@ def test_get_commits():
 
 def test_get_file_version():
     # uses fixed knowledge about our own very repo
-    output = git.get_file_version("423d101a73", "py/sdrl/__init__.py", encoding='utf8')
+    output = git.get_file_version("423d101a73", "py/sdrl/student.py", encoding='utf8')
     assert output == '"""sedrila-specific parts (Ö)"""\n'
