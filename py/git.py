@@ -1,8 +1,11 @@
 """Technical operations for reading information from git repos."""
 import dataclasses
 import datetime as dt
+import re
 import subprocess as sp
 import typing as tg
+
+import base as b
 
 LOG_FORMAT_SEPARATOR = '\t'
 LOG_FORMAT = "%h%x09%ae%x09%at%x09%GF%x09%s"  # see notes at attributes of Commit or git help log "Pretty Formats"
@@ -35,3 +38,14 @@ def get_file_version(refid: str, filename: str, encoding=None) -> tg.AnyStr:
         return raw.decode(encoding=encoding)
     else:
         return raw
+
+
+def get_remote_origin() -> str:
+    """The local repo's 'origin' remote"""
+    git_remote = sp.check_output("git remote -v show", shell=True).decode('utf8')
+    # e.g.:  origin  git@github.com:myaccount/myrepo.git (fetch)
+    fetchremote_regexp = r"origin\s+(\S+)\s+\(fetch\)"
+    mm = re.search(fetchremote_regexp, git_remote)
+    if not mm:
+        b.critical(f"cannot find 'origin' URL in  git remote  output:\n{git_remote}")
+    return mm.group(1)
