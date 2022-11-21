@@ -105,7 +105,8 @@ def spit(filename: str, content: str):
 
 
 def debug(msg: str):
-    print(msg)
+    # print(msg)
+    pass
 
 
 def info(msg: str):
