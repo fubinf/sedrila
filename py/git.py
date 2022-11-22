@@ -1,6 +1,7 @@
 """Technical operations for reading information from git repos."""
 import dataclasses
 import datetime as dt
+import os
 import re
 import subprocess as sp
 import typing as tg
@@ -18,8 +19,12 @@ class Commit:
     key_fingerprint: str  # %GF
     subject: str  # %s
     
+
+def clone(repo_url: str, targetdir: str):
+    os.system(f"git clone {repo_url} {targetdir}")
+
     
-def get_commits() -> tg.Sequence[Commit]:
+def commits_of_local_repo() -> tg.Sequence[Commit]:
     result = []
     gitcmd = ["git", "log", f"--format=format:{LOG_FORMAT}"]
     gitrun = sp.run(gitcmd, capture_output=True, encoding='utf8', text=True)
@@ -49,3 +54,16 @@ def origin_remote_of_local_repo() -> str:
     if not mm:
         b.critical(f"cannot find 'origin' URL in  git remote  output:\n{git_remote}")
     return mm.group(1)
+
+
+def pull():
+    os.system("git pull")
+
+
+def username_from_repo_url(repo_url: str) -> str:
+    # a repo_url is git@server:useraccount/reponame.git or git@server:useraccount/subset/reponame.git
+    repo_url_regexp = r":([\w_\.-]+)/"
+    mm = re.search(repo_url_regexp, repo_url)
+    if repo_url.startswith("http") or not mm:
+        b.critical(f"Git url '{repo_url}' is not usable.\nNeed one like 'git@server:useraccount/reponame.git'.")
+    return mm.group(1) if mm else None  # tests will patch b.critical away

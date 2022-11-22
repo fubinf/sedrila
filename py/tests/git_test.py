@@ -1,8 +1,11 @@
+import unittest.mock
+
+import base as b
 import git
 
 def test_get_commits():
     # uses fixed knowledge about our own very repo
-    commits = git.get_commits()
+    commits = git.commits_of_local_repo()
     first = commits[-1]  # git output is '6492d05\tprechelt@inf.fu-berlin.de\t1663692720\t\tInitial commit'
     second = commits[-2]  # git output is '8cb7d47\tmyname@mynery.eu\t1664980577\t\tSplit of tooling and content'
     assert first.hash == "6492d05"  # hash may become longer some day  
@@ -14,5 +17,16 @@ def test_get_commits():
 
 def test_get_file_version():
     # uses fixed knowledge about our own very repo
-    output = git.get_file_version("423d101a73", "py/sdrl/student.py", encoding='utf8')
+    output = git.contents_of_file_version("423d101a73", "py/sdrl/__init__.py", encoding='utf8')
     assert output == '"""sedrila-specific parts (Ö)"""\n'
+
+
+def test_username_from_repo_url():
+    func = git.username_from_repo_url
+    assert func("git@server:useraccount/subset/reponame.git") == "useraccount"
+    with unittest.mock.patch('base.critical') as crit:
+        func("https://server/useraccount/reponame.git")
+        assert crit.called
+    with unittest.mock.patch('base.critical') as crit:
+        func("git@server:user*account/subset/reponame.git")
+        assert crit.called
