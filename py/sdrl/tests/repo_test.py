@@ -68,12 +68,12 @@ def test_student_work_so_far():
         create_git_repo()
         #----- initialize application environment:
         course = sdrl.course.Course(sdrl.course.METADATA_FILE, read_contentfiles=False)
-        commits = git.get_commits()
-        workhours = r.get_workhours(commits)
+        commits = git.commits_of_local_repo()
+        workhours = r.workhours_of_commits(commits)
         r.accumulate_workhours_per_task(workhours, course)
-        hashes = r.get_submission_checked_commits(course, commits)
+        hashes = r.submission_checked_commit_hashes(course, commits)
         print("hashes:", hashes)
-        checked_tuples = r.get_all_checked_tuples(hashes)
+        checked_tuples = r.checked_tuples_from_commits(hashes)
         print("checked_tuples:", checked_tuples)
         r.accumulate_timevalues_and_attempts(checked_tuples, course)
         # ----- report workhours and timevalue per task:
@@ -86,7 +86,7 @@ def test_student_work_so_far():
 
 
 def test_parse_taskname_workhours():
-    func = r.parse_taskname_workhours
+    func = r._parse_taskname_workhours
     assert func("mystuff 1h remaining msg") == ("mystuff", 1.0)
     assert func("mystuff 1h") == ("mystuff", 1.0)
     assert func("mystuff 1 h") == ("mystuff", 1.0)

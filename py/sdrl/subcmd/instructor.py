@@ -1,13 +1,17 @@
 import argparse
 import os
+import tempfile
 
 import base as b
+import git
+import sdrl.course
 import sdrl.repo as r
 
 help = """Help instructors evaluate a student's submission of several finished tasks.
 """
 
 REPOS_HOME_VAR = "STUDENT_REPOS_HOME"
+
 
 def configure_argparser(subparser):
     subparser.add_argument('course_url',
@@ -25,6 +29,10 @@ def execute(pargs: argparse.Namespace):
         b.critical(f"Environment variable {REPOS_HOME_VAR} must be set (student workdirs directory)")
     home = os.environ.get(REPOS_HOME_VAR)
     checkout_student_repo(pargs.repo_url, home)
+    metadatafile = f"{pargs.course_url}/{sdrl.course.METADATA_FILE}"
+    course = sdrl.course.Course(metadatafile, read_contentfiles=False)
+    r.compute_student_work_so_far(course)
+    entries, workhours_total, timevalue_total = r.student_work_so_far(course)
     validate_submission_file()
 
 

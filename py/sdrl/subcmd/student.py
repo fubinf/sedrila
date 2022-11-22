@@ -1,5 +1,4 @@
 import argparse
-import re
 import typing as tg
 
 import yaml
@@ -21,12 +20,7 @@ def configure_argparser(subparser):
 def execute(pargs: argparse.Namespace):
     metadatafile = f"{pargs.course_url}/{sdrl.course.METADATA_FILE}"
     course = sdrl.course.Course(metadatafile, read_contentfiles=False)
-    commits = git.get_commits()
-    workhours = r.get_workhours(commits)
-    r.accumulate_workhours_per_task(workhours, course)
-    hashes = r.get_submission_checked_commits(course, commits)
-    checked_tuples = r.get_all_checked_tuples(hashes)
-    r.accumulate_timevalues_and_attempts(checked_tuples, course)
+    r.compute_student_work_so_far(course)
     entries, workhours_total, timevalue_total = r.student_work_so_far(course)
     if pargs.submission:
         prepare_submission_file(course, entries, pargs.course_url)
@@ -45,7 +39,7 @@ def prepare_submission_file(course: sdrl.course.Course, entries: tg.Sequence[r.R
     b.info(f"2. Commit it with commit message '{r.SUBMISSION_COMMIT_MSG}'.")
     b.info(f"3. Then send the following to your instructor by email:")
     b.info(f"  Subject: Please check submission")
-    b.info(f"  sedrila instructor --submission {course_url} {git.get_remote_origin()}")
+    b.info(f"  sedrila instructor --submission {course_url} {git.origin_remote_of_local_repo()}")
     show_instructors(course)
 
 

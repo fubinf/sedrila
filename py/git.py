@@ -32,7 +32,7 @@ def get_commits() -> tg.Sequence[Commit]:
     return result
 
 
-def get_file_version(refid: str, filename: str, encoding=None) -> tg.AnyStr:
+def contents_of_file_version(refid: str, filename: str, encoding=None) -> tg.AnyStr:
     raw = sp.check_output(f"git show {refid}:{filename}", shell=True)
     if encoding:
         return raw.decode(encoding=encoding)
@@ -40,8 +40,8 @@ def get_file_version(refid: str, filename: str, encoding=None) -> tg.AnyStr:
         return raw
 
 
-def get_remote_origin() -> str:
-    """The local repo's 'origin' remote"""
+def origin_remote_of_local_repo() -> str:
+    """The local repo's 'origin' remote, which we assume to exist and to be the relevant remote."""
     git_remote = sp.check_output("git remote -v show", shell=True).decode('utf8')
     # e.g.:  origin  git@github.com:myaccount/myrepo.git (fetch)
     fetchremote_regexp = r"origin\s+(\S+)\s+\(fetch\)"
