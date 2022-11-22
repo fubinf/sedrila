@@ -37,8 +37,18 @@ def execute(pargs: argparse.Namespace):
 
 
 def checkout_student_repo(repo_url, home):
-    pass
+    """Pulls or clones student repo and changes into its directory."""
+    username = git.username_from_repo_url(repo_url)
+    os.chdir(home)
+    if os.path.exists(username):
+        os.chdir(username)
+        b.info(f"**** pulled repo in existing directory '{os.getcwd()}'")
+        git.pull()
+    else:
+        git.clone(repo_url, username)
+        os.chdir(username)
+        b.info(f"**** cloned repo into new directory '{os.getcwd()}'")
 
 
 def validate_submission_file():
-    pass
+    assert False, "not yet implemented"
