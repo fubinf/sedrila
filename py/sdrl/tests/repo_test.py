@@ -59,12 +59,10 @@ def create_gpg_key() -> str:
 def test_student_work_so_far():
     with tempfile.TemporaryDirectory() as tempdir, HomeHereContextMgr(tempdir) as origdir:
         #----- initialize test environment:
-        with open(f"{origdir}/py/sdrl/tests/data/{sdrl.course.METADATA_FILE}", 'r', encoding='utf8') as f:
-            course_json = json.load(f)  # course config template
+        course_json = b.slurp_json(f"{origdir}/py/sdrl/tests/data/{sdrl.course.METADATA_FILE}")  # config template
         fingerprint = create_gpg_key()
         course_json['instructors'][0]['fingerprint'] = fingerprint  
-        with open(sdrl.course.METADATA_FILE, 'wt', encoding='utf8') as f:
-            json.dump(course_json, f)  # final course config
+        b.spit_json(sdrl.course.METADATA_FILE, course_json)  # final course config
         create_git_repo()
         #----- initialize application environment:
         course = sdrl.course.Course(sdrl.course.METADATA_FILE, read_contentfiles=False)

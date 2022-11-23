@@ -31,8 +31,7 @@ def execute(pargs: argparse.Namespace):
 def prepare_submission_file(course: sdrl.course.Course, entries: tg.Sequence[r.ReportEntry],
                             course_url: str):
     # ----- write file:
-    with open(r.SUBMISSION_FILE, 'wt', encoding='utf8') as f:
-        yaml.safe_dump(r.submission_file_entries(course, entries), f)
+    b.spit_yaml(r.SUBMISSION_FILE, r.submission_file_entries(course, entries))
     b.info(f"Wrote file '{r.SUBMISSION_FILE}'.")
     # ----- give instructions for next steps:
     b.info(f"1. Remove all entries from it that you do not want to submit yet.")

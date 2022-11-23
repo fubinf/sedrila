@@ -59,11 +59,9 @@ def checkout_student_repo(repo_url, home):
 
 def rewrite_submission_file(course: sdrl.course.Course, filename: str):
     """Checks status of entries and inserts different marks where needed."""
-    with open(filename, 'rt', encoding='utf8') as f:
-        entries = yaml.safe_load(f)
+    entries = b.slurp_yaml(filename)
     rewrite_submission_entries(course, entries)
-    with open(filename, 'wt', encoding='utf8') as f:
-        yaml.safe_dump(entries, f)
+    b.spit_yaml(filename, entries)
 
 
 def rewrite_submission_entries(course: sdrl.course.Course, entries: tg.Mapping[str, str]):

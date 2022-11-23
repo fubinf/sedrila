@@ -18,6 +18,7 @@ class TempDirEnvironContextMgr(tempfile.TemporaryDirectory):
     (4) adds the temporary dir as _CONTEXT_TEMPDIR, and
     (5) unpatches environment on exit.
     None means environment variable is not set.
+    Naively works with the default string encoding.
     Useful for automated tests.
     A typical usecase is a test involving the use of implicit dotfiles in $HOME.
     """

@@ -194,8 +194,7 @@ def toc(structure: Structurepart, level=0) -> str:
 
 
 def write_metadata(course: sdrl.course.Course, filename: str):
-    with open(filename, 'wt', encoding='utf8') as f:
-        json.dump(course.as_json(), f, ensure_ascii=False, indent=2)
+    b.spit(filename, json.dumps(course.as_json(), ensure_ascii=False, indent=2))
 
 
 def _content_for(item, mode: b.Mode) -> str:

@@ -1,4 +1,5 @@
 """Shortcut typenames, global constants, basic helpers."""
+import json
 import os
 import enum
 import sys
@@ -99,9 +100,25 @@ def slurp(resource: str) -> str:
             return f.read()
 
 
+def slurp_json(resource: str) -> StrAnyMap:
+    return json.loads(slurp(resource))
+
+
+def slurp_yaml(resource: str) -> StrAnyMap:
+    return yaml.safe_load(slurp(resource))
+
+
 def spit(filename: str, content: str):
     with open(filename, 'wt', encoding='utf8') as f:
         f.write(content)
+
+
+def spit_json(filename: str, content: StrAnyMap):
+    spit(filename, json.dumps(content))
+
+
+def spit_yaml(filename: str, content: StrAnyMap):
+    spit(filename, yaml.safe_dump(content))
 
 
 def debug(msg: str):

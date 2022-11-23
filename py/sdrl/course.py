@@ -146,14 +146,7 @@ class Course(Item):
     chapters: tg.Sequence['Chapter']
     
     def __init__(self, configfile: str, read_contentfiles: bool):
-        configdict: b.StrAnyMap
-        configtext = b.slurp(configfile)
-        if configfile.endswith('.yaml'):
-            configdict = yaml.safe_load(configtext)
-        elif configfile.endswith('.json'):
-            configdict = json.loads(configtext)
-        else:
-            raise ValueError(f"unknown file type: '{configfile}'. Must be .yaml or .json")
+        configdict = b.slurp_yaml(configfile)
         b.copyattrs(configdict, self,
                     mustcopy_attrs='title, shorttitle, instructors',
                     cancopy_attrs='baseresourcedir, chapterdir, templatedir',
