@@ -1,5 +1,7 @@
 import argparse
 import os
+import re
+import time
 import typing as tg
 
 import yaml
@@ -49,7 +51,7 @@ def checkout_student_repo(repo_url, home):
     os.chdir(home)
     if os.path.exists(username):
         os.chdir(username)
-        b.info(f"**** pulled repo in existing directory '{os.getcwd()}'")
+        b.info(f"**** pulling repo in existing directory '{os.getcwd()}'")
         git.pull()
     else:
         git.clone(repo_url, username)
@@ -76,23 +78,45 @@ def rewrite_submission_entries(course: sdrl.course.Course, entries: tg.Mapping[s
             entries[taskname] += f" (previously rejected {task.rejections}x)"
 
 
+def call_instructor_cmd(course: sdrl.course.Course, cmd: str, iteration: int):
+    """Calls user-set command as indicated by environment variables"""
+    if iteration == 0:
+        b.info(f"Will now call the command given in the {USER_CMD_VAR} environment variable or else")
+        b.info(f"the command given in the SHELL environment variable or else '{USER_CMD_DEFAULT}'.")
+        b.info(f"The resulting command in your case will be:  '{cmd}'")
+        b.info("Exit that command (e.g. the shell) to trigger automatic commit+push")
+        b.info(f"of the modified {r.SUBMISSION_FILE}.")
+    else:
+        b.info(f"Calling '{cmd}' again. (You can Ctrl-C right after it.)")
+    os.system(cmd)
+    time.sleep(0.8)  # give user a chance to hit Ctrl-C
+
+
 def instructor_cmd() -> str:
     return os.environ.get(USER_CMD_VAR) or os.environ.get('SHELL', USER_CMD_DEFAULT)
 
 
-def call_instructor_cmd(course: sdrl.course.Course, cmd: str):
-    """Calls user-set command as indicated by environment variables"""
-    b.info(f"Will now call the command indicated by the {USER_CMD_VAR} environment variable or else")
-    b.info(f"the command indicated by the SHELL environment variable or else {USER_CMD_DEFAULT}.")
-    b.info(f"The resulting command in your case will be:  {cmd}")
-    b.info("Exit that command (e.g. the shell) to continue with committing and pushing")
-    b.info(f"the modified {r.SUBMISSION_FILE}")
-    os.system(cmd)
+def validate_submission_file(course: sdrl.course.Course, filename: str) -> bool:
+    """Check whether the submission file contains (and only contains) sensible entries."""
+    entries = b.slurp_yaml(filename)
+    has_accept = any((mark.startswith(r.ACCEPT_MARK) for taskname, mark in entries.items()))
+    has_reject = any((mark.startswith(r.REJECT_MARK) for taskname, mark in entries.items()))
+    allowable_marks = f"{r.ACCEPT_MARK}|{r.REJECT_MARK}|{r.CHECK_MARK}"
+    is_valid = True
+    def error(msg: str) -> bool:
+        b.error(msg)
+        return False
+    if not has_accept and not has_reject:
+        is_valid = b.error(f"Invalid {filename}: has neither {r.ACCEPT_MARK} nor {r.REJECT_MARK} marks.")
+    for taskname, mark in entries.items():
+        if not course.task(taskname):
+            is_valid = error(f"No such task exists: {taskname}")
+        if not re.match(allowable_marks, mark):
+            is_valid = error(f"Impossible mark: \"{taskname}: {mark}\"")
+    return is_valid
 
 
-def validate_submission_file(course: sdrl.course.Course, filename: str):
-    pass
-
-
-def commit_and_push():
-    assert False, "not yet implemented"
+def commit_and_push(filename: str):
+    assert filename == r.SUBMISSION_FILE  # our only purpose here, the arg is for clarity
+    git.commit(*[filename], msg=f"{r.SUBMISSION_FILE} checked")
+    git.push()
