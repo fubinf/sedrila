@@ -1,10 +1,8 @@
 # pytest tests. Some of them work on Linux only (just like sedrila overall).
 
-import json
 import os
 import re
 import subprocess
-import tempfile
 
 import pytest
 
@@ -26,11 +24,12 @@ def create_git_repo():
     os.system("git commit --allow-empty -m'hello'")
     os.system("git commit --allow-empty -m'A 3.25h'")
     os.system("git commit --allow-empty -m'A 0:45h'")
-    b.spit("submission.yaml", f"A: {r.REJECT_MARK}  some comment about the problem\n")
+    b.spit("submission.yaml", 
+           f"A: {r.REJECT_MARK}  some comment about the problem\n")
     os.system("git add submission.yaml")
     os.system("gpgconf --kill gpg-agent")
-    os.system("gpg-agent --daemon  git commit -S -m'submission.yaml checked'")
-    # os.system("git commit -S -m'submission.yaml checked'")
+    commit_cmd = "git commit -S -m'submission.yaml checked'"
+    os.system(f"GPG_TTY=$(tty) gpg-agent --daemon  {commit_cmd}")  # fails!
     os.system("gpgconf --kill gpg-agent")
 
 
@@ -39,7 +38,7 @@ def create_gpg_key() -> str:
     os.system(f"gpg --quick-gen-key --batch --pinentry-mode loopback --passphrase '' {GIT_USER} default default never")
     fpr_output = subprocess.check_output("HOME=. gpg --fingerprint --with-colons", shell=True)
     print("create_gpg_key:", fpr_output)
-    mm = re.search(rb"fpr:+([0-9A-F]+)", fpr_output)
+    mm = re.search(rb"fpr:+([\dA-F]+)", fpr_output)
     assert mm
     return str(mm.group(1))  # the fingerprint-proper only
 
