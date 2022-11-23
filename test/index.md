@@ -1,5 +1,0 @@
-title: Main
-
-# Main
-
-!resources
