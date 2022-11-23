@@ -190,6 +190,7 @@ class Course(Item):
         return result
 
     def task(self, taskname: str) -> tg.Optional[Task]:
+        """Return Task for given taskname or None if it no such task exists."""
         return self.taskdict.get(taskname)
 
     def all_tasks(self) -> tg.Generator[Task, None, None]:

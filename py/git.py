@@ -57,7 +57,7 @@ def origin_remote_of_local_repo() -> str:
 
 
 def pull():
-    os.system("git pull")
+    os.system("git pull --ff-only")
 
 
 def username_from_repo_url(repo_url: str) -> str:

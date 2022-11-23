@@ -17,6 +17,7 @@ SUBMISSION_CHECKED_COMMIT_MSG = "submission.yaml checked"
 CHECK_MARK = "CHECK"
 ACCEPT_MARK = "ACCEPT"
 REJECT_MARK = "REJECT"
+NONTASK_MARK = "NO_SUCH_TASKNAME"
 
 CheckedTuple = tg.Tuple[str, str, str]  # hash, taskname, tasknote
 WorkEntry = tg.Tuple[str, float]  # taskname, workhours
