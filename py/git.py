@@ -18,23 +18,34 @@ class Commit:
     author_date: dt.datetime  # converted from %at
     key_fingerprint: str  # %GF
     subject: str  # %s
-    
+
+
+def add(filename: str):
+    os.system(f"git add {filename}")    
+
 
 def clone(repo_url: str, targetdir: str):
     os.system(f"git clone {repo_url} {targetdir}")
 
-    
-def commits_of_local_repo() -> tg.Sequence[Commit]:
+
+def commit(*filenames, msg):
+    for filename in filenames:
+        add(filename)
+    os.system(f"git commit -m'{msg}'")
+
+
+def commits_of_local_repo(reverse=False) -> tg.Sequence[Commit]:
+    """Returns all commits in youngest-first order (like git log), or reversed."""
     result = []
     gitcmd = ["git", "log", f"--format=format:{LOG_FORMAT}"]
     gitrun = sp.run(gitcmd, capture_output=True, encoding='utf8', text=True)
     for line in gitrun.stdout.split('\n'):
-        hash, email, tstamp, fngrprnt, subj = tuple(line.split(LOG_FORMAT_SEPARATOR))
-        c = Commit(hash, email, 
+        hash_, email, tstamp, fngrprnt, subj = tuple(line.split(LOG_FORMAT_SEPARATOR))
+        c = Commit(hash_, email, 
                    dt.datetime.fromtimestamp(int(tstamp), tz=dt.timezone.utc),
                    fngrprnt, subj)
         result.append(c)
-    return result
+    return list(reversed(result)) if reverse else result
 
 
 def contents_of_file_version(refid: str, filename: str, encoding=None) -> tg.AnyStr:
@@ -43,6 +54,10 @@ def contents_of_file_version(refid: str, filename: str, encoding=None) -> tg.Any
         return raw.decode(encoding=encoding)
     else:
         return raw
+
+
+def discard_commits(howmany: int):
+    os.system(f"git reset --hard HEAD~{howmany}")
 
 
 def origin_remote_of_local_repo() -> str:
@@ -58,6 +73,10 @@ def origin_remote_of_local_repo() -> str:
 
 def pull():
     os.system("git pull --ff-only")
+
+
+def push():
+    os.system("git push")
 
 
 def username_from_repo_url(repo_url: str) -> str:
