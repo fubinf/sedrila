@@ -16,10 +16,9 @@ METADATA_FILE = "course.json"  # in student build directory
 
 class Task:
     srcfile: str  # the originating pathname
-    metadata_text: str  # the entire YAML character stream
+    metadata_text: str  # the YAML front matter character stream
     metadata: b.StrAnyMap  # the YAML front matter
-    content: str  # the entire first markdown block
-    instructorcontent: str  # the entire second markdown block
+    content: str  # the markdown block
     slug: str  # the key by which we access the Task object
 
     title: str  # title: value
@@ -110,8 +109,6 @@ class Item:
     shorttitle: str
     metadata: b.StrAnyMap  # the YAML front matter
     content: str
-    instructorcontent: str
-    othercontent: str
     toc: str
 
     @property

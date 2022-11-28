@@ -58,30 +58,18 @@ def copyattrs(source: StrAnyMap, target: tg.Any, mustcopy_attrs: str, cancopy_at
 
 def read_partsfile(self, file: str, text: str = None):
     """
-    Supports reading two different formats.
-
-    Legacy format with 3+ double triple dash separated parts. Store parts data in self:
-    part 1 in self.metadata_text and self.metadata,
-    part 2 in self.content, part 3 in self.instructorcontent, parts 4..n in self.othercontents.
-    Complain if there are fewer than 3 parts or metadata is not YAML.
-
-    The new format will handle different types based on admonitions. Metadata is separated by a blank line
+    Reads files consisting of YAML metadata, then Markdown text, separated by a tiple-dash line.
+    Stores metadata into self.metadata, rest into self.content.
     """
+    SEPARATOR = "---\n"
     #----- obtain file contents:
     self.srcfile = file
     if not text:
         text = slurp(file)
-    #----- store parts:
-    parts = text.split("---\n---\n")
-    if len(parts) >= 3: #legacy mode
-        self.metadata_text = parts[0]
-        self.content = parts[1]
-        self.instructorcontent = parts[2] 
-        self.othercontents = parts[3:]
-    else:
-        #this assumes that metadata will always be present, but that should not be an issue
-        self.metadata_text, self.content = text.split(os.linesep + os.linesep, 1)
-        self.instructorcontent = None
+    if SEPARATOR not in text:
+        error(f"{self.srcfile}: triple-dash separator is missing")
+        return
+    self.metadata_text, self.content = text.split(SEPARATOR, 1)
     #----- parse metadata
     try:
         # ----- parse YAML data:
