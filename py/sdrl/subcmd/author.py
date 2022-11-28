@@ -198,7 +198,8 @@ def write_metadata(course: sdrl.course.Course, filename: str):
 
 
 def _content_for(item, mode: b.Mode) -> str:
-    return      item.content if mode == b.Mode.STUDENT or not(item.instructorcontent) else item.instructorcontent
+    # return      item.content if mode == b.Mode.STUDENT or not(item.instructorcontent) else item.instructorcontent
+    return      item.content
 
 
 def _instructor_targetdir(pargs: argparse.Namespace) -> str:
