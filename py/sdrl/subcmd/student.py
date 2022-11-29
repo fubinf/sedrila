@@ -1,6 +1,8 @@
 import argparse
 import typing as tg
 
+import rich
+
 import base as b
 import git
 import sdrl.course
@@ -42,14 +44,21 @@ def prepare_submission_file(course: sdrl.course.Course, entries: tg.Sequence[r.R
 
 def report_student_work_so_far(course: sdrl.course.Course, entries: tg.Sequence[r.ReportEntry],
                                workhours_total: float, timevalue_total: float):
-    print("Your work so far:")
-    print("taskname\t\tworkhours\ttimevalue\treject/accept")
+    b.info("Your work so far:")
+    table = rich.table.Table(show_header=True, header_style="bold yellow",
+                             show_edge=False, show_footer=False)
+    table.add_column("Taskname")
+    table.add_column("Workhours", justify="right")
+    table.add_column("Timevalue", justify="right")
+    table.add_column("reject/accept")
     for taskname, workhours, timevalue, rejections, accepted in entries:
         task = course.taskdict[taskname]
         ra_list = task.rejections * [r.REJECT_MARK] + ([r.ACCEPT_MARK] if task.accepted else [])
         ra_string = ", ".join(ra_list)
-        print(f"{taskname}\t{workhours}\t{timevalue}\t{ra_string}")
-    print(f"TOTAL:\t\t{workhours_total}\t{timevalue_total}")
+        table.add_row(taskname, "%4.1f" % workhours, "%4.1f" % timevalue, ra_string)
+    # table.add_section()
+    table.add_row("[b]=TOTAL[/b]", "[b]%5.1f[/b]" % workhours_total, "[b]%5.1f[/b]" % timevalue_total, "")
+    b.info(table)
 
 
 def show_instructors(course, with_gitaccount=False):
