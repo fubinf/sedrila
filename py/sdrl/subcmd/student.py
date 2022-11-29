@@ -1,24 +1,22 @@
 import argparse
 import typing as tg
 
-import yaml
-
 import base as b
 import git
 import sdrl.course
+import sdrl.participant
 import sdrl.repo as r
 
 help = """Reports on course execution so far or prepares submission to instructor."""
 
 def configure_argparser(subparser):
-    subparser.add_argument('course_url',
-                           help="where to find course description")
     subparser.add_argument('--submission', action='store_true',
                            help=f"generate {r.SUBMISSION_FILE} with possible tasks to be checked by instructor")
 
 
 def execute(pargs: argparse.Namespace):
-    metadatafile = f"{pargs.course_url}/{sdrl.course.METADATA_FILE}"
+    student = sdrl.participant.Student()
+    metadatafile = f"{student.course_url}/{sdrl.course.METADATA_FILE}"
     course = sdrl.course.Course(metadatafile, read_contentfiles=False)
     r.compute_student_work_so_far(course)
     entries, workhours_total, timevalue_total = r.student_work_so_far(course)
