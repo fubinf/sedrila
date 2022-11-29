@@ -1,8 +1,6 @@
 import argparse
 import typing as tg
 
-import rich
-
 import base as b
 import git
 import sdrl.course
@@ -45,8 +43,7 @@ def prepare_submission_file(course: sdrl.course.Course, entries: tg.Sequence[r.R
 def report_student_work_so_far(course: sdrl.course.Course, entries: tg.Sequence[r.ReportEntry],
                                workhours_total: float, timevalue_total: float):
     b.info("Your work so far:")
-    table = rich.table.Table(show_header=True, header_style="bold yellow",
-                             show_edge=False, show_footer=False)
+    table = b.Table()
     table.add_column("Taskname")
     table.add_column("Workhours", justify="right")
     table.add_column("Timevalue", justify="right")

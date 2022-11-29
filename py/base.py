@@ -7,6 +7,7 @@ import typing as tg
 
 import requests
 import rich
+import rich.table
 import yaml
 
 outstream = sys.stdout
@@ -137,3 +138,9 @@ def critical(msg: str):
 def exit_if_errors(msg: str=""):
     if num_errors > 0:
         critical(f"{num_errors} error{'s' if num_errors else ''}. Exiting.")
+
+
+def Table() -> rich.table.Table:
+    """An empty Table in default sedrila style"""
+    return rich.table.Table(show_header=True, header_style="bold yellow",
+                            show_edge=False, show_footer=False)
