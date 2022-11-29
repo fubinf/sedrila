@@ -25,7 +25,7 @@ extension_configs = {
     }
 }
 
-macro_regexp = r"\[([A-Z0-9_]+)(?:::(.+?))?(?:::(.+?))?\][^(]"  
+macro_regexp = r"\[([A-Z0-9_]+)(?:::(.+?))?(?:::(.+?))?\](?=[^(]|$)"  
 # bracketed all-caps: [ALL2_CAPS] with zero to two arguments: [NAME::arg] or [NAME::arg1::arg2]
 # suppress matches on normal links: [TEXT](url)
 

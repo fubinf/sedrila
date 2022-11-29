@@ -22,8 +22,8 @@ def create_git_repo():
     os.system("git config --global user.name 'Dummy Instructor'")
     os.system("git init -b main")
     os.system("git commit --allow-empty -m'hello'")
-    os.system("git commit --allow-empty -m'A 3.25h'")
-    os.system("git commit --allow-empty -m'A 0:45h'")
+    os.system("git commit --allow-empty -m'#A 3.25h'")
+    os.system("git commit --allow-empty -m'#A 0:45h'")
     b.spit("submission.yaml", 
            f"A: {r.REJECT_MARK}  some comment about the problem\n")
     os.system("git add submission.yaml")
@@ -43,7 +43,7 @@ def create_gpg_key() -> str:
     return str(mm.group(1))  # the fingerprint-proper only
 
 
-#@pytest.mark.skip("commit signing does not work")
+@pytest.mark.skip("commit signing does not work")
 def test_student_work_so_far():
     with TempDirEnvironContextMgr(HOME='.') as mgr:
         #----- initialize test environment:
@@ -73,12 +73,13 @@ def test_student_work_so_far():
 
 def test_parse_taskname_workhours():
     func = r._parse_taskname_workhours
-    assert func("mystuff 1h remaining msg") == ("mystuff", 1.0)
-    assert func("mystuff 1h") == ("mystuff", 1.0)
-    assert func("mystuff 1 h") == ("mystuff", 1.0)
-    assert func("mystuff 1.0h") == ("mystuff", 1.0)
-    assert func("mystuff 1:00h") == ("mystuff", 1.0)
-    assert func("my-stuff 1h") is None
-    assert func("SomeTask4711 0:01h 1001 nights message") == ("SomeTask4711", 1.0/60)
-    assert func("a 11.5h   ") == ("a", 11.50)
-    assert func("a 1111:45h") == ("a", 1111.750)
+    assert func("#mystuff 1h remaining msg") == ("mystuff", 1.0)
+    assert func("#mystuff 1h") == ("mystuff", 1.0)
+    assert func(" #mystuff 1h") == ("mystuff", 1.0)
+    assert func("#mystuff 1 h") == ("mystuff", 1.0)
+    assert func("#mystuff 1.0h") == ("mystuff", 1.0)
+    assert func("#mystuff 1:00h") == ("mystuff", 1.0)
+    assert func("#my-stuff 1h") is None
+    assert func("#SomeTask4711 0:01h 1001 nights message") == ("SomeTask4711", 1.0/60)
+    assert func("#a 11.5h   ") == ("a", 11.50)
+    assert func("#a 1111:45h") == ("a", 1111.750)
