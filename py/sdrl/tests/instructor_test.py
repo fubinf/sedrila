@@ -47,9 +47,9 @@ def test_instructor_parts(capfd):
         with unittest.mock.patch('time.sleep'):
             sut.call_instructor_cmd(course, sut.instructor_cmd(), iteration=0)
         output = capfd.readouterr().out
-        assert f"{sut.USER_CMD_VAR} environment variable" in output  # check some of the explanation
-        assert os.environ[sut.USER_CMD_VAR] in output  # make sure the actual command is shown
         print(output)
+        assert f"the {sut.USER_CMD_VAR}" in output  # check some of the explanation
+        assert os.environ[sut.USER_CMD_VAR] in output  # make sure the actual command is shown
         is_valid = sut.validate_submission_file(course, r.SUBMISSION_FILE)
         assert not is_valid
         output = capfd.readouterr().out

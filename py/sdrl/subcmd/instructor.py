@@ -83,7 +83,7 @@ def call_instructor_cmd(course: sdrl.course.Course, cmd: str, iteration: int):
     if iteration == 0:
         b.info(f"Will now call the command given in the {USER_CMD_VAR} environment variable or else")
         b.info(f"the command given in the SHELL environment variable or else '{USER_CMD_DEFAULT}'.")
-        b.info(f"The resulting command in your case will be:  '{cmd}'")
+        b.info(f"The resulting command in your case will be:\n  '{cmd}'")
         b.info("Exit that command (e.g. the shell) to trigger automatic commit+push")
         b.info(f"of the modified {r.SUBMISSION_FILE}.")
     else:

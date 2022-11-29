@@ -6,6 +6,7 @@ import sys
 import typing as tg
 
 import requests
+import rich
 import yaml
 
 outstream = sys.stdout
@@ -110,26 +111,26 @@ def spit_yaml(filename: str, content: StrAnyMap):
 
 
 def debug(msg: str):
-    # print(msg)
+    # rich.print(msg)
     pass
 
 
 def info(msg: str):
-    print(msg)
+    rich.print(msg)
 
 
 def warning(msg: str):
-    print(msg)
+    rich.print(f"[yellow]{msg}[/yellow]")
 
 
 def error(msg: str):
     global num_errors
     num_errors += 1
-    print(msg)
+    rich.print(f"[red]{msg}[/red]")
 
 
 def critical(msg: str):
-    print(msg)
+    rich.print(f"[bold red]{msg}[/bold red]")
     sys.exit(num_errors)
 
 
