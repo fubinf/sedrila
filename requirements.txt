@@ -2,3 +2,4 @@ Jinja2
 Markdown
 PyYAML
 requests
+rich
