@@ -107,17 +107,28 @@ def backup_targetdir(targetdir: str, markerfile: str):
 
 
 def print_volume_report(course: sdrl.course.Course):
-    print("==== Difficulty\t#Tasks\ttimevalue")
+    """Show total timevalues per difficulty and per chapter."""
+    table = b.Table()
+    table.add_column("Difficulty")
+    table.add_column("#Tasks", justify="right")
+    table.add_column("Timevalue", justify="right")
     for difficulty, numtasks, timevalue in course.volume_report_per_difficulty():
-        print("%-12s\t%3d\t%5.1f" %
-              (f"{difficulty}:{h.difficulty_levels[difficulty-1]}", numtasks, timevalue))
-    print("%-12s\t%3d\t%5.1f" %
-          ("TOTAL", len(course.taskdict), sum((t.timevalue for t in course.all_tasks()))))
-    print("==== Chapter          \t#Tasks\ttimevalue")
+        table.add_row(f"{difficulty}:{h.difficulty_levels[difficulty-1]}",
+                      str(numtasks), 
+                      "%5.1f" % timevalue)
+    table.add_row("[b]=TOTAL", 
+                  f"[b]{len(course.taskdict)}", 
+                  "[b]%5.1f" % sum((t.timevalue for t in course.all_tasks())))
+    b.info(table)
+    table = b.Table()
+    table.add_column("Chapter")
+    table.add_column("#Tasks", justify="right")
+    table.add_column("Timevalue", justify="right")
     for chaptername, numtasks, timevalue in course.volume_report_per_chapter():
-        print("%-22s\t%3d\t%5.1f" %
-              (chaptername, numtasks, timevalue))
-    print("====")
+        table.add_row(chaptername,
+                      str(numtasks), 
+                      "%5.1f" % timevalue)
+    b.info(table)
 
 
 def read_and_check(course: sdrl.course.Course):
