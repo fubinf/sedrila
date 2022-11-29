@@ -6,16 +6,21 @@
 
 - There is a large number of small tasks, each worth a certain number of work hours
 - Within loose constraints, students can pick which tasks they want to work on
-- Each task results in a commit in that student's git repository
-- At certain times, students can submit a batch of finished tasks to a teaching assistant
-- The teaching assistant checks some of the task's solution commits and then
+- Each task results in a commit (or several) in that student's git repository
+- At certain times, students can submit a batch of finished tasks to an instructor or teaching assistant
+- The instructor checks some of the task's solution commits and then
   either accepts or rejects the entire batch.
-- If accepted, the work hours those tasks were worth are booked onto the student's workhours account.
+- If accepted, the timevalue assigned to those tasks is booked onto the student's timevalue account,
+  which is also represented by a series of commits in the student's git repository.
 - When enough hours have accumulated there, that student has successfully finished the course.
 
-`sedrila` is highly opinionated:
-- It assumes that the course content is so useful and motivating to the students
-  that they are unlikely to want to cheat.
+Instructor commits are signed such that they cannot be forged.
+
+
+## 1.2 `sedrila` is opinionated
+
+- It assumes that the course content is so useful and motivating for the students
+  that they are unlikely to cheat.
 - It assumes that SeDriLas are (or could become) Open Educational Resources.
   This means that all information that is accessible to the teaching assistants 
   is also accessible to the students.
@@ -23,32 +28,58 @@
   because the tasks rely heavily on _external_ materials available on the web.
   The SeDriLa itself has a simple text layout, few images of its own,
   and no local videos or high-tech active content.  
-  The idea behind this is to make it realistic to keep the SeDriLa up-to-date over time.
+  The idea behind this is to make it realistic to keep the SeDriLa fresh and up-to-date over time.
+- SeDriLas are pass/fail, they are not graded, because that would be incompatible
+  with the above goals.
 
 
-### 1.2 What does the `sedrila` tool do?
+### 1.3 What does the `sedrila` tool do?
 
-It has these functions (the list is very preliminary):
+The tool serves three target audiences: 
+first course authors, then students, and finally instructors. 
+Correspondingly, it basically has three functions:
 
-- `build` generates a SeDriLa instance from a SeDriLa template.  
+- `author` generates a SeDriLa instance from a SeDriLa template.  
   - The template is a directory tree 
     (maintained in a git repository and developed much like software by the course owners)
-    with a prescribed structure that contains all the task descriptions.
+    with a prescribed structure that contains all the task descriptions, written in Markdown.
   - The instance is a directory tree of static HTML pages.
   - The generation is controlled by a configuration file.
-- `instructor` supports instructors when evaluating student solutions.  TODO 3
-- `student` tells the students how many hours are on their workhours account so far.  TODO 2
+- `student` tells the students how many hours are on their timevalue account so far
+  and helps them prepare a submission to an instructor.
+- `instructor` supports instructors when evaluating student solutions:
+  retrieving student repos, validating their submission file, 
+  recording the instructor's feedback.
 
 
-## 2. Installation
+## 2. How to use `sedrila`
 
-User installation (not yet implemented):
+### 2.1 User installation (not yet implemented)
+
 ```
 pip install sedrila
 ```
 (Eventually, we will probably want to use a method that results in an executable.)
 
-Developer installation (probably in a fresh venv):
+
+### 2.2 Usage instructions
+
+There separate instructions for each user group:
+
+- [Course authors](doc/authors.md) 
+  who formulate tasks and decide their timevalues before a SeDriLa course starts.
+- [Students](doc/students.md) 
+  who take the course.
+- [Instructors](doc/instructors.md)
+  who check solutions for tasks submitted by the students.
+
+
+### 2.3 Developer installation
+
+In case you want to make changes to sedrila yourself,
+this is how to set up development. 
+You'll probably want to do this in a fresh venv.
+
 ```
 git clone git@github.com:fubinf/sedrila.git
 cd sedrila
@@ -59,82 +90,59 @@ sedrila --help
 ```
 
 
-## 3. Instructions for course authors
+# 3. Internal technical notes
 
-What you need to provide as a course author:
-- One plain text file per potential task.
-  - That file contains metadata, the task description offered to the students, and
-    the instructions for the teaching assistant for this task.
-  - The metadata is at the top of the file in Yaml format.
-  - The other two parts follow below in Markdown format.
-- Tasks are arranged in groups in two levels.
-  You need to provide an `index.md` file for each group.
-  These are structured like the task files, but with fewer metadata.
-  - 'chapters' (typically 3 to 6) form the top level
-  - 'taskgroups' (typically 2 to 6 per chapter) form a second level below that
-- A central configuration file `sedrila.yaml`, which contains global configuration data,
-  global metadata and most metadata for chapters and taskgroups.
-- Header and Footer HTML fragments to be used for the rendered HTML pages
-  (simple defaults are included).
-- A CSS file (a simple default is included).
+## 3.1 Some design decisions
 
-
-### 3.1 `sedrila.yaml`: The global configuration file
-
-This is best explained by example:
-
-https://github.com/fubinf/propra-inf/blob/main/sedrila.yaml
+- We use YAML for handwritten structured data and JSON for machine-generated structured data.
+- We use Markdown as the main source language to keep authoring simple.
+- Course-level metadata (chapters and taskgroups) and course configuration data is stored in 
+  a single YAML file for an easy overview.
+- Task-level metadata is stored in YAML format at the top of each task Markdown file
+  to obtain locality and to make it easier to randomize task selection when
+  creating a course instance.
+- We use a few custom Markdown extensions for
+  - file-local table of contents;
+  - value-added integrity-checked links to tasks, taskgroups, chapters;
+  - embedding instructor-only content to be used for the instructor version of the webpages;
+  - other preconfigured formatting, in particular colored boxes for Notices, Warnings,
+    and Submissions (Deliverables) instructions.
+- We use plain, passive HTML for the generated course webpage.
+- We use a student git repository for all solution transportation and bookkeeping.
+- We assume the first path element of the git repository URL is a username and
+  identifies the student. 
 
 
-### 3.2 Templates for HTML layout
-
-The format of the resulting HTML files is determined per page type by the Jinja2 templates
-in directory `templates`.
-For examples, see https://github.com/fubinf/propra-inf/tree/main/templates
-
-
-## 4. Instructions for teaching assistants  TODO
-
-
-## 5. Instructions for students
-
-All instructions are on the course webpages generated by `sedrila`.
-Your instructors need to tell you where that lives.
-Start there.
-
-
-# 6. Internal technical notes
-
-## 6.1 Bookkeeping architecture
+## 3.2 Bookkeeping architecture
 
 In a nutshell, the bookkeeping of _actual_ work hours worked by a student 
 and of _"earned value"_ effort hours (called "timevalue") certified by an instructor
 is based on the following ideas:
 
-- When students commit a partial or completed task XYZ, they use a prescribed format for the commit message:  
-  `XYZ 1:24h  my personal commit message`  
-  where `XYZ` is the official name of the task and
-  `1:24h` means the student has worked 1 hour and 24 minutes for this commit.
-  Decimal fractions (`1.4h`) are possible as well.
-- A script can collect, accumulate, and tabulate these actual efforts for the student's information.
-  This is also useful to evidence-based improvement of the course contents.
+- When students commit a partial or completed task XYZ, they use a prescribed format 
+  for the commit message as described on the [students page](doc/students.md).
+- A script can collect, accumulate, and tabulate these _actual_ work times for the student's information
+  and show them side-by-side with the timevalues (_expected_ work times).
+  The information is also useful for evidence-based improvement of the course contents.
 - When students want to show a set of solutions for tasks to an instructor,
   they write the task names to a file `submission.yaml`
 - The instructor checks those tasks, adds checking results into that file,
   and commits it. This commmit is cryptographcally signed.
-  The commit message says `submission.yaml checked`.
 - `course.json` is published along with the webpages.
   It lists all tasks with their dependencies and timevalues
-  and all instructors and their public keys.
+  and all instructors and their public key fingerprints.
 - The script that computes the "value earned" effort hours uses `course.json` to
   - find all `submission.yaml checked` commits that were made by an instructor
   - extract the list of accepted tasks from them, and
-  - tabulate those tasks and compute the total earned value hours for them.
+  - tabulate those tasks and compute the sum of their timevalues.
 - That script can also tabulate what the instructor did not accept, which makes practical
   a rule that says a task will only count if it gets accepted no later than upon second (or third?) try.
 
 
-## 6.2 TODO handling
+## 3.3 TODO handling during development
+
+We use this convention for the development of `sedrila`.
+It may also be helpful for course authors if the team is small enough.
 
 If something is incomplete, add a TODO marker with a priorization digit:
 - `TODO 1`: to be completed soon (within a few days)
