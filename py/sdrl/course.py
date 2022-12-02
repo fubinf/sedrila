@@ -70,6 +70,15 @@ class Task:
     def name(self) -> str:
         return self.slug
 
+    @property
+    def toc_link_text(self) -> str:
+        description = h.as_attribute(self.description)
+        href = f"href='{self.outputfile}'"
+        titleattr = f"title=\"{description}\""
+        diffsymbol = h.difficulty_symbol(self.difficulty)
+        timevalue = f"<span title='Timevalue: {self.timevalue} hours'>{self.timevalue}h"
+        return f"<a {href} {titleattr}>{self.title}</a> {diffsymbol} {timevalue}"
+
     def as_json(self) -> b.StrAnyMap:
         return dict(slug=self.slug,
                     title=self.title, timevalue=self.timevalue, difficulty=self.difficulty,
@@ -86,12 +95,7 @@ class Task:
         self.requires = task['requires']
 
     def toc_link(self, level=0) -> str:
-        description = h.as_attribute(self.description)
-        href = f"href='{self.outputfile}'"
-        titleattr = f"title=\"{description}\""
-        diffsymbol = h.difficulty_symbol(self.difficulty)
-        timevalue = f"<span title='Timevalue: {self.timevalue} hours'>{self.timevalue}h"
-        return h.indented_block(f"<a {href} {titleattr}>{self.title}</a> {diffsymbol} {timevalue}", level)
+        return h.indented_block(self.toc_link_text, level)
 
     def _as_list(self, obj) -> tg.List:
         return obj if isinstance(obj, list) else list(obj)
@@ -107,7 +111,7 @@ class Task:
         return h.difficulty_symbol(level)
 
 
-md.register_macros(macros=[('DIFF', 1, Task.expand_diff)])
+md.register_macros(('DIFF', 1, Task.expand_diff))
 
 
 class Item:

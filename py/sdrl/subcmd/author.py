@@ -62,6 +62,12 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
         chapter.toc = toc(chapter)
         for taskgroup in chapter.taskgroups:
             taskgroup.toc = toc(taskgroup)
+    #----- register macroexpanders:
+    md.register_macros(
+        ('TA0', 1, functools.partial(expand_ta, course)),  # short link
+        ('TA1', 1, functools.partial(expand_ta, course)),  # long link
+        ('TA2', 2, functools.partial(expand_ta, course)),  # manual link
+    )
     #----- generate top-level file:
     render_welcome(course, env, targetdir_s, b.Mode.STUDENT)
     render_welcome(course, env, targetdir_i, b.Mode.INSTRUCTOR)
@@ -116,6 +122,22 @@ def toc(structure: Structurepart, level=0) -> str:
     else:
         assert False
     return "\n".join(result)
+
+
+def expand_ta(course: sdrl.course.Course, macrocall: md.Macrocall, 
+              macroname: str, taskname: str, linktext: str) -> str:
+    task = course.task(taskname)
+    if task is None:
+        macrocall.error(f"Task '{taskname}' does not exist")
+        return ""
+    if macroname == "TA0":
+        return task.breadcrumb_item
+    elif macroname == "TA1":
+        return task.toc_link_text
+    elif macroname == "TA2":
+        return f"[{linktext}]({task.outputfile})"
+    else:
+        assert False  # impossible
 
 
 def render_welcome(course: sdrl.course.Course, env, targetdir: str, mode: b.Mode):

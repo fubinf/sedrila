@@ -14,10 +14,10 @@ class Macrocall:
     macrocall_text: str
 
     def error(self, msg: str):
-        b.error(f"'{self.filename}': [{self.macrocall_text}]\n  {msg}")
+        b.error(f"'{self.filename}': {self.macrocall_text}\n  {msg}")
 
     def warning(self, msg: str):
-        b.warning(f"'{self.filename}': [{self.macrocall_text}]\n  {msg}")
+        b.warning(f"'{self.filename}': {self.macrocall_text}\n  {msg}")
 
 
 Macroexpander = tg.Callable[[Macrocall, str, str, str], str]
@@ -77,8 +77,7 @@ def register_macro(name: str, numargs: int, expander: Macroexpander):
     macrodefs[name] = (numargs, expander)
 
 
-def register_macros(*, macros: tg.Sequence[Macrodef], expander: tg.Optional[Macroexpander] = None):
-    global macrodefs
+def register_macros(*macros: tg.Sequence[Macrodef], expander: tg.Optional[Macroexpander] = None):
     for macrodef in macros:
         if len(macrodef) == 2:
             name, numargs = macrodef
@@ -110,4 +109,4 @@ def render_markdown(sourcefile: str, markdown_markup: str, mode: b.Mode = None) 
 # initialization:
 md = markdown.Markdown(extensions=extensions, extension_configs=extension_configs)
 md.treeprocessors.register(AdmonitionFilter(md), "admonition_filter", 100)
-macros = register_macros(macros=[('TOC', 0, lambda mc, m, a1, a2: f"[{m}]")])
+macros = register_macros(('TOC', 0, lambda mc, m, a1, a2: f"[{m}]"))
