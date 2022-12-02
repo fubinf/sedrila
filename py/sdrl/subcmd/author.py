@@ -1,4 +1,5 @@
 import argparse
+import functools
 import glob
 import json
 import os
@@ -32,16 +33,6 @@ def execute(pargs: argparse.Namespace):
     course = sdrl.course.Course(pargs.config, read_contentfiles=True)
     read_and_check(course)
     generate(pargs, course)
-
-
-def check(course: sdrl.course.Course):
-    for task in course.all_tasks():
-        for assumed in task.assumes:
-            if not course.task(assumed):
-                b.error(f"{task.slug}:\t assumed task '{assumed}' does not exist")
-        for required in task.requires:
-            if not course.task(required):
-                b.error(f"{task.slug}:\t required task '{required}' does not exist")
 
 
 def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
@@ -106,40 +97,25 @@ def backup_targetdir(targetdir: str, markerfile: str):
     os.rename(targetdir, targetdir_bak)
 
 
-def print_volume_report(course: sdrl.course.Course):
-    """Show total timevalues per difficulty and per chapter."""
-    table = b.Table()
-    table.add_column("Difficulty")
-    table.add_column("#Tasks", justify="right")
-    table.add_column("Timevalue", justify="right")
-    for difficulty, numtasks, timevalue in course.volume_report_per_difficulty():
-        table.add_row(f"{difficulty}:{h.difficulty_levels[difficulty-1]}",
-                      str(numtasks), 
-                      "%5.1f" % timevalue)
-    table.add_row("[b]=TOTAL", 
-                  f"[b]{len(course.taskdict)}", 
-                  "[b]%5.1f" % sum((t.timevalue for t in course.all_tasks())))
-    b.info(table)
-    table = b.Table()
-    table.add_column("Chapter")
-    table.add_column("#Tasks", justify="right")
-    table.add_column("Timevalue", justify="right")
-    for chaptername, numtasks, timevalue in course.volume_report_per_chapter():
-        table.add_row(chaptername,
-                      str(numtasks), 
-                      "%5.1f" % timevalue)
-    b.info(table)
-
-
-def read_and_check(course: sdrl.course.Course):
-    """Reads all task files into memory and performs consistency checking."""
-    for chapter in course.chapters:
-        for taskgroup in chapter.taskgroups:
-            filenames = glob.glob(f"{course.chapterdir}/{chapter.slug}/{taskgroup.slug}/*.md")
-            for filename in filenames:
-                if not filename.endswith("index.md"):
-                    taskgroup.add_task(sdrl.course.Task(filename))
-    check(course)
+def toc(structure: Structurepart, level=0) -> str:
+    """Return a table-of-contents HTML fragment for the given structure via structural recursion."""
+    result = []
+    if isinstance(structure, sdrl.course.Course):
+        for chapter in structure.chapters:
+            result.append(toc(chapter, level))
+    elif isinstance(structure, sdrl.course.Chapter):
+        result.append(structure.toc_link(level))  # Chapter toc_link
+        for taskgroup in structure.taskgroups:
+            result.append(toc(taskgroup, level+1))
+    elif isinstance(structure, sdrl.course.Taskgroup):
+        result.append(structure.toc_link(level))  # Taskgroup toc_link
+        for task in structure.tasks:
+            result.append(toc(task, level+1))
+    elif isinstance(structure, sdrl.course.Task):
+        result.append(structure.toc_link(level))  # Task toc_link
+    else:
+        assert False
+    return "\n".join(result)
 
 
 def render_welcome(course: sdrl.course.Course, env, targetdir: str, mode: b.Mode):
@@ -183,34 +159,57 @@ def render_task(task: sdrl.course.Task, env, targetdir: str, mode: b.Mode):
     b.spit(f"{targetdir}/{task.outputfile}", output)
 
 
-def toc(structure: Structurepart, level=0) -> str:
-    """Return a table-of-contents HTML fragment for the given structure via structural recursion."""
-    result = []
-    if isinstance(structure, sdrl.course.Course):
-        for chapter in structure.chapters:
-            result.append(toc(chapter, level))
-    elif isinstance(structure, sdrl.course.Chapter):
-        result.append(structure.toc_link(level))  # Chapter toc_link
-        for taskgroup in structure.taskgroups:
-            result.append(toc(taskgroup, level+1))
-    elif isinstance(structure, sdrl.course.Taskgroup):
-        result.append(structure.toc_link(level))  # Taskgroup toc_link
-        for task in structure.tasks:
-            result.append(toc(task, level+1))
-    elif isinstance(structure, sdrl.course.Task):
-        result.append(structure.toc_link(level))  # Task toc_link
-    else:
-        assert False
-    return "\n".join(result)
-
-
 def write_metadata(course: sdrl.course.Course, filename: str):
     b.spit(filename, json.dumps(course.as_json(), ensure_ascii=False, indent=2))
+
+
+def print_volume_report(course: sdrl.course.Course):
+    """Show total timevalues per difficulty and per chapter."""
+    table = b.Table()
+    table.add_column("Difficulty")
+    table.add_column("#Tasks", justify="right")
+    table.add_column("Timevalue", justify="right")
+    for difficulty, numtasks, timevalue in course.volume_report_per_difficulty():
+        table.add_row(f"{difficulty}:{h.difficulty_levels[difficulty-1]}",
+                      str(numtasks), 
+                      "%5.1f" % timevalue)
+    table.add_row("[b]=TOTAL", 
+                  f"[b]{len(course.taskdict)}", 
+                  "[b]%5.1f" % sum((t.timevalue for t in course.all_tasks())))
+    b.info(table)
+    table = b.Table()
+    table.add_column("Chapter")
+    table.add_column("#Tasks", justify="right")
+    table.add_column("Timevalue", justify="right")
+    for chaptername, numtasks, timevalue in course.volume_report_per_chapter():
+        table.add_row(chaptername,
+                      str(numtasks), 
+                      "%5.1f" % timevalue)
+    b.info(table)
+
+
+def read_and_check(course: sdrl.course.Course):
+    """Reads all task files into memory and performs consistency checking."""
+    for chapter in course.chapters:
+        for taskgroup in chapter.taskgroups:
+            filenames = glob.glob(f"{course.chapterdir}/{chapter.slug}/{taskgroup.slug}/*.md")
+            for filename in filenames:
+                if not filename.endswith("index.md"):
+                    taskgroup.add_task(sdrl.course.Task(filename))
+    check(course)
+
+
+def check(course: sdrl.course.Course):
+    for task in course.all_tasks():
+        for assumed in task.assumes:
+            if not course.task(assumed):
+                b.error(f"{task.slug}:\t assumed task '{assumed}' does not exist")
+        for required in task.requires:
+            if not course.task(required):
+                b.error(f"{task.slug}:\t required task '{required}' does not exist")
 
 
 def _instructor_targetdir(pargs: argparse.Namespace) -> str:
     default = f"{pargs.targetdir}/{OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR}"
     has_instructor_targetdir = getattr(pargs, 'instructor_targetdir', False)
     return pargs.instructor_targetdir if has_instructor_targetdir else default
-
-
