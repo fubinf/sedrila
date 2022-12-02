@@ -1,4 +1,5 @@
 """Markdown rendering with sedrila-specific bells and/or whistles."""
+import dataclasses
 import re
 import typing as tg
 
@@ -6,7 +7,20 @@ import markdown
 
 import base as b
 
-Macroexpander = tg.Callable[[str, str, str], str]
+@dataclasses.dataclass
+class Macrocall:
+    """Represent where and how a macro was called, allow producing errors/warnings for it."""
+    filename: str
+    macrocall_text: str
+
+    def error(self, msg: str):
+        b.error(f"'{self.filename}': [{self.macrocall_text}]\n  {msg}")
+
+    def warning(self, msg: str):
+        b.warning(f"'{self.filename}': [{self.macrocall_text}]\n  {msg}")
+
+
+Macroexpander = tg.Callable[[Macrocall, str, str, str], str]
 Macrodef = tg.Union[tg.Tuple[str, int], tg.Tuple[str, int, Macroexpander]]  # name, num_args, expander
 
 macrodefs: tg.Mapping[str, tg.Tuple[int, Macroexpander]] = dict()
@@ -29,29 +43,31 @@ macro_regexp = r"\[([A-Z0-9_]+)(?:::(.+?))?(?:::(.+?))?\](?=[^(]|$)"
 # bracketed all-caps: [ALL2_CAPS] with zero to two arguments: [NAME::arg] or [NAME::arg1::arg2]
 # suppress matches on normal links: [TEXT](url)
 
-
-def expand_macros(markup: str) -> str:
+def expand_macros(sourcefile: str, markup: str) -> str:
     """Apply matching macrodefs, report errors for non-matching macro calls."""
-    return re.sub(macro_regexp, expand_macro, markup)
+    def my_expand_macro(mm: re.Match) -> str:
+        return expand_macro(sourcefile, mm)
+    return re.sub(macro_regexp, my_expand_macro, markup)
 
 
-def expand_macro(mm: re.Match) -> str:
+def expand_macro(sourcefile: str, mm: re.Match) -> str:
     """Apply matching macrodef or report error."""
     global macrodefs
     call, macroname, arg1, arg2 = mm.group(), mm.group(1), mm.group(2), mm.group(3)
+    macrocall = Macrocall(filename=sourcefile, macrocall_text=call)
     my_numargs = (arg1 is not None) + (arg2 is not None)
     #----- check name:
     if macroname not in macrodefs:
-        b.error(f"Macro '{macroname}' is not defined: {call}")
+        macrocall.error(f"Macro '{macroname}' is not defined")
         return call  # unexpanded version helps the user most
     numargs, expander = macrodefs[macroname]
     #----- check args:
     if my_numargs != numargs:
-        b.error("Macro '%s' called with %d args, expects %d:  %s" %
-                (macroname, my_numargs, numargs, call))
+        macrocall.error("Macro '%s' called with %d args, expects %d" %
+                (macroname, my_numargs, numargs))
         return call  # unexpanded version helps the user most
     #----- expand:
-    return expander(macroname, arg1, arg2)
+    return expander(macrocall, macroname, arg1, arg2)
 
 def register_macro(name: str, numargs: int, expander: Macroexpander):
     global macrodefs
@@ -82,16 +98,16 @@ class AdmonitionFilter(markdown.treeprocessors.Treeprocessor):
                    divparent.remove(div)  # show  !!! instructor  blocks only in instructor mode
 
 
-def render_markdown(markdown_markup: str, mode: b.Mode = None) -> str:
+def render_markdown(sourcefile: str, markdown_markup: str, mode: b.Mode = None) -> str:
     """
     Generates HTML from Markdown in sedrila manner.
     See https://python-markdown.github.io/
     """
     md.mode = mode
-    return md.reset().convert(expand_macros(markdown_markup))
+    return md.reset().convert(expand_macros(sourcefile, markdown_markup))
 
 
 # initialization:
 md = markdown.Markdown(extensions=extensions, extension_configs=extension_configs)
 md.treeprocessors.register(AdmonitionFilter(md), "admonition_filter", 100)
-macros = register_macros(macros=[('TOC', 0, lambda m, a1, a2: f"[{m}]")])
+macros = register_macros(macros=[('TOC', 0, lambda mc, m, a1, a2: f"[{m}]")])

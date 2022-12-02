@@ -148,7 +148,7 @@ def render_welcome(course: sdrl.course.Course, env, targetdir: str, mode: b.Mode
                              breadcrumb=h.breadcrumb(course),
                              title=course.title,
                              toc=course.toc, fulltoc=course.toc,
-                             content=md.render_markdown(_content_for(course, mode), mode))
+                             content=md.render_markdown(course.inputfile, course.content, mode))
     b.spit(f"{targetdir}/{course.outputfile}", output)
 
 
@@ -158,7 +158,7 @@ def render_chapter(chapter: sdrl.course.Chapter, env, targetdir: str, mode: b.Mo
                              breadcrumb=h.breadcrumb(chapter.course, chapter),
                              title=chapter.title,
                              toc=chapter.toc, fulltoc=chapter.course.toc,
-                             content=md.render_markdown(_content_for(chapter, mode), mode))
+                             content=md.render_markdown(chapter.inputfile, chapter.content, mode))
     b.spit(f"{targetdir}/{chapter.outputfile}", output)
 
 
@@ -168,7 +168,7 @@ def render_taskgroup(taskgroup: sdrl.course.Taskgroup, env, targetdir: str, mode
                              breadcrumb=h.breadcrumb(taskgroup.chapter.course, taskgroup.chapter, taskgroup),
                              title=taskgroup.title,
                              toc=taskgroup.toc, fulltoc=taskgroup.chapter.course.toc,
-                             content=md.render_markdown(_content_for(taskgroup, mode), mode))
+                             content=md.render_markdown(taskgroup.inputfile, taskgroup.content, mode))
     b.spit(f"{targetdir}/{taskgroup.outputfile}", output)
 
 
@@ -179,7 +179,7 @@ def render_task(task: sdrl.course.Task, env, targetdir: str, mode: b.Mode):
                                                      task.taskgroup, task),
                              title=task.title,
                              toc=task.taskgroup.toc, fulltoc=task.taskgroup.chapter.course.toc, 
-                             content=md.render_markdown(_content_for(task, mode), mode))
+                             content=md.render_markdown(task.inputfile, task.content, mode))
     b.spit(f"{targetdir}/{task.outputfile}", output)
 
 
@@ -206,10 +206,6 @@ def toc(structure: Structurepart, level=0) -> str:
 
 def write_metadata(course: sdrl.course.Course, filename: str):
     b.spit(filename, json.dumps(course.as_json(), ensure_ascii=False, indent=2))
-
-
-def _content_for(item, mode: b.Mode) -> str:
-    return      item.content
 
 
 def _instructor_targetdir(pargs: argparse.Namespace) -> str:

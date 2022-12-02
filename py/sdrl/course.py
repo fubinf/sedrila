@@ -1,12 +1,9 @@
 """Represent and handle the contents of the sedrila.yaml config file: course, Chapter, Taskgroup."""
 
 import functools
-import json
 import os
 import re
 import typing as tg
-
-import yaml
 
 import base as b
 import sdrl.html as h
@@ -93,8 +90,8 @@ class Task:
     def _as_list(self, obj) -> tg.List:
         return obj if isinstance(obj, list) else list(obj)
 
-    @staticmethod
-    def expand(name: str, arg1: str, arg2: str) -> str:
+    @classmethod
+    def expand(cls, call: md.Macrocall, name: str, arg1: str, arg2: str) -> str:
         assert name == "DIFF"
         level = int(arg1)
         return h.difficulty_symbol(level)
