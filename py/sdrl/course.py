@@ -162,7 +162,6 @@ class Course(Item):
         if read_contentfiles:
             b.read_partsfile(self, self.inputfile)
         self.chapters = [Chapter(self, ch, read_contentfiles) for ch in configdict['chapters']]
-        self.register_macros()
 
     @property
     def breadcrumb_item(self) -> str:
@@ -178,9 +177,17 @@ class Course(Item):
         return "welcome.html"
 
     @functools.cached_property
+    def chapterdict(self) -> tg.Mapping[str, 'Chapter']:
+        return {ch.slug: ch for ch in self.chapters}
+
+    @functools.cached_property
+    def taskgroupdict(self) -> tg.Mapping[str, 'Taskgroup']:
+        return {tg.slug: tg for tg in self.all_taskgroups()}
+
+    @functools.cached_property
     def taskdict(self) -> tg.Mapping[str, Task]:
-        return { t.name: t for t in self.all_tasks() }
-    
+        return {t.name: t for t in self.all_tasks()}
+
     def as_json(self) -> b.StrAnyMap:
         result = dict(baseresourcedir=self.baseresourcedir, 
                       chapterdir=self.chapterdir,
@@ -190,18 +197,28 @@ class Course(Item):
         result.update(super().as_json())
         return result
 
+    def chapter(self, slug: str) -> tg.Optional['Chapter']:
+        """Return Chapter for given slug or None if no such Chapter exists."""
+        return self.chapterdict.get(slug)
+
+    def taskgroup(self, slug: str) -> tg.Optional[Task]:
+        """Return Taskgroup for given slug or None if no such task exists."""
+        return self.taskgroupdict.get(slug)
+
     def task(self, taskname: str) -> tg.Optional[Task]:
-        """Return Task for given taskname or None if it no such task exists."""
+        """Return Task for given taskname or None if no such task exists."""
         return self.taskdict.get(taskname)
+
+    def all_taskgroups(self) -> tg.Generator['Taskgroup', None, None]:
+        for chapter in self.chapters:
+            for taskgroup in chapter.taskgroups:
+                yield taskgroup
 
     def all_tasks(self) -> tg.Generator[Task, None, None]:
         for chapter in self.chapters:
             for taskgroup in chapter.taskgroups:
                 for task in taskgroup.tasks:
                     yield task
-    
-    def register_macros(self):
-        ...
 
     def volume_report_per_chapter(self) -> tg.Sequence[tg.Tuple[str, int, float]]:
         """Tuples of (chaptername, num_tasks, timevalue_sum)"""
@@ -258,6 +275,11 @@ class Chapter(Item):
     def name(self) -> str:
         return self.slug
 
+    @property
+    def toc_link_text(self) -> str:
+        titleattr = f"title=\"{h.as_attribute(self.description)}\""
+        return f"<a href='{self.outputfile}' {titleattr}>{self.title}</a>"
+
     def as_json(self) -> b.StrAnyMap:
         result = dict(slug=self.slug, 
                       taskgroups=[taskgroup.as_json() for taskgroup in self.taskgroups])
@@ -265,8 +287,7 @@ class Chapter(Item):
         return result
 
     def toc_link(self, level=0) -> str:
-        titleattr = f"title=\"{h.as_attribute(self.description)}\""
-        return h.indented_block(f"<a href='{self.outputfile}' {titleattr}>{self.title}</a>", level)
+        return h.indented_block(self.toc_link_text, level)
 
 
 class Taskgroup(Item):
@@ -309,6 +330,11 @@ class Taskgroup(Item):
     def name(self) -> str:
         return f"{self.chapter.slug}-{self.slug}"
 
+    @property
+    def toc_link_text(self) -> str:
+        titleattr = f"title=\"{h.as_attribute(self.description)}\""
+        return f"<a href='{self.outputfile}' {titleattr}>{self.title}</a>"
+
     def add_task(self, task: Task):
         task.taskgroup = self
         self.tasks.append(task)
@@ -320,5 +346,4 @@ class Taskgroup(Item):
         return result
 
     def toc_link(self, level=0) -> str:
-        titleattr = f"title=\"{h.as_attribute(self.description)}\""
-        return h.indented_block(f"<a href='{self.outputfile}' {titleattr}>{self.title}</a>", level)
+        return h.indented_block(self.toc_link_text, level)

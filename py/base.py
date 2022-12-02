@@ -137,7 +137,10 @@ def critical(msg: str):
 
 def exit_if_errors(msg: str=""):
     if num_errors > 0:
-        critical(f"{num_errors} error{'s' if num_errors else ''}. Exiting.")
+        if msg:
+            critical(msg)
+        else:
+            critical(f"==== {num_errors} error{'s' if num_errors else ''}. Exiting. ====")
 
 
 def Table() -> rich.table.Table:

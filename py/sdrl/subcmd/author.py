@@ -64,9 +64,15 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
             taskgroup.toc = toc(taskgroup)
     #----- register macroexpanders:
     md.register_macros(
-        ('TA0', 1, functools.partial(expand_ta, course)),  # short link
+        ('TA0', 1, functools.partial(expand_ta, course)),  # short link to task
         ('TA1', 1, functools.partial(expand_ta, course)),  # long link
         ('TA2', 2, functools.partial(expand_ta, course)),  # manual link
+        ('TG0', 1, functools.partial(expand_tg, course)),  # short link to taskgroup
+        ('TG1', 1, functools.partial(expand_tg, course)),  # long link
+        ('TG2', 2, functools.partial(expand_tg, course)),  # manual link
+        ('CH0', 1, functools.partial(expand_ch, course)),  # short link to chapter
+        ('CH1', 1, functools.partial(expand_ch, course)),  # long link
+        ('CH2', 2, functools.partial(expand_ch, course)),  # manual link
     )
     #----- generate top-level file:
     render_welcome(course, env, targetdir_s, b.Mode.STUDENT)
@@ -85,9 +91,10 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     #----- generate metadata file:
     write_metadata(course, f"{targetdir_s}/{sdrl.course.METADATA_FILE}")
     #------ report outcome:
-    print_volume_report(course)
     print(f"wrote student files to  '{targetdir_s}'")
     print(f"wrote instructor files to  '{targetdir_i}'")
+    b.exit_if_errors()
+    print_volume_report(course)
 
 
 def backup_targetdir(targetdir: str, markerfile: str):
@@ -125,7 +132,7 @@ def toc(structure: Structurepart, level=0) -> str:
 
 
 def expand_ta(course: sdrl.course.Course, macrocall: md.Macrocall, 
-              macroname: str, taskname: str, linktext: str) -> str:
+              macroname: str, taskname: b.OStr, linktext: b.OStr) -> str:
     task = course.task(taskname)
     if task is None:
         macrocall.error(f"Task '{taskname}' does not exist")
@@ -137,7 +144,39 @@ def expand_ta(course: sdrl.course.Course, macrocall: md.Macrocall,
     elif macroname == "TA2":
         return f"[{linktext}]({task.outputfile})"
     else:
-        assert False  # impossible
+        assert False, macrocall  # impossible
+
+
+def expand_tg(course: sdrl.course.Course, macrocall: md.Macrocall, 
+              macroname: str, slug: b.OStr, linktext: b.OStr) -> str:
+    taskgroup = course.taskgroup(slug)
+    if taskgroup is None:
+        macrocall.error(f"Taskgroup '{slug}' does not exist")
+        return ""
+    if macroname == "TG0":
+        return taskgroup.breadcrumb_item
+    elif macroname == "TG1":
+        return taskgroup.toc_link_text
+    elif macroname == "TG2":
+        return f"[{linktext}]({taskgroup.outputfile})"
+    else:
+        assert False, macrocall  # impossible
+
+
+def expand_ch(course: sdrl.course.Course, macrocall: md.Macrocall, 
+              macroname: str, slug: b.OStr, linktext: b.OStr) -> str:
+    chapter = course.chapter(slug)
+    if chapter is None:
+        macrocall.error(f"Chapter '{slug}' does not exist")
+        return ""
+    if macroname == "CH0":
+        return chapter.breadcrumb_item
+    elif macroname == "CH1":
+        return chapter.toc_link_text
+    elif macroname == "CH2":
+        return f"[{linktext}]({chapter.outputfile})"
+    else:
+        assert False, macrocall  # impossible
 
 
 def render_welcome(course: sdrl.course.Course, env, targetdir: str, mode: b.Mode):
