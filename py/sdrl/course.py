@@ -12,6 +12,8 @@ import sdrl.markdown as md
 METADATA_FILE = "course.json"  # in student build directory
 
 class Task:
+    DIFFICULTY_RANGE = range(1, len(h.difficulty_levels) + 1)
+
     srcfile: str  # the originating pathname
     metadata_text: str  # the YAML front matter character stream
     metadata: b.StrAnyMap  # the YAML front matter
@@ -91,13 +93,17 @@ class Task:
         return obj if isinstance(obj, list) else list(obj)
 
     @classmethod
-    def expand(cls, call: md.Macrocall, name: str, arg1: str, arg2: str) -> str:
+    def expand_diff(cls, call: md.Macrocall, name: str, arg1: str, arg2: str) -> str:
         assert name == "DIFF"
         level = int(arg1)
+        diffrange = cls.DIFFICULTY_RANGE
+        if not level in diffrange:
+            call.error(f"Difficulty must be in range {min(diffrange)}..{max(diffrange)}")
+            return ""
         return h.difficulty_symbol(level)
 
 
-md.register_macros(macros=[('DIFF', 1, Task.expand)])
+md.register_macros(macros=[('DIFF', 1, Task.expand_diff)])
 
 
 class Item:
@@ -201,7 +207,7 @@ class Course(Item):
     def volume_report_per_difficulty(self) -> tg.Sequence[tg.Tuple[int, int, float]]:
         """Tuples of (difficulty, num_tasks, timevalue_sum)"""
         result = []
-        for difficulty in range(1, len(h.difficulty_levels)+1):
+        for difficulty in Task.DIFFICULTY_RANGE:
             num_tasks = sum((1 for t in self.all_tasks() if t.difficulty == difficulty))
             timevalue_sum = sum((t.timevalue for t in self.all_tasks() if t.difficulty == difficulty))
             result.append((difficulty, num_tasks, timevalue_sum))
