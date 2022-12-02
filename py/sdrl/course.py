@@ -59,6 +59,10 @@ class Task:
         return f"<a href='{self.outputfile}'>{self.slug}</a>"
 
     @property
+    def inputfile(self) -> str:
+        return self.srcfile
+
+    @property
     def outputfile(self) -> str:
         return f"{self.name}.html"
 
