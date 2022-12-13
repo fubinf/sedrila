@@ -103,7 +103,7 @@ def student_work_so_far(course) -> tg.Tuple[tg.Sequence[ReportEntry], float, flo
     workhours_total = 0.0
     timevalue_total = 0.0
     result = []
-    for taskname in sorted((t.slug for t in course.all_tasks())):
+    for taskname in sorted((t.slug for t in course.taskdict.values())):
         task = course.taskdict[taskname]
         if task.workhours != 0.0:
             workhours_total += task.workhours

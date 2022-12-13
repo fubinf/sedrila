@@ -1,6 +1,7 @@
 """Represent and handle the contents of the sedrila.yaml config file: course, Chapter, Taskgroup."""
 
 import functools
+import glob
 import os
 import re
 import typing as tg
@@ -26,6 +27,8 @@ class Task:
     difficulty: str  # difficulty: value (one of Task.difficulty_levels)
     assumes: tg.Sequence[str] = []  # tasknames: This knowledge is assumed to be present
     requires: tg.Sequence[str] = []  # tasknames: These specific results will be reused here
+    assumed_by: tg.Sequence[str] = []  # tasknames: inverse of assumes
+    required_by: tg.Sequence[str] = []  # tasknames: inverse of requires
     workhours: float = 0.0  # time student has worked on this according to commit msgs
     accepted: bool = False  # whether instructor has ever marked it 'accept'
     rejections: int = 0  # how often instructor has marked it 'reject'
@@ -162,6 +165,8 @@ class Course(Item):
         if read_contentfiles:
             b.read_partsfile(self, self.inputfile)
         self.chapters = [Chapter(self, ch, read_contentfiles) for ch in configdict['chapters']]
+        self._check_links()
+        self._add_inverse_links()
 
     @property
     def breadcrumb_item(self) -> str:
@@ -182,11 +187,11 @@ class Course(Item):
 
     @functools.cached_property
     def taskgroupdict(self) -> tg.Mapping[str, 'Taskgroup']:
-        return {tg.slug: tg for tg in self.all_taskgroups()}
+        return {tg.slug: tg for tg in self._all_taskgroups()}
 
     @functools.cached_property
     def taskdict(self) -> tg.Mapping[str, Task]:
-        return {t.name: t for t in self.all_tasks()}
+        return {t.name: t for t in self._all_tasks()}
 
     def as_json(self) -> b.StrAnyMap:
         result = dict(baseresourcedir=self.baseresourcedir, 
@@ -209,12 +214,14 @@ class Course(Item):
         """Return Task for given taskname or None if no such task exists."""
         return self.taskdict.get(taskname)
 
-    def all_taskgroups(self) -> tg.Generator['Taskgroup', None, None]:
+    def _all_taskgroups(self) -> tg.Generator['Taskgroup', None, None]:
+        """To be used only for initializing taskgroupdict, so we can assume all taskgroups to be known"""
         for chapter in self.chapters:
             for taskgroup in chapter.taskgroups:
                 yield taskgroup
 
-    def all_tasks(self) -> tg.Generator[Task, None, None]:
+    def _all_tasks(self) -> tg.Generator[Task, None, None]:
+        """To be used only for initializing taskdict, so we can assume all tasks to be known"""
         for chapter in self.chapters:
             for taskgroup in chapter.taskgroups:
                 for task in taskgroup.tasks:
@@ -224,8 +231,8 @@ class Course(Item):
         """Tuples of (chaptername, num_tasks, timevalue_sum)"""
         result = []
         for chapter in self.chapters:
-            num_tasks = sum((1 for t in self.all_tasks() if t.taskgroup.chapter == chapter))
-            timevalue_sum = sum((t.timevalue for t in self.all_tasks() if t.taskgroup.chapter == chapter))
+            num_tasks = sum((1 for t in self.taskdict.values() if t.taskgroup.chapter == chapter))
+            timevalue_sum = sum((t.timevalue for t in self.taskdict.values() if t.taskgroup.chapter == chapter))
             result.append((chapter.shorttitle, num_tasks, timevalue_sum))
         return result
 
@@ -233,10 +240,35 @@ class Course(Item):
         """Tuples of (difficulty, num_tasks, timevalue_sum)"""
         result = []
         for difficulty in Task.DIFFICULTY_RANGE:
-            num_tasks = sum((1 for t in self.all_tasks() if t.difficulty == difficulty))
-            timevalue_sum = sum((t.timevalue for t in self.all_tasks() if t.difficulty == difficulty))
+            num_tasks = sum((1 for t in self.taskdict.values() if t.difficulty == difficulty))
+            timevalue_sum = sum((t.timevalue for t in self.taskdict.values() if t.difficulty == difficulty))
             result.append((difficulty, num_tasks, timevalue_sum))
         return result
+
+    def _add_inverse_links(self):
+        """add Task.required_by/Task.assumed_by lists."""
+        for taskname, task in self.taskdict.items():
+            task.assumed_by = []  # so we do not append to the class attribute
+            task.required_by = []
+        for taskname, task in self.taskdict.items():
+            for assumed_taskname in task.assumes:
+                assumed_task = self.task(assumed_taskname)
+                if assumed_task:
+                    assumed_task.assumed_by.append(taskname)
+            for required_taskname in task.assumes:
+                required_task = self.task(required_taskname)
+                if required_task:
+                    required_task.required_by.append(taskname)
+
+    def _check_links(self):
+        for task in self.taskdict.values():
+            b.debug(f"Task '{task.slug}'\tassumes {task.assumes},\trequires {task.requires}")
+            for assumed in task.assumes:
+                if not self.task(assumed):
+                    b.error(f"{task.slug}:\t assumed task '{assumed}' does not exist")
+            for required in task.requires:
+                if not self.task(required):
+                    b.error(f"{task.slug}:\t required task '{required}' does not exist")
 
 
 class Chapter(Item):
@@ -309,7 +341,7 @@ class Taskgroup(Item):
                         cancopy_attrs='todo',
                         mustexist_attrs='', overwrite=False)
         if read_contentfiles:
-            self.tasks = []  # will be added by reader
+            self._create_tasks()
         else:
             self.tasks = [Task(file=None, taskgroup=self, task=task) for task in taskgroup['tasks']]
 
@@ -335,10 +367,6 @@ class Taskgroup(Item):
         titleattr = f"title=\"{h.as_attribute(self.description)}\""
         return f"<a href='{self.outputfile}' {titleattr}>{self.title}</a>"
 
-    def add_task(self, task: Task):
-        task.taskgroup = self
-        self.tasks.append(task)
-    
     def as_json(self) -> b.StrAnyMap:
         result = dict(slug=self.slug, 
                       tasks=[task.as_json() for task in self.tasks])
@@ -347,3 +375,18 @@ class Taskgroup(Item):
 
     def toc_link(self, level=0) -> str:
         return h.indented_block(self.toc_link_text, level)
+
+    def _add_task(self, task: Task):
+        task.taskgroup = self
+        self.tasks.append(task)
+
+    def _create_tasks(self):
+        """Finds and reads task files."""
+        self.tasks = []
+        chapterdir = self.chapter.course.chapterdir
+        filenames = glob.glob(f"{chapterdir}/{self.chapter.slug}/{self.slug}/*.md")
+        for filename in filenames:
+            if not filename.endswith("index.md"):
+                self._add_task(Task(filename))
+
+

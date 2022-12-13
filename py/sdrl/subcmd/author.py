@@ -31,8 +31,9 @@ def configure_argparser(subparser):
 
 def execute(pargs: argparse.Namespace):
     course = sdrl.course.Course(pargs.config, read_contentfiles=True)
-    read_and_check(course)
     generate(pargs, course)
+    b.exit_if_errors()
+    print_volume_report(course)
 
 
 def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
@@ -93,8 +94,6 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     #------ report outcome:
     print(f"wrote student files to  '{targetdir_s}'")
     print(f"wrote instructor files to  '{targetdir_i}'")
-    b.exit_if_errors()
-    print_volume_report(course)
 
 
 def backup_targetdir(targetdir: str, markerfile: str):
@@ -236,7 +235,7 @@ def print_volume_report(course: sdrl.course.Course):
                       "%5.1f" % timevalue)
     table.add_row("[b]=TOTAL", 
                   f"[b]{len(course.taskdict)}", 
-                  "[b]%5.1f" % sum((t.timevalue for t in course.all_tasks())))
+                  "[b]%5.1f" % sum((t.timevalue for t in course._all_tasks())))
     b.info(table)
     table = b.Table()
     table.add_column("Chapter")
@@ -247,27 +246,6 @@ def print_volume_report(course: sdrl.course.Course):
                       str(numtasks), 
                       "%5.1f" % timevalue)
     b.info(table)
-
-
-def read_and_check(course: sdrl.course.Course):
-    """Reads all task files into memory and performs consistency checking."""
-    for chapter in course.chapters:
-        for taskgroup in chapter.taskgroups:
-            filenames = glob.glob(f"{course.chapterdir}/{chapter.slug}/{taskgroup.slug}/*.md")
-            for filename in filenames:
-                if not filename.endswith("index.md"):
-                    taskgroup.add_task(sdrl.course.Task(filename))
-    check(course)
-
-
-def check(course: sdrl.course.Course):
-    for task in course.all_tasks():
-        for assumed in task.assumes:
-            if not course.task(assumed):
-                b.error(f"{task.slug}:\t assumed task '{assumed}' does not exist")
-        for required in task.requires:
-            if not course.task(required):
-                b.error(f"{task.slug}:\t required task '{required}' does not exist")
 
 
 def _instructor_targetdir(pargs: argparse.Namespace) -> str:
