@@ -1,6 +1,7 @@
 import argparse
 import functools
 import glob
+import html
 import json
 import os
 import os.path
@@ -74,6 +75,8 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
         ('CH0', 1, functools.partial(expand_ch, course)),  # short link to chapter
         ('CH1', 1, functools.partial(expand_ch, course)),  # long link
         ('CH2', 2, functools.partial(expand_ch, course)),  # manual link
+        ('HINT', 1, expand_hint),
+        ('ENDHINT', 0, expand_hint),
     )
     #----- generate top-level file:
     render_welcome(course, env, targetdir_s, b.Mode.STUDENT)
@@ -141,7 +144,7 @@ def expand_ta(course: sdrl.course.Course, macrocall: md.Macrocall,
     elif macroname == "TA1":
         return task.toc_link_text
     elif macroname == "TA2":
-        return f"[{linktext}]({task.outputfile})"
+        return f"[{html.escape(linktext, quote=False)}]({task.outputfile})"
     else:
         assert False, macrocall  # impossible
 
@@ -157,7 +160,7 @@ def expand_tg(course: sdrl.course.Course, macrocall: md.Macrocall,
     elif macroname == "TG1":
         return taskgroup.toc_link_text
     elif macroname == "TG2":
-        return f"[{linktext}]({taskgroup.outputfile})"
+        return f"[{html.escape(linktext, quote=False)}]({taskgroup.outputfile})"
     else:
         assert False, macrocall  # impossible
 
@@ -173,9 +176,17 @@ def expand_ch(course: sdrl.course.Course, macrocall: md.Macrocall,
     elif macroname == "CH1":
         return chapter.toc_link_text
     elif macroname == "CH2":
-        return f"[{linktext}]({chapter.outputfile})"
+        return f"[{html.escape(linktext, quote=False)}]({chapter.outputfile})"
     else:
         assert False, macrocall  # impossible
+
+
+def expand_hint(macrocall: md.Macrocall, 
+                macroname: str, summary: b.OStr, arg2: None) -> str:
+    if macroname == 'HINT':
+        return f"<details><summary>{html.escape(summary, quote=False)}</summary>"
+    elif macroname == 'ENDHINT':
+        return "</details>"
 
 
 def render_welcome(course: sdrl.course.Course, env, targetdir: str, mode: b.Mode):
