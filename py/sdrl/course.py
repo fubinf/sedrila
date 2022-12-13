@@ -80,7 +80,9 @@ class Task:
         titleattr = f"title=\"{description}\""
         diffsymbol = h.difficulty_symbol(self.difficulty)
         timevalue = f"<span title='Timevalue: {self.timevalue} hours'>{self.timevalue}h"
-        return f"<a {href} {titleattr}>{self.title}</a> {diffsymbol} {timevalue}"
+        refs = (self._taskrefs('a', 'assumed_by') + self._taskrefs('r', 'required_by') +
+                self._taskrefs('A', 'assumes') + self._taskrefs('R', 'requires'))
+        return f"<a {href} {titleattr}>{self.title}</a> {diffsymbol} {timevalue} {refs}"
 
     def as_json(self) -> b.StrAnyMap:
         return dict(slug=self.slug,
@@ -102,6 +104,17 @@ class Task:
 
     def _as_list(self, obj) -> tg.List:
         return obj if isinstance(obj, list) else list(obj)
+    
+    def _taskrefs(self, label: str, attr_name: str) -> str:
+        """Create a toc link dedoration for one set of related tasks."""
+        attr_cssclass = "%s-decoration" % attr_name.replace("_", "-")
+        attr_label = attr_name.replace("_", " ")
+        refslist = getattr(self, attr_name)
+        if len(refslist) == 0:
+            return ""
+        title = "%s: %s" % (attr_label, ", ".join(refslist))
+        return ("<span class='%s' title='%s'>%s</span>" %
+                (attr_cssclass, title, label))
 
     @classmethod
     def expand_diff(cls, call: md.Macrocall, name: str, arg1: str, arg2: str) -> str:
