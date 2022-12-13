@@ -31,15 +31,16 @@ def as_fingerprint(raw: str) -> str:
     return raw.replace(' ', '').lower()
 
 
-def copyattrs(source: StrAnyMap, target: tg.Any, mustcopy_attrs: str, cancopy_attrs: str, mustexist_attrs: str, overwrite=True):
+def copyattrs(context: str, source: StrAnyMap, target: tg.Any, 
+              mustcopy_attrs: str, cancopy_attrs: str, mustexist_attrs: str, overwrite=True):
     """
     Copies data from YAML or JSON mapping 'd' to class object 'target' and checks attribute set of d.
     mustcopy_attrs, cancopy_attrs, and mustexist_attrs are comma-separated attribute name lists.
     mustcopy_attrs and cancopy_attrs are copied; mustcopy_attrs and mustexist_attrs must exist; 
     cancopy_attrs need not exist.
     If overwrite is False, fails if attribute already exists in target.
-    Raises ValueError on problems.
-    E.g. copyattrs(yaml, self, "title,shorttitle,dir", "templatedir", "chapters")
+    Prints error and stops on problems.
+    E.g. copyattrs(srcfile, yaml, self, "title,shorttitle,dir", "templatedir", "chapters")
     """
     def mysetattr(obj, name, value):
         if overwrite or not hasattr(target, name):
@@ -49,13 +50,18 @@ def copyattrs(source: StrAnyMap, target: tg.Any, mustcopy_attrs: str, cancopy_at
     mustexist_names = [a.strip() for a in mustexist_attrs.split(',')]  # further mandatory
     source_names = set(source.keys())
     for m in mustcopy_names:  # transport these
-        mysetattr(target, m, source[m])
+        value = source.get(m, ValueError)
+        if value is ValueError:
+            error(f"{context}: required attribute is missing: {m}")
+            exit_if_errors()
+        else:
+            mysetattr(target, m, value)
     for o in cancopy_names:  # transport these if present
         if o in source:
             mysetattr(target, o, source[o])
     extra_attrs = source_names - set(mustcopy_names) - set(cancopy_names) - set(mustexist_names)
     if extra_attrs:
-        raise ValueError(f"unexpected extra attributes found: {extra_attrs}")
+        error(f"{context}: unexpected extra attributes found: {extra_attrs}")
 
 
 def read_partsfile(self, file: str, text: str = None):

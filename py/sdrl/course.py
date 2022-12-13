@@ -47,7 +47,8 @@ class Task:
         nameparts = os.path.basename(self.srcfile).split('.')
         assert len(nameparts) == 2  # taskname, suffix 'md'
         self.slug = nameparts[0]  # must be globally unique
-        b.copyattrs(self.metadata, self,
+        b.copyattrs(file, 
+                    self.metadata, self,
                     mustcopy_attrs='title, description, timevalue, difficulty',
                     cancopy_attrs='assumes, requires',
                     mustexist_attrs='')
@@ -163,6 +164,7 @@ class Course(Item):
     - From a metadata file generated during build (read_contentfiles=False)
       for bookkeeping/reporting.
     """
+    configfile: str
     baseresourcedir: str = 'baseresources'
     chapterdir: str = 'ch'
     templatedir: str = 'templates'
@@ -170,8 +172,10 @@ class Course(Item):
     chapters: tg.Sequence['Chapter']
     
     def __init__(self, configfile: str, read_contentfiles: bool):
+        self.configfile = configfile
         configdict = b.slurp_yaml(configfile)
-        b.copyattrs(configdict, self,
+        b.copyattrs(configfile, 
+                    configdict, self,
                     mustcopy_attrs='title, shorttitle, instructors',
                     cancopy_attrs='baseresourcedir, chapterdir, templatedir',
                     mustexist_attrs='chapters')
@@ -291,13 +295,14 @@ class Chapter(Item):
     
     def __init__(self, course: Course, chapter: b.StrAnyMap, read_contentfiles: bool):
         self.course = course
-        b.copyattrs(chapter, self,
+        b.copyattrs(f"chapter in {course.configfile}", 
+                    chapter, self,
                     mustcopy_attrs='title, shorttitle, slug',
                     cancopy_attrs='',
                     mustexist_attrs='taskgroups')
         if read_contentfiles:
             b.read_partsfile(self, self.inputfile)
-            b.copyattrs(self.metadata, self,
+            b.copyattrs(f"chapter in {course.configfile}", self.metadata, self,
                         mustcopy_attrs='description',
                         cancopy_attrs='todo',
                         mustexist_attrs='', overwrite=False)
@@ -343,13 +348,15 @@ class Taskgroup(Item):
 
     def __init__(self, chapter: Chapter, taskgroup: b.StrAnyMap, read_contentfiles: bool):
         self.chapter = chapter
-        b.copyattrs(taskgroup, self,
+        b.copyattrs(f"taskgroup in chapter {chapter.slug}", 
+                    taskgroup, self,
                     mustcopy_attrs='title, shorttitle, slug',
                     cancopy_attrs='tasks',
                     mustexist_attrs='taskgroups')
         if read_contentfiles:
             b.read_partsfile(self, self.inputfile)
-            b.copyattrs(self.metadata, self,
+            b.copyattrs(f"taskgroup in chapter {chapter.slug}",
+                        self.metadata, self,
                         mustcopy_attrs='description',
                         cancopy_attrs='todo',
                         mustexist_attrs='', overwrite=False)
