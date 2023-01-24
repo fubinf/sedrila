@@ -2,6 +2,7 @@
 
 import functools
 import glob
+import graphlib
 import os
 import re
 import typing as tg
@@ -170,7 +171,8 @@ class Course(Item):
     templatedir: str = 'templates'
     instructors: tg.List[b.StrAnyMap]
     chapters: tg.Sequence['Chapter']
-    
+    taskorder: tg.List[str]  # If task B assumes or requires A, A will be before B in this list.
+
     def __init__(self, configfile: str, read_contentfiles: bool):
         self.configfile = configfile
         configdict = b.slurp_yaml(configfile)
@@ -184,6 +186,7 @@ class Course(Item):
         self.chapters = [Chapter(self, ch, read_contentfiles) for ch in configdict['chapters']]
         self._check_links()
         self._add_inverse_links()
+        self._compute_taskorder()
 
     @property
     def breadcrumb_item(self) -> str:
@@ -287,6 +290,29 @@ class Course(Item):
                 if not self.task(required):
                     b.error(f"{task.slug}:\t required task '{required}' does not exist")
 
+    def _compute_taskorder(self):
+        """
+        Set self.taskorder such that it respects the 'assumes' and 'requires'
+        dependencies globally (across all taskgroups and chapters).
+        The attribute will be used for ordering the tasks when rendering a taskgroup.
+        """
+        # ----- prepare dependency graph for topological sorting:
+        graph = dict()  # maps a task to a set of tasks it depends on.
+        for mytaskname, mytask in self.taskdict.items():
+            if not mytask.requires and not mytask.assumes:
+                continue
+            dependencies = set()  # collection of all tasks required or assumed by mytask
+            for assumedtask in mytask.assumes:
+                dependencies.add(self.taskdict[assumedtask])
+            for requiredtask in mytask.requires:
+                dependencies.add(self.taskdict[requiredtask])
+            graph[mytask] = dependencies
+        # ----- compute taskorder (or report dependency cycle if one is found):
+        try:
+            self.taskorder = list(graphlib.TopologicalSorter(graph).static_order())
+        except graphlib.CycleError as exc:
+            msg = "Some tasks' 'assumes' or 'requires' dependencies form a cycle:\n"
+            b.critical(msg + exc.args[1])
 
 class Chapter(Item):
     slug: str

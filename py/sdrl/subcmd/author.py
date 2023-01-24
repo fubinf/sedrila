@@ -124,7 +124,8 @@ def toc(structure: Structurepart, level=0) -> str:
             result.append(toc(taskgroup, level+1))
     elif isinstance(structure, sdrl.course.Taskgroup):
         result.append(structure.toc_link(level))  # Taskgroup toc_link
-        for task in structure.tasks:
+        mytasks = set(structure.tasks)
+        for task in filter(lambda tsk: tsk in mytasks, structure.chapter.course.taskorder):
             result.append(toc(task, level+1))
     elif isinstance(structure, sdrl.course.Task):
         result.append(structure.toc_link(level))  # Task toc_link
