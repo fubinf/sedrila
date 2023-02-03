@@ -299,8 +299,6 @@ class Course(Item):
         # ----- prepare dependency graph for topological sorting:
         graph = dict()  # maps a task to a set of tasks it depends on.
         for mytaskname, mytask in self.taskdict.items():
-            if not mytask.requires and not mytask.assumes:
-                continue
             dependencies = set()  # collection of all tasks required or assumed by mytask
             for assumedtask in mytask.assumes:
                 dependencies.add(self.taskdict[assumedtask])
