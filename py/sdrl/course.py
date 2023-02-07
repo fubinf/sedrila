@@ -275,7 +275,7 @@ class Course(Item):
                 assumed_task = self.task(assumed_taskname)
                 if assumed_task:
                     assumed_task.assumed_by.append(taskname)
-            for required_taskname in task.assumes:
+            for required_taskname in task.requires:
                 required_task = self.task(required_taskname)
                 if required_task:
                     required_task.required_by.append(taskname)
