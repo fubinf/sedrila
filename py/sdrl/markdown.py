@@ -25,13 +25,12 @@ Macrodef = tg.Union[tg.Tuple[str, int], tg.Tuple[str, int, Macroexpander]]  # na
 
 macrodefs: tg.Mapping[str, tg.Tuple[int, Macroexpander]] = dict()
 
-extensions = ['admonition', 'attr_list', 'fenced_code', 'toc']
+extensions = ['admonition', 'attr_list', 'fenced_code', 'toc', 'codehilite']
 # https://python-markdown.github.io/extensions/admonition/
 # https://python-markdown.github.io/extensions/attr_list/
 # https://python-markdown.github.io/extensions/fenced_code_blocks/
 # https://python-markdown.github.io/extensions/toc/
-# Also consider
-# https://python-markdown.github.io/extensions/code_hilite/  code with syntax highlighting
+# https://python-markdown.github.io/extensions/code_hilite/
 
 extension_configs = {
     'toc': {

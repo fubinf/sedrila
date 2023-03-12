@@ -3,3 +3,4 @@ Markdown
 PyYAML
 requests
 rich
+Pygments
