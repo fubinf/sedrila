@@ -30,6 +30,7 @@ class Task:
     requires: tg.Sequence[str] = []  # tasknames: These specific results will be reused here
     assumed_by: tg.Sequence[str] = []  # tasknames: inverse of assumes
     required_by: tg.Sequence[str] = []  # tasknames: inverse of requires
+    profiles: tg.Sequence[str] = []  # profile shortnames: specialty areas task pertains to
     workhours: float = 0.0  # time student has worked on this according to commit msgs
     accepted: bool = False  # whether instructor has ever marked it 'accept'
     rejections: int = 0  # how often instructor has marked it 'reject'
@@ -51,13 +52,15 @@ class Task:
         b.copyattrs(file, 
                     self.metadata, self,
                     mustcopy_attrs='title, description, timevalue, difficulty',
-                    cancopy_attrs='assumes, requires',
+                    cancopy_attrs='assumes, requires, profiles',
                     mustexist_attrs='')
-        # ----- ensure assumes and requires are lists:
+        # ----- ensure assumes/requires/profiles are lists:
         if isinstance(self.assumes, str):
             self.assumes = re.split(r", *", self.assumes)
         if isinstance(self.requires, str):
             self.requires = re.split(r", *", self.requires)
+        if isinstance(self.profiles, str):
+            self.profiles = re.split(r", *", self.profiles)
 
     @property
     def breadcrumb_item(self) -> str:
@@ -84,7 +87,10 @@ class Task:
         timevalue = f"<span title='Timevalue: {self.timevalue} hours'>{self.timevalue}h"
         refs = (self._taskrefs('a', 'assumed_by') + self._taskrefs('r', 'required_by') +
                 self._taskrefs('A', 'assumes') + self._taskrefs('R', 'requires'))
-        return f"<a {href} {titleattr}>{self.title}</a> {diffsymbol} {timevalue} {refs}"
+        profiles = ""
+        if self.profiles:
+            profiles = f" <span class='profiles-decoration'>({', '.join(self.profiles)})</span>"
+        return f"<a {href} {titleattr}>{self.title}</a> {diffsymbol} {timevalue} {refs}{profiles}"
 
     def as_json(self) -> b.StrAnyMap:
         return dict(slug=self.slug,
@@ -100,6 +106,7 @@ class Task:
         self.difficulty = task['difficulty']
         self.assumes = task['assumes']
         self.requires = task['requires']
+        self.profiles = task['profiles']
 
     def toc_link(self, level=0) -> str:
         return h.indented_block(self.toc_link_text, level)
