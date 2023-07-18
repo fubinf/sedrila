@@ -198,7 +198,7 @@ class Course(Item):
     @property
     def breadcrumb_item(self) -> str:
         titleattr = f"title=\"{h.as_attribute(self.title)}\""
-        return f"<a href='welcome.html' {titleattr}>{self.shorttitle}</a>"
+        return f"<a href='index.html' {titleattr}>{self.shorttitle}</a>"
 
     @property
     def inputfile(self) -> str:
@@ -206,7 +206,7 @@ class Course(Item):
 
     @property
     def outputfile(self) -> str:
-        return "welcome.html"
+        return "index.html"
 
     @functools.cached_property
     def chapterdict(self) -> tg.Mapping[str, 'Chapter']:
@@ -337,7 +337,7 @@ class Chapter(Item):
                         mustcopy_attrs='description',
                         cancopy_attrs='todo',
                         mustexist_attrs='', overwrite=False)
-        self.taskgroups = [Taskgroup(self, taskgroup, read_contentfiles) for taskgroup in chapter['taskgroups']]
+        self.taskgroups = [Taskgroup(self, taskgroup, read_contentfiles) for taskgroup in (chapter.get('taskgroups') or [])]
 
     @property
     def breadcrumb_item(self) -> str:

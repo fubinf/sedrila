@@ -112,25 +112,22 @@ def backup_targetdir(targetdir: str, markerfile: str):
     os.rename(targetdir, targetdir_bak)
 
 
-def toc(structure: Structurepart, level=0) -> str:
+def toc(structure: Structurepart) -> str:
     """Return a table-of-contents HTML fragment for the given structure via structural recursion."""
+    parts = structure_path(structure)
+    fulltoc = len(parts) == 1 #path only contains course
+    course = parts[-1]
     result = []
-    if isinstance(structure, sdrl.course.Course):
-        for chapter in structure.chapters:
-            result.append(toc(chapter, level))
-    elif isinstance(structure, sdrl.course.Chapter):
-        result.append(structure.toc_link(level))  # Chapter toc_link
-        for taskgroup in structure.taskgroups:
-            result.append(toc(taskgroup, level+1))
-    elif isinstance(structure, sdrl.course.Taskgroup):
-        result.append(structure.toc_link(level))  # Taskgroup toc_link
-        mytasks = set(structure.tasks)
-        for task in filter(lambda tsk: tsk in mytasks, structure.chapter.course.taskorder):
-            result.append(toc(task, level+1))
-    elif isinstance(structure, sdrl.course.Task):
-        result.append(structure.toc_link(level))  # Task toc_link
-    else:
-        assert False
+    for chapter in course.chapters:
+        result.append(chapter.toc_link(0))
+        if not(fulltoc) and not(chapter in parts):
+            continue
+        for taskgroup in chapter.taskgroups:
+            result.append(taskgroup.toc_link(1))
+            if not(fulltoc) and not(taskgroup in parts):
+                continue
+            for task in taskgroup.tasks:
+                result.append(task.toc_link(2))
     return "\n".join(result)
 
 
@@ -192,44 +189,45 @@ def expand_hint(macrocall: md.Macrocall,
 
 def render_welcome(course: sdrl.course.Course, env, targetdir: str, mode: b.Mode):
     template = env.get_template("welcome.html")
-    output = template.render(sitetitle=course.title,
-                             breadcrumb=h.breadcrumb(course),
-                             title=course.title,
-                             toc=course.toc, fulltoc=course.toc,
-                             content=md.render_markdown(course.inputfile, course.content, mode))
-    b.spit(f"{targetdir}/{course.outputfile}", output)
-
+    render_structure(course, template, course, env, targetdir, mode)
 
 def render_chapter(chapter: sdrl.course.Chapter, env, targetdir: str, mode: b.Mode):
     template = env.get_template("chapter.html")
-    output = template.render(sitetitle=chapter.course.title,
-                             breadcrumb=h.breadcrumb(chapter.course, chapter),
-                             title=chapter.title,
-                             toc=chapter.toc, fulltoc=chapter.course.toc,
-                             content=md.render_markdown(chapter.inputfile, chapter.content, mode))
-    b.spit(f"{targetdir}/{chapter.outputfile}", output)
-
+    render_structure(chapter.course, template, chapter, env, targetdir, mode)
 
 def render_taskgroup(taskgroup: sdrl.course.Taskgroup, env, targetdir: str, mode: b.Mode):
     template = env.get_template("taskgroup.html")
-    output = template.render(sitetitle=taskgroup.chapter.course.title,
-                             breadcrumb=h.breadcrumb(taskgroup.chapter.course, taskgroup.chapter, taskgroup),
-                             title=taskgroup.title,
-                             toc=taskgroup.toc, fulltoc=taskgroup.chapter.course.toc,
-                             content=md.render_markdown(taskgroup.inputfile, taskgroup.content, mode))
-    b.spit(f"{targetdir}/{taskgroup.outputfile}", output)
-
+    render_structure(taskgroup.chapter.course, template, taskgroup, env, targetdir, mode)
 
 def render_task(task: sdrl.course.Task, env, targetdir: str, mode: b.Mode):
     template = env.get_template("task.html")
-    output = template.render(sitetitle=task.taskgroup.chapter.course.title,
-                             breadcrumb=h.breadcrumb(task.taskgroup.chapter.course, task.taskgroup.chapter,
-                                                     task.taskgroup, task),
-                             title=task.title,
-                             toc=task.taskgroup.toc, fulltoc=task.taskgroup.chapter.course.toc, 
-                             content=md.render_markdown(task.inputfile, task.content, mode))
-    b.spit(f"{targetdir}/{task.outputfile}", output)
+    course = task.taskgroup.chapter.course
+    render_structure(task.taskgroup.chapter.course, template, task, env, targetdir, mode)
 
+def render_structure(course: sdrl.course.Course, template, structure: Structurepart, env, targetdir: str, mode: b.Mode):
+    toc = (structure.taskgroup if isinstance(structure, sdrl.course.Task) else structure).toc
+    output = template.render(sitetitle=course.title,
+                             index=course.chapters[0].slug, index_title=course.chapters[0].title,
+                             breadcrumb=h.breadcrumb(*structure_path(structure)[::-1]),
+                             title=structure.title,
+                             toc=toc, fulltoc=course.toc, 
+                             content=md.render_markdown(structure.inputfile, structure.content, mode))
+    b.spit(f"{targetdir}/{structure.outputfile}", output)
+
+def structure_path(structure: Structurepart) -> list[Structurepart]:
+    path = []
+    if isinstance(structure, sdrl.course.Task):
+        path.append(structure)
+        structure = structure.taskgroup
+    if isinstance(structure, sdrl.course.Taskgroup):
+        path.append(structure)
+        structure = structure.chapter
+    if isinstance(structure, sdrl.course.Chapter):
+        path.append(structure)
+        structure = structure.course
+    if isinstance(structure, sdrl.course.Course):
+        path.append(structure)
+    return path
 
 def write_metadata(course: sdrl.course.Course, filename: str):
     b.spit(filename, json.dumps(course.as_json(), ensure_ascii=False, indent=2))
