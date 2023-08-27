@@ -188,7 +188,7 @@ class Course(Item):
                     mustcopy_attrs='title, shorttitle, instructors',
                     cancopy_attrs='baseresourcedir, chapterdir, templatedir',
                     mustexist_attrs='chapters')
-        if read_contentfiles:
+        if read_contentfiles and os.path.isfile(self.inputfile):
             b.read_partsfile(self, self.inputfile)
         self.chapters = [Chapter(self, ch, read_contentfiles) for ch in configdict['chapters']]
         self._check_links()

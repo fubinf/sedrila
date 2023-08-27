@@ -189,7 +189,8 @@ def expand_hint(macrocall: md.Macrocall,
 
 def render_welcome(course: sdrl.course.Course, env, targetdir: str, mode: b.Mode):
     template = env.get_template("welcome.html")
-    render_structure(course, template, course, env, targetdir, mode)
+    if hasattr(course, "content"):
+        render_structure(course, template, course, env, targetdir, mode)
 
 def render_chapter(chapter: sdrl.course.Chapter, env, targetdir: str, mode: b.Mode):
     template = env.get_template("chapter.html")
