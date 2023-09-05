@@ -13,6 +13,7 @@ import sdrl.markdown as md
 
 METADATA_FILE = "course.json"  # in student build directory
 
+
 class Task:
     DIFFICULTY_RANGE = range(1, len(h.difficulty_levels) + 1)
 
@@ -25,20 +26,20 @@ class Task:
     title: str  # title: value
     description: str  # description: value (possibly multiple lines)
     timevalue: tg.Union[int, float]  # task timevalue: (in hours)
-    difficulty: str  # difficulty: value (one of Task.difficulty_levels)
-    assumes: tg.Sequence[str] = []  # tasknames: This knowledge is assumed to be present
-    requires: tg.Sequence[str] = []  # tasknames: These specific results will be reused here
-    assumed_by: tg.Sequence[str] = []  # tasknames: inverse of assumes
-    required_by: tg.Sequence[str] = []  # tasknames: inverse of requires
-    profiles: tg.Sequence[str] = []  # profile shortnames: specialty areas task pertains to
+    difficulty: int  # difficulty: int from DIFFICULTY_RANGE
+    assumes: tg.List[str] = []  # tasknames: This knowledge is assumed to be present
+    requires: tg.List[str] = []  # tasknames: These specific results will be reused here
+    assumed_by: tg.List[str] = []  # tasknames: inverse of assumes
+    required_by: tg.List[str] = []  # tasknames: inverse of requires
+    profiles: tg.List[str] = []  # profile shortnames: specialty areas task pertains to
     workhours: float = 0.0  # time student has worked on this according to commit msgs
     accepted: bool = False  # whether instructor has ever marked it 'accept'
     rejections: int = 0  # how often instructor has marked it 'reject'
 
-    taskgroup: str  # where the task belongs
+    taskgroup: 'Taskgroup'  # where the task belongs
 
-    def __init__(self, file: str, text: str = None, 
-                 taskgroup: tg.Optional['Taskgroup']=None, task: tg.Optional[b.StrAnyMap]=None):
+    def __init__(self, file: tg.Optional[str], text: str = None, 
+                 taskgroup: tg.Optional['Taskgroup'] = None, task: tg.Optional[b.StrAnyMap] = None):
         """Reads task from a file or multiline string or initializes via from_json."""
         if taskgroup:
             assert not file
@@ -111,7 +112,8 @@ class Task:
     def toc_link(self, level=0) -> str:
         return h.indented_block(self.toc_link_text, level)
 
-    def _as_list(self, obj) -> tg.List:
+    @staticmethod
+    def _as_list(obj) -> tg.List:
         return obj if isinstance(obj, list) else list(obj)
     
     def _taskrefs(self, label: str, attr_name: str) -> str:
@@ -126,17 +128,17 @@ class Task:
                 (attr_cssclass, title, label))
 
     @classmethod
-    def expand_diff(cls, call: md.Macrocall, name: str, arg1: str, arg2: str) -> str:
+    def expand_diff(cls, call: md.Macrocall, name: str, arg1: str, arg2: str) -> str:  # noqa
         assert name == "DIFF"
         level = int(arg1)
         diffrange = cls.DIFFICULTY_RANGE
-        if not level in diffrange:
+        if level not in diffrange:
             call.error(f"Difficulty must be in range {min(diffrange)}..{max(diffrange)}")
             return ""
         return h.difficulty_symbol(level)
 
 
-md.register_macros(('DIFF', 1, Task.expand_diff))
+md.register_macros(('DIFF', 1, Task.expand_diff))  # noqa
 
 
 class Item:
@@ -177,8 +179,8 @@ class Course(Item):
     chapterdir: str = 'ch'
     templatedir: str = 'templates'
     instructors: tg.List[b.StrAnyMap]
-    chapters: tg.Sequence['Chapter']
-    taskorder: tg.List[str]  # If task B assumes or requires A, A will be before B in this list.
+    chapters: tg.List['Chapter']
+    taskorder: tg.List[Task]  # If task B assumes or requires A, A will be before B in this list.
 
     def __init__(self, configfile: str, read_contentfiles: bool):
         self.configfile = configfile
@@ -214,11 +216,17 @@ class Course(Item):
 
     @functools.cached_property
     def taskgroupdict(self) -> tg.Mapping[str, 'Taskgroup']:
-        return {tg.slug: tg for tg in self._all_taskgroups()}
+        return {tgroup.slug: tgroup for tgroup in self._all_taskgroups()}
 
     @functools.cached_property
     def taskdict(self) -> tg.Mapping[str, Task]:
-        return {t.name: t for t in self._all_tasks()}
+        result = dict()
+        for t in self._all_tasks():
+            if t.name in result:
+                b.error(f"duplicate task: '{t.inputfile}'\t'{result[t.name].inputfile}'")
+            else:
+                result[t.name] = t
+        return result
 
     def as_json(self) -> b.StrAnyMap:
         result = dict(baseresourcedir=self.baseresourcedir, 
@@ -308,9 +316,11 @@ class Course(Item):
         for mytaskname, mytask in self.taskdict.items():
             dependencies = set()  # collection of all tasks required or assumed by mytask
             for assumedtask in mytask.assumes:
-                dependencies.add(self.taskdict[assumedtask])
+                if assumedtask in self.taskdict:
+                    dependencies.add(self.taskdict[assumedtask])
             for requiredtask in mytask.requires:
-                dependencies.add(self.taskdict[requiredtask])
+                if requiredtask in self.taskdict:
+                    dependencies.add(self.taskdict[requiredtask])
             graph[mytask] = dependencies
         # ----- compute taskorder (or report dependency cycle if one is found):
         try:
@@ -319,7 +329,9 @@ class Course(Item):
             msg = "Some tasks' 'assumes' or 'requires' dependencies form a cycle:\n"
             b.critical(msg + exc.args[1])
 
+
 class Chapter(Item):
+    description: str
     slug: str
     course: Course
     taskgroups: tg.Sequence['Taskgroup']
@@ -439,5 +451,3 @@ class Taskgroup(Item):
         for filename in filenames:
             if not filename.endswith("index.md"):
                 self._add_task(Task(filename))
-
-
