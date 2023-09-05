@@ -131,18 +131,18 @@ def backup_targetdir(targetdir: str, markerfile: str):
 def toc(structure: Structurepart) -> str:
     """Return a table-of-contents HTML fragment for the given structure via structural recursion."""
     parts = structure_path(structure)
-    fulltoc = len(parts) == 1 #path only contains course
+    fulltoc = len(parts) == 1  # path only contains course
     course = parts[-1]
     result = []
     for chapter in course.chapters:
         result.append(chapter.toc_link(0))
-        if not(fulltoc) and not(chapter in parts):
+        if not fulltoc and chapter not in parts:
             continue
         for taskgroup in chapter.taskgroups:
             result.append(taskgroup.toc_link(1))
-            if not(fulltoc) and not(taskgroup in parts):
+            if not fulltoc and taskgroup not in parts:
                 continue
-            for task in taskgroup.tasks:
+            for task in (t for t in course.taskorder if t in taskgroup.tasks):
                 result.append(task.toc_link(2))
     return "\n".join(result)
 
