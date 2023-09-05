@@ -1,5 +1,6 @@
 """Shortcut typenames, global constants, basic helpers."""
 import json
+import logging
 import os
 import enum
 import sys
@@ -12,6 +13,9 @@ import yaml
 
 outstream = sys.stdout
 num_errors = 0
+loglevel = logging.ERROR
+loglevels = dict(DEBUG=logging.DEBUG, INFO=logging.INFO, WARNING=logging.WARNING,
+                 ERROR=logging.ERROR, CRITICAL=logging.CRITICAL)
 
 CONFIG_FILENAME = "sedrila.yaml"  # plain filename, no directory possible
 TEMPLATES_DIR = "templates"
@@ -19,6 +23,15 @@ TEMPLATES_DIR = "templates"
 OStr = tg.Optional[str]
 StrMap = tg.Mapping[str, str]
 StrAnyMap = tg.Mapping[str, tg.Any]  # JSON or YAML structures
+
+
+def set_loglevel(level: str):
+    global loglevels, loglevel
+    if level in loglevels:
+        global loglevel
+        loglevel = loglevels[level]
+    else:
+        pass  # simply ignore nonexisting loglevels
 
 
 class Mode(enum.Enum):
@@ -118,22 +131,25 @@ def spit_yaml(filename: str, content: StrAnyMap):
 
 
 def debug(msg: str):
-    # rich.print(msg)
-    pass
+    if loglevel <= logging.DEBUG:
+        rich.print(msg)
 
 
 def info(msg: str):
-    rich.print(msg)
+    if loglevel <= logging.INFO:
+        rich.print(msg)
 
 
 def warning(msg: str):
-    rich.print(f"[yellow]{msg}[/yellow]")
+    if loglevel <= logging.WARNING:
+        rich.print(f"[yellow]{msg}[/yellow]")
 
 
 def error(msg: str):
     global num_errors
     num_errors += 1
-    rich.print(f"[red]{msg}[/red]")
+    if loglevel <= logging.ERROR:
+        rich.print(f"[red]{msg}[/red]")
 
 
 def critical(msg: str):
@@ -146,7 +162,7 @@ def exit_if_errors(msg: str=""):
         if msg:
             critical(msg)
         else:
-            critical(f"==== {num_errors} error{'s' if num_errors else ''}. Exiting. ====")
+            critical(f"==== {num_errors} error{'s' if num_errors != 1 else ''}. Exiting. ====")
 
 
 def Table() -> rich.table.Table:

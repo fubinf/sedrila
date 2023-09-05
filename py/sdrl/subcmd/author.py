@@ -23,14 +23,17 @@ OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR = "cino2r2s2tu"  # quasi-anagram of "instructo
 
 Structurepart = tg.Union[sdrl.course.Item, sdrl.course.Task]
 
-def configure_argparser(subparser):
+def configure_argparser(subparser: argparse.ArgumentParser):
     subparser.add_argument('--config', default=b.CONFIG_FILENAME,
                            help="SeDriLa configuration description YAML file")
+    subparser.add_argument('--log', default="ERROR", choices=b.loglevels.keys(),
+                           help="Log level for logging to stdout")
     subparser.add_argument('targetdir',
                            help="Directory to which output will be written")
 
 
 def execute(pargs: argparse.Namespace):
+    b.set_loglevel(pargs.log)
     course = sdrl.course.Course(pargs.config, read_contentfiles=True)
     generate(pargs, course)
     b.exit_if_errors()
@@ -48,6 +51,7 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     targetdir_i = _instructor_targetdir(pargs)  # for instructors
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(course.templatedir), autoescape=False)
     #----- prepare directories:
+    b.info(f"preparing directories '{targetdir_s}', '{targetdir_i}'")
     backup_targetdir(targetdir_i, markerfile=f"_{b.CONFIG_FILENAME}")  # must do _i first if it is a subdir of _s
     backup_targetdir(targetdir_s, markerfile=f"_{b.CONFIG_FILENAME}")
     os.mkdir(targetdir_s)
@@ -55,16 +59,21 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     shutil.copyfile(b.CONFIG_FILENAME, f"{targetdir_s}/_{b.CONFIG_FILENAME}")  # mark dir as a SeDriLa instance
     shutil.copyfile(b.CONFIG_FILENAME, f"{targetdir_i}/_{b.CONFIG_FILENAME}")  # mark dir as a SeDriLa instance
     #----- copy baseresources:
+    b.info(f"copying '{course.baseresourcedir}'")
     for filename in glob.glob(f"{course.baseresourcedir}/*"):
+        b.debug(f"copying '{filename}'\t-> '{targetdir_s}'")
         shutil.copy(filename, targetdir_s)
+        b.debug(f"copying '{filename}'\t-> '{targetdir_i}'")
         shutil.copy(filename, targetdir_i)
     #----- add tocs to upper structure parts:
+    b.info(f"building tables-of-content (TOCs)")
     course.toc = toc(course)
     for chapter in course.chapters:
         chapter.toc = toc(chapter)
         for taskgroup in chapter.taskgroups:
             taskgroup.toc = toc(taskgroup)
     #----- register macroexpanders:
+    b.info("registering macros")
     md.register_macros(
         ('TA0', 1, functools.partial(expand_ta, course)),  # short link to task
         ('TA1', 1, functools.partial(expand_ta, course)),  # long link
@@ -79,20 +88,27 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
         ('ENDHINT', 0, expand_hint),
     )
     #----- generate top-level file:
+    b.info(f"generating top-level index files")
     render_welcome(course, env, targetdir_s, b.Mode.STUDENT)
     render_welcome(course, env, targetdir_i, b.Mode.INSTRUCTOR)
     #----- generate chapter and taskgroup files:
+    b.info(f"generating chapter and taskgroup files")
     for chapter in course.chapters:
+        b.info(f"  chapter '{chapter.slug}'")
         render_chapter(chapter, env, targetdir_s, b.Mode.STUDENT)
         render_chapter(chapter, env, targetdir_i, b.Mode.INSTRUCTOR)
         for taskgroup in chapter.taskgroups:
+            b.info(f"    taskgroup '{taskgroup.slug}'")
             render_taskgroup(taskgroup, env, targetdir_s, b.Mode.STUDENT)
             render_taskgroup(taskgroup, env, targetdir_i, b.Mode.INSTRUCTOR)
     #----- generate task files:
+    b.info(f"generating task files")
     for taskname, task in course.taskdict.items():
+        b.debug(f"  task '{task.slug}'")
         render_task(task, env, targetdir_s, b.Mode.STUDENT)
         render_task(task, env, targetdir_i, b.Mode.INSTRUCTOR)
     #----- generate metadata file:
+    b.info(f"generating metadata file '{targetdir_s}/{sdrl.course.METADATA_FILE}'")
     write_metadata(course, f"{targetdir_s}/{sdrl.course.METADATA_FILE}")
     #------ report outcome:
     print(f"wrote student files to  '{targetdir_s}'")
