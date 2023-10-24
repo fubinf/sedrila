@@ -125,7 +125,7 @@ class Task:
     def as_json(self) -> b.StrAnyDict:
         return dict(slug=self.slug,
                     title=self.title, timevalue=self.timevalue, difficulty=self.difficulty,
-                    assumes=self.assumes, requires=self.requires)
+                    assumes=self.assumes, requires=self.requires, profiles=self.profiles)
 
     def from_json(self, taskgroup: 'Taskgroup', task: b.StrAnyDict):
         """Alternative constructor."""

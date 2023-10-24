@@ -24,7 +24,8 @@
               "timevalue": 1.0,
               "difficulty": 2,
               "assumes": [],
-              "requires": []
+              "requires": [],
+              "profiles": [],
             },
             {
               "slug": "B",
@@ -32,14 +33,15 @@
               "timevalue": 2.5,
               "difficulty": 3,
               "assumes": [],
-              "requires": []
+              "requires": [],
+              "profiles": [],
             },
             { "slug": "Task1", "title": "Task1", "timevalue": 1.0, "difficulty": 1,
-              "assumes": [], "requires": []  },
+              "assumes": [], "requires": [], "profiles": []  },
             { "slug": "Task2", "title": "Task2", "timevalue": 2.0, "difficulty": 2,
-              "assumes": [], "requires": []  },
+              "assumes": [], "requires": [], "profiles": []  },
             { "slug": "Task3", "title": "Task3", "timevalue": 3.0, "difficulty": 3,
-              "assumes": [], "requires": []  }
+              "assumes": [], "requires": [], "profiles": []  }
           ],
           "title": "Linux-Umgebung schaffen",
           "shorttitle": "LinuxCLI"
