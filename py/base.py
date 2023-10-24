@@ -1,7 +1,6 @@
 """Shortcut typenames, global constants, basic helpers."""
 import json
 import logging
-import os
 import enum
 import sys
 import typing as tg
@@ -21,8 +20,7 @@ CONFIG_FILENAME = "sedrila.yaml"  # plain filename, no directory possible
 TEMPLATES_DIR = "templates"
 
 OStr = tg.Optional[str]
-StrMap = tg.Mapping[str, str]
-StrAnyMap = tg.Mapping[str, tg.Any]  # JSON or YAML structures
+StrAnyDict = dict[str, tg.Any]  # JSON or YAML structures
 
 
 def set_loglevel(level: str):
@@ -44,7 +42,7 @@ def as_fingerprint(raw: str) -> str:
     return raw.replace(' ', '').lower()
 
 
-def copyattrs(context: str, source: StrAnyMap, target: tg.Any, 
+def copyattrs(context: str, source: StrAnyDict, target: tg.Any, 
               mustcopy_attrs: str, cancopy_attrs: str, mustexist_attrs: str, overwrite=True):
     """
     Copies data from YAML or JSON mapping 'd' to class object 'target' and checks attribute set of d.
@@ -55,9 +53,9 @@ def copyattrs(context: str, source: StrAnyMap, target: tg.Any,
     Prints error and stops on problems.
     E.g. copyattrs(srcfile, yaml, self, "title,shorttitle,dir", "templatedir", "chapters")
     """
-    def mysetattr(obj, name, value):
+    def mysetattr(obj, name, newvalue):
         if overwrite or not hasattr(target, name):
-            setattr(obj, name, value)
+            setattr(obj, name, newvalue)
     mustcopy_names = [a.strip() for a in mustcopy_attrs.split(',')]  # mandatory
     cancopy_names = [a.strip() for a in cancopy_attrs.split(',')]  # optional
     mustexist_names = [a.strip() for a in mustexist_attrs.split(',')]  # further mandatory
@@ -71,6 +69,9 @@ def copyattrs(context: str, source: StrAnyMap, target: tg.Any,
             mysetattr(target, m, value)
     for o in cancopy_names:  # transport these if present
         if o in source:
+            if hasattr(target, o) and not overwrite:
+                warning("%s: %soverwriting '%s': old value '%s', new value '%s'" %
+                        (context, "" if overwrite else "not ", o, getattr(target, o), source[o]))
             mysetattr(target, o, source[o])
     extra_attrs = source_names - set(mustcopy_names) - set(cancopy_names) - set(mustexist_names)
     if extra_attrs:
@@ -83,7 +84,7 @@ def read_partsfile(self, file: str, text: str = None):
     Stores metadata into self.metadata, rest into self.content.
     """
     SEPARATOR = "---\n"
-    #----- obtain file contents:
+    # ----- obtain file contents:
     self.srcfile = file
     if not text:
         text = slurp(file)
@@ -91,7 +92,7 @@ def read_partsfile(self, file: str, text: str = None):
         error(f"{self.srcfile}: triple-dash separator is missing")
         return
     self.metadata_text, self.content = text.split(SEPARATOR, 1)
-    #----- parse metadata
+    # ----- parse metadata
     try:
         # ----- parse YAML data:
         self.metadata = yaml.safe_load(self.metadata_text)
@@ -109,11 +110,11 @@ def slurp(resource: str) -> str:
             return f.read()
 
 
-def slurp_json(resource: str) -> StrAnyMap:
+def slurp_json(resource: str) -> StrAnyDict:
     return json.loads(slurp(resource))
 
 
-def slurp_yaml(resource: str) -> StrAnyMap:
+def slurp_yaml(resource: str) -> StrAnyDict:
     return yaml.safe_load(slurp(resource))
 
 
@@ -122,11 +123,11 @@ def spit(filename: str, content: str):
         f.write(content)
 
 
-def spit_json(filename: str, content: StrAnyMap):
+def spit_json(filename: str, content: StrAnyDict):
     spit(filename, json.dumps(content))
 
 
-def spit_yaml(filename: str, content: StrAnyMap):
+def spit_yaml(filename: str, content: StrAnyDict):
     spit(filename, yaml.safe_dump(content))
 
 
@@ -157,7 +158,7 @@ def critical(msg: str):
     sys.exit(num_errors)
 
 
-def exit_if_errors(msg: str=""):
+def exit_if_errors(msg: str = ""):
     if num_errors > 0:
         if msg:
             critical(msg)
