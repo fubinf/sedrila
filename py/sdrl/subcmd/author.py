@@ -26,6 +26,8 @@ Structurepart = tg.Union[sdrl.course.Item, sdrl.course.Task]
 def configure_argparser(subparser: argparse.ArgumentParser):
     subparser.add_argument('--config', default=b.CONFIG_FILENAME,
                            help="SeDriLa configuration description YAML file")
+    subparser.add_argument('--incomplete', default=False, action='store_const', const=True,
+                           help="include parts with 'status: incomplete' in the generated output")
     subparser.add_argument('--log', default="ERROR", choices=b.loglevels.keys(),
                            help="Log level for logging to stdout")
     subparser.add_argument('targetdir',
@@ -34,7 +36,8 @@ def configure_argparser(subparser: argparse.ArgumentParser):
 
 def execute(pargs: argparse.Namespace):
     b.set_loglevel(pargs.log)
-    course = sdrl.course.Course(pargs.config, read_contentfiles=True)
+    course = sdrl.course.Course(pargs.config, read_contentfiles=True, include_incomplete=pargs.incomplete)
+    b.info(f"## chapter {course.chapters[-1].shorttitle} status: {getattr(course.chapters[-1], 'status', '-')}")
     generate(pargs, course)
     b.exit_if_errors()
     print_volume_report(course)
@@ -94,16 +97,22 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     #----- generate chapter and taskgroup files:
     b.info(f"generating chapter and taskgroup files")
     for chapter in course.chapters:
+        if chapter.to_be_skipped:
+            continue  # ignore the entire incomplete chapter
         b.info(f"  chapter '{chapter.slug}'")
         render_chapter(chapter, env, targetdir_s, b.Mode.STUDENT)
         render_chapter(chapter, env, targetdir_i, b.Mode.INSTRUCTOR)
         for taskgroup in chapter.taskgroups:
+            if taskgroup.to_be_skipped:
+                continue  # ignore the entire incomplete taskgroup
             b.info(f"    taskgroup '{taskgroup.slug}'")
             render_taskgroup(taskgroup, env, targetdir_s, b.Mode.STUDENT)
             render_taskgroup(taskgroup, env, targetdir_i, b.Mode.INSTRUCTOR)
     #----- generate task files:
     b.info(f"generating task files")
     for taskname, task in course.taskdict.items():
+        if task.to_be_skipped or task.taskgroup.to_be_skipped or task.taskgroup.chapter.to_be_skipped:
+            continue  # ignore the incomplete task
         b.debug(f"  task '{task.slug}'")
         render_task(task, env, targetdir_s, b.Mode.STUDENT)
         render_task(task, env, targetdir_i, b.Mode.INSTRUCTOR)
@@ -135,15 +144,20 @@ def toc(structure: Structurepart) -> str:
     course = parts[-1]
     result = []
     for chapter in course.chapters:
+        if chapter.to_be_skipped:
+            continue
         result.append(chapter.toc_link(0))
         if not fulltoc and chapter not in parts:
             continue
         for taskgroup in chapter.taskgroups:
+            if taskgroup.to_be_skipped:
+                continue
             result.append(taskgroup.toc_link(1))
             if not fulltoc and taskgroup not in parts:
                 continue
             for task in (t for t in course.taskorder if t in taskgroup.tasks):
-                result.append(task.toc_link(2))
+                if not task.to_be_skipped:
+                    result.append(task.toc_link(2))
     return "\n".join(result)
 
 
