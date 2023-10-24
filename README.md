@@ -54,7 +54,7 @@ Correspondingly, it basically has three functions:
 
 ## 2. How to use `sedrila`
 
-### 2.1 User installation (not yet implemented)
+### 2.1 User installation (not yet implemented, TODO 3)
 
 ```
 pip install sedrila
@@ -153,7 +153,7 @@ If something is incomplete, add a TODO marker with a priorization digit:
 Add a short description of what needs to be done. Examples:
 - `TODO 1: find proper formulation`
 - `TODO 2: restructure to use ACME lib`
-- `TODO 3: add topological sorting`
+- `TODO 3: add automatic grammar correction`
 
 If you intend to do it yourself, add your name in parens:  
 `TODO 1: find proper formulation (Lutz)`

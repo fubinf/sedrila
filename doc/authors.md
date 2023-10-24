@@ -46,7 +46,19 @@ About the entries:
   The individual tasks are found by inspecting all `*.md` files in a taskgroup directory.
 
 
-### 3.2 Task files
+### 3.2 `index.md` files for chapters and taskgroups
+
+Each chapter has its own 2-level directory tree.  
+Each taskgroup within a chapter has its own directory, containing the task files.
+
+The top-level directory of any chapter and the directory of a taskgroup must contain
+a file `index.md`.
+It follows the same format conventions as described below for task files.
+The only metadata attributes valid in index files, however, are
+`description` and `status`.
+
+
+### 3.3 Task files
 
 The meat of a SeDriLa course is in the individual task files.
 A task file is a Markdown file in a particular format.
@@ -57,17 +69,67 @@ starting with uppercase. No underscores.
 
 A task file starts with metadata in YAML format, followed by Markdown with some extensions.
 
-Here is a small example:  TODO 2: Add taskfile example: metadata, markdown extensions
+Here is a small example: 
+
+```
+title: Convention for Git commit messages for work time tracking
+description: |
+  With very little effort we add super useful metadata to our commit messages
+  which later allow understanding how much effort something has consumed.
+timevalue: 1
+difficulty: 1
+status: incomplete
+assumes: Git101
+requires: CreateRepo
+---
+Many teams introduce syntactical conventions to be used for commit messages,
+in order to obtain additional value from them.
+
+For instance, many teams add the number of a defect tracker entry when the
+commit solves that entry or contributes to it.
+This may look as follows:
+```
+
+The YAML attributes have the following meaning:
+- `title`: string, required.    
+  How this task will appear in the navigation menu.
+- `description`: string (often a few lines long), required.  
+  How this task will appear in a tooltip when hovering over a title.
+  Often a rationale for the task or something to pique the students' curiosity.
+- `timevalue`: integer, required.  
+  The number of work hours of credit a student will receive when this task is submitted
+  and is accepted by the instructor.
+- `difficulty`: integer (1, 2, 3, or 4), required.  
+  The difficulty level of the task. Will be shown as markup in the task's menu entry.
+  Meaning: 1:very_simple, 2:simple, 3:medium, 4:difficult.
+- `status`: string, optional.  
+  This can be any length, but only the first word is used semantically as the status, 
+  everything else is just comment.
+  Currently, the only first word allowed is "incomplete".
+  Tasks, task groups, or chapters marked as incomplete will be left out of the generated
+  web pages, unless a flag is provided in the sedrila call to include them as well.
+- `assumes`: string (a comma-separated list of task names), optional.  
+  The present task assumes that the student already possesses the knowledge that can be learned from 
+  those tasks, but the student can decide whether they want to do the tasks or have the knowledge
+  even without doing them.
+  The list will be shown as tooltip-based markup in the task's menu entry.
+  If the list is empty, leave out the entry.
+- `requires`: string (a comma-separated list of task names), optional.  
+  Like assumes, but actually doing those other tasks is strictly required so that
+  a student cannot get credit for the present task without having (or getting at the same time)
+  credit for the required ones.
+  The list will be shown as tooltip-based markup in the task's menu entry.
+  If the list is empty, leave out the entry.
+
+TODO 2: describe markdown extensions to be used in task files etc.
+
+
+### 3.4 Calling `sedrila`  TODO 2: describe sedrila author calls
 
 ...
 
 
-### 3.3 Calling `sedrila`  TODO 2: describe sedrila author calls
-
-...
-
-
-### 3.4 Templates for HTML layout
+### 3.5 Templates for HTML layout
 
 The format of the resulting HTML files is determined per page type by the Jinja2 templates
 in directory `templates`.
