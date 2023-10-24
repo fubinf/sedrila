@@ -276,7 +276,8 @@ def print_volume_report(course: sdrl.course.Course):
                       "%5.1f" % timevalue)
     table.add_row("[b]=TOTAL", 
                   f"[b]{len(course.taskdict)}", 
-                  "[b]%5.1f" % sum((t.timevalue for t in course._all_tasks())))
+                  "[b]%5.1f" % sum((t.timevalue for t in course._all_tasks()
+                                    if not t.to_be_skipped)))
     b.info(table)
     table = b.Table()
     table.add_column("Chapter")
