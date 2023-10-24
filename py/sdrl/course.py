@@ -102,7 +102,8 @@ class Task:
 
     @property
     def to_be_skipped(self) -> bool:
-        return getattr(self, 'status', "") == STATUS_INCOMPLETE
+        return (getattr(self, 'status', "") == STATUS_INCOMPLETE or
+                self.taskgroup.to_be_skipped or self.taskgroup.chapter.to_be_skipped)
 
     @property
     def name(self) -> str:
@@ -299,7 +300,7 @@ class Course(Item):
     def volume_report_per_chapter(self) -> tg.Sequence[tg.Tuple[str, int, float]]:
         """Tuples of (chaptername, num_tasks, timevalue_sum)"""
         result = []
-        for chapter in self.chapters:
+        for chapter in (c for c in self.chapters if not c.to_be_skipped):
             num_tasks = sum((1 for t in self.taskdict.values() if t.taskgroup.chapter == chapter))
             timevalue_sum = sum((t.timevalue for t in self.taskdict.values() if t.taskgroup.chapter == chapter))
             result.append((chapter.shorttitle, num_tasks, timevalue_sum))
@@ -309,8 +310,10 @@ class Course(Item):
         """Tuples of (difficulty, num_tasks, timevalue_sum)"""
         result = []
         for difficulty in Task.DIFFICULTY_RANGE:
-            num_tasks = sum((1 for t in self.taskdict.values() if t.difficulty == difficulty))
-            timevalue_sum = sum((t.timevalue for t in self.taskdict.values() if t.difficulty == difficulty))
+            num_tasks = sum((1 for t in self.taskdict.values() 
+                             if t.difficulty == difficulty and not t.to_be_skipped))
+            timevalue_sum = sum((t.timevalue for t in self.taskdict.values() 
+                                 if t.difficulty == difficulty and not t.to_be_skipped))
             result.append((difficulty, num_tasks, timevalue_sum))
         return result
 
@@ -470,6 +473,10 @@ class Taskgroup(Item):
     def toc_link_text(self) -> str:
         titleattr = f"title=\"{h.as_attribute(self.description)}\""
         return f"<a href='{self.outputfile}' {titleattr}>{self.title}</a>"
+
+    @property
+    def to_be_skipped(self) -> bool:
+        return super().to_be_skipped or self.chapter.to_be_skipped
 
     def as_json(self) -> b.StrAnyDict:
         result = dict(slug=self.slug, 
