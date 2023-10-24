@@ -12,6 +12,29 @@ import sdrl.html as h
 import sdrl.markdown as md
 
 METADATA_FILE = "course.json"  # in student build directory
+STATUS_INCOMPLETE = "incomplete"
+STATUS_NORMAL = "normal"
+
+
+def clean_status(context: str, obj: object, include_incomplete: bool) -> None:
+    """
+    Cuts the 'status' attribute of mydict down to its first word, checks it, reports violations.
+    Missing status is allowed.
+    If 'include_incomplete', status value STATUS_INCOMPLETE will be ignored
+    and no status will be kept at all, so that incomplete tasks/taskgroups/chapters are kept,
+    i.e., included in the output as if they were not marked as incomplete.
+    """
+    if not hasattr(obj, 'status') or not obj.status:
+        return
+    allowed_values = f"({STATUS_INCOMPLETE}|{STATUS_NORMAL})"
+    mm = re.match(allowed_values, obj.status)  # match beginning only
+    if not mm:
+        b.error(f"{context}: Illegal value of 'status': '{obj.status}'")
+        del obj.status
+    else:
+        obj.status = mm.group(1)  # keep only the relevant first word
+        if obj.status == STATUS_INCOMPLETE and include_incomplete:
+            del obj.status
 
 
 class Task:
@@ -19,7 +42,7 @@ class Task:
 
     srcfile: str  # the originating pathname
     metadata_text: str  # the YAML front matter character stream
-    metadata: b.StrAnyMap  # the YAML front matter
+    metadata: b.StrAnyDict  # the YAML front matter
     content: str  # the markdown block
     slug: str  # the key by which we access the Task object
 
@@ -39,7 +62,8 @@ class Task:
     taskgroup: 'Taskgroup'  # where the task belongs
 
     def __init__(self, file: tg.Optional[str], text: str = None, 
-                 taskgroup: tg.Optional['Taskgroup'] = None, task: tg.Optional[b.StrAnyMap] = None):
+                 taskgroup: tg.Optional['Taskgroup'] = None, task: tg.Optional[b.StrAnyDict] = None,
+                 include_incomplete: bool = False):
         """Reads task from a file or multiline string or initializes via from_json."""
         if taskgroup:
             assert not file
@@ -53,8 +77,9 @@ class Task:
         b.copyattrs(file, 
                     self.metadata, self,
                     mustcopy_attrs='title, description, timevalue, difficulty',
-                    cancopy_attrs='assumes, requires, profiles',
+                    cancopy_attrs='status, assumes, requires, profiles',  # TODO 2: check profiles against sedrila.yaml
                     mustexist_attrs='')
+        clean_status(file, self.metadata, include_incomplete)
         # ----- ensure assumes/requires/profiles are lists:
         if isinstance(self.assumes, str):
             self.assumes = re.split(r", *", self.assumes)
@@ -76,6 +101,10 @@ class Task:
         return f"{self.name}.html"
 
     @property
+    def to_be_skipped(self) -> bool:
+        return getattr(self, 'status', "") == STATUS_INCOMPLETE
+
+    @property
     def name(self) -> str:
         return self.slug
 
@@ -93,12 +122,12 @@ class Task:
             profiles = f" <span class='profiles-decoration'>({', '.join(self.profiles)})</span>"
         return f"<a {href} {titleattr}>{self.title}</a> {diffsymbol} {timevalue} {refs}{profiles}"
 
-    def as_json(self) -> b.StrAnyMap:
+    def as_json(self) -> b.StrAnyDict:
         return dict(slug=self.slug,
                     title=self.title, timevalue=self.timevalue, difficulty=self.difficulty,
                     assumes=self.assumes, requires=self.requires)
 
-    def from_json(self, taskgroup: 'Taskgroup', task: b.StrAnyMap):
+    def from_json(self, taskgroup: 'Taskgroup', task: b.StrAnyDict):
         """Alternative constructor."""
         self.taskgroup = taskgroup
         self.slug = task['slug']
@@ -145,7 +174,7 @@ class Item:
     """Common superclass for course, Chapter, Taskgroup (but not Task, although similar)."""
     title: str
     shorttitle: str
-    metadata: b.StrAnyMap  # the YAML front matter
+    metadata: b.StrAnyDict  # the YAML front matter
     content: str
     toc: str
 
@@ -160,8 +189,12 @@ class Item:
     @property
     def outputfile(self) -> str:
         return "(undefined)"
-    
-    def as_json(self) -> b.StrAnyMap:
+
+    @property
+    def to_be_skipped(self) -> bool:
+        return getattr(self, 'status', "") == STATUS_INCOMPLETE
+
+    def as_json(self) -> b.StrAnyDict:
         return dict(title=self.title, shorttitle=self.shorttitle)
 
 
@@ -178,11 +211,11 @@ class Course(Item):
     baseresourcedir: str = 'baseresources'
     chapterdir: str = 'ch'
     templatedir: str = 'templates'
-    instructors: tg.List[b.StrAnyMap]
+    instructors: tg.List[b.StrAnyDict]
     chapters: tg.List['Chapter']
     taskorder: tg.List[Task]  # If task B assumes or requires A, A will be before B in this list.
 
-    def __init__(self, configfile: str, read_contentfiles: bool):
+    def __init__(self, configfile: str, read_contentfiles: bool, include_incomplete: bool):
         self.configfile = configfile
         configdict = b.slurp_yaml(configfile)
         b.copyattrs(configfile, 
@@ -192,7 +225,8 @@ class Course(Item):
                     mustexist_attrs='chapters')
         if read_contentfiles and os.path.isfile(self.inputfile):
             b.read_partsfile(self, self.inputfile)
-        self.chapters = [Chapter(self, ch, read_contentfiles) for ch in configdict['chapters']]
+        self.chapters = [Chapter(self, ch, read_contentfiles, include_incomplete) 
+                         for ch in configdict['chapters']]
         self._check_links()
         self._add_inverse_links()
         self._compute_taskorder()
@@ -228,7 +262,7 @@ class Course(Item):
                 result[t.name] = t
         return result
 
-    def as_json(self) -> b.StrAnyMap:
+    def as_json(self) -> b.StrAnyDict:
         result = dict(baseresourcedir=self.baseresourcedir, 
                       chapterdir=self.chapterdir,
                       templatedir=self.templatedir,
@@ -336,20 +370,24 @@ class Chapter(Item):
     course: Course
     taskgroups: tg.Sequence['Taskgroup']
     
-    def __init__(self, course: Course, chapter: b.StrAnyMap, read_contentfiles: bool):
+    def __init__(self, course: Course, chapter: b.StrAnyDict, read_contentfiles: bool, include_incomplete: bool):
         self.course = course
-        b.copyattrs(f"chapter in {course.configfile}", 
+        context = f"chapter in {course.configfile}"
+        b.copyattrs(context, 
                     chapter, self,
                     mustcopy_attrs='title, shorttitle, slug',
-                    cancopy_attrs='',
+                    cancopy_attrs='status',
                     mustexist_attrs='taskgroups')
+        clean_status(context, self, include_incomplete)
         if read_contentfiles:
             b.read_partsfile(self, self.inputfile)
-            b.copyattrs(f"chapter in {course.configfile}", self.metadata, self,
+            b.copyattrs(context, 
+                        self.metadata, self,
                         mustcopy_attrs='description',
                         cancopy_attrs='todo',
                         mustexist_attrs='', overwrite=False)
-        self.taskgroups = [Taskgroup(self, taskgroup, read_contentfiles) for taskgroup in (chapter.get('taskgroups') or [])]
+        self.taskgroups = [Taskgroup(self, taskgroup, read_contentfiles, include_incomplete) 
+                           for taskgroup in (chapter.get('taskgroups') or [])]
 
     @property
     def breadcrumb_item(self) -> str:
@@ -373,7 +411,7 @@ class Chapter(Item):
         titleattr = f"title=\"{h.as_attribute(self.description)}\""
         return f"<a href='{self.outputfile}' {titleattr}>{self.title}</a>"
 
-    def as_json(self) -> b.StrAnyMap:
+    def as_json(self) -> b.StrAnyDict:
         result = dict(slug=self.slug, 
                       taskgroups=[taskgroup.as_json() for taskgroup in self.taskgroups])
         result.update(super().as_json())
@@ -389,24 +427,27 @@ class Taskgroup(Item):
     chapter: Chapter
     tasks: tg.List['Task']
 
-    def __init__(self, chapter: Chapter, taskgroup: b.StrAnyMap, read_contentfiles: bool):
+    def __init__(self, chapter: Chapter, taskgroup: b.StrAnyDict, read_contentfiles: bool, include_incomplete: bool):
         self.chapter = chapter
-        b.copyattrs(f"taskgroup in chapter {chapter.slug}", 
+        context = f"taskgroup in chapter {chapter.slug}"
+        b.copyattrs(context, 
                     taskgroup, self,
                     mustcopy_attrs='title, shorttitle, slug',
-                    cancopy_attrs='tasks',
+                    cancopy_attrs='tasks, status',
                     mustexist_attrs='taskgroups')
         if read_contentfiles:
             b.read_partsfile(self, self.inputfile)
-            b.copyattrs(f"taskgroup in chapter {chapter.slug}",
+            b.copyattrs(context,
                         self.metadata, self,
                         mustcopy_attrs='description',
                         cancopy_attrs='todo',
                         mustexist_attrs='', overwrite=False)
+        clean_status(context, self, include_incomplete)
         if read_contentfiles:
             self._create_tasks()
         else:
-            self.tasks = [Task(file=None, taskgroup=self, task=task) for task in taskgroup['tasks']]
+            self.tasks = [Task(file=None, taskgroup=self, task=task, include_incomplete=include_incomplete) 
+                          for task in taskgroup['tasks']]
 
     @property
     def breadcrumb_item(self) -> str:
@@ -430,7 +471,7 @@ class Taskgroup(Item):
         titleattr = f"title=\"{h.as_attribute(self.description)}\""
         return f"<a href='{self.outputfile}' {titleattr}>{self.title}</a>"
 
-    def as_json(self) -> b.StrAnyMap:
+    def as_json(self) -> b.StrAnyDict:
         result = dict(slug=self.slug, 
                       tasks=[task.as_json() for task in self.tasks])
         result.update(super().as_json())
