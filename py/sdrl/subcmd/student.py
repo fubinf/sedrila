@@ -17,7 +17,7 @@ def configure_argparser(subparser):
 def execute(pargs: argparse.Namespace):
     student = sdrl.participant.Student()
     metadatafile = f"{student.course_url}/{sdrl.course.METADATA_FILE}"
-    course = sdrl.course.Course(metadatafile, read_contentfiles=False)
+    course = sdrl.course.Course(metadatafile, read_contentfiles=False, include_incomplete=False)
     r.compute_student_work_so_far(course)
     entries, workhours_total, timevalue_total = r.student_work_so_far(course)
     if pargs.submission:

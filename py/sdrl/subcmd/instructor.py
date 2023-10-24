@@ -2,9 +2,6 @@ import argparse
 import os
 import re
 import time
-import typing as tg
-
-import yaml
 
 import base as b
 import git
@@ -36,13 +33,13 @@ def execute(pargs: argparse.Namespace):
     home = os.environ.get(REPOS_HOME_VAR)
     checkout_student_repo(pargs.repo_url, home)
     metadatafile = f"{pargs.course_url}/{sdrl.course.METADATA_FILE}"
-    course = sdrl.course.Course(metadatafile, read_contentfiles=False)
+    course = sdrl.course.Course(metadatafile, read_contentfiles=False, include_incomplete=False)
     r.compute_student_work_so_far(course)
     entries, workhours_total, timevalue_total = r.student_work_so_far(course)
     rewrite_submission_file(course, r.SUBMISSION_FILE)
-    call_instructor_cmd(course, instructor_cmd())
+    call_instructor_cmd(course, instructor_cmd(), iteration=0)
     validate_submission_file(course, r.SUBMISSION_FILE)
-    commit_and_push(course, r.SUBMISSION_FILE)
+    commit_and_push(r.SUBMISSION_FILE)
 
 
 def checkout_student_repo(repo_url, home):
@@ -66,7 +63,7 @@ def rewrite_submission_file(course: sdrl.course.Course, filename: str):
     b.spit_yaml(filename, entries)
 
 
-def rewrite_submission_entries(course: sdrl.course.Course, entries: tg.Mapping[str, str]):
+def rewrite_submission_entries(course: sdrl.course.Course, entries: b.StrAnyDict):
     """Checks status of entries and inserts different marks where needed."""
     for taskname, mark in entries.items():
         task = course.task(taskname)

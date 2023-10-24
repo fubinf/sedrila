@@ -111,11 +111,11 @@ def student_work_so_far(course) -> tg.Tuple[tg.Sequence[ReportEntry], float, flo
                 timevalue_total += task.timevalue
             result.append((taskname, task.workhours, task.timevalue,
                            task.rejections, task.accepted))  # one result tuple
-    return (result, workhours_total, timevalue_total)  # overall result triple
+    return result, workhours_total, timevalue_total  # overall result triple
 
 
 def submission_file_entries(course: sdrl.course.Course, entries: tg.Sequence[ReportEntry]
-                            ) -> tg.Mapping[str, str]:
+                            ) -> dict[str, str]:
     """taskname -> CHECK_MARK  for each yet-to-be-accepted task with effort in any commit."""
     candidates = dict()
     for taskname, workhoursum, timevalue, rejections, accepted in entries:
@@ -126,7 +126,7 @@ def submission_file_entries(course: sdrl.course.Course, entries: tg.Sequence[Rep
 
 def _parse_taskname_workhours(commit_msg: str) -> tg.Optional[WorkEntry]:
     """Return pair of (taskname, workhours) from commit message if present, or None otherwise."""
-    worktime_regexp = r"\s*#(\w+)\s+(?:(-?\d+(?:\.\d+)?)|(-?\d+):(\d\d)) ?h\b"  # "#MyTask117 3.5h" or " #SomeStuff 3:45h"
+    worktime_regexp = r"\s*#(\w+)\s+(?:(-?\d+(?:\.\d+)?)|(-?\d+):(\d\d)) ?h\b"  # #MyTask117 3.5h  or  #SomeStuff 3:45h
     mm = re.match(worktime_regexp, commit_msg)
     if not mm:
         return None  # not the format we're looking for
@@ -135,5 +135,4 @@ def _parse_taskname_workhours(commit_msg: str) -> tg.Optional[WorkEntry]:
         workhours = float(mm.group(2))
     else:
         workhours = float(mm.group(3)) + float(mm.group(4)) / 60  # hh:mm format
-    return (taskname, workhours)
-
+    return taskname, workhours
