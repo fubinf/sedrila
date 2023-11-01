@@ -56,7 +56,7 @@ def expand_macro(sourcefile: str, mm: re.Match) -> str:
     macrocall = Macrocall(filename=sourcefile, macrocall_text=call)
     my_numargs = (arg1 is not None) + (arg2 is not None)
     #----- check name:
-    if macroname not in macrodefs:
+    if macroname not in macrodefs: # TODO_1_Prechelt codeblocks with sqare brackets cause problems: /propra-inf/ch/testen/basiswissen/test_delimitations_exercise_1.md
         macrocall.error(f"Macro '{macroname}' is not defined")
         return call  # unexpanded version helps the user most
     numargs, expander = macrodefs[macroname]
