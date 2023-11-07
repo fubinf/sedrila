@@ -221,7 +221,7 @@ class Course(Item):
         configdict = b.slurp_yaml(configfile)
         b.copyattrs(configfile, 
                     configdict, self,
-                    mustcopy_attrs='title, shorttitle, instructors',
+                    mustcopy_attrs='title, shorttitle, instructors, profiles',
                     cancopy_attrs='baseresourcedir, chapterdir, templatedir',
                     mustexist_attrs='chapters')
         if read_contentfiles and os.path.isfile(self.inputfile):
@@ -341,6 +341,9 @@ class Course(Item):
             for required in task.requires:
                 if not self._task_or_taskgroup_exists(required):
                     b.error(f"{task.slug}:\t required task or taskgroup '{required}' does not exist")
+            for profile in task.profiles:
+                if profile not in self.profiles:
+                    b.error(f"{task.slug}:\t profile '{profile}' does not exist")
 
     def _compute_taskorder(self):
         """
