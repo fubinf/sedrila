@@ -108,13 +108,13 @@ The YAML attributes have the following meaning:
   Currently, the only first word allowed is "incomplete".
   Tasks, task groups, or chapters marked as incomplete will be left out of the generated
   web pages, unless a flag is provided in the sedrila call to include them as well.
-- `assumes`: string (a comma-separated list of task names), optional.  
+- `assumes`: string (a comma-separated list of task or taskgroup names), optional.  
   The present task assumes that the student already possesses the knowledge that can be learned from 
   those tasks, but the student can decide whether they want to do the tasks or have the knowledge
   even without doing them.
   The list will be shown as tooltip-based markup in the task's menu entry.
   If the list is empty, leave out the entry.
-- `requires`: string (a comma-separated list of task names), optional.  
+- `requires`: string (a comma-separated list of task or taskgroup names), optional.  
   Like assumes, but actually doing those other tasks is strictly required so that
   a student cannot get credit for the present task without having (or getting at the same time)
   credit for the required ones.
@@ -124,12 +124,33 @@ The YAML attributes have the following meaning:
 TODO 2: describe markdown extensions to be used in task files etc.
 
 
-### 3.4 Calling `sedrila`  TODO 2: describe sedrila author calls
+### 3.4 Taskgroup `index.md` files
+
+A taskgroup is described by an `index.md` file in the respective directory,
+which consists of a YAML part and text part like a task file.
+
+The text part provides an idea of the taskgroup's topic area
+and in particular motivates why that knowledge is helpful.
+
+The YAML part can have only few entries:
+- `description`: Like for tasks.
+- `minimum`: integer, optional.  
+  The minimum number of tasks that must be done in this taskgroup for the taskgroup
+  to be considered done if it appears in a task's `assumes` or `requires` list.
+  If no `minimum` entry exists, it means all tasks of the taskgroup must be done.
+- `status`: Like for tasks.
+
+### 3.5 Chapter `index.md` files
+
+Just like taskgroup `index.md` files, except that `minimum` entries are not allowed.
+
+
+### 3.6 Calling `sedrila`  TODO 2: describe sedrila author calls
 
 ...
 
 
-### 3.5 Templates for HTML layout
+### 3.7 Templates for HTML layout
 
 The format of the resulting HTML files is determined per page type by the Jinja2 templates
 in directory `templates`.

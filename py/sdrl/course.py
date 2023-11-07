@@ -336,11 +336,11 @@ class Course(Item):
         for task in self.taskdict.values():
             b.debug(f"Task '{task.slug}'\tassumes {task.assumes},\trequires {task.requires}")
             for assumed in task.assumes:
-                if not self.task(assumed):
-                    b.error(f"{task.slug}:\t assumed task '{assumed}' does not exist")
+                if not self._task_or_taskgroup_exists(assumed):
+                    b.error(f"{task.slug}:\t assumed task or taskgroup '{assumed}' does not exist")
             for required in task.requires:
-                if not self.task(required):
-                    b.error(f"{task.slug}:\t required task '{required}' does not exist")
+                if not self._task_or_taskgroup_exists(required):
+                    b.error(f"{task.slug}:\t required task or taskgroup '{required}' does not exist")
 
     def _compute_taskorder(self):
         """
@@ -365,6 +365,9 @@ class Course(Item):
         except graphlib.CycleError as exc:
             msg = "Some tasks' 'assumes' or 'requires' dependencies form a cycle:\n"
             b.critical(msg + exc.args[1])
+
+    def _task_or_taskgroup_exists(self, name: str) -> bool:
+        return name in self.taskdict or name in self.taskgroupdict
 
 
 class Chapter(Item):
@@ -443,7 +446,7 @@ class Taskgroup(Item):
             b.copyattrs(context,
                         self.metadata, self,
                         mustcopy_attrs='description',
-                        cancopy_attrs='todo',
+                        cancopy_attrs='minimum, todo',
                         mustexist_attrs='', overwrite=False)
         clean_status(context, self, include_incomplete)
         if read_contentfiles:

@@ -45,12 +45,12 @@ def as_fingerprint(raw: str) -> str:
 def copyattrs(context: str, source: StrAnyDict, target: tg.Any, 
               mustcopy_attrs: str, cancopy_attrs: str, mustexist_attrs: str, overwrite=True):
     """
-    Copies data from YAML or JSON mapping 'd' to class object 'target' and checks attribute set of d.
+    Copies data from YAML or JSON mapping 'source' to class object 'target' and checks attribute set of d.
     mustcopy_attrs, cancopy_attrs, and mustexist_attrs are comma-separated attribute name lists.
     mustcopy_attrs and cancopy_attrs are copied; mustcopy_attrs and mustexist_attrs must exist; 
     cancopy_attrs need not exist.
     If overwrite is False, fails if attribute already exists in target.
-    Prints error and stops on problems.
+    Prints error and stops on problems, using 'context' as location info in the error message.
     E.g. copyattrs(srcfile, yaml, self, "title,shorttitle,dir", "templatedir", "chapters")
     """
     def mysetattr(obj, name, newvalue):
