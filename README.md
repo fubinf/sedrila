@@ -33,7 +33,7 @@ Instructor commits are signed such that they cannot be forged.
   with the above goals.
 
 
-### 1.3 What does the `sedrila` tool do?
+## 1.3 What does the `sedrila` tool do?
 
 The tool serves three target audiences: 
 first course authors, then students, and finally instructors. 
