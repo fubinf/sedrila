@@ -2,10 +2,15 @@
 import dataclasses
 import re
 import typing as tg
-
+import xml.etree.ElementTree as etree
 import markdown
+import markdown.extensions as mde
+import markdown.preprocessors as mdp
+import markdown.treeprocessors as mdt
 
 import base as b
+
+# see bottom for initialization code
 
 @dataclasses.dataclass
 class Macrocall:
@@ -23,24 +28,37 @@ class Macrocall:
 Macroexpander = tg.Callable[[Macrocall, str, str, str], str]
 Macrodef = tg.Union[tg.Tuple[str, int], tg.Tuple[str, int, Macroexpander]]  # name, num_args, expander
 
-macrodefs: tg.Mapping[str, tg.Tuple[int, Macroexpander]] = dict()
+macrodefs: dict[str, tg.Tuple[int, Macroexpander]] = dict()
 
-extensions = ['admonition', 'attr_list', 'fenced_code', 'toc', 'codehilite']
-# https://python-markdown.github.io/extensions/admonition/
-# https://python-markdown.github.io/extensions/attr_list/
-# https://python-markdown.github.io/extensions/fenced_code_blocks/
-# https://python-markdown.github.io/extensions/toc/
-# https://python-markdown.github.io/extensions/code_hilite/
-
-extension_configs = {
-    'toc': {
-        # 'slugify':  perhaps replace with numbering-aware version 
-    }
-}
 
 macro_regexp = r"\[([A-Z][A-Z0-9_]+)(?:::(.+?))?(?:::(.+?))?\](?=[^(]|$)"  
 # bracketed all-caps: [ALL2_CAPS] with zero to two arguments: [NAME::arg] or [NAME::arg1::arg2]
 # suppress matches on normal links: [TEXT](url)
+
+
+class SedrilaExtension(mde.Extension):
+    def extendMarkdown(self, md):
+        # Register instance of 'mypattern' with a priority of 175
+        md.preprocessors.register(SedrilaPreprocessor(md), 'sedrila_preprocessor', 50)
+        md.preprocessors.deregister('html_block')  # do not treat the markdown blocks as fixed HTML
+
+
+class SedrilaPreprocessor(mdp.Preprocessor):
+    def run(self, lines: list[str]) -> list[str]:
+        content = "\n".join(lines)  # we work on the entire markup at once
+        content2 = self.perhaps_suppress_instructorinfo(content)  
+        content3 = expand_macros(self.md.context_sourcefile, content2)
+        return content3.split("\n")
+
+    def perhaps_suppress_instructorinfo(self, content: str) -> str:
+        """in instructor mode, suppress all [SECTION::forinstructor::x] texttexttext [ENDSECTION] blocks"""
+        if self.md.mode == b.Mode.INSTRUCTOR:
+            return content  # leave instructorinfo in instructor mode
+        else:               # remove instructorinfo in student mode
+            block_re = r"\[SECTION::forinstructor.+?ENDSECTION\]"  # non-greedy middle part!
+            newcontent = re.sub(block_re, "", content, flags=re.DOTALL)
+            return newcontent
+
 
 def expand_macros(sourcefile: str, markup: str) -> str:
     """Apply matching macrodefs, report errors for non-matching macro calls."""
@@ -56,7 +74,7 @@ def expand_macro(sourcefile: str, mm: re.Match) -> str:
     macrocall = Macrocall(filename=sourcefile, macrocall_text=call)
     my_numargs = (arg1 is not None) + (arg2 is not None)
     #----- check name:
-    if macroname not in macrodefs: # TODO_1_Prechelt codeblocks with sqare brackets cause problems: /propra-inf/ch/testen/basiswissen/test_delimitations_exercise_1.md
+    if macroname not in macrodefs:
         macrocall.error(f"Macro '{macroname}' is not defined")
         return call  # unexpanded version helps the user most
     numargs, expander = macrodefs[macroname]
@@ -68,9 +86,10 @@ def expand_macro(sourcefile: str, mm: re.Match) -> str:
     #----- expand:
     return expander(macrocall, macroname, arg1, arg2)
 
+
 def register_macro(name: str, numargs: int, expander: Macroexpander):
     global macrodefs
-    assert name not in macrodefs
+    assert name not in macrodefs  # TODO_2: turn into checks with nice error messages
     assert 0 <= numargs <= 2
     assert name == name.upper()  # must be all uppercase
     macrodefs[name] = (numargs, expander)
@@ -85,7 +104,7 @@ def register_macros(*macros: tg.Sequence[Macrodef], expander: tg.Optional[Macroe
             assert len(macrodef) == 3
             register_macro(*macrodef)
 
-class AdmonitionFilter(markdown.treeprocessors.Treeprocessor):
+class AdmonitionFilter(mdt.Treeprocessor):
     def run(self, root):
         """Removes admonition div blocks not to be shown in current self.mode."""
         for divparent in root.findall('.//div/..'): #sadly, etree does not support contains()
@@ -96,16 +115,33 @@ class AdmonitionFilter(markdown.treeprocessors.Treeprocessor):
                    divparent.remove(div)  # show  !!! instructor  blocks only in instructor mode
 
 
-def render_markdown(sourcefile: str, markdown_markup: str, mode: b.Mode = None) -> str:
+def render_markdown(context_sourcefile: str, markdown_markup: str, mode: b.Mode) -> str:
     """
     Generates HTML from Markdown in sedrila manner.
     See https://python-markdown.github.io/
     """
     md.mode = mode
-    return md.reset().convert(expand_macros(sourcefile, markdown_markup))
+    md.context_sourcefile = context_sourcefile
+    return md.reset().convert(markdown_markup)
 
 
-# initialization:
+########## initialization:
+
+extensions = [SedrilaExtension(), 
+              'admonition', 'attr_list', 'fenced_code', 'toc', 'codehilite']
+# https://python-markdown.github.io/extensions/admonition/
+# https://python-markdown.github.io/extensions/attr_list/
+# https://python-markdown.github.io/extensions/fenced_code_blocks/
+# https://python-markdown.github.io/extensions/toc/
+# https://python-markdown.github.io/extensions/code_hilite/
+
+extension_configs = {
+    'toc': {
+        # 'slugify':  perhaps replace with numbering-aware version 
+    }
+}
+
 md = markdown.Markdown(extensions=extensions, extension_configs=extension_configs)
 md.treeprocessors.register(AdmonitionFilter(md), "admonition_filter", 100)
+# '[TOC]' is a macro call, so make 'TOC' a macro:
 macros = register_macros(('TOC', 0, lambda mc, m, a1, a2: f"[{m}]"))
