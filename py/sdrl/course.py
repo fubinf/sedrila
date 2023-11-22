@@ -168,7 +168,7 @@ class Task:
         return h.difficulty_symbol(level)
 
 
-md.register_macros(('DIFF', 1, Task.expand_diff))  # noqa
+md.register_macro('DIFF', 1, Task.expand_diff)
 
 
 class Item:
@@ -268,6 +268,7 @@ class Course(Item):
                       chapterdir=self.chapterdir,
                       templatedir=self.templatedir,
                       instructors=self.instructors,
+                      profiles=self.profiles,
                       chapters=[chapter.as_json() for chapter in self.chapters])
         result.update(super().as_json())
         return result

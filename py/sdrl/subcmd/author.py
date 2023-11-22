@@ -23,6 +23,7 @@ OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR = "cino2r2s2tu"  # quasi-anagram of "instructo
 
 Structurepart = tg.Union[sdrl.course.Item, sdrl.course.Task]
 
+
 def configure_argparser(subparser: argparse.ArgumentParser):
     subparser.add_argument('--config', default=b.CONFIG_FILENAME,
                            help="SeDriLa configuration description YAML file")
@@ -53,7 +54,7 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     targetdir_s = pargs.targetdir  # for students
     targetdir_i = _instructor_targetdir(pargs)  # for instructors
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(course.templatedir), autoescape=False)
-    #----- prepare directories:
+    # ----- prepare directories:
     b.info(f"preparing directories '{targetdir_s}', '{targetdir_i}'")
     backup_targetdir(targetdir_i, markerfile=f"_{b.CONFIG_FILENAME}")  # must do _i first if it is a subdir of _s
     backup_targetdir(targetdir_s, markerfile=f"_{b.CONFIG_FILENAME}")
@@ -61,42 +62,42 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     os.mkdir(targetdir_i)
     shutil.copyfile(b.CONFIG_FILENAME, f"{targetdir_s}/_{b.CONFIG_FILENAME}")  # mark dir as a SeDriLa instance
     shutil.copyfile(b.CONFIG_FILENAME, f"{targetdir_i}/_{b.CONFIG_FILENAME}")  # mark dir as a SeDriLa instance
-    #----- copy baseresources:
+    # ----- copy baseresources:
     b.info(f"copying '{course.baseresourcedir}'")
     for filename in glob.glob(f"{course.baseresourcedir}/*"):
         b.debug(f"copying '{filename}'\t-> '{targetdir_s}'")
         shutil.copy(filename, targetdir_s)
         b.debug(f"copying '{filename}'\t-> '{targetdir_i}'")
         shutil.copy(filename, targetdir_i)
-    #----- add tocs to upper structure parts:
+    # ----- add tocs to upper structure parts:
     b.info(f"building tables-of-content (TOCs)")
     course.toc = toc(course)
     for chapter in course.chapters:
         chapter.toc = toc(chapter)
         for taskgroup in chapter.taskgroups:
             taskgroup.toc = toc(taskgroup)
-    #----- register macroexpanders:
+    # ----- register macroexpanders:
     b.info("registering macros")
-    md.register_macro('TA0', 1, functools.partial(expand_ta, course))  # short link to task
-    md.register_macro('TA1', 1, functools.partial(expand_ta, course))  # long link
-    md.register_macro('TA2', 2, functools.partial(expand_ta, course))  # manual link
-    md.register_macro('TG0', 1, functools.partial(expand_tg, course))  # short link to taskgroup
-    md.register_macro('TG1', 1, functools.partial(expand_tg, course))  # long link
-    md.register_macro('TG2', 2, functools.partial(expand_tg, course))  # manual link
-    md.register_macro('CH0', 1, functools.partial(expand_ch, course))  # short link to chapter
-    md.register_macro('CH1', 1, functools.partial(expand_ch, course))  # long link
-    md.register_macro('CH2', 2, functools.partial(expand_ch, course))  # manual link
+    md.register_macro('TA0', 1, functools.partial(expand_ta, course))  # noqa, short link to task
+    md.register_macro('TA1', 1, functools.partial(expand_ta, course))  # noqa, long link
+    md.register_macro('TA2', 2, functools.partial(expand_ta, course))  # noqa, manual link
+    md.register_macro('TG0', 1, functools.partial(expand_tg, course))  # noqa, short link to taskgroup
+    md.register_macro('TG1', 1, functools.partial(expand_tg, course))  # noqa, long link
+    md.register_macro('TG2', 2, functools.partial(expand_tg, course))  # noqa, manual link
+    md.register_macro('CH0', 1, functools.partial(expand_ch, course))  # noqa, short link to chapter
+    md.register_macro('CH1', 1, functools.partial(expand_ch, course))  # noqa, long link
+    md.register_macro('CH2', 2, functools.partial(expand_ch, course))  # noqa, manual link
     md.register_macro('HINT', 1, expand_hint)
     md.register_macro('ENDHINT', 0, expand_hint)
     md.register_macro('WARNING', 0, expand_warning)
     md.register_macro('ENDWARNING', 0, expand_warning)
     md.register_macro('SECTION', 2, expand_section)
     md.register_macro('ENDSECTION', 0, expand_section)
-    #----- generate top-level file:
+    # ----- generate top-level file:
     b.info(f"generating top-level index files")
     render_welcome(course, env, targetdir_s, b.Mode.STUDENT)
     render_welcome(course, env, targetdir_i, b.Mode.INSTRUCTOR)
-    #----- generate chapter and taskgroup files:
+    # ----- generate chapter and taskgroup files:
     b.info(f"generating chapter and taskgroup files")
     for chapter in course.chapters:
         if chapter.to_be_skipped:
@@ -110,7 +111,7 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
             b.info(f"    taskgroup '{taskgroup.slug}'")
             render_taskgroup(taskgroup, env, targetdir_s, b.Mode.STUDENT)
             render_taskgroup(taskgroup, env, targetdir_i, b.Mode.INSTRUCTOR)
-    #----- generate task files:
+    # ----- generate task files:
     b.info(f"generating task files")
     for taskname, task in course.taskdict.items():
         if task.to_be_skipped or task.taskgroup.to_be_skipped or task.taskgroup.chapter.to_be_skipped:
@@ -118,10 +119,10 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
         b.debug(f"  task '{task.slug}'")
         render_task(task, env, targetdir_s, b.Mode.STUDENT)
         render_task(task, env, targetdir_i, b.Mode.INSTRUCTOR)
-    #----- generate metadata file:
+    # ----- generate metadata file:
     b.info(f"generating metadata file '{targetdir_s}/{sdrl.course.METADATA_FILE}'")
     write_metadata(course, f"{targetdir_s}/{sdrl.course.METADATA_FILE}")
-    #------ report outcome:
+    # ------ report outcome:
     print(f"wrote student files to  '{targetdir_s}'")
     print(f"wrote instructor files to  '{targetdir_i}'")
 
@@ -212,7 +213,7 @@ def expand_ch(course: sdrl.course.Course, macrocall: md.Macrocall,
 
 
 def expand_hint(macrocall: md.Macrocall, 
-                macroname: str, summary: b.OStr, arg2: None) -> str:
+                macroname: str, summary: b.OStr, arg2: b.OStr) -> str:  # noqa
     if macroname == 'HINT':
         return f"<details><summary>{html.escape(summary, quote=False)}</summary>"
     elif macroname == 'ENDHINT':
@@ -221,7 +222,7 @@ def expand_hint(macrocall: md.Macrocall,
 
 
 def expand_warning(macrocall: md.Macrocall, 
-                   macroname: str, arg1: None, arg2: None) -> str:
+                   macroname: str, arg1: b.OStr, arg2: b.OStr) -> str:  # noqa
     if macroname == 'WARNING':
         return f"<div class='admonition warning'><h4>Warning</h4>"  # TODO_2 use sedrila.yaml replacements
     elif macroname == 'ENDWARNING':
@@ -249,18 +250,22 @@ def render_welcome(course: sdrl.course.Course, env, targetdir: str, mode: b.Mode
     if hasattr(course, "content"):
         render_structure(course, template, course, env, targetdir, mode)
 
+
 def render_chapter(chapter: sdrl.course.Chapter, env, targetdir: str, mode: b.Mode):
     template = env.get_template("chapter.html")
     render_structure(chapter.course, template, chapter, env, targetdir, mode)
+
 
 def render_taskgroup(taskgroup: sdrl.course.Taskgroup, env, targetdir: str, mode: b.Mode):
     template = env.get_template("taskgroup.html")
     render_structure(taskgroup.chapter.course, template, taskgroup, env, targetdir, mode)
 
+
 def render_task(task: sdrl.course.Task, env, targetdir: str, mode: b.Mode):
     template = env.get_template("task.html")
     course = task.taskgroup.chapter.course
-    render_structure(task.taskgroup.chapter.course, template, task, env, targetdir, mode)
+    render_structure(course, template, task, env, targetdir, mode)
+
 
 def render_structure(course: sdrl.course.Course, template, structure: Structurepart, env, targetdir: str, mode: b.Mode):
     toc = (structure.taskgroup if isinstance(structure, sdrl.course.Task) else structure).toc
@@ -271,6 +276,7 @@ def render_structure(course: sdrl.course.Course, template, structure: Structurep
                              toc=toc, fulltoc=course.toc, 
                              content=md.render_markdown(structure.inputfile, structure.content, mode))
     b.spit(f"{targetdir}/{structure.outputfile}", output)
+
 
 def structure_path(structure: Structurepart) -> list[Structurepart]:
     path = []
@@ -286,6 +292,7 @@ def structure_path(structure: Structurepart) -> list[Structurepart]:
     if isinstance(structure, sdrl.course.Course):
         path.append(structure)
     return path
+
 
 def write_metadata(course: sdrl.course.Course, filename: str):
     b.spit(filename, json.dumps(course.as_json(), ensure_ascii=False, indent=2))

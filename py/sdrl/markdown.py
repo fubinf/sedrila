@@ -2,7 +2,6 @@
 import dataclasses
 import re
 import typing as tg
-import xml.etree.ElementTree as etree
 import markdown
 import markdown.extensions as mde
 import markdown.preprocessors as mdp
@@ -11,6 +10,7 @@ import markdown.treeprocessors as mdt
 import base as b
 
 # see bottom for initialization code
+
 
 @dataclasses.dataclass
 class Macrocall:
@@ -25,8 +25,8 @@ class Macrocall:
         b.warning(f"'{self.filename}': {self.macrocall_text}\n  {msg}")
 
 
-Macroexpander = tg.Callable[[Macrocall, str, str, str], str]
-Macrodef = tg.Union[tg.Tuple[str, int], tg.Tuple[str, int, Macroexpander]]  # name, num_args, expander
+Macroexpander = tg.Callable[[Macrocall, str, b.OStr, b.OStr], str]
+Macrodef = tg.Tuple[str, int, Macroexpander]  # name, num_args, expander
 
 macrodefs: dict[str, tg.Tuple[int, Macroexpander]] = dict()
 
@@ -41,6 +41,7 @@ class SedrilaExtension(mde.Extension):
         # Register instance of 'mypattern' with a priority of 175
         md.preprocessors.register(SedrilaPreprocessor(md), 'sedrila_preprocessor', 50)
         md.preprocessors.deregister('html_block')  # do not treat the markdown blocks as fixed HTML
+        md.treeprocessors.register(AdmonitionFilter(md), "admonition_filter", 100)
 
 
 class SedrilaPreprocessor(mdp.Preprocessor):
@@ -73,17 +74,17 @@ def expand_macro(sourcefile: str, mm: re.Match) -> str:
     call, macroname, arg1, arg2 = mm.group(), mm.group(1), mm.group(2), mm.group(3)
     macrocall = Macrocall(filename=sourcefile, macrocall_text=call)
     my_numargs = (arg1 is not None) + (arg2 is not None)
-    #----- check name:
+    # ----- check name:
     if macroname not in macrodefs:
         macrocall.error(f"Macro '{macroname}' is not defined")
         return call  # unexpanded version helps the user most
     numargs, expander = macrodefs[macroname]
-    #----- check args:
+    # ----- check args:
     if my_numargs != numargs:
         macrocall.error("Macro '%s' called with %d args, expects %d" %
-                (macroname, my_numargs, numargs))
+                        (macroname, my_numargs, numargs))
         return call  # unexpanded version helps the user most
-    #----- expand:
+    # ----- expand:
     return expander(macrocall, macroname, arg1, arg2)
 
 
@@ -95,24 +96,14 @@ def register_macro(name: str, numargs: int, expander: Macroexpander):
     macrodefs[name] = (numargs, expander)
 
 
-def register_macros(*macros: tg.Sequence[Macrodef], expander: tg.Optional[Macroexpander] = None):
-    for macrodef in macros:
-        if len(macrodef) == 2:
-            name, numargs = macrodef
-            register_macro(name, numargs, expander)
-        else:
-            assert len(macrodef) == 3
-            register_macro(*macrodef)
-
 class AdmonitionFilter(mdt.Treeprocessor):
     def run(self, root):
         """Removes admonition div blocks not to be shown in current self.mode."""
-        for divparent in root.findall('.//div/..'): #sadly, etree does not support contains()
+        for divparent in root.findall('.//div/..'):  # sadly, etree does not support contains()
             for div in divparent.findall('div'):
                 classes = div.attrib.get('class', '')
-                if ('admonition' in classes and 'instructor' in classes and
-                    self.md.mode != b.Mode.INSTRUCTOR):
-                   divparent.remove(div)  # show  !!! instructor  blocks only in instructor mode
+                if 'admonition' in classes and 'instructor' in classes and self.md.mode != b.Mode.INSTRUCTOR:
+                    divparent.remove(div)  # show  !!! instructor  blocks only in instructor mode
 
 
 def render_markdown(context_sourcefile: str, markdown_markup: str, mode: b.Mode) -> str:
@@ -125,7 +116,7 @@ def render_markdown(context_sourcefile: str, markdown_markup: str, mode: b.Mode)
     return md.reset().convert(markdown_markup)
 
 
-########## initialization:
+# ######### initialization:
 
 extensions = [SedrilaExtension(), 
               'admonition', 'attr_list', 'fenced_code', 'toc', 'codehilite']
@@ -142,6 +133,5 @@ extension_configs = {
 }
 
 md = markdown.Markdown(extensions=extensions, extension_configs=extension_configs)
-md.treeprocessors.register(AdmonitionFilter(md), "admonition_filter", 100)
 # '[TOC]' is a macro call, so make 'TOC' a macro:
-macros = register_macros(('TOC', 0, lambda mc, m, a1, a2: f"[{m}]"))
+register_macro('TOC', 0, lambda mc, m, a1, a2: f"[{m}]")
