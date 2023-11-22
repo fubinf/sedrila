@@ -9,6 +9,7 @@
       "keyfingerprint": "--"
     }
   ],
+  "profiles": ['DBS', 'DSCI', 'OPS', 'SYS', 'TEST', 'WEB'],
   "chapters": [
     {
       "slug": "basis",
