@@ -239,9 +239,9 @@ def expand_section(macrocall: md.Macrocall,
     """
     if macroname == 'SECTION':
         cssclass_list = (f"section-{sectionname}-{t}" for t in sectiontypes.split(","))
-        return "<section class='%s'>" % " ".join(cssclass_list)
+        return "<div class='%s'>" % " ".join(cssclass_list)
     elif macroname == 'ENDSECTION':
-        return "</section>"
+        return "</div>"
     assert False, macrocall  # impossible
 
 
