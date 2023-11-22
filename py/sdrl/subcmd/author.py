@@ -77,19 +77,21 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
             taskgroup.toc = toc(taskgroup)
     #----- register macroexpanders:
     b.info("registering macros")
-    md.register_macros(
-        ('TA0', 1, functools.partial(expand_ta, course)),  # short link to task
-        ('TA1', 1, functools.partial(expand_ta, course)),  # long link
-        ('TA2', 2, functools.partial(expand_ta, course)),  # manual link
-        ('TG0', 1, functools.partial(expand_tg, course)),  # short link to taskgroup
-        ('TG1', 1, functools.partial(expand_tg, course)),  # long link
-        ('TG2', 2, functools.partial(expand_tg, course)),  # manual link
-        ('CH0', 1, functools.partial(expand_ch, course)),  # short link to chapter
-        ('CH1', 1, functools.partial(expand_ch, course)),  # long link
-        ('CH2', 2, functools.partial(expand_ch, course)),  # manual link
-        ('HINT', 1, expand_hint),
-        ('ENDHINT', 0, expand_hint),
-    )
+    md.register_macro('TA0', 1, functools.partial(expand_ta, course))  # short link to task
+    md.register_macro('TA1', 1, functools.partial(expand_ta, course))  # long link
+    md.register_macro('TA2', 2, functools.partial(expand_ta, course))  # manual link
+    md.register_macro('TG0', 1, functools.partial(expand_tg, course))  # short link to taskgroup
+    md.register_macro('TG1', 1, functools.partial(expand_tg, course))  # long link
+    md.register_macro('TG2', 2, functools.partial(expand_tg, course))  # manual link
+    md.register_macro('CH0', 1, functools.partial(expand_ch, course))  # short link to chapter
+    md.register_macro('CH1', 1, functools.partial(expand_ch, course))  # long link
+    md.register_macro('CH2', 2, functools.partial(expand_ch, course))  # manual link
+    md.register_macro('HINT', 1, expand_hint)
+    md.register_macro('ENDHINT', 0, expand_hint)
+    md.register_macro('WARNING', 0, expand_warning)
+    md.register_macro('ENDWARNING', 0, expand_warning)
+    md.register_macro('SECTION', 2, expand_section)
+    md.register_macro('ENDSECTION', 0, expand_section)
     #----- generate top-level file:
     b.info(f"generating top-level index files")
     render_welcome(course, env, targetdir_s, b.Mode.STUDENT)
@@ -215,6 +217,31 @@ def expand_hint(macrocall: md.Macrocall,
         return f"<details><summary>{html.escape(summary, quote=False)}</summary>"
     elif macroname == 'ENDHINT':
         return "</details>"
+    assert False, macrocall  # impossible
+
+
+def expand_warning(macrocall: md.Macrocall, 
+                   macroname: str, arg1: None, arg2: None) -> str:
+    if macroname == 'WARNING':
+        return f"<div class='admonition warning'><h4>Warning</h4>"  # TODO_2 use sedrila.yaml replacements
+    elif macroname == 'ENDWARNING':
+        return "</div>"
+    assert False, macrocall  # impossible
+
+
+def expand_section(macrocall: md.Macrocall, 
+                   macroname: str, sectionname: str, sectiontypes: str) -> str:
+    """
+    [SECTION::goal::goaltype1,goaltype2] etc.
+    Blocks of [SECTION::forinstructor::itype] lots of text [ENDSECTION]
+    can be removed by the Sedrila markdown extension before processing; see there.
+    """
+    if macroname == 'SECTION':
+        cssclass_list = (f"section-{sectionname}-{t}" for t in sectiontypes.split(","))
+        return "<section class='%s'>" % " ".join(cssclass_list)
+    elif macroname == 'ENDSECTION':
+        return "</section>"
+    assert False, macrocall  # impossible
 
 
 def render_welcome(course: sdrl.course.Course, env, targetdir: str, mode: b.Mode):
