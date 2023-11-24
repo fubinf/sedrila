@@ -39,7 +39,7 @@ def setup_argparser(superpkg, description: str) -> argparse.ArgumentParser:
         subparser = subparsers.add_parser(subcommand_name, help=submodule.help)
         submodule.configure_argparser(subparser)
     return parser
-    
+
 
 def _misses_any_of(module: moduletype, required: tg.Sequence[tg.Tuple[str, type]]) -> bool:
     for name, _type in required:
@@ -50,4 +50,9 @@ def _misses_any_of(module: moduletype, required: tg.Sequence[tg.Tuple[str, type]
 
 
 if __name__ == "__main__":
-    main()
+    print_profile = False
+    if print_profile:
+        import cProfile
+        cProfile.run('main()')
+    else:
+        main()  # normal life
