@@ -1,4 +1,11 @@
-"""Markdown rendering with sedrila-specific bells and/or whistles."""
+"""
+Markdown rendering with sedrila-specific bells and/or whistles.
+
+The current design of the solution (based on preprocessor+postprocessor) is ugly.
+A better approach would be using (at least for the macros part) a block processor
+combined with https://python-markdown.github.io/extensions/md_in_html/.
+But the current one works and is Good Enough.
+"""
 import dataclasses
 import markdown
 import markdown.extensions as mde
@@ -17,6 +24,7 @@ import sdrl.replacements as replacements
 @dataclasses.dataclass
 class Macrocall:
     """Represent where and how a macro was called, allow producing errors/warnings for it."""
+    md: markdown.Markdown
     filename: str
     macrocall_text: str
 
@@ -120,9 +128,9 @@ def expand_macros(sourcefile: str, markup: str) -> str:
 
 def expand_macro(sourcefile: str, mm: re.Match) -> str:
     """Apply matching macrodef or report error."""
-    global macrodefs
+    global macrodefs, md
     call, macroname, arg1, arg2 = mm.group(), mm.group(1), mm.group(2), mm.group(3)
-    macrocall = Macrocall(filename=sourcefile, macrocall_text=call)
+    macrocall = Macrocall(md=md, filename=sourcefile, macrocall_text=call)
     my_numargs = (arg1 is not None) + (arg2 is not None)
     # ----- check name:
     if macroname not in macrodefs:
@@ -156,13 +164,16 @@ class AdmonitionFilter(mdt.Treeprocessor):
                     divparent.remove(div)  # show  !!! instructor  blocks only in instructor mode
 
 
-def render_markdown(context_sourcefile: str, markdown_markup: str, mode: b.Mode) -> str:
+def render_markdown(context_sourcefile: str, markdown_markup: str, 
+                    mode: b.Mode, section_topmatter: dict[str, str]) -> str:
     """
     Generates HTML from Markdown in sedrila manner.
     See https://python-markdown.github.io/
     """
+    # hand config data into the Markdown object as undeclared attributes:
     md.mode = mode
     md.context_sourcefile = context_sourcefile
+    md.section_topmatter = section_topmatter
     return md.reset().convert(markdown_markup)
 
 
