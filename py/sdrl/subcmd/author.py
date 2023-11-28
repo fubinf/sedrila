@@ -78,15 +78,15 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
             taskgroup.toc = toc(taskgroup)
     # ----- register macroexpanders:
     b.info("registering macros")
-    md.register_macro('TA0', 1, functools.partial(expand_ta, course))  # noqa, short link to task
-    md.register_macro('TA1', 1, functools.partial(expand_ta, course))  # noqa, long link
-    md.register_macro('TA2', 2, functools.partial(expand_ta, course))  # noqa, manual link
-    md.register_macro('TG0', 1, functools.partial(expand_tg, course))  # noqa, short link to taskgroup
-    md.register_macro('TG1', 1, functools.partial(expand_tg, course))  # noqa, long link
-    md.register_macro('TG2', 2, functools.partial(expand_tg, course))  # noqa, manual link
-    md.register_macro('CH0', 1, functools.partial(expand_ch, course))  # noqa, short link to chapter
-    md.register_macro('CH1', 1, functools.partial(expand_ch, course))  # noqa, long link
-    md.register_macro('CH2', 2, functools.partial(expand_ch, course))  # noqa, manual link
+    md.register_macro('TAS', 1, functools.partial(expand_ta, course))  # noqa, short link to task
+    md.register_macro('TAL', 1, functools.partial(expand_ta, course))  # noqa, long link
+    md.register_macro('TAM', 2, functools.partial(expand_ta, course))  # noqa, manual link
+    md.register_macro('TGS', 1, functools.partial(expand_tg, course))  # noqa, short link to taskgroup
+    md.register_macro('TGL', 1, functools.partial(expand_tg, course))  # noqa, long link
+    md.register_macro('TGM', 2, functools.partial(expand_tg, course))  # noqa, manual link
+    md.register_macro('CHS', 1, functools.partial(expand_ch, course))  # noqa, short link to chapter
+    md.register_macro('CHL', 1, functools.partial(expand_ch, course))  # noqa, long link
+    md.register_macro('CHM', 2, functools.partial(expand_ch, course))  # noqa, manual link
     md.register_macro('HINT', 1, expand_hint)
     md.register_macro('ENDHINT', 0, expand_hint)
     md.register_macro('WARNING', 0, expand_warning)
