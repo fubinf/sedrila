@@ -95,30 +95,30 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     md.register_macro('ENDSECTION', 0, expand_section)
     # ----- generate top-level file:
     b.info(f"generating top-level index files")
-    render_welcome(course, env, targetdir_s, b.Mode.STUDENT, course.section_topmatter)
-    render_welcome(course, env, targetdir_i, b.Mode.INSTRUCTOR, course.section_topmatter)
+    render_welcome(course, env, targetdir_s, b.Mode.STUDENT, course.blockmacro_topmatter)
+    render_welcome(course, env, targetdir_i, b.Mode.INSTRUCTOR, course.blockmacro_topmatter)
     # ----- generate chapter and taskgroup files:
     b.info(f"generating chapter and taskgroup files")
     for chapter in course.chapters:
         if chapter.to_be_skipped:
             continue  # ignore the entire incomplete chapter
         b.info(f"  chapter '{chapter.slug}'")
-        render_chapter(chapter, env, targetdir_s, b.Mode.STUDENT, course.section_topmatter)
-        render_chapter(chapter, env, targetdir_i, b.Mode.INSTRUCTOR, course.section_topmatter)
+        render_chapter(chapter, env, targetdir_s, b.Mode.STUDENT, course.blockmacro_topmatter)
+        render_chapter(chapter, env, targetdir_i, b.Mode.INSTRUCTOR, course.blockmacro_topmatter)
         for taskgroup in chapter.taskgroups:
             if taskgroup.to_be_skipped:
                 continue  # ignore the entire incomplete taskgroup
             b.info(f"    taskgroup '{taskgroup.slug}'")
-            render_taskgroup(taskgroup, env, targetdir_s, b.Mode.STUDENT, course.section_topmatter)
-            render_taskgroup(taskgroup, env, targetdir_i, b.Mode.INSTRUCTOR, course.section_topmatter)
+            render_taskgroup(taskgroup, env, targetdir_s, b.Mode.STUDENT, course.blockmacro_topmatter)
+            render_taskgroup(taskgroup, env, targetdir_i, b.Mode.INSTRUCTOR, course.blockmacro_topmatter)
     # ----- generate task files:
     b.info(f"generating task files")
     for taskname, task in course.taskdict.items():
         if task.to_be_skipped or task.taskgroup.to_be_skipped or task.taskgroup.chapter.to_be_skipped:
             continue  # ignore the incomplete task
         b.debug(f"  task '{task.slug}'")
-        render_task(task, env, targetdir_s, b.Mode.STUDENT, course.section_topmatter)
-        render_task(task, env, targetdir_i, b.Mode.INSTRUCTOR, course.section_topmatter)
+        render_task(task, env, targetdir_s, b.Mode.STUDENT, course.blockmacro_topmatter)
+        render_task(task, env, targetdir_i, b.Mode.INSTRUCTOR, course.blockmacro_topmatter)
     # ----- generate metadata file:
     b.info(f"generating metadata file '{targetdir_s}/{sdrl.course.METADATA_FILE}'")
     write_metadata(course, f"{targetdir_s}/{sdrl.course.METADATA_FILE}")
@@ -271,37 +271,37 @@ def topmatter(macrocall: md.Macrocall, name: str) -> str:
 
 
 def render_welcome(course: sdrl.course.Course, env, targetdir: str, 
-                   mode: b.Mode, section_topmatter: dict[str, str]):
+                   mode: b.Mode, blockmacro_topmatter: dict[str, str]):
     template = env.get_template("welcome.html")
     if hasattr(course, "content"):
-        render_structure(course, template, course, env, targetdir, mode, section_topmatter)
+        render_structure(course, template, course, env, targetdir, mode, blockmacro_topmatter)
 
 
 def render_chapter(chapter: sdrl.course.Chapter, env, targetdir: str, 
-                   mode: b.Mode, section_topmatter: dict[str, str]):
+                   mode: b.Mode, blockmacro_topmatter: dict[str, str]):
     template = env.get_template("chapter.html")
-    render_structure(chapter.course, template, chapter, env, targetdir, mode, section_topmatter)
+    render_structure(chapter.course, template, chapter, env, targetdir, mode, blockmacro_topmatter)
 
 
 def render_taskgroup(taskgroup: sdrl.course.Taskgroup, env, targetdir: str, 
-                     mode: b.Mode, section_topmatter: dict[str, str]):
+                     mode: b.Mode, blockmacro_topmatter: dict[str, str]):
     template = env.get_template("taskgroup.html")
-    render_structure(taskgroup.chapter.course, template, taskgroup, env, targetdir, mode, section_topmatter)
+    render_structure(taskgroup.chapter.course, template, taskgroup, env, targetdir, mode, blockmacro_topmatter)
 
 
 def render_task(task: sdrl.course.Task, env, targetdir: str, 
-                mode: b.Mode, section_topmatter: dict[str, str]):
+                mode: b.Mode, blockmacro_topmatter: dict[str, str]):
     template = env.get_template("task.html")
     course = task.taskgroup.chapter.course
-    render_structure(course, template, task, env, targetdir, mode, section_topmatter)
+    render_structure(course, template, task, env, targetdir, mode, blockmacro_topmatter)
 
 
 def render_structure(course: sdrl.course.Course, 
                      template, structure: Structurepart, 
                      env, targetdir: str, 
-                     mode: b.Mode, section_topmatter: dict[str, str]):
+                     mode: b.Mode, blockmacro_topmatter: dict[str, str]):
     toc = (structure.taskgroup if isinstance(structure, sdrl.course.Task) else structure).toc
-    html = md.render_markdown(structure.inputfile, structure.content, mode, section_topmatter)
+    html = md.render_markdown(structure.inputfile, structure.content, mode, blockmacro_topmatter)
     output = template.render(sitetitle=course.title,
                              index=course.chapters[0].slug, index_title=course.chapters[0].title,
                              breadcrumb=h.breadcrumb(*structure_path(structure)[::-1]),

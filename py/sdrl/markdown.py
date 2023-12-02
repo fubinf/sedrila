@@ -170,7 +170,7 @@ class AdmonitionFilter(mdt.Treeprocessor):
 
 
 def render_markdown(context_sourcefile: str, markdown_markup: str, 
-                    mode: b.Mode, section_topmatter: dict[str, str]) -> str:
+                    mode: b.Mode, blockmacro_topmatter: dict[str, str]) -> str:
     """
     Generates HTML from Markdown in sedrila manner.
     See https://python-markdown.github.io/
@@ -178,7 +178,7 @@ def render_markdown(context_sourcefile: str, markdown_markup: str,
     # hand config data into the Markdown object as undeclared attributes:
     md.mode = mode
     md.context_sourcefile = context_sourcefile
-    md.section_topmatter = section_topmatter
+    md.blockmacro_topmatter = blockmacro_topmatter
     return md.reset().convert(markdown_markup)
 
 

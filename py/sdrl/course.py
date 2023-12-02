@@ -212,7 +212,7 @@ class Course(Item):
     baseresourcedir: str = 'baseresources'
     chapterdir: str = 'ch'
     templatedir: str = 'templates'
-    section_topmatter: dict[str, str]
+    blockmacro_topmatter: dict[str, str]
     instructors: tg.List[b.StrAnyDict]
     chapters: tg.List['Chapter']
     taskorder: tg.List[Task]  # If task B assumes or requires A, A will be before B in this list.
@@ -222,8 +222,8 @@ class Course(Item):
         configdict = b.slurp_yaml(configfile)
         b.copyattrs(configfile, 
                     configdict, self,
-                    mustcopy_attrs='title, shorttitle, instructors, profiles, section_topmatter',
-                    cancopy_attrs='baseresourcedir, chapterdir, templatedir',
+                    mustcopy_attrs='title, shorttitle, instructors, profiles',
+                    cancopy_attrs='baseresourcedir, chapterdir, templatedir, blockmacro_topmatter',
                     mustexist_attrs='chapters')
         if read_contentfiles and os.path.isfile(self.inputfile):
             b.read_partsfile(self, self.inputfile)
