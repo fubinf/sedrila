@@ -95,6 +95,8 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     md.register_macro('ENDWARNING', 0, expand_warning)
     md.register_macro('SECTION', 2, expand_section)
     md.register_macro('ENDSECTION', 0, expand_section)
+    md.register_macro('INNERSECTION', 2, expand_section)
+    md.register_macro('ENDINNERSECTION', 0, expand_section)
     # ----- generate top-level file:
     b.info(f"generating top-level index files")
     render_welcome(course, env, targetdir_s, b.Mode.STUDENT, course.blockmacro_topmatter)
@@ -251,16 +253,18 @@ def expand_section(macrocall: md.Macrocall) -> str:
     [SECTION::goal::goaltype1,goaltype2] etc.
     Blocks of [SECTION::forinstructor::itype] lots of text [ENDSECTION]
     can be removed by the Sedrila markdown extension before processing; see there.
+    [INNERSECTION] is equivalent and serves for one level of proper nesting if needed.
+    (Nesting [SECTION][ENDSECTION] blocks happens to work, but for the wrong reasons.)
     """
     sectionname = macrocall.arg1
     sectiontypes = macrocall.arg2
-    if macrocall.macroname == 'SECTION':
+    if macrocall.macroname in ('SECTION', 'INNERSECTION'):
         typeslist = sectiontypes.split(",")
         types_cssclass_list = (f"section-{sectionname}-{t}" for t in typeslist)
         div = "<div class='section %s %s'>" % (f"section-{sectionname}", " ".join(types_cssclass_list))
         thetopmatter = section_topmatter(macrocall, typeslist)
         return f"{div}\n{thetopmatter}"
-    elif macrocall.macroname == 'ENDSECTION':
+    elif macrocall.macroname in ('ENDSECTION', 'ENDINNERSECTION'):
         return "</div>"
     assert False, macrocall  # impossible
 
