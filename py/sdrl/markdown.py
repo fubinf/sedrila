@@ -27,6 +27,9 @@ class Macrocall:
     md: markdown.Markdown
     filename: str
     macrocall_text: str
+    macroname: str
+    arg1: b.OStr
+    arg2: b.OStr
 
     def error(self, msg: str):
         b.error(f"'{self.filename}': {self.macrocall_text}\n  {msg}")
@@ -35,7 +38,7 @@ class Macrocall:
         b.warning(f"'{self.filename}': {self.macrocall_text}\n  {msg}")
 
 
-Macroexpander = tg.Callable[[Macrocall, str, b.OStr, b.OStr], str]
+Macroexpander = tg.Callable[[Macrocall], str]
 Macrodef = tg.Tuple[str, int, Macroexpander]  # name, num_args, expander
 
 macrodefs: dict[str, tg.Tuple[int, Macroexpander]] = dict()
@@ -130,7 +133,8 @@ def expand_macro(sourcefile: str, mm: re.Match) -> str:
     """Apply matching macrodef or report error."""
     global macrodefs, md
     call, macroname, arg1, arg2 = mm.group(), mm.group(1), mm.group(2), mm.group(3)
-    macrocall = Macrocall(md=md, filename=sourcefile, macrocall_text=call)
+    macrocall = Macrocall(md=md, filename=sourcefile, macrocall_text=call,
+                          macroname=macroname, arg1=arg1, arg2=arg2)
     my_numargs = (arg1 is not None) + (arg2 is not None)
     # ----- check name:
     if macroname not in macrodefs:
@@ -143,7 +147,8 @@ def expand_macro(sourcefile: str, mm: re.Match) -> str:
                         (macroname, my_numargs, numargs))
         return call  # unexpanded version helps the user most
     # ----- expand:
-    return expander(macrocall, macroname, arg1, arg2)
+    b.debug(f"expanding {macrocall.macrocall_text}")
+    return expander(macrocall)
 
 
 def register_macro(name: str, numargs: int, expander: Macroexpander):
@@ -195,4 +200,4 @@ extension_configs = {
 
 md = markdown.Markdown(extensions=extensions, extension_configs=extension_configs)
 # '[TOC]' is a macro call, so make 'TOC' a macro:
-register_macro('TOC', 0, lambda mc, m, a1, a2: f"[{m}]")
+register_macro('TOC', 0, lambda mc: f"[{mc.macroname}]")

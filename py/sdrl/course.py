@@ -158,9 +158,9 @@ class Task:
                 (attr_cssclass, title, label))
 
     @classmethod
-    def expand_diff(cls, call: md.Macrocall, name: str, arg1: str, arg2: str) -> str:  # noqa
-        assert name == "DIFF"
-        level = int(arg1)
+    def expand_diff(cls, call: md.Macrocall) -> str:  # noqa
+        assert call.macroname == "DIFF"
+        level = int(call.arg1)
         diffrange = cls.DIFFICULTY_RANGE
         if level not in diffrange:
             call.error(f"Difficulty must be in range {min(diffrange)}..{max(diffrange)}")

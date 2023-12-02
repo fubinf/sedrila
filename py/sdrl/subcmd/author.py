@@ -164,68 +164,70 @@ def toc(structure: Structurepart) -> str:
     return "\n".join(result)
 
 
-def expand_ta(course: sdrl.course.Course, macrocall: md.Macrocall, 
-              macroname: str, taskname: b.OStr, linktext: b.OStr) -> str:
+def expand_ta(course: sdrl.course.Course, macrocall: md.Macrocall) -> str:
+    taskname = macrocall.arg1
+    linktext = macrocall.arg2
     task = course.task(taskname)
     if task is None:
         macrocall.error(f"Task '{taskname}' does not exist")
         return ""
-    if macroname == "TA0":
+    if macrocall.macroname == "TA0":
         return task.breadcrumb_item
-    elif macroname == "TA1":
+    elif macrocall.macroname == "TA1":
         return task.toc_link_text
-    elif macroname == "TA2":
+    elif macrocall.macroname == "TA2":
         return f"[{html.escape(linktext, quote=False)}]({task.outputfile})"
     else:
         assert False, macrocall  # impossible
 
 
-def expand_tg(course: sdrl.course.Course, macrocall: md.Macrocall, 
-              macroname: str, slug: b.OStr, linktext: b.OStr) -> str:
+def expand_tg(course: sdrl.course.Course, macrocall: md.Macrocall) -> str:
+    slug = macrocall.arg1
+    linktext = macrocall.arg2
     taskgroup = course.taskgroup(slug)
     if taskgroup is None:
         macrocall.error(f"Taskgroup '{slug}' does not exist")
         return ""
-    if macroname == "TG0":
+    if macrocall.macroname == "TG0":
         return taskgroup.breadcrumb_item
-    elif macroname == "TG1":
+    elif macrocall.macroname == "TG1":
         return taskgroup.toc_link_text
-    elif macroname == "TG2":
+    elif macrocall.macroname == "TG2":
         return f"[{html.escape(linktext, quote=False)}]({taskgroup.outputfile})"
     else:
         assert False, macrocall  # impossible
 
 
-def expand_ch(course: sdrl.course.Course, macrocall: md.Macrocall, 
-              macroname: str, slug: b.OStr, linktext: b.OStr) -> str:
+def expand_ch(course: sdrl.course.Course, macrocall: md.Macrocall) -> str:
+    slug = macrocall.arg1
+    linktext = macrocall.arg2
     chapter = course.chapter(slug)
     if chapter is None:
         macrocall.error(f"Chapter '{slug}' does not exist")
         return ""
-    if macroname == "CH0":
+    if macrocall.macroname == "CH0":
         return chapter.breadcrumb_item
-    elif macroname == "CH1":
+    elif macrocall.macroname == "CH1":
         return chapter.toc_link_text
-    elif macroname == "CH2":
+    elif macrocall.macroname == "CH2":
         return f"[{html.escape(linktext, quote=False)}]({chapter.outputfile})"
     else:
         assert False, macrocall  # impossible
 
 
-def expand_hint(macrocall: md.Macrocall, 
-                macroname: str, summary: b.OStr, arg2: b.OStr) -> str:  # noqa
-    if macroname == 'HINT':
+def expand_hint(macrocall: md.Macrocall) -> str:  # noqa
+    summary = macrocall.arg1
+    if macrocall.macroname == 'HINT':
         return f"<details><summary>{html.escape(summary, quote=False)}</summary>"
-    elif macroname == 'ENDHINT':
+    elif macrocall.macroname == 'ENDHINT':
         return "</details>"
     assert False, macrocall  # impossible
 
 
-def expand_warning(macrocall: md.Macrocall, 
-                   macroname: str, arg1: b.OStr, arg2: b.OStr) -> str:  # noqa
-    if macroname == 'WARNING':
+def expand_warning(macrocall: md.Macrocall) -> str:  # noqa
+    if macrocall.macroname == 'WARNING':
         return f"<div class='admonition warning'><h4>Warning</h4>"  # TODO_2 use sedrila.yaml replacements
-    elif macroname == 'ENDWARNING':
+    elif macrocall.macroname == 'ENDWARNING':
         return "</div>"
     assert False, macrocall  # impossible
 

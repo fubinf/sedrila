@@ -3,8 +3,8 @@
 import base as b
 import sdrl.markdown as md
 
-def expander(macrocall, name, arg1, arg2):
-    return f"{name}({arg1},{arg2})"
+def expander(macrocall: md.Macrocall):
+    return f"{macrocall.macroname}({macrocall.arg1},{macrocall.arg2})"
 
 
 def test_expand_macros():
