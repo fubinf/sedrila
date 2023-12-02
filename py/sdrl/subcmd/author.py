@@ -232,33 +232,42 @@ def expand_warning(macrocall: md.Macrocall) -> str:  # noqa
     assert False, macrocall  # impossible
 
 
-def expand_section(macrocall: md.Macrocall, 
-                   macroname: str, sectionname: str, sectiontypes: str) -> str:
+def expand_section(macrocall: md.Macrocall) -> str:
     """
     [SECTION::goal::goaltype1,goaltype2] etc.
     Blocks of [SECTION::forinstructor::itype] lots of text [ENDSECTION]
     can be removed by the Sedrila markdown extension before processing; see there.
     """
-    def topmatter(topmatterdict: dict[str, str], typeslist: list[str]) -> str:
-        result = ""
-        for part in [""] + typeslist:
-            name = f"{sectionname}{'_' if part else ''}{part}"
-            if name in topmatterdict:
-                result += topmatterdict[name]
-            else:
-                b.error("'%s', %s\n  section_topmatter '%s' is not defined in config" %
-                        (macrocall.filename, macrocall.macrocall_text, name))
-                return result  # return parts up to the undefined one
-        return result
-
-    if macroname == 'SECTION':
+    sectionname = macrocall.arg1
+    sectiontypes = macrocall.arg2
+    if macrocall.macroname == 'SECTION':
         typeslist = sectiontypes.split(",")
-        cssclass_list = (f"section-{sectionname}-{t}" for t in typeslist)
-        div = "<div class='section %s %s'>" % (f"section-{sectionname}", " ".join(cssclass_list))
-        return f"{div}\n{topmatter(macrocall.md.section_topmatter, typeslist)}"
-    elif macroname == 'ENDSECTION':
+        types_cssclass_list = (f"section-{sectionname}-{t}" for t in typeslist)
+        div = "<div class='section %s %s'>" % (f"section-{sectionname}", " ".join(types_cssclass_list))
+        thetopmatter = section_topmatter(macrocall, typeslist)
+        return f"{div}\n{thetopmatter}"
+    elif macrocall.macroname == 'ENDSECTION':
         return "</div>"
     assert False, macrocall  # impossible
+
+
+def section_topmatter(macrocall: md.Macrocall, typeslist: list[str]) -> str:
+    sectionname = macrocall.arg1
+    result = ""
+    for part in [""] + typeslist:
+        name = f"{sectionname}{'_' if part else ''}{part}"
+        result += topmatter(macrocall, name)
+    return result
+
+
+def topmatter(macrocall: md.Macrocall, name: str) -> str:
+    topmatterdict = macrocall.md.blockmacro_topmatter
+    if name in topmatterdict:
+        return topmatterdict[name]
+    else:
+        b.error("'%s', %s\n  blockmacro_topmatter '%s' is not defined in config" %
+                (macrocall.filename, macrocall.macrocall_text, name))
+        return ""  # neutral result
 
 
 def render_welcome(course: sdrl.course.Course, env, targetdir: str, 
