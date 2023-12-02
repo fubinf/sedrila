@@ -78,17 +78,19 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
             taskgroup.toc = toc(taskgroup)
     # ----- register macroexpanders:
     b.info("registering macros")
-    md.register_macro('TAS', 1, functools.partial(expand_ta, course))  # noqa, short link to task
-    md.register_macro('TAL', 1, functools.partial(expand_ta, course))  # noqa, long link
-    md.register_macro('TAM', 2, functools.partial(expand_ta, course))  # noqa, manual link
-    md.register_macro('TGS', 1, functools.partial(expand_tg, course))  # noqa, short link to taskgroup
-    md.register_macro('TGL', 1, functools.partial(expand_tg, course))  # noqa, long link
-    md.register_macro('TGM', 2, functools.partial(expand_tg, course))  # noqa, manual link
-    md.register_macro('CHS', 1, functools.partial(expand_ch, course))  # noqa, short link to chapter
-    md.register_macro('CHL', 1, functools.partial(expand_ch, course))  # noqa, long link
-    md.register_macro('CHM', 2, functools.partial(expand_ch, course))  # noqa, manual link
+    md.register_macro('TAS', 1, functools.partial(expand_ta, course))  # short link to task
+    md.register_macro('TAL', 1, functools.partial(expand_ta, course))  # long link
+    md.register_macro('TAM', 2, functools.partial(expand_ta, course))  # manual link
+    md.register_macro('TGS', 1, functools.partial(expand_tg, course))  # short link to taskgroup
+    md.register_macro('TGL', 1, functools.partial(expand_tg, course))  # long link
+    md.register_macro('TGM', 2, functools.partial(expand_tg, course))  # manual link
+    md.register_macro('CHS', 1, functools.partial(expand_ch, course))  # short link to chapter
+    md.register_macro('CHL', 1, functools.partial(expand_ch, course))  # long link
+    md.register_macro('CHM', 2, functools.partial(expand_ch, course))  # manual link
     md.register_macro('HINT', 1, expand_hint)
     md.register_macro('ENDHINT', 0, expand_hint)
+    md.register_macro('INSTRUCTOR', 1, expand_instructor)
+    md.register_macro('ENDINSTRUCTOR', 0, expand_instructor)
     md.register_macro('WARNING', 0, expand_warning)
     md.register_macro('ENDWARNING', 0, expand_warning)
     md.register_macro('SECTION', 2, expand_section)
@@ -144,9 +146,10 @@ def toc(structure: Structurepart) -> str:
     """Return a table-of-contents HTML fragment for the given structure via structural recursion."""
     parts = structure_path(structure)
     fulltoc = len(parts) == 1  # path only contains course
+    assert isinstance(parts[-1], sdrl.course.Course)
     course = parts[-1]
     result = []
-    for chapter in course.chapters:
+    for chapter in course.chapters:  # noqa
         if chapter.to_be_skipped:
             continue
         result.append(chapter.toc_link(0))
@@ -158,7 +161,7 @@ def toc(structure: Structurepart) -> str:
             result.append(taskgroup.toc_link(1))
             if not fulltoc and taskgroup not in parts:
                 continue
-            for task in (t for t in course.taskorder if t in taskgroup.tasks):
+            for task in (t for t in course.taskorder if t in taskgroup.tasks):  # noqa
                 if not task.to_be_skipped:
                     result.append(task.toc_link(2))
     return "\n".join(result)
@@ -215,18 +218,29 @@ def expand_ch(course: sdrl.course.Course, macrocall: md.Macrocall) -> str:
         assert False, macrocall  # impossible
 
 
-def expand_hint(macrocall: md.Macrocall) -> str:  # noqa
-    summary = macrocall.arg1
+def expand_hint(macrocall: md.Macrocall) -> str:
     if macrocall.macroname == 'HINT':
-        return f"<details><summary>{html.escape(summary, quote=False)}</summary>"
+        summary = macrocall.arg1
+        intro = topmatter(macrocall, 'hint')
+        return f"<details class='blockmacro-hint'><summary>\n{intro}{summary}\n</summary>\n"
     elif macrocall.macroname == 'ENDHINT':
         return "</details>"
     assert False, macrocall  # impossible
 
 
-def expand_warning(macrocall: md.Macrocall) -> str:  # noqa
+def expand_instructor(macrocall: md.Macrocall) -> str:
+    if macrocall.macroname == 'INSTRUCTOR':
+        title = macrocall.arg1
+        intro = topmatter(macrocall, 'instructor')
+        return f"<div class='blockmacro-instructor'>\n{intro}{title}"
+    elif macrocall.macroname == 'ENDINSTRUCTOR':
+        return "</div>"
+    assert False, macrocall  # impossible
+
+
+def expand_warning(macrocall: md.Macrocall) -> str:
     if macrocall.macroname == 'WARNING':
-        return f"<div class='admonition warning'><h4>Warning</h4>"  # TODO_2 use sedrila.yaml replacements
+        return f"<div class='blockmacro-warning'>\n{topmatter(macrocall, 'warning')}"
     elif macrocall.macroname == 'ENDWARNING':
         return "</div>"
     assert False, macrocall  # impossible
@@ -255,13 +269,13 @@ def section_topmatter(macrocall: md.Macrocall, typeslist: list[str]) -> str:
     sectionname = macrocall.arg1
     result = ""
     for part in [""] + typeslist:
-        name = f"{sectionname}{'_' if part else ''}{part}"
+        name = f"section_{sectionname}{'_' if part else ''}{part}"
         result += topmatter(macrocall, name)
     return result
 
 
 def topmatter(macrocall: md.Macrocall, name: str) -> str:
-    topmatterdict = macrocall.md.blockmacro_topmatter
+    topmatterdict = macrocall.md.blockmacro_topmatter  # noqa
     if name in topmatterdict:
         return topmatterdict[name]
     else:
@@ -345,7 +359,7 @@ def print_volume_report(course: sdrl.course.Course):
                   f"[b]{len(course.taskdict)}", 
                   "[b]%5.1f" % sum((t.timevalue for t in course._all_tasks()
                                     if not t.to_be_skipped)))
-    b.info(table)
+    b.info(table)  # noqa
     table = b.Table()
     table.add_column("Chapter")
     table.add_column("#Tasks", justify="right")
@@ -354,7 +368,7 @@ def print_volume_report(course: sdrl.course.Course):
         table.add_row(chaptername,
                       str(numtasks), 
                       "%5.1f" % timevalue)
-    b.info(table)
+    b.info(table)  # noqa
 
 
 def _instructor_targetdir(pargs: argparse.Namespace) -> str:
