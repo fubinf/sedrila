@@ -97,6 +97,7 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     md.register_macro('ENDSECTION', 0, expand_section)
     md.register_macro('INNERSECTION', 2, expand_section)
     md.register_macro('ENDINNERSECTION', 0, expand_section)
+    md.register_macro('INCLUDE', 1, expand_include)
     # ----- generate top-level file:
     b.info(f"generating top-level index files")
     render_welcome(course, env, targetdir_s, b.Mode.STUDENT, course.blockmacro_topmatter)
@@ -267,6 +268,20 @@ def expand_section(macrocall: md.Macrocall) -> str:
     elif macrocall.macroname in ('ENDSECTION', 'ENDINNERSECTION'):
         return "</div>"
     assert False, macrocall  # impossible
+
+
+def expand_include(macrocall: md.Macrocall) -> str:
+    """
+    [INCLUDE::filename] inserts file contents verbatim into the Markdown text.
+    The filename is relative to the location of the file containing the macro call."""
+    filename = macrocall.arg1
+    path = os.path.dirname(macrocall.filename)
+    fullfilename = os.path.join(path, filename)
+    if not os.path.exists(fullfilename):
+        macrocall.error(f"file '{fullfilename}' does not exist")
+        return ""
+    with open(fullfilename, "rt", encoding='utf8') as f:
+        return f.read()
 
 
 def section_topmatter(macrocall: md.Macrocall, typeslist: list[str]) -> str:
