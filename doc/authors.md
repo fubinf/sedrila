@@ -1,4 +1,4 @@
-## `sedrila` use for course authors
+# `sedrila` use for course authors
 
 What you need to provide as a course author:
 - One plain text file per potential task.  
@@ -18,7 +18,9 @@ What you need to provide as a course author:
 - A CSS file (a simple default is included and is often sufficient).
 
 
-### 3.1 `sedrila.yaml`: The global configuration file
+# 1. Content structure of a sedrila course
+
+## 1.1 `sedrila.yaml`: The global configuration file  # TODO 2: add the missing parts
 
 This is best explained by example:
 
@@ -46,19 +48,48 @@ About the entries:
   The individual tasks are found by inspecting all `*.md` files in a taskgroup directory.
 
 
-### 3.2 `index.md` files for chapters and taskgroups
+## 1.2 Three-level directory tree: chapters, taskgroups, tasks
 
-Each chapter has its own 2-level directory tree.  
-Each taskgroup within a chapter has its own directory, containing the task files.
+The main part of a sedrila course directory tree is the subtree below
+the `chapterdir`. It contains the course content and has a structure like this:
 
-The top-level directory of any chapter and the directory of a taskgroup must contain
-a file `index.md`.
-It follows the same format conventions as described below for task files.
-The only metadata attributes valid in index files, however, are
-`description` and `status`.
+```
+mychapter1
+    index.md
+    myfirsttaskgroup
+        index.md
+        MyFirstTask.md
+        MyOtherTask.md
+        MyFurtherTask.md
+    mysuperinterestingothertaskgroup
+        index.md
+        MyInterestingTask1.md
+        MyInterestingTask2.md
+        MyInterestingTask2.md
+        MyEvenMoreInterestingTask.md
+    mytaskgroup3
+        ...
+mynextchapter
+    ... 
+index.md
+```
+
+Chapters and taskgroups are included (or not) in the actual generated
+course by mentioning them in `sedrila.yaml`, which also defines their order.
+All tasks within a taskgroup will be used,
+their order is determined by a topological sort according to possible dependencies, see below.
+
+The directory names of chapters and taskgroups must be unique throughout the course.
+The file names of tasks must be unique throughout the course.
+By convention, chapter and taskgroup names use lowercase, task names use CamelCase.
+
+The top-level `index.md` file is the course's homepage (the landing page).
+The `index.md` files at chapter level act as chapter landing pages,
+those at taskgroup level act as task group landing pages.
+The latter two types follow a similar technical format as described below for task files.
 
 
-### 3.3 Task files
+## 1.3 Task files: YAML top matter
 
 The meat of a SeDriLa course is in the individual task files.
 A task file is a Markdown file in a particular format.
@@ -82,12 +113,14 @@ status: incomplete
 assumes: Git101
 requires: CreateRepo
 ---
+[SECTION::background::default]
 Many teams introduce syntactical conventions to be used for commit messages,
 in order to obtain additional value from them.
 
 For instance, many teams add the number of a defect tracker entry when the
 commit solves that entry or contributes to it.
 This may look as follows:
+...
 ```
 
 The YAML attributes have the following meaning:
@@ -121,13 +154,16 @@ The YAML attributes have the following meaning:
   The list will be shown as tooltip-based markup in the task's menu entry.
   If the list is empty, leave out the entry.
 
-TODO 2: describe markdown extensions to be used in task files etc.
+
+## 1.4 Task files: markdown macros for content structure  TODO 2
+
+((Currently described in file `how-to.md` in the sister repo `propra-inf`))
 
 
-### 3.4 Taskgroup `index.md` files
+## 1.5 Taskgroup `index.md` files
 
 A taskgroup is described by an `index.md` file in the respective directory,
-which consists of a YAML part and text part like a task file.
+which consists of a YAML part and text part much like a task file.
 
 The text part provides an idea of the taskgroup's topic area
 and in particular motivates why that knowledge is helpful.
@@ -140,12 +176,12 @@ The YAML part can have only few entries:
   If no `minimum` entry exists, it means all tasks of the taskgroup must be done.
 - `status`: Like for tasks.
 
-### 3.5 Chapter `index.md` files
+## 1.6 Chapter `index.md` files
 
 Just like taskgroup `index.md` files, except that `minimum` entries are not allowed.
 
 
-### 3.6 Calling `sedrila`  TODO 2: describe sedrila author calls
+# 2. Calling `sedrila`  TODO 2: describe sedrila author calls
 
 ...
 
