@@ -186,9 +186,75 @@ Just like taskgroup `index.md` files, except that `minimum` entries are not allo
 ...
 
 
-### 3.7 Templates for HTML layout
+# 3. Customization of a sedrila course
+
+## 3.1 Forking an existing course
+
+One design goal of sedrila is that course authors should be able to fork an existing ("upstream")
+sedrila course authored by people from a different university and adapt the fork to their needs,
+but still be able to receive (and integrate automatically, simply by a git merge) almost all 
+of the later changes those other authors may be making.
+
+The support for this has the following components:
+- Modifying the overall layout of the overall course website by modifying HTML templates
+- Modifying appearance by modifying CSS styles
+- Patching parts of task files that talk about university-specific things by
+  replacing those parts without modifying the respective file.
+
+These mechanisms are described in the next three subsections. 
+
+## 3.2 Templates for HTML layout
 
 The format of the resulting HTML files is determined per page type by the Jinja2 templates
 in directory `templates`.
 For examples, see https://github.com/fubinf/propra-inf/tree/main/templates
 
+## 3.3 Modifying the CSS
+
+By convention, the Jinja2 templates of a course should always include exactly two
+CSS files: `sedrila.css` and `local.css`.
+In the source tree, they both live in the `baseresourcedir` directory defined in
+`sedrila.yaml`.
+
+By convention, the original course puts all its styles into `sedrila.css` and
+the fork can overwrite some of them in its `local.css`.
+In the original course, `local.css` is empty and never changes.
+
+## 3.4 The `<replacement>` mechanism
+
+The authors of the original course identify all parts in their text that refer
+to local entities, for instance department names, server URLs, or local rules
+for obtaining the credits assigned to the course.
+
+Such text must then be enclosed in a `<replacement></replacement` tag.
+Favor fewer, longer replacements over more, shorter ones, to give the authors
+of forks more flexibility and to keep the overall number of replacements low.
+
+Here is an example for what course authors might write:
+
+    In the next step, you will create a Git repository, which you will later use
+    for submitting solutions to an instructor.
+
+    <replacement id="CreateGitRepo">
+    Use your ZeDat credentials to log into [git.imp.fu-berlin.de](https://git.imp.fu-berlin.de),
+    the department's GitLab server.
+    Create a fresh repository.
+    Name it `propra-12345678`, but replace `12345678` by your student ID number.
+    </replacement>
+    Look up the list of instructors in the file [course.json](course.json)
+    and assign commit rights for your repository to each of them.
+
+Fork authors will then create a file `replacements.md`
+which consists of only such `<replacement id="...">...</replacement>` blocks,
+one after another, separated by whitespace.
+One such block must exist for each `id` given in any `<replacement>` tag in the course.
+
+When the course is rendered, sedrila will replace the original replacement blocks
+in the markdown source files with the content of the corresponding pair of 
+`<replacement id="...">...</replacement>` tags from `replacements.md`,
+removing the tags themselves.
+
+As a result, the locale-specific information from the original course will
+be replaced by appropriate alternative content when rendering the fork.
+As the original course's authors never touch `replacements.md`, 
+the fork authors can modify it freely without conflict.
