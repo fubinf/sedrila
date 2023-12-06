@@ -183,7 +183,19 @@ Just like taskgroup `index.md` files, except that `minimum` entries are not allo
 
 # 2. Calling `sedrila`  TODO 2: describe sedrila author calls
 
-...
+The typical call for generating the HTML website from a sedrila course is
+`sedrila author outputdir`.
+This will create the student version of the website at location `outputdir`
+and the instructor version at `outputdir/cino2r2s2tu`.
+Both versions will exclude all tasks, taskgroups, and chapters marked as
+`status: incomplete` in their metadata.
+
+To include those as well, add option `--incomplete`.  
+To obtain more detailed console output during the generation, use `--log INFO`.  
+To use an alternative configuration file, use something like `--config myconfig.yaml`.  
+If you use a development setup with a source installation of sedrila,
+use a shell alias such as 
+`alias sedrila='python /my/work/dir/sedrila/py/sedrila.py'`.
 
 
 # 3. Customization of a sedrila course
