@@ -1,6 +1,6 @@
 # `sedrila`: Tool infrastructure for building and running "self-driven lab" courses
 
-## 1. Overview
+# 1. Overview
 
 ## 1.1 What is a self-driven lab course (here known as "a SeDriLa")?
 
@@ -52,9 +52,9 @@ Correspondingly, it basically has three functions:
   recording the instructor's feedback.
 
 
-## 2. How to use `sedrila`
+# 2. How to use `sedrila`
 
-### 2.1 User installation (not yet implemented, TODO 3)
+## 2.1 User installation (not yet implemented, TODO 3)
 
 ```
 pip install sedrila
@@ -62,7 +62,7 @@ pip install sedrila
 (Eventually, we will probably want to use a method that results in an executable.)
 
 
-### 2.2 Usage instructions
+## 2.2 Usage instructions
 
 There separate instructions for each user group:
 
@@ -71,10 +71,10 @@ There separate instructions for each user group:
 - [Students](doc/students.md) 
   who take the course.
 - [Instructors](doc/instructors.md)
-  who check solutions for tasks submitted by the students.
+  who check solutions of tasks when students submit them.
 
 
-### 2.3 Developer installation
+## 2.3 Developer installation
 
 In case you want to make changes to sedrila yourself,
 this is how to set up development. 
@@ -101,13 +101,15 @@ sedrila --help
 - Task-level metadata is stored in YAML format at the top of each task Markdown file
   to obtain locality and to make it easier to randomize task selection when
   creating a course instance.
-- We use a few custom Markdown extensions for
+- We use a few custom Markdown extensions ("macros") for
   - file-local table of contents;
   - value-added integrity-checked links to tasks, taskgroups, chapters;
   - embedding instructor-only content to be used for the instructor version of the webpages;
-  - other preconfigured formatting, in particular colored boxes for Notices, Warnings,
-    and Submissions (Deliverables) instructions.
+  - other preconfigured formatting, in particular for structuring the content of task descriptions
+    into background, goal, instruction, and deliverables ("submission") parts.
 - We use plain, passive HTML for the generated course webpage.
+- We support localizing a fork of a sedrila course in a manner that can avoid most
+  merge conflicts with later improvements of the original course.
 - We use a student git repository for all solution transportation and bookkeeping.
 - We assume the first path element of the git repository URL is a username and
   identifies the student. 
@@ -137,6 +139,7 @@ is based on the following ideas:
   - tabulate those tasks and compute the sum of their timevalues.
 - That script can also tabulate what the instructor did not accept, which makes practical
   a rule that says a task will only count if it gets accepted no later than upon second (or third?) try.
+  No such mechanism is implemented so far, though.
 
 
 ## 3.3 TODO handling during development
