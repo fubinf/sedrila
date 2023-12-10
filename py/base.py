@@ -12,6 +12,7 @@ import yaml
 
 outstream = sys.stdout
 num_errors = 0
+msgs_seen = set()
 loglevel = logging.ERROR
 loglevels = dict(DEBUG=logging.DEBUG, INFO=logging.INFO, WARNING=logging.WARNING,
                  ERROR=logging.ERROR, CRITICAL=logging.CRITICAL)
@@ -133,28 +134,31 @@ def spit_yaml(filename: str, content: StrAnyDict):
 
 def debug(msg: str):
     if loglevel <= logging.DEBUG:
-        rich.print(msg)
+        _rich_print(msg)
 
 
 def info(msg: str):
     if loglevel <= logging.INFO:
-        rich.print(msg)
+        _rich_print(msg)
 
 
 def warning(msg: str):
     if loglevel <= logging.WARNING:
-        rich.print(f"[yellow]{msg}[/yellow]")
+        _rich_print(f"[yellow]{msg}[/yellow]")
 
 
 def error(msg: str):
-    global num_errors
-    num_errors += 1
+    global num_errors, msgs_seen
+    if msg not in msgs_seen:
+        num_errors += 1
     if loglevel <= logging.ERROR:
-        rich.print(f"[red]{msg}[/red]")
+        _rich_print(f"[red]{msg}[/red]")
 
 
 def critical(msg: str):
-    rich.print(f"[bold red]{msg}[/bold red]")
+    global num_errors
+    num_errors += 1
+    _rich_print(f"[bold red]{msg}[/bold red]")
     sys.exit(num_errors)
 
 
@@ -170,3 +174,11 @@ def Table() -> rich.table.Table:
     """An empty Table in default sedrila style"""
     return rich.table.Table(show_header=True, header_style="bold yellow",
                             show_edge=False, show_footer=False)
+
+
+def _rich_print(msg: str):
+    """Print any message, but each one only once."""
+    global msgs_seen
+    if msg not in msgs_seen:
+        msgs_seen.add(msg)
+        rich.print(msg)
