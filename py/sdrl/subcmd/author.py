@@ -177,11 +177,11 @@ def expand_ta(course: sdrl.course.Course, macrocall: md.Macrocall) -> str:
     if task is None:
         macrocall.error(f"Task '{taskname}' does not exist")
         return ""
-    if macrocall.macroname == "TA0":
+    if macrocall.macroname == "TAS":
         return task.breadcrumb_item
-    elif macrocall.macroname == "TA1":
+    elif macrocall.macroname == "TAL":
         return task.toc_link_text
-    elif macrocall.macroname == "TA2":
+    elif macrocall.macroname == "TAM":
         return f"[{html.escape(linktext, quote=False)}]({task.outputfile})"
     else:
         assert False, macrocall  # impossible
@@ -194,11 +194,11 @@ def expand_tg(course: sdrl.course.Course, macrocall: md.Macrocall) -> str:
     if taskgroup is None:
         macrocall.error(f"Taskgroup '{slug}' does not exist")
         return ""
-    if macrocall.macroname == "TG0":
+    if macrocall.macroname == "TGS":
         return taskgroup.breadcrumb_item
-    elif macrocall.macroname == "TG1":
+    elif macrocall.macroname == "TGL":
         return taskgroup.toc_link_text
-    elif macrocall.macroname == "TG2":
+    elif macrocall.macroname == "TGM":
         return f"[{html.escape(linktext, quote=False)}]({taskgroup.outputfile})"
     else:
         assert False, macrocall  # impossible
@@ -211,11 +211,11 @@ def expand_ch(course: sdrl.course.Course, macrocall: md.Macrocall) -> str:
     if chapter is None:
         macrocall.error(f"Chapter '{slug}' does not exist")
         return ""
-    if macrocall.macroname == "CH0":
+    if macrocall.macroname == "CHS":
         return chapter.breadcrumb_item
-    elif macrocall.macroname == "CH1":
+    elif macrocall.macroname == "CHL":
         return chapter.toc_link_text
-    elif macrocall.macroname == "CH2":
+    elif macrocall.macroname == "CHM":
         return f"[{html.escape(linktext, quote=False)}]({chapter.outputfile})"
     else:
         assert False, macrocall  # impossible
