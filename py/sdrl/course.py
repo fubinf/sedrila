@@ -81,6 +81,7 @@ class Task:
                     mustexist_attrs='')
         clean_status(file, self.metadata, include_incomplete)
         # ----- ensure assumes/requires/profiles are lists:
+        self.assumes = self.requires = self.profiles = []  # fallback
         if isinstance(self.assumes, str):
             self.assumes = re.split(r", *", self.assumes)
         if isinstance(self.requires, str):
