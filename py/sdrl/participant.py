@@ -14,5 +14,9 @@ class Student:
             self.student_name = data['student_name']
             assert isinstance(self.student_name, str)
             self.student_id = str(data['student_id'])
+            self.partner_student_name = data['partner_student_name']
+            assert isinstance(self.partner_student_name, str)
+            self.partner_student_id = str(data['partner_student_id'])
         except:
-            b.critical(f"malformed file '{PARTICIPANT_FILE}': must contain course_url, student_name, student_id.")
+            b.critical(f"malformed file '{PARTICIPANT_FILE}': must contain "
+                       "course_url, student_name, student_id, partner_student_name, partner_student_id.")

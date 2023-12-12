@@ -29,6 +29,8 @@ Its contents will look roughly like this:
 course_url: https://someserver.my-university.de/courses/sedrila/WS2028
 student_name: Givenname Familyname
 student_id: 12345678
+partner_student_name: Givenname2 Familyname2
+partner_student_id: 12345679
 ```
 Prepare this file with your data and commit it to your git repository.
 Committing work for a task works without this file being present, but
