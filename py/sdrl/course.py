@@ -81,13 +81,22 @@ class Task:
                     mustexist_attrs='')
         clean_status(file, self.metadata, include_incomplete)
         # ----- ensure assumes/requires/profiles are lists:
-        self.assumes = self.requires = self.profiles = []  # fallback
-        if isinstance(self.assumes, str):
-            self.assumes = re.split(r", *", self.assumes)
-        if isinstance(self.requires, str):
-            self.requires = re.split(r", *", self.requires)
-        if isinstance(self.profiles, str):
-            self.profiles = re.split(r", *", self.profiles)
+        def _handle_strlist(attrname: str):
+            attrvalue = getattr(self, attrname)
+            if isinstance(attrvalue, str):
+                setattr(self, attrname, re.split(r", *", attrvalue))
+            elif not attrvalue:
+                setattr(self, attrname, [])
+            else:
+                msg = f"'{file}': value of '%s:' must be a (non-empty) string"
+                b.error(msg % attrname)
+                setattr(self, attrname, [])
+
+        _handle_strlist('assumes')
+        _handle_strlist('requires')
+        _handle_strlist('profiles')
+
+
 
     @property
     def breadcrumb_item(self) -> str:
