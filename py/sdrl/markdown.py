@@ -195,6 +195,9 @@ extensions = [SedrilaExtension(),
 extension_configs = {
     'toc': {
         # 'slugify':  perhaps replace with numbering-aware version 
+    },
+    'codehilite': {
+        'linenums': True
     }
 }
 
