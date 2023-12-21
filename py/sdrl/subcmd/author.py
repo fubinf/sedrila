@@ -305,7 +305,7 @@ def topmatter(macrocall: md.Macrocall, name: str) -> str:
 
 def render_welcome(course: sdrl.course.Course, env, targetdir: str, 
                    mode: b.Mode, blockmacro_topmatter: dict[str, str]):
-    template = env.get_template("welcome.html")
+    template = env.get_template("homepage.html")
     if hasattr(course, "content"):
         render_structure(course, template, course, env, targetdir, mode, blockmacro_topmatter)
 
