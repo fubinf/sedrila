@@ -339,6 +339,7 @@ def render_structure(course: sdrl.course.Course,
                              index=course.chapters[0].slug, index_title=course.chapters[0].title,
                              breadcrumb=h.breadcrumb(*structure_path(structure)[::-1]),
                              title=structure.title,
+                             part=structure,
                              toc=toc, fulltoc=course.toc,
                              content=html)
     b.spit(f"{targetdir}/{structure.outputfile}", output)
