@@ -93,6 +93,8 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     md.register_macro('ENDINSTRUCTOR', 0, expand_instructor)
     md.register_macro('WARNING', 0, expand_warning)
     md.register_macro('ENDWARNING', 0, expand_warning)
+    md.register_macro('NOTICE', 0, expand_notice)
+    md.register_macro('ENDNOTICE', 0, expand_notice)
     md.register_macro('SECTION', 2, expand_section)
     md.register_macro('ENDSECTION', 0, expand_section)
     md.register_macro('INNERSECTION', 2, expand_section)
@@ -245,6 +247,14 @@ def expand_warning(macrocall: md.Macrocall) -> str:
     if macrocall.macroname == 'WARNING':
         return f"<div class='blockmacro-warning'>\n{topmatter(macrocall, 'warning')}"
     elif macrocall.macroname == 'ENDWARNING':
+        return "</div>"
+    assert False, macrocall  # impossible
+
+
+def expand_notice(macrocall: md.Macrocall) -> str:
+    if macrocall.macroname == 'NOTICE':
+        return f"<div class='blockmacro-notice'>\n{topmatter(macrocall, 'notice')}"
+    elif macrocall.macroname == 'ENDNOTICE':
         return "</div>"
     assert False, macrocall  # impossible
 
