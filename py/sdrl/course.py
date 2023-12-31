@@ -121,9 +121,8 @@ class Task:
 
     @property
     def toc_link_text(self) -> str:
-        description = h.as_attribute(self.description)
         href = f"href='{self.outputfile}'"
-        titleattr = f"title=\"{description}\""
+        titleattr = f"title=\"{self.slug}\""
         diffsymbol = h.difficulty_symbol(self.difficulty)
         timevalue = f"<span title='Timevalue: {self.timevalue} hours'>{self.timevalue}h"
         refs = (self._taskrefs('a', 'assumed_by') + self._taskrefs('r', 'required_by') +
@@ -429,7 +428,7 @@ class Chapter(Item):
 
     @property
     def toc_link_text(self) -> str:
-        titleattr = f"title=\"{h.as_attribute(self.description)}\""
+        titleattr = f"title=\"{self.slug}\""
         return f"<a href='{self.outputfile}' {titleattr}>{self.title}</a>"
 
     def as_json(self) -> b.StrAnyDict:
@@ -489,7 +488,7 @@ class Taskgroup(Item):
 
     @property
     def toc_link_text(self) -> str:
-        titleattr = f"title=\"{h.as_attribute(self.description)}\""
+        titleattr = f"title=\"{self.slug}\""
         return f"<a href='{self.outputfile}' {titleattr}>{self.title}</a>"
 
     @property
