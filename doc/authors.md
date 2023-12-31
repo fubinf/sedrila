@@ -104,9 +104,6 @@ Here is a small example:
 
 ```
 title: Convention for Git commit messages for work time tracking
-description: |
-  With very little effort we add super useful metadata to our commit messages
-  which later allow understanding how much effort something has consumed.
 timevalue: 1
 difficulty: 1
 status: incomplete
@@ -126,9 +123,6 @@ This may look as follows:
 The YAML attributes have the following meaning:
 - `title`: string, required.    
   How this task will appear in the navigation menu.
-- `description`: string (often a few lines long), required.  
-  How this task will appear in a tooltip when hovering over a title.
-  Often a rationale for the task or something to pique the students' curiosity.
 - `timevalue`: integer, required.  
   The number of work hours of credit a student will receive when this task is submitted
   and is accepted by the instructor.
@@ -169,7 +163,6 @@ The text part provides an idea of the taskgroup's topic area
 and in particular motivates why that knowledge is helpful.
 
 The YAML part can have only few entries:
-- `description`: Like for tasks.
 - `minimum`: integer, optional.  
   The minimum number of tasks that must be done in this taskgroup for the taskgroup
   to be considered done if it appears in a task's `assumes` or `requires` list.

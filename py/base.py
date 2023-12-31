@@ -57,9 +57,15 @@ def copyattrs(context: str, source: StrAnyDict, target: tg.Any,
     def mysetattr(obj, name, newvalue):
         if overwrite or not hasattr(target, name):
             setattr(obj, name, newvalue)
-    mustcopy_names = [a.strip() for a in mustcopy_attrs.split(',')]  # mandatory
-    cancopy_names = [a.strip() for a in cancopy_attrs.split(',')]  # optional
-    mustexist_names = [a.strip() for a in mustexist_attrs.split(',')]  # further mandatory
+    def names_in(attrlist: str) -> list[str]:
+        if not attrlist:
+            return []
+        return [a.strip() for a in attrlist.split(',')]
+    mustcopy_names = names_in(mustcopy_attrs)  # mandatory
+    cancopy_names = names_in(cancopy_attrs)  # optional
+    mustexist_names = names_in(mustexist_attrs)  # further mandatory
+    if not source:
+        source = dict()
     source_names = set(source.keys())
     for m in mustcopy_names:  # transport these
         value = source.get(m, ValueError)

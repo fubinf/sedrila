@@ -47,7 +47,6 @@ class Task:
     slug: str  # the key by which we access the Task object
 
     title: str  # title: value
-    description: str  # description: value (possibly multiple lines)
     timevalue: tg.Union[int, float]  # task timevalue: (in hours)
     difficulty: int  # difficulty: int from DIFFICULTY_RANGE
     assumes: tg.List[str] = []  # tasknames: This knowledge is assumed to be present
@@ -76,7 +75,7 @@ class Task:
         self.slug = nameparts[0]  # must be globally unique
         b.copyattrs(file, 
                     self.metadata, self,
-                    mustcopy_attrs='title, description, timevalue, difficulty',
+                    mustcopy_attrs='title, timevalue, difficulty',
                     cancopy_attrs='status, assumes, requires, profiles',  # TODO 2: check profiles against sedrila.yaml
                     mustexist_attrs='')
         clean_status(file, self.metadata, include_incomplete)
@@ -385,7 +384,6 @@ class Course(Item):
 
 
 class Chapter(Item):
-    description: str
     slug: str
     course: Course
     taskgroups: tg.Sequence['Taskgroup']
@@ -403,7 +401,7 @@ class Chapter(Item):
             b.read_partsfile(self, self.inputfile)
             b.copyattrs(context, 
                         self.metadata, self,
-                        mustcopy_attrs='description',
+                        mustcopy_attrs='',
                         cancopy_attrs='todo',
                         mustexist_attrs='', overwrite=False)
         self.taskgroups = [Taskgroup(self, taskgroup, read_contentfiles, include_incomplete) 
@@ -442,7 +440,6 @@ class Chapter(Item):
 
 
 class Taskgroup(Item):
-    description: str
     slug: str
     chapter: Chapter
     tasks: tg.List['Task']
@@ -459,7 +456,7 @@ class Taskgroup(Item):
             b.read_partsfile(self, self.inputfile)
             b.copyattrs(context,
                         self.metadata, self,
-                        mustcopy_attrs='description',
+                        mustcopy_attrs='',
                         cancopy_attrs='minimum, todo',
                         mustexist_attrs='', overwrite=False)
         clean_status(context, self, include_incomplete)
