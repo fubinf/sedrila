@@ -37,16 +37,41 @@ def clean_status(context: str, obj: object, include_incomplete: bool) -> None:
             del obj.status
 
 
-class Task:
-    DIFFICULTY_RANGE = range(1, len(h.difficulty_levels) + 1)
-
+class Structurepart:
+    """Common superclass"""
     srcfile: str  # the originating pathname
     metadata_text: str  # the YAML front matter character stream
     metadata: b.StrAnyDict  # the YAML front matter
     content: str  # the markdown block
-    slug: str  # the key by which we access the Task object
-
+    slug: str  # the filename/dirname by which we refer to the part
     title: str  # title: value
+    shorttitle: str  # shorttitle: value
+    toc: str  # table of contents
+
+
+    @property
+    def breadcrumb_item(self) -> str:
+        return "(undefined)"
+
+    @property
+    def inputfile(self) -> str:
+        return "(undefined)"
+
+    @property
+    def outputfile(self) -> str:
+        return "(undefined)"
+
+    @property
+    def to_be_skipped(self) -> bool:
+        return getattr(self, 'status', "") == STATUS_INCOMPLETE
+
+    def as_json(self) -> b.StrAnyDict:
+        return dict(title=self.title, shorttitle=self.shorttitle)
+
+
+class Task(Structurepart):
+    DIFFICULTY_RANGE = range(1, len(h.difficulty_levels) + 1)
+
     timevalue: tg.Union[int, float]  # task timevalue: (in hours)
     difficulty: int  # difficulty: int from DIFFICULTY_RANGE
     assumes: tg.List[str] = []  # tasknames: This knowledge is assumed to be present
@@ -60,7 +85,7 @@ class Task:
 
     taskgroup: 'Taskgroup'  # where the task belongs
 
-    def __init__(self, file: tg.Optional[str], text: str = None, 
+    def __init__(self, file: tg.Optional[str], text: str = None,
                  taskgroup: tg.Optional['Taskgroup'] = None, task: tg.Optional[b.StrAnyDict] = None,
                  include_incomplete: bool = False):
         """Reads task from a file or multiline string or initializes via from_json."""
@@ -73,12 +98,13 @@ class Task:
         nameparts = os.path.basename(self.srcfile).split('.')
         assert len(nameparts) == 2  # taskname, suffix 'md'
         self.slug = nameparts[0]  # must be globally unique
-        b.copyattrs(file, 
+        b.copyattrs(file,
                     self.metadata, self,
                     mustcopy_attrs='title, timevalue, difficulty',
                     cancopy_attrs='status, assumes, requires, profiles',  # TODO 2: check profiles against sedrila.yaml
                     mustexist_attrs='')
         clean_status(file, self.metadata, include_incomplete)
+
         # ----- ensure assumes/requires/profiles are lists:
         def _handle_strlist(attrname: str):
             attrvalue = getattr(self, attrname)
@@ -94,8 +120,6 @@ class Task:
         _handle_strlist('assumes')
         _handle_strlist('requires')
         _handle_strlist('profiles')
-
-
 
     @property
     def breadcrumb_item(self) -> str:
@@ -153,7 +177,7 @@ class Task:
     @staticmethod
     def _as_list(obj) -> tg.List:
         return obj if isinstance(obj, list) else list(obj)
-    
+
     def _taskrefs(self, label: str, attr_name: str) -> str:
         """Create a toc link dedoration for one set of related tasks."""
         attr_cssclass = "%s-decoration" % attr_name.replace("_", "-")
@@ -179,35 +203,7 @@ class Task:
 md.register_macro('DIFF', 1, Task.expand_diff)
 
 
-class Item:
-    """Common superclass for course, Chapter, Taskgroup (but not Task, although similar)."""
-    title: str
-    shorttitle: str
-    metadata: b.StrAnyDict  # the YAML front matter
-    content: str
-    toc: str
-
-    @property
-    def breadcrumb_item(self) -> str:
-        return "(undefined)"
-
-    @property
-    def inputfile(self) -> str:
-        return "(undefined)"
-
-    @property
-    def outputfile(self) -> str:
-        return "(undefined)"
-
-    @property
-    def to_be_skipped(self) -> bool:
-        return getattr(self, 'status', "") == STATUS_INCOMPLETE
-
-    def as_json(self) -> b.StrAnyDict:
-        return dict(title=self.title, shorttitle=self.shorttitle)
-
-
-class Course(Item):
+class Course(Structurepart):
     """
     The master data object for this run.
     Can be initialized in two different ways: 
@@ -222,6 +218,7 @@ class Course(Item):
     templatedir: str = 'templates'
     blockmacro_topmatter: dict[str, str]
     instructors: tg.List[b.StrAnyDict]
+    profiles: tg.List[str]  # list of all allowed profile shortnames
     chapters: tg.List['Chapter']
     taskorder: tg.List[Task]  # If task B assumes or requires A, A will be before B in this list.
 
@@ -383,7 +380,7 @@ class Course(Item):
         return name in self.taskdict or name in self.taskgroupdict
 
 
-class Chapter(Item):
+class Chapter(Structurepart):
     slug: str
     course: Course
     taskgroups: tg.Sequence['Taskgroup']
@@ -439,7 +436,7 @@ class Chapter(Item):
         return h.indented_block(self.toc_link_text, level)
 
 
-class Taskgroup(Item):
+class Taskgroup(Structurepart):
     slug: str
     chapter: Chapter
     tasks: tg.List['Task']

@@ -21,8 +21,6 @@ Checks consistency of the course description beforehands.
 
 OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR = "cino2r2s2tu"  # quasi-anagram of "instructors"
 
-Structurepart = tg.Union[sdrl.course.Item, sdrl.course.Task]
-
 
 def configure_argparser(subparser: argparse.ArgumentParser):
     subparser.add_argument('--config', default=b.CONFIG_FILENAME,
@@ -147,7 +145,7 @@ def backup_targetdir(targetdir: str, markerfile: str):
     os.rename(targetdir, targetdir_bak)
 
 
-def toc(structure: Structurepart) -> str:
+def toc(structure: sdrl.course.Structurepart) -> str:
     """Return a table-of-contents HTML fragment for the given structure via structural recursion."""
     parts = structure_path(structure)
     fulltoc = len(parts) == 1  # path only contains course
@@ -340,7 +338,7 @@ def render_task(task: sdrl.course.Task, env, targetdir: str,
 
 
 def render_structure(course: sdrl.course.Course, 
-                     template, structure: Structurepart, 
+                     template, structure: sdrl.course.Structurepart, 
                      env, targetdir: str, 
                      mode: b.Mode, blockmacro_topmatter: dict[str, str]):
     toc = (structure.taskgroup if isinstance(structure, sdrl.course.Task) else structure).toc
@@ -355,7 +353,7 @@ def render_structure(course: sdrl.course.Course,
     b.spit(f"{targetdir}/{structure.outputfile}", output)
 
 
-def structure_path(structure: Structurepart) -> list[Structurepart]:
+def structure_path(structure: sdrl.course.Structurepart) -> list[sdrl.course.Structurepart]:
     path = []
     if isinstance(structure, sdrl.course.Task):
         path.append(structure)
