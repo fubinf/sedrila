@@ -124,8 +124,8 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
         render_task(task, env, targetdir_s, b.Mode.STUDENT, course.blockmacro_topmatter)
         render_task(task, env, targetdir_i, b.Mode.INSTRUCTOR, course.blockmacro_topmatter)
     # ----- generate metadata file:
-    b.info(f"generating metadata file '{targetdir_s}/{sdrl.course.METADATA_FILE}'")
-    write_metadata(course, f"{targetdir_s}/{sdrl.course.METADATA_FILE}")
+    b.info(f"generating metadata file '{targetdir_s}/{b.METADATA_FILE}'")
+    write_metadata(course, f"{targetdir_s}/{b.METADATA_FILE}")
     # ------ report outcome:
     print(f"wrote student files to  '{targetdir_s}'")
     print(f"wrote instructor files to  '{targetdir_i}'")

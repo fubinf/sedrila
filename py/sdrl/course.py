@@ -18,7 +18,6 @@ import base as b
 import sdrl.html as h
 import sdrl.markdown as md
 
-METADATA_FILE = "course.json"  # in student build directory
 STATUS_INCOMPLETE = "incomplete"
 STATUS_NORMAL = "normal"
 

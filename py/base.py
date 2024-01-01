@@ -17,7 +17,8 @@ loglevel = logging.ERROR
 loglevels = dict(DEBUG=logging.DEBUG, INFO=logging.INFO, WARNING=logging.WARNING,
                  ERROR=logging.ERROR, CRITICAL=logging.CRITICAL)
 
-CONFIG_FILENAME = "sedrila.yaml"  # plain filename, no directory possible
+CONFIG_FILENAME = "sedrila.yaml"  # at top-level of source dir
+METADATA_FILE = "course.json"  # at top-level of build directory
 TEMPLATES_DIR = "templates"
 
 OStr = tg.Optional[str]

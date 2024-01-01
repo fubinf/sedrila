@@ -47,13 +47,13 @@ def create_gpg_key() -> str:
 def test_student_work_so_far():
     with TempDirEnvironContextMgr(HOME='.') as mgr:
         #----- initialize test environment:
-        course_json = b.slurp_json(f"{mgr.origdir}/py/sdrl/tests/data/{sdrl.course.METADATA_FILE}")  # config template
+        course_json = b.slurp_json(f"{mgr.origdir}/py/sdrl/tests/data/{b.METADATA_FILE}")  # config template
         fingerprint = create_gpg_key()
         course_json['instructors'][0]['fingerprint'] = fingerprint  
-        b.spit_json(sdrl.course.METADATA_FILE, course_json)  # final course config
+        b.spit_json(b.METADATA_FILE, course_json)  # final course config
         create_git_repo()
         #----- initialize application environment:
-        course = sdrl.course.Course(sdrl.course.METADATA_FILE, read_contentfiles=False)
+        course = sdrl.course.Course(b.METADATA_FILE, read_contentfiles=False)
         commits = git.commits_of_local_repo()
         workhours = r.workhours_of_commits(commits)
         r.accumulate_workhours_per_task(workhours, course)

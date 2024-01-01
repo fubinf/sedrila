@@ -10,7 +10,7 @@ import sdrl.subcmd.instructor as sut  # system under test
 from tests.testbase import TempDirEnvironContextMgr
 
 TEST_REPO = "git@github.com:fubinf/sedrila-test1.git"
-METADATA_FILE = f"{os.path.dirname(__file__)}/data/{sdrl.course.METADATA_FILE}"
+METADATA_FILE = f"{os.path.dirname(__file__)}/data/{b.METADATA_FILE}"
 
 
 def test_instructor_parts(capfd):
@@ -34,7 +34,7 @@ def test_instructor_parts(capfd):
         os.mkdir('out')
         shutil.copy(METADATA_FILE, 'out')
         #----- read data from repo:
-        course = sdrl.course.Course(f"out/{sdrl.course.METADATA_FILE}", 
+        course = sdrl.course.Course(f"out/{b.METADATA_FILE}", 
                                     read_contentfiles=False, include_incomplete=True)
         r.compute_student_work_so_far(course)
         entries, workhours_total, timevalue_total = r.student_work_so_far(course)

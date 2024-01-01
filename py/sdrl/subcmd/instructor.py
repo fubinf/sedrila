@@ -32,7 +32,7 @@ def execute(pargs: argparse.Namespace):
         b.critical(f"Environment variable {REPOS_HOME_VAR} must be set (student workdirs directory)")
     home = os.environ.get(REPOS_HOME_VAR)
     checkout_student_repo(pargs.repo_url, home)
-    metadatafile = f"{pargs.course_url}/{sdrl.course.METADATA_FILE}"
+    metadatafile = f"{pargs.course_url}/{b.METADATA_FILE}"
     course = sdrl.course.Course(metadatafile, read_contentfiles=False, include_incomplete=False)
     r.compute_student_work_so_far(course)
     entries, workhours_total, timevalue_total = r.student_work_so_far(course)
