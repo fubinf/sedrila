@@ -155,18 +155,19 @@ def toc(structure: sdrl.course.Structurepart) -> str:
     for chapter in course.chapters:  # noqa
         if chapter.to_be_skipped:
             continue
-        result.append(chapter.toc_link(0))
+        result.append(chapter.toc_entry)
         if not fulltoc and chapter not in parts:
             continue
         for taskgroup in chapter.taskgroups:
-            if taskgroup.to_be_skipped:
+            tasklist = [t for t in course.taskorder if t in taskgroup.tasks]
+            if taskgroup.to_be_skipped or not tasklist:
                 continue
-            result.append(taskgroup.toc_link(1))
+            result.append(taskgroup.toc_entry)
             if not fulltoc and taskgroup not in parts:
                 continue
-            for task in (t for t in course.taskorder if t in taskgroup.tasks):  # noqa
+            for task in tasklist:  # noqa
                 if not task.to_be_skipped:
-                    result.append(task.toc_link(2))
+                    result.append(task.toc_entry)
     return "\n".join(result)
 
 

@@ -24,10 +24,6 @@ def difficulty_symbol(level: int) -> str:
     return circle
 
 
-def indented_block(text: str, level: tg.Optional[int]) -> str:
-    return "".join([
-        level * " " if level is not None else "",
-        f"<div class='indent{min(level,4)}'>" if level is not None else "<span>",
-        text,
-        "</div>" if level is not None else "</span>"])
+def indented_block(text: str, level: int, classes: str) -> str:
+    return "".join([level * " ", f"<div class='indent{level} {classes}'>", text, "</div>"])
 

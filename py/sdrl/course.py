@@ -20,6 +20,7 @@ import sdrl.markdown as md
 
 class Structurepart:
     """Common superclass"""
+    TOC_LEVEL = 0  # indent level in table of contents
     sourcefile: str = "???"  # the originating pathname
     outputfile: str  # the target pathname
     metadata_text: str  # the YAML front matter character stream
@@ -35,6 +36,12 @@ class Structurepart:
     @property
     def breadcrumb_item(self) -> str:
         return "(undefined)"
+
+    @property
+    def toc_entry(self) -> str:
+        classes = f"stage-{self.stage}" if self.stage else "no-stage"
+        return h.indented_block(self.toc_link_text, self.TOC_LEVEL, classes)
+
 
     def as_json(self) -> b.StrAnyDict:
         return dict(title=self.title, shorttitle=self.shorttitle)
@@ -83,6 +90,7 @@ class Structurepart:
 
 class Task(Structurepart):
     DIFFICULTY_RANGE = range(1, len(h.difficulty_levels) + 1)
+    TOC_LEVEL = 2  # indent level in table of contents
 
     timevalue: tg.Union[int, float]  # task timevalue: (in hours)
     difficulty: int  # difficulty: int from DIFFICULTY_RANGE
@@ -167,9 +175,6 @@ class Task(Structurepart):
         self.requires = task['requires']
         self.profiles = task['profiles']
         return self
-
-    def toc_link(self, level=0) -> str:
-        return h.indented_block(self.toc_link_text, level)
 
     def _taskrefs(self, label: str, attr_name: str) -> str:
         """Create a toc link dedoration for one set of related tasks."""
@@ -421,11 +426,9 @@ class Chapter(Structurepart):
         result.update(super().as_json())
         return result
 
-    def toc_link(self, level=0) -> str:
-        return h.indented_block(self.toc_link_text, level)
-
 
 class Taskgroup(Structurepart):
+    TOC_LEVEL = 1  # indent level in table of contents
     chapter: Chapter
     tasks: list['Task']
 
@@ -471,9 +474,6 @@ class Taskgroup(Structurepart):
                       tasks=[task.as_json() for task in self.tasks])
         result.update(super().as_json())
         return result
-
-    def toc_link(self, level=0) -> str:
-        return h.indented_block(self.toc_link_text, level)
 
     def _add_task(self, task: Task):
         task.taskgroup = self
