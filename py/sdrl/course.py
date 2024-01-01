@@ -28,7 +28,7 @@ class Structurepart:
     slug: str  # the file/dir basename by which we refer to the part
     title: str  # title: value
     shorttitle: str  # shorttitle: value
-    stage: str  # stage: value
+    stage: str = ''  # stage: value
     skipthis: bool  # do not include this chapter/taskgroup/task in generated site
     toc: str  # table of contents
 
@@ -135,7 +135,7 @@ class Task(Structurepart):
         b.copyattrs(file,
                     self.metadata, self,
                     mustcopy_attrs='title, timevalue, difficulty',
-                    cancopy_attrs='status, assumes, requires, profiles',  # TODO 2: check profiles against sedrila.yaml
+                    cancopy_attrs='stage, assumes, requires, profiles',  # TODO 2: check profiles against sedrila.yaml
                     mustexist_attrs='')
         self.evaluate_stage(file, taskgroup.chapter.course)
 
@@ -384,7 +384,7 @@ class Chapter(Structurepart):
         b.copyattrs(context, 
                     chapter, self,
                     mustcopy_attrs='title, shorttitle, slug',
-                    cancopy_attrs='status',
+                    cancopy_attrs='stage',
                     mustexist_attrs='taskgroups')
         self.evaluate_stage(context, course)
         if read_contentfiles:
@@ -435,7 +435,7 @@ class Taskgroup(Structurepart):
         b.copyattrs(context,
                     taskgroupdict, self,
                     mustcopy_attrs='title, shorttitle, slug',
-                    cancopy_attrs='tasks, status',
+                    cancopy_attrs='tasks, stage',
                     mustexist_attrs='taskgroups')
         self.outputfile = f"{self.slug}.html"
         if read_contentfiles:
