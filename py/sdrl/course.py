@@ -1,4 +1,9 @@
-"""Represent and handle the contents of the sedrila.yaml config file: course, Chapter, Taskgroup."""
+"""
+Represent and handle the contents of SeDriLa: Course, Chapter, Taskgroup, Task.
+There are two ways how these objects can be instantiated:
+In 'author' mode, 'read_contentfiles' is true and metadata comes from sedrila.yaml and the partfiles.
+Otherwise, 'read_contentfiles' is false and metadata comes from METADATA_FILE. 
+"""
 
 import functools
 import glob
@@ -6,6 +11,8 @@ import graphlib
 import os
 import re
 import typing as tg
+
+import yaml
 
 import base as b
 import sdrl.html as h
@@ -39,26 +46,18 @@ def clean_status(context: str, obj: object, include_incomplete: bool) -> None:
 
 class Structurepart:
     """Common superclass"""
-    srcfile: str  # the originating pathname
+    sourcefile: str = "???"  # the originating pathname
+    outputfile: str  # the target pathname
     metadata_text: str  # the YAML front matter character stream
     metadata: b.StrAnyDict  # the YAML front matter
     content: str  # the markdown block
-    slug: str  # the filename/dirname by which we refer to the part
+    slug: str  # the file/dir basename by which we refer to the part
     title: str  # title: value
     shorttitle: str  # shorttitle: value
     toc: str  # table of contents
 
-
     @property
     def breadcrumb_item(self) -> str:
-        return "(undefined)"
-
-    @property
-    def inputfile(self) -> str:
-        return "(undefined)"
-
-    @property
-    def outputfile(self) -> str:
         return "(undefined)"
 
     @property
@@ -67,6 +66,26 @@ class Structurepart:
 
     def as_json(self) -> b.StrAnyDict:
         return dict(title=self.title, shorttitle=self.shorttitle)
+
+    def read_partsfile(self, file: str):
+        """
+        Reads files consisting of YAML metadata, then Markdown text, separated by a tiple-dash line.
+        Stores metadata into self.metadata, rest into self.content.
+        """
+        SEPARATOR = "---\n"
+        # ----- obtain file contents:
+        self.sourcefile = file
+        text = b.slurp(file)
+        if SEPARATOR not in text:
+            b.error(f"{self.sourcefile}: triple-dash separator is missing")
+            return
+        self.metadata_text, self.content = text.split(SEPARATOR, 1)
+        # ----- parse metadata
+        try:
+            # ----- parse YAML data:
+            self.metadata = yaml.safe_load(self.metadata_text)
+        except yaml.YAMLError as exc:
+            b.error(f"{self.sourcefile}: metadata YAML is malformed: {str(exc)}")
 
 
 class Task(Structurepart):
@@ -85,7 +104,7 @@ class Task(Structurepart):
 
     taskgroup: 'Taskgroup'  # where the task belongs
 
-    def __init__(self, file: tg.Optional[str], text: str = None,
+    def __init__(self, file: tg.Optional[str],
                  taskgroup: tg.Optional['Taskgroup'] = None, task: tg.Optional[b.StrAnyDict] = None,
                  include_incomplete: bool = False):
         """Reads task from a file or multiline string or initializes via from_json."""
@@ -93,11 +112,12 @@ class Task(Structurepart):
             assert not file
             self.from_json(taskgroup, task)
             return
-        b.read_partsfile(self, file, text)
-        # ----- get taskdata from filen:
-        nameparts = os.path.basename(self.srcfile).split('.')
+        self.read_partsfile(file)
+        # ----- get taskdata from filename:
+        nameparts = os.path.basename(self.sourcefile).split('.')
         assert len(nameparts) == 2  # taskname, suffix 'md'
         self.slug = nameparts[0]  # must be globally unique
+        self.outputfile = f"{self.slug}.html"
         b.copyattrs(file,
                     self.metadata, self,
                     mustcopy_attrs='title, timevalue, difficulty',
@@ -126,21 +146,9 @@ class Task(Structurepart):
         return f"<a href='{self.outputfile}'>{self.slug}</a>"
 
     @property
-    def inputfile(self) -> str:
-        return self.srcfile
-
-    @property
-    def outputfile(self) -> str:
-        return f"{self.name}.html"
-
-    @property
     def to_be_skipped(self) -> bool:
         return (getattr(self, 'status', "") == STATUS_INCOMPLETE or
                 self.taskgroup.to_be_skipped or self.taskgroup.chapter.to_be_skipped)
-
-    @property
-    def name(self) -> str:
-        return self.slug
 
     @property
     def toc_link_text(self) -> str:
@@ -230,8 +238,9 @@ class Course(Structurepart):
                     mustcopy_attrs='title, shorttitle, instructors, profiles',
                     cancopy_attrs='baseresourcedir, chapterdir, templatedir, blockmacro_topmatter',
                     mustexist_attrs='chapters')
-        if read_contentfiles and os.path.isfile(self.inputfile):
-            b.read_partsfile(self, self.inputfile)
+        self.outputfile = "index.html"
+        if read_contentfiles:
+            self.read_partsfile(f"{self.chapterdir}/index.md")
         self.chapters = [Chapter(self, ch, read_contentfiles, include_incomplete) 
                          for ch in configdict['chapters']]
         self._check_links()
@@ -242,14 +251,6 @@ class Course(Structurepart):
     def breadcrumb_item(self) -> str:
         titleattr = f"title=\"{h.as_attribute(self.title)}\""
         return f"<a href='index.html' {titleattr}>{self.shorttitle}</a>"
-
-    @property
-    def inputfile(self) -> str:
-        return f"{self.chapterdir}/index.md"
-
-    @property
-    def outputfile(self) -> str:
-        return "index.html"
 
     @functools.cached_property
     def chapterdict(self) -> tg.Mapping[str, 'Chapter']:
@@ -263,10 +264,10 @@ class Course(Structurepart):
     def taskdict(self) -> tg.Mapping[str, Task]:
         result = dict()
         for t in self._all_tasks():
-            if t.name in result:
-                b.error(f"duplicate task: '{t.inputfile}'\t'{result[t.name].inputfile}'")
+            if t.slug in result:
+                b.error(f"duplicate task: '{t.sourcefile}'\t'{result[t.slug].sourcefile}'")
             else:
-                result[t.name] = t
+                result[t.slug] = t
         return result
 
     def as_json(self) -> b.StrAnyDict:
@@ -381,7 +382,6 @@ class Course(Structurepart):
 
 
 class Chapter(Structurepart):
-    slug: str
     course: Course
     taskgroups: tg.Sequence['Taskgroup']
     
@@ -395,7 +395,7 @@ class Chapter(Structurepart):
                     mustexist_attrs='taskgroups')
         clean_status(context, self, include_incomplete)
         if read_contentfiles:
-            b.read_partsfile(self, self.inputfile)
+            self.read_partsfile(f"{self.course.chapterdir}/{self.slug}/index.md")
             b.copyattrs(context, 
                         self.metadata, self,
                         mustcopy_attrs='',
@@ -410,16 +410,8 @@ class Chapter(Structurepart):
         return f"<a href='{self.outputfile}' {titleattr}>{self.shorttitle}</a>"
 
     @property
-    def inputfile(self) -> str:
-        return f"{self.course.chapterdir}/{self.slug}/index.md"
-
-    @property
     def outputfile(self) -> str:
         return f"chapter-{self.slug}.html"
-
-    @property
-    def name(self) -> str:
-        return self.slug
 
     @property
     def toc_link_text(self) -> str:
@@ -437,7 +429,6 @@ class Chapter(Structurepart):
 
 
 class Taskgroup(Structurepart):
-    slug: str
     chapter: Chapter
     tasks: tg.List['Task']
 
@@ -449,8 +440,9 @@ class Taskgroup(Structurepart):
                     mustcopy_attrs='title, shorttitle, slug',
                     cancopy_attrs='tasks, status',
                     mustexist_attrs='taskgroups')
+        self.outputfile = f"{self.slug}.html"
         if read_contentfiles:
-            b.read_partsfile(self, self.inputfile)
+            self.read_partsfile(f"{self.chapter.course.chapterdir}/{self.chapter.slug}/{self.slug}/index.md")
             b.copyattrs(context,
                         self.metadata, self,
                         mustcopy_attrs='',
@@ -467,18 +459,6 @@ class Taskgroup(Structurepart):
     def breadcrumb_item(self) -> str:
         titleattr = f"title=\"{h.as_attribute(self.title)}\""
         return f"<a href='{self.outputfile}' {titleattr}>{self.shorttitle}</a>"
-
-    @property
-    def inputfile(self) -> str:
-        return f"{self.chapter.course.chapterdir}/{self.chapter.slug}/{self.slug}/index.md"
-
-    @property
-    def outputfile(self) -> str:
-        return f"{self.name}.html"
-
-    @property
-    def name(self) -> str:
-        return f"{self.chapter.slug}-{self.slug}"
 
     @property
     def toc_link_text(self) -> str:

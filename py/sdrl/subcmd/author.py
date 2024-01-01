@@ -6,7 +6,6 @@ import json
 import os
 import os.path
 import shutil
-import typing as tg
 
 import jinja2
 
@@ -342,7 +341,7 @@ def render_structure(course: sdrl.course.Course,
                      env, targetdir: str, 
                      mode: b.Mode, blockmacro_topmatter: dict[str, str]):
     toc = (structure.taskgroup if isinstance(structure, sdrl.course.Task) else structure).toc
-    html = md.render_markdown(structure.inputfile, structure.content, mode, blockmacro_topmatter)
+    html = md.render_markdown(structure.sourcefile, structure.content, mode, blockmacro_topmatter)
     output = template.render(sitetitle=course.title,
                              index=course.chapters[0].slug, index_title=course.chapters[0].title,
                              breadcrumb=h.breadcrumb(*structure_path(structure)[::-1]),

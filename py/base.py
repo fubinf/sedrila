@@ -52,7 +52,7 @@ def copyattrs(context: str, source: StrAnyDict, target: tg.Any,
     cancopy_attrs need not exist.
     If overwrite is False, fails if attribute already exists in target.
     Prints error and stops on problems, using 'context' as location info in the error message.
-    E.g. copyattrs(srcfile, yaml, self, "title,shorttitle,dir", "templatedir", "chapters")
+    E.g. copyattrs(sourcefile, yaml, self, "title,shorttitle,dir", "templatedir", "chapters")
     """
     def mysetattr(obj, name, newvalue):
         if overwrite or not hasattr(target, name):
@@ -83,28 +83,6 @@ def copyattrs(context: str, source: StrAnyDict, target: tg.Any,
     extra_attrs = source_names - set(mustcopy_names) - set(cancopy_names) - set(mustexist_names)
     if extra_attrs:
         error(f"{context}: unexpected extra attributes found: {extra_attrs}")
-
-
-def read_partsfile(self, file: str, text: str = None):
-    """
-    Reads files consisting of YAML metadata, then Markdown text, separated by a tiple-dash line.
-    Stores metadata into self.metadata, rest into self.content.
-    """
-    SEPARATOR = "---\n"
-    # ----- obtain file contents:
-    self.srcfile = file
-    if not text:
-        text = slurp(file)
-    if SEPARATOR not in text:
-        error(f"{self.srcfile}: triple-dash separator is missing")
-        return
-    self.metadata_text, self.content = text.split(SEPARATOR, 1)
-    # ----- parse metadata
-    try:
-        # ----- parse YAML data:
-        self.metadata = yaml.safe_load(self.metadata_text)
-    except yaml.YAMLError as exc:
-        error(f"{self.srcfile}: metadata YAML is malformed: {str(exc)}")
 
 
 def slurp(resource: str) -> str:
