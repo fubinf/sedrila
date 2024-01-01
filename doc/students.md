@@ -101,3 +101,9 @@ To create the draft version of `submission.yaml`, call
 `sedrila student --submission`
 
 The command output will explain the next steps.
+
+
+## 5. How to see what you have done so far (not yet implemented)  TODO 2
+
+Call `sedrila student --list` in order to see a list of the tasks you have submitted so far,
+the associated timevalues, and possibly the sum of the associated actual work times.
