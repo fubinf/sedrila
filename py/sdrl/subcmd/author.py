@@ -24,8 +24,8 @@ OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR = "cino2r2s2tu"  # quasi-anagram of "instructo
 def configure_argparser(subparser: argparse.ArgumentParser):
     subparser.add_argument('--config', default=b.CONFIG_FILENAME,
                            help="SeDriLa configuration description YAML file")
-    subparser.add_argument('--incomplete', default=False, action='store_const', const=True,
-                           help="include parts with 'status: incomplete' in the generated output")
+    subparser.add_argument('--include_stage', default='',
+                           help="include parts with this and higher 'stage:' entries in the generated output (default: only those with no stage)")
     subparser.add_argument('--log', default="ERROR", choices=b.loglevels.keys(),
                            help="Log level for logging to stdout")
     subparser.add_argument('targetdir',
@@ -34,7 +34,7 @@ def configure_argparser(subparser: argparse.ArgumentParser):
 
 def execute(pargs: argparse.Namespace):
     b.set_loglevel(pargs.log)
-    course = sdrl.course.Course(pargs.config, read_contentfiles=True, include_incomplete=pargs.incomplete)
+    course = sdrl.course.Course(pargs.config, read_contentfiles=True, include_stage=pargs.include_stage)
     b.info(f"## chapter {course.chapters[-1].shorttitle} status: {getattr(course.chapters[-1], 'status', '-')}")
     generate(pargs, course)
     b.exit_if_errors()
@@ -84,6 +84,7 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     md.register_macro('CHS', 1, functools.partial(expand_ch, course))  # short link to chapter
     md.register_macro('CHL', 1, functools.partial(expand_ch, course))  # long link
     md.register_macro('CHM', 2, functools.partial(expand_ch, course))  # manual link
+    md.register_macro('DIFF', 1, sdrl.course.Task.expand_diff)
     md.register_macro('HINT', 1, expand_hint)
     md.register_macro('ENDHINT', 0, expand_hint)
     md.register_macro('INSTRUCTOR', 1, expand_instructor)
@@ -110,7 +111,7 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
         render_chapter(chapter, env, targetdir_s, b.Mode.STUDENT, course.blockmacro_topmatter)
         render_chapter(chapter, env, targetdir_i, b.Mode.INSTRUCTOR, course.blockmacro_topmatter)
         for taskgroup in chapter.taskgroups:
-            if taskgroup.to_be_skipped:
+            if taskgroup.to_be_skipped or taskgroup.chapter.to_be_skipped:
                 continue  # ignore the entire incomplete taskgroup
             b.info(f"    taskgroup '{taskgroup.slug}'")
             render_taskgroup(taskgroup, env, targetdir_s, b.Mode.STUDENT, course.blockmacro_topmatter)

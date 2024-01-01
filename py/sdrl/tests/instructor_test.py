@@ -21,30 +21,30 @@ def test_instructor_parts(capfd):
     """
     with TempDirEnvironContextMgr(**{sut.USER_CMD_VAR: "echo SEDRILA_INSTRUCTOR_COMMAND was called"}) as mgr:
         os.environ[sut.REPOS_HOME_VAR] = mgr.newdir  # will not be unpatched; not a problem
-        #----- test clone:
+        # ----- test clone:
         sut.checkout_student_repo(TEST_REPO, home=mgr.newdir)  # will clone
         assert "Cloning into" in capfd.readouterr().err
         assert os.getcwd().endswith(git.username_from_repo_url(TEST_REPO))
         os.chdir(mgr.newdir)
-        #----- test pull:
+        # ----- test pull:
         sut.checkout_student_repo(TEST_REPO, home=mgr.newdir)  # will pull and get "Already up to date."
         assert "Already up to date" in capfd.readouterr().out
         assert os.getcwd().endswith(git.username_from_repo_url(TEST_REPO))
-        #----- make pseudo-coursedir:
+        # ----- make pseudo-coursedir:
         os.mkdir('out')
         shutil.copy(METADATA_FILE, 'out')
-        #----- read data from repo:
+        # ----- read data from repo:
         course = sdrl.course.Course(f"out/{b.METADATA_FILE}", 
-                                    read_contentfiles=False, include_incomplete=True)
+                                    read_contentfiles=False, include_stage="")
         r.compute_student_work_so_far(course)
         entries, workhours_total, timevalue_total = r.student_work_so_far(course)
         assert entries[0] == ('Task1', 1.0, 1.0, 0, False)
-        #----- rewrite submission file:
+        # ----- rewrite submission file:
         # the repo's submission file contains dict(Task1="CHECK", NonExistingTask3="CHECK")
         sut.rewrite_submission_file(course, r.SUBMISSION_FILE)
         submission = b.slurp_yaml(r.SUBMISSION_FILE)
         assert submission['NonExistingTask3'] == r.NONTASK_MARK
-        #----- simulate invalid user editing attempt:
+        # ----- simulate invalid user editing attempt:
         with unittest.mock.patch('time.sleep'):
             sut.call_instructor_cmd(course, sut.instructor_cmd(), iteration=0)
         output = capfd.readouterr().out
@@ -57,7 +57,7 @@ def test_instructor_parts(capfd):
         output = capfd.readouterr().out
         assert "has neither" in output
         assert "Impossible mark" in output
-        #----- simulate valid user editing attempt:
+        # ----- simulate valid user editing attempt:
         del submission['NonExistingTask3']  # delete nonsense entry as the instructor must
         submission['Task1'] = r.ACCEPT_MARK  # accept the other entry
         b.spit_yaml(r.SUBMISSION_FILE, submission)
@@ -67,7 +67,7 @@ def test_instructor_parts(capfd):
         if False:  # due to the kludge with USER_CMD_VAR above , this part is broken 
             assert f"Calling '{os.environ[sut.USER_CMD_VAR]}' again" in output  # the repeat blurb
         assert sut.validate_submission_file(course, r.SUBMISSION_FILE)
-        #----- finish:
+        # ----- finish:
         def pseudo_push():
             assert last_commit.hash != git.commits_of_local_repo()[0].hash
             git.discard_commits(1)  # undo the r.SUBMISSION_FILE commit

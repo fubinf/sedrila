@@ -33,7 +33,7 @@ def execute(pargs: argparse.Namespace):
     home = os.environ.get(REPOS_HOME_VAR)
     checkout_student_repo(pargs.repo_url, home)
     metadatafile = f"{pargs.course_url}/{b.METADATA_FILE}"
-    course = sdrl.course.Course(metadatafile, read_contentfiles=False, include_incomplete=False)
+    course = sdrl.course.Course(metadatafile, read_contentfiles=False, include_stage="")
     r.compute_student_work_so_far(course)
     entries, workhours_total, timevalue_total = r.student_work_so_far(course)
     rewrite_submission_file(course, r.SUBMISSION_FILE)

@@ -18,31 +18,6 @@ import base as b
 import sdrl.html as h
 import sdrl.markdown as md
 
-STATUS_INCOMPLETE = "incomplete"
-STATUS_NORMAL = "normal"
-
-
-def clean_status(context: str, obj: object, include_incomplete: bool) -> None:
-    """
-    Cuts the 'status' attribute of mydict down to its first word, checks it, reports violations.
-    Missing status is allowed.
-    If 'include_incomplete', status value STATUS_INCOMPLETE will be ignored
-    and no status will be kept at all, so that incomplete tasks/taskgroups/chapters are kept,
-    i.e., included in the output as if they were not marked as incomplete.
-    """
-    if not hasattr(obj, 'status') or not obj.status:
-        return
-    allowed_values = f"({STATUS_INCOMPLETE}|{STATUS_NORMAL})"
-    mm = re.match(allowed_values, obj.status)  # match beginning only
-    if not mm:
-        b.error(f"{context}: Illegal value of 'status': '{obj.status}'")
-        del obj.status
-    else:
-        obj.status = mm.group(1)  # keep only the relevant first word
-        if obj.status == STATUS_INCOMPLETE and include_incomplete:
-            del obj.status
-
-
 class Structurepart:
     """Common superclass"""
     sourcefile: str = "???"  # the originating pathname
@@ -53,18 +28,37 @@ class Structurepart:
     slug: str  # the file/dir basename by which we refer to the part
     title: str  # title: value
     shorttitle: str  # shorttitle: value
+    stage: str  # stage: value
+    skipthis: bool  # do not include this chapter/taskgroup/task in generated site
     toc: str  # table of contents
 
     @property
     def breadcrumb_item(self) -> str:
         return "(undefined)"
 
-    @property
-    def to_be_skipped(self) -> bool:
-        return getattr(self, 'status', "") == STATUS_INCOMPLETE
-
     def as_json(self) -> b.StrAnyDict:
         return dict(title=self.title, shorttitle=self.shorttitle)
+
+    def evaluate_stage(self, context: str, course: 'Course') -> None:
+        """
+        Cut the 'stage' attribute down to its first word, check it against course.stages, report violations.
+        Set self.skipthis according to course.include_stage.
+        """
+        self.skipthis = False  # default case
+        # ----- handle parts with no 'stage:' given:
+        if not getattr(self, 'stage', ''):
+            return
+        # ----- extract first word from stage:
+        mm = re.match(r'\w+', self.stage)  # match first word
+        stageword = mm.group(0) if mm else ''
+        # ----- handle parts with unknown stage (error):
+        try:
+            stage_index = course.stages.index(stageword)
+        except ValueError:
+            b.error(f"{context}: Illegal value of 'stage': '{stageword}'")
+            return
+        # ----- handle parts with known stage:
+        self.skipthis = course.include_stage_index > stage_index
 
     def read_partsfile(self, file: str):
         """
@@ -92,53 +86,16 @@ class Task(Structurepart):
 
     timevalue: tg.Union[int, float]  # task timevalue: (in hours)
     difficulty: int  # difficulty: int from DIFFICULTY_RANGE
-    assumes: tg.List[str] = []  # tasknames: This knowledge is assumed to be present
-    requires: tg.List[str] = []  # tasknames: These specific results will be reused here
-    assumed_by: tg.List[str] = []  # tasknames: inverse of assumes
-    required_by: tg.List[str] = []  # tasknames: inverse of requires
-    profiles: tg.List[str] = []  # profile shortnames: specialty areas task pertains to
+    assumes: list[str] = []  # tasknames: This knowledge is assumed to be present
+    requires: list[str] = []  # tasknames: These specific results will be reused here
+    assumed_by: list[str] = []  # tasknames: inverse of assumes
+    required_by: list[str] = []  # tasknames: inverse of requires
+    profiles: list[str] = []  # profile shortnames: specialty areas task pertains to
     workhours: float = 0.0  # time student has worked on this according to commit msgs
     accepted: bool = False  # whether instructor has ever marked it 'accept'
     rejections: int = 0  # how often instructor has marked it 'reject'
 
     taskgroup: 'Taskgroup'  # where the task belongs
-
-    def __init__(self, file: tg.Optional[str],
-                 taskgroup: tg.Optional['Taskgroup'] = None, task: tg.Optional[b.StrAnyDict] = None,
-                 include_incomplete: bool = False):
-        """Reads task from a file or multiline string or initializes via from_json."""
-        if taskgroup:
-            assert not file
-            self.from_json(taskgroup, task)
-            return
-        self.read_partsfile(file)
-        # ----- get taskdata from filename:
-        nameparts = os.path.basename(self.sourcefile).split('.')
-        assert len(nameparts) == 2  # taskname, suffix 'md'
-        self.slug = nameparts[0]  # must be globally unique
-        self.outputfile = f"{self.slug}.html"
-        b.copyattrs(file,
-                    self.metadata, self,
-                    mustcopy_attrs='title, timevalue, difficulty',
-                    cancopy_attrs='status, assumes, requires, profiles',  # TODO 2: check profiles against sedrila.yaml
-                    mustexist_attrs='')
-        clean_status(file, self.metadata, include_incomplete)
-
-        # ----- ensure assumes/requires/profiles are lists:
-        def _handle_strlist(attrname: str):
-            attrvalue = getattr(self, attrname)
-            if isinstance(attrvalue, str):
-                setattr(self, attrname, re.split(r", *", attrvalue))
-            elif not attrvalue:
-                setattr(self, attrname, [])
-            else:
-                msg = f"'{file}': value of '%s:' must be a (non-empty) string"
-                b.error(msg % attrname)
-                setattr(self, attrname, [])
-
-        _handle_strlist('assumes')
-        _handle_strlist('requires')
-        _handle_strlist('profiles')
 
     @property
     def breadcrumb_item(self) -> str:
@@ -146,7 +103,7 @@ class Task(Structurepart):
 
     @property
     def to_be_skipped(self) -> bool:
-        return (getattr(self, 'status', "") == STATUS_INCOMPLETE or
+        return (self.skipthis or
                 self.taskgroup.to_be_skipped or self.taskgroup.chapter.to_be_skipped)
 
     @property
@@ -167,8 +124,40 @@ class Task(Structurepart):
                     title=self.title, timevalue=self.timevalue, difficulty=self.difficulty,
                     assumes=self.assumes, requires=self.requires, profiles=self.profiles)
 
-    def from_json(self, taskgroup: 'Taskgroup', task: b.StrAnyDict):
-        """Alternative constructor."""
+    def from_file(self, file: str, taskgroup: 'Taskgroup') -> 'Task':
+        """Initializer used in author mode"""
+        self.read_partsfile(file)
+        # ----- get taskdata from filename:
+        nameparts = os.path.basename(self.sourcefile).split('.')
+        assert len(nameparts) == 2  # taskname, suffix 'md'
+        self.slug = nameparts[0]  # must be globally unique
+        self.outputfile = f"{self.slug}.html"
+        b.copyattrs(file,
+                    self.metadata, self,
+                    mustcopy_attrs='title, timevalue, difficulty',
+                    cancopy_attrs='status, assumes, requires, profiles',  # TODO 2: check profiles against sedrila.yaml
+                    mustexist_attrs='')
+        self.evaluate_stage(file, taskgroup.chapter.course)
+
+        # ----- ensure assumes/requires/profiles are lists:
+        def _handle_strlist(attrname: str):
+            attrvalue = getattr(self, attrname)
+            if isinstance(attrvalue, str):
+                setattr(self, attrname, re.split(r", *", attrvalue))
+            elif not attrvalue:
+                setattr(self, attrname, [])
+            else:
+                msg = f"'{file}': value of '%s:' must be a (non-empty) string"
+                b.error(msg % attrname)
+                setattr(self, attrname, [])
+
+        _handle_strlist('assumes')
+        _handle_strlist('requires')
+        _handle_strlist('profiles')
+        return self
+
+    def from_json(self, task: b.StrAnyDict, taskgroup: 'Taskgroup') -> 'Task':
+        """Initializer used in student and instructor mode"""
         self.taskgroup = taskgroup
         self.slug = task['slug']
         self.title = task['title']
@@ -177,13 +166,10 @@ class Task(Structurepart):
         self.assumes = task['assumes']
         self.requires = task['requires']
         self.profiles = task['profiles']
+        return self
 
     def toc_link(self, level=0) -> str:
         return h.indented_block(self.toc_link_text, level)
-
-    @staticmethod
-    def _as_list(obj) -> tg.List:
-        return obj if isinstance(obj, list) else list(obj)
 
     def _taskrefs(self, label: str, attr_name: str) -> str:
         """Create a toc link dedoration for one set of related tasks."""
@@ -207,9 +193,6 @@ class Task(Structurepart):
         return h.difficulty_symbol(level)
 
 
-md.register_macro('DIFF', 1, Task.expand_diff)
-
-
 class Course(Structurepart):
     """
     The master data object for this run.
@@ -224,23 +207,34 @@ class Course(Structurepart):
     chapterdir: str = 'ch'
     templatedir: str = 'templates'
     blockmacro_topmatter: dict[str, str]
-    instructors: tg.List[b.StrAnyDict]
-    profiles: tg.List[str]  # list of all allowed profile shortnames
-    chapters: tg.List['Chapter']
-    taskorder: tg.List[Task]  # If task B assumes or requires A, A will be before B in this list.
+    instructors: list[b.StrAnyDict]
+    profiles: list[str]  # list of all allowed profile shortnames
+    chapters: list['Chapter']
+    taskorder: list[Task]  # If task B assumes or requires A, A will be before B in this list.
+    stages: list[str]  # list of allowed values of stage in parts 
+    include_stage: str  # lowest stage that parts must have to be included in output
+    include_stage_index: int  # index in stages list, or len(stages) if include_stage is ""
 
-    def __init__(self, configfile: str, read_contentfiles: bool, include_incomplete: bool):
+    def __init__(self, configfile: str, read_contentfiles: bool, include_stage: str):
         self.configfile = configfile
         configdict = b.slurp_yaml(configfile)
         b.copyattrs(configfile, 
                     configdict, self,
-                    mustcopy_attrs='title, shorttitle, instructors, profiles',
+                    mustcopy_attrs='title, shorttitle, instructors, profiles, stages',
                     cancopy_attrs='baseresourcedir, chapterdir, templatedir, blockmacro_topmatter',
                     mustexist_attrs='chapters')
         self.outputfile = "index.html"
         if read_contentfiles:
             self.read_partsfile(f"{self.chapterdir}/index.md")
-        self.chapters = [Chapter(self, ch, read_contentfiles, include_incomplete) 
+        if include_stage in self.stages:
+            self.include_stage = include_stage
+            self.include_stage_index = self.stages.index(include_stage)
+        else:
+            if include_stage != '':  # empty is allowed
+                b.error(f"'--include_stage {include_stage}' not allowed, must be one of [self.stages]")
+            self.include_stage = ''  # include only parts with no stage
+            self.include_stage_index = len(self.stages)
+        self.chapters = [Chapter(self, ch, read_contentfiles) 
                          for ch in configdict['chapters']]
         self._check_links()
         self._add_inverse_links()
@@ -384,7 +378,7 @@ class Chapter(Structurepart):
     course: Course
     taskgroups: tg.Sequence['Taskgroup']
     
-    def __init__(self, course: Course, chapter: b.StrAnyDict, read_contentfiles: bool, include_incomplete: bool):
+    def __init__(self, course: Course, chapter: b.StrAnyDict, read_contentfiles: bool):
         self.course = course
         context = f"chapter in {course.configfile}"
         b.copyattrs(context, 
@@ -392,7 +386,7 @@ class Chapter(Structurepart):
                     mustcopy_attrs='title, shorttitle, slug',
                     cancopy_attrs='status',
                     mustexist_attrs='taskgroups')
-        clean_status(context, self, include_incomplete)
+        self.evaluate_stage(context, course)
         if read_contentfiles:
             self.read_partsfile(f"{self.course.chapterdir}/{self.slug}/index.md")
             b.copyattrs(context, 
@@ -400,7 +394,7 @@ class Chapter(Structurepart):
                         mustcopy_attrs='',
                         cancopy_attrs='todo',
                         mustexist_attrs='', overwrite=False)
-        self.taskgroups = [Taskgroup(self, taskgroup, read_contentfiles, include_incomplete) 
+        self.taskgroups = [Taskgroup(self, taskgroup, read_contentfiles) 
                            for taskgroup in (chapter.get('taskgroups') or [])]
 
     @property
@@ -411,6 +405,10 @@ class Chapter(Structurepart):
     @property
     def outputfile(self) -> str:
         return f"chapter-{self.slug}.html"
+
+    @property
+    def to_be_skipped(self) -> bool:
+        return self.skipthis
 
     @property
     def toc_link_text(self) -> str:
@@ -429,13 +427,13 @@ class Chapter(Structurepart):
 
 class Taskgroup(Structurepart):
     chapter: Chapter
-    tasks: tg.List['Task']
+    tasks: list['Task']
 
-    def __init__(self, chapter: Chapter, taskgroup: b.StrAnyDict, read_contentfiles: bool, include_incomplete: bool):
+    def __init__(self, chapter: Chapter, taskgroupdict: b.StrAnyDict, read_contentfiles: bool):
         self.chapter = chapter
         context = f"taskgroup in chapter {chapter.slug}"
-        b.copyattrs(context, 
-                    taskgroup, self,
+        b.copyattrs(context,
+                    taskgroupdict, self,
                     mustcopy_attrs='title, shorttitle, slug',
                     cancopy_attrs='tasks, status',
                     mustexist_attrs='taskgroups')
@@ -447,12 +445,12 @@ class Taskgroup(Structurepart):
                         mustcopy_attrs='',
                         cancopy_attrs='minimum, todo',
                         mustexist_attrs='', overwrite=False)
-        clean_status(context, self, include_incomplete)
+        self.evaluate_stage(context, chapter.course)
         if read_contentfiles:
             self._create_tasks()
         else:
-            self.tasks = [Task(file=None, taskgroup=self, task=task, include_incomplete=include_incomplete) 
-                          for task in taskgroup['tasks']]
+            self.tasks = [Task().from_json(taskdict, taskgroup=self)
+                          for taskdict in taskgroupdict['tasks']]
 
     @property
     def breadcrumb_item(self) -> str:
@@ -466,7 +464,7 @@ class Taskgroup(Structurepart):
 
     @property
     def to_be_skipped(self) -> bool:
-        return super().to_be_skipped or self.chapter.to_be_skipped
+        return self.skipthis or self.chapter.to_be_skipped
 
     def as_json(self) -> b.StrAnyDict:
         result = dict(slug=self.slug, 
@@ -488,4 +486,4 @@ class Taskgroup(Structurepart):
         filenames = glob.glob(f"{chapterdir}/{self.chapter.slug}/{self.slug}/*.md")
         for filename in filenames:
             if not filename.endswith("index.md"):
-                self._add_task(Task(filename))
+                self._add_task(Task().from_file(filename, taskgroup=self))

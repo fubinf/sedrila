@@ -10,6 +10,7 @@
     }
   ],
   "profiles": ['DBS', 'DSCI', 'OPS', 'SYS', 'TEST', 'WEB'],
+  "stages": ['draft', 'alpha', 'beta'],
   "chapters": [
     {
       "slug": "basis",
