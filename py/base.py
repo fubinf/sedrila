@@ -129,7 +129,7 @@ def info(msg: str):
 
 def warning(msg: str):
     if loglevel <= logging.WARNING:
-        _rich_print(f"[yellow]{msg}[/yellow]")
+        _rich_print(msg, "yellow")
 
 
 def error(msg: str):
@@ -137,13 +137,13 @@ def error(msg: str):
     if msg not in msgs_seen:
         num_errors += 1
     if loglevel <= logging.ERROR:
-        _rich_print(f"[red]{msg}[/red]")
+        _rich_print(msg, "red")
 
 
 def critical(msg: str):
     global num_errors
     num_errors += 1
-    _rich_print(f"[bold red]{msg}[/bold red]")
+    _rich_print(msg, "bold red")
     sys.exit(num_errors)
 
 
@@ -161,9 +161,11 @@ def Table() -> rich.table.Table:
                             show_edge=False, show_footer=False)
 
 
-def _rich_print(msg: str):
+def _rich_print(msg: str, enclose_in_tag: tg.Optional[str] = None):
     """Print any message, but each one only once."""
     global msgs_seen
     if msg not in msgs_seen:
         msgs_seen.add(msg)
+        if enclose_in_tag:
+            msg = f"[{enclose_in_tag}]{msg}[/{enclose_in_tag}]"            
         rich.print(msg)
