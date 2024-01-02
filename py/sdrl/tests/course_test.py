@@ -3,10 +3,11 @@ import re
 
 import base
 import sdrl.course
+import sdrl.macros as macros
 import sdrl.markdown as md
 
 def test_macros(capsys):
-    md.register_macro('DIFF', 1, sdrl.course.Task.expand_diff)
+    macros.register_macro('DIFF', 1, sdrl.course.Task.expand_diff)
     expansion = md.render_markdown("(none)", "difficult [DIFF::4] morestuff", 
                                    mode=base.Mode.STUDENT, blockmacro_topmatter=dict())
     print(expansion)

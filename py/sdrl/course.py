@@ -16,7 +16,8 @@ import yaml
 
 import base as b
 import sdrl.html as h
-import sdrl.markdown as md
+import sdrl.macros as macros
+
 
 class Structurepart:
     """Common superclass"""
@@ -42,6 +43,9 @@ class Structurepart:
         classes = f"stage-{self.stage}" if self.stage else "no-stage"
         return h.indented_block(self.toc_link_text, self.TOC_LEVEL, classes)
 
+    @property
+    def toc_link_text(self) -> str:
+        return "(undefined)"
 
     def as_json(self) -> b.StrAnyDict:
         return dict(title=self.title, shorttitle=self.shorttitle)
@@ -188,7 +192,7 @@ class Task(Structurepart):
                 (attr_cssclass, title, label))
 
     @classmethod
-    def expand_diff(cls, call: md.Macrocall) -> str:  # noqa
+    def expand_diff(cls, call: macros.Macrocall) -> str:  # noqa
         assert call.macroname == "DIFF"
         level = int(call.arg1)
         diffrange = cls.DIFFICULTY_RANGE

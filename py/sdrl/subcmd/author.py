@@ -6,12 +6,14 @@ import json
 import os
 import os.path
 import shutil
+import typing as tg
 
 import jinja2
 
 import base as b
 import sdrl.course
 import sdrl.html as h
+import sdrl.macros as macros
 import sdrl.markdown as md
 
 help = """Creates and renders an instance of a SeDriLa course.
@@ -22,10 +24,11 @@ OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR = "cino2r2s2tu"  # quasi-anagram of "instructo
 
 
 def configure_argparser(subparser: argparse.ArgumentParser):
-    subparser.add_argument('--config', default=b.CONFIG_FILENAME,
+    subparser.add_argument('--config', metavar="configfile", default=b.CONFIG_FILENAME,
                            help="SeDriLa configuration description YAML file")
-    subparser.add_argument('--include_stage', default='',
-                           help="include parts with this and higher 'stage:' entries in the generated output (default: only those with no stage)")
+    subparser.add_argument('--include_stage', metavar="stage", default='',
+                           help="include parts with this and higher 'stage:' entries in the generated output "
+                                "(default: only those with no stage)")
     subparser.add_argument('--log', default="ERROR", choices=b.loglevels.keys(),
                            help="Log level for logging to stdout")
     subparser.add_argument('targetdir',
@@ -75,29 +78,29 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
             taskgroup.toc = toc(taskgroup)
     # ----- register macroexpanders:
     b.info("registering macros")
-    md.register_macro('TAS', 1, functools.partial(expand_ta, course))  # short link to task
-    md.register_macro('TAL', 1, functools.partial(expand_ta, course))  # long link
-    md.register_macro('TAM', 2, functools.partial(expand_ta, course))  # manual link
-    md.register_macro('TGS', 1, functools.partial(expand_tg, course))  # short link to taskgroup
-    md.register_macro('TGL', 1, functools.partial(expand_tg, course))  # long link
-    md.register_macro('TGM', 2, functools.partial(expand_tg, course))  # manual link
-    md.register_macro('CHS', 1, functools.partial(expand_ch, course))  # short link to chapter
-    md.register_macro('CHL', 1, functools.partial(expand_ch, course))  # long link
-    md.register_macro('CHM', 2, functools.partial(expand_ch, course))  # manual link
-    md.register_macro('DIFF', 1, sdrl.course.Task.expand_diff)
-    md.register_macro('HINT', 1, expand_hint)
-    md.register_macro('ENDHINT', 0, expand_hint)
-    md.register_macro('INSTRUCTOR', 1, expand_instructor)
-    md.register_macro('ENDINSTRUCTOR', 0, expand_instructor)
-    md.register_macro('WARNING', 0, expand_warning)
-    md.register_macro('ENDWARNING', 0, expand_warning)
-    md.register_macro('NOTICE', 0, expand_notice)
-    md.register_macro('ENDNOTICE', 0, expand_notice)
-    md.register_macro('SECTION', 2, expand_section)
-    md.register_macro('ENDSECTION', 0, expand_section)
-    md.register_macro('INNERSECTION', 2, expand_section)
-    md.register_macro('ENDINNERSECTION', 0, expand_section)
-    md.register_macro('INCLUDE', 1, expand_include)
+    macros.register_macro('TAS', 1, functools.partial(expand_ta, course))  # short link to task
+    macros.register_macro('TAL', 1, functools.partial(expand_ta, course))  # long link
+    macros.register_macro('TAM', 2, functools.partial(expand_ta, course))  # manual link
+    macros.register_macro('TGS', 1, functools.partial(expand_tg, course))  # short link to taskgroup
+    macros.register_macro('TGL', 1, functools.partial(expand_tg, course))  # long link
+    macros.register_macro('TGM', 2, functools.partial(expand_tg, course))  # manual link
+    macros.register_macro('CHS', 1, functools.partial(expand_ch, course))  # short link to chapter
+    macros.register_macro('CHL', 1, functools.partial(expand_ch, course))  # long link
+    macros.register_macro('CHM', 2, functools.partial(expand_ch, course))  # manual link
+    macros.register_macro('DIFF', 1, sdrl.course.Task.expand_diff)
+    macros.register_macro('HINT', 1, expand_hint)
+    macros.register_macro('ENDHINT', 0, expand_hint)
+    macros.register_macro('INSTRUCTOR', 1, expand_instructor)
+    macros.register_macro('ENDINSTRUCTOR', 0, expand_instructor)
+    macros.register_macro('WARNING', 0, expand_warning)
+    macros.register_macro('ENDWARNING', 0, expand_warning)
+    macros.register_macro('NOTICE', 0, expand_notice)
+    macros.register_macro('ENDNOTICE', 0, expand_notice)
+    macros.register_macro('SECTION', 2, expand_section)
+    macros.register_macro('ENDSECTION', 0, expand_section)
+    macros.register_macro('INNERSECTION', 2, expand_section)
+    macros.register_macro('ENDINNERSECTION', 0, expand_section)
+    macros.register_macro('INCLUDE', 1, expand_include)
     # ----- generate top-level file:
     b.info(f"generating top-level index files")
     render_welcome(course, env, targetdir_s, b.Mode.STUDENT, course.blockmacro_topmatter)
@@ -150,7 +153,7 @@ def toc(structure: sdrl.course.Structurepart) -> str:
     parts = structure_path(structure)
     fulltoc = len(parts) == 1  # path only contains course
     assert isinstance(parts[-1], sdrl.course.Course)
-    course = parts[-1]
+    course = tg.cast(sdrl.course.Course, parts[-1])
     result = []
     for chapter in course.chapters:  # noqa
         if chapter.to_be_skipped:
@@ -171,7 +174,7 @@ def toc(structure: sdrl.course.Structurepart) -> str:
     return "\n".join(result)
 
 
-def expand_ta(course: sdrl.course.Course, macrocall: md.Macrocall) -> str:
+def expand_ta(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
     taskname = macrocall.arg1
     linktext = macrocall.arg2
     task = course.task(taskname)
@@ -188,7 +191,7 @@ def expand_ta(course: sdrl.course.Course, macrocall: md.Macrocall) -> str:
         assert False, macrocall  # impossible
 
 
-def expand_tg(course: sdrl.course.Course, macrocall: md.Macrocall) -> str:
+def expand_tg(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
     slug = macrocall.arg1
     linktext = macrocall.arg2
     taskgroup = course.taskgroup(slug)
@@ -205,7 +208,7 @@ def expand_tg(course: sdrl.course.Course, macrocall: md.Macrocall) -> str:
         assert False, macrocall  # impossible
 
 
-def expand_ch(course: sdrl.course.Course, macrocall: md.Macrocall) -> str:
+def expand_ch(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
     slug = macrocall.arg1
     linktext = macrocall.arg2
     chapter = course.chapter(slug)
@@ -222,7 +225,7 @@ def expand_ch(course: sdrl.course.Course, macrocall: md.Macrocall) -> str:
         assert False, macrocall  # impossible
 
 
-def expand_hint(macrocall: md.Macrocall) -> str:
+def expand_hint(macrocall: macros.Macrocall) -> str:
     if macrocall.macroname == 'HINT':
         summary = macrocall.arg1
         intro = topmatter(macrocall, 'hint')
@@ -232,7 +235,7 @@ def expand_hint(macrocall: md.Macrocall) -> str:
     assert False, macrocall  # impossible
 
 
-def expand_instructor(macrocall: md.Macrocall) -> str:
+def expand_instructor(macrocall: macros.Macrocall) -> str:
     if macrocall.macroname == 'INSTRUCTOR':
         title = macrocall.arg1
         intro = topmatter(macrocall, 'instructor')
@@ -242,7 +245,7 @@ def expand_instructor(macrocall: md.Macrocall) -> str:
     assert False, macrocall  # impossible
 
 
-def expand_warning(macrocall: md.Macrocall) -> str:
+def expand_warning(macrocall: macros.Macrocall) -> str:
     if macrocall.macroname == 'WARNING':
         return f"<div class='blockmacro-warning'>\n{topmatter(macrocall, 'warning')}"
     elif macrocall.macroname == 'ENDWARNING':
@@ -250,7 +253,7 @@ def expand_warning(macrocall: md.Macrocall) -> str:
     assert False, macrocall  # impossible
 
 
-def expand_notice(macrocall: md.Macrocall) -> str:
+def expand_notice(macrocall: macros.Macrocall) -> str:
     if macrocall.macroname == 'NOTICE':
         return f"<div class='blockmacro-notice'>\n{topmatter(macrocall, 'notice')}"
     elif macrocall.macroname == 'ENDNOTICE':
@@ -258,7 +261,7 @@ def expand_notice(macrocall: md.Macrocall) -> str:
     assert False, macrocall  # impossible
 
 
-def expand_section(macrocall: md.Macrocall) -> str:
+def expand_section(macrocall: macros.Macrocall) -> str:
     """
     [SECTION::goal::goaltype1,goaltype2] etc.
     Blocks of [SECTION::forinstructor::itype] lots of text [ENDSECTION]
@@ -279,7 +282,7 @@ def expand_section(macrocall: md.Macrocall) -> str:
     assert False, macrocall  # impossible
 
 
-def expand_include(macrocall: md.Macrocall) -> str:
+def expand_include(macrocall: macros.Macrocall) -> str:
     """
     [INCLUDE::filename] inserts file contents verbatim into the Markdown text.
     The filename is relative to the location of the file containing the macro call."""
@@ -293,7 +296,7 @@ def expand_include(macrocall: md.Macrocall) -> str:
         return f.read()
 
 
-def section_topmatter(macrocall: md.Macrocall, typeslist: list[str]) -> str:
+def section_topmatter(macrocall: macros.Macrocall, typeslist: list[str]) -> str:
     sectionname = macrocall.arg1
     result = ""
     for part in [""] + typeslist:
@@ -302,7 +305,7 @@ def section_topmatter(macrocall: md.Macrocall, typeslist: list[str]) -> str:
     return result
 
 
-def topmatter(macrocall: md.Macrocall, name: str) -> str:
+def topmatter(macrocall: macros.Macrocall, name: str) -> str:
     topmatterdict = macrocall.md.blockmacro_topmatter  # noqa
     if name in topmatterdict:
         return topmatterdict[name]
