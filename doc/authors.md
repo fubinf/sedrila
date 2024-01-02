@@ -22,7 +22,7 @@ What you need to provide as a course author:
 
 ## 1.1 `sedrila.yaml`: The global configuration file  # TODO 2: add the missing parts
 
-This is best explained by example:
+This is best explained by example. Have a look at:
 
 https://github.com/fubinf/propra-inf/blob/main/sedrila.yaml
 
@@ -38,6 +38,20 @@ About the entries:
   The names of directories below `chapterdir` are the slugs of chapters (level 1)
   and the slugs of taskgroups (level 2).
   Slugs are used for the filenames in the generated HTML directory.
+- `profiles`: The list of allowed entries in the `profiles:` metadata list of a part.
+  A profile describes an area of interest, such as a topic area or professional specialty.
+  This is meant to add a second grouping to the tasks besides that provided by chapters and taskgroups.
+- `stages`: ordered list of allowed values for the 'stage:' metadata entry for tasks, taskgroups, and chapters.
+  Meant to represent the development stage of a part, from a draft entry to a finished one.
+  For instance, if stages are `['draft', 'alpha', 'beta']` and sedrila is called with
+  option `--include_stage alpha`, then parts with stage `alpha` or `beta` are used,
+  as are those with no `stage:` entry, but parts with stage `draft` will be suppressed.
+  No stage is the default and represents finished entries.
+- `blockmacro_topmatter`: specifies fixed text that is inserted in the generated HTML files
+  before the block content of a SECTION, HINT, NOTICE, WARNING, or INSTRUCTOR block macro call.
+  For SECTION, there are entries for each type (1st argument to the macro call) and
+  further entries for each subtype (2nd argument).
+  The generated HTML will also use corresponding CSS classes for each of those entire blocks.
 - `instructors`: The source of truth for who can give students credit 
   for their work. 
   When they accept or reject student work in a _"submission.yaml checked"_ commit,
