@@ -13,6 +13,7 @@ class Macrocall:
     """Represent where and how a macro was called, allow producing errors/warnings for it."""
     md: markdown.Markdown
     filename: str
+    partname: str
     macrocall_text: str
     macroname: str
     arg1: b.OStr
@@ -36,19 +37,20 @@ macro_regexp = r"\[([A-Z][A-Z0-9_]+)(?:::(.+?))?(?:::(.+?))?\](?=[^(]|$)"
 # suppress matches on normal links: [TEXT](url)
 
 
-def expand_macros(sourcefile: str, markup: str) -> str:
+def expand_macros(sourcefile: str, partname: str, markup: str) -> str:
     """Apply matching macrodefs, report errors for non-matching macro calls."""
     def my_expand_macro(mm: re.Match) -> str:
-        return expand_macro(sourcefile, mm)
+        return expand_macro(sourcefile, partname, mm)
     return re.sub(macro_regexp, my_expand_macro, markup)
 
 
-def expand_macro(sourcefile: str, mm: re.Match) -> str:
+def expand_macro(sourcefile: str, partname: str, mm: re.Match) -> str:
     """Apply matching macrodef or report error."""
     global macrodefs
     import sdrl.markdown
     call, macroname, arg1, arg2 = mm.group(), mm.group(1), mm.group(2), mm.group(3)
-    macrocall = Macrocall(md=sdrl.markdown.md, filename=sourcefile, macrocall_text=call,
+    macrocall = Macrocall(md=sdrl.markdown.md, filename=sourcefile, partname=partname,
+                          macrocall_text=call,
                           macroname=macroname, arg1=arg1, arg2=arg2)
     my_numargs = (arg1 is not None) + (arg2 is not None)
     # ----- check name:

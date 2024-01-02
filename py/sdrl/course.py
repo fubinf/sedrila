@@ -232,6 +232,7 @@ class Course(Structurepart):
                     mustcopy_attrs='title, shorttitle, instructors, profiles, stages',
                     cancopy_attrs='baseresourcedir, chapterdir, templatedir, blockmacro_topmatter',
                     mustexist_attrs='chapters')
+        self.slug = self.shorttitle
         self.outputfile = "index.html"
         if read_contentfiles:
             self.read_partsfile(f"{self.chapterdir}/index.md")

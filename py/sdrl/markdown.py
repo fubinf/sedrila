@@ -34,7 +34,7 @@ class SedrilaPreprocessor(mdpre.Preprocessor):
         content = "\n".join(lines)  # we work on the entire markup at once
         content = self.perhaps_suppress_instructorinfo(content)  
         content = self.make_replacements(content)  
-        content = macros.expand_macros(self.md.context_sourcefile, content)
+        content = macros.expand_macros(self.md.context_sourcefile, self.md.partname, content)
         content = SedrilaPostprocessor.hide_html_tags(content)
         return content.split("\n")
 
@@ -104,7 +104,7 @@ class AdmonitionFilter(mdt.Treeprocessor):
                     divparent.remove(div)  # show  !!! instructor  blocks only in instructor mode
 
 
-def render_markdown(context_sourcefile: str, markdown_markup: str, 
+def render_markdown(context_sourcefile: str, partname: str, markdown_markup: str, 
                     mode: b.Mode, blockmacro_topmatter: dict[str, str]) -> str:
     """
     Generates HTML from Markdown in sedrila manner.
@@ -113,6 +113,7 @@ def render_markdown(context_sourcefile: str, markdown_markup: str,
     # hand config data into the Markdown object as undeclared attributes:
     md.mode = mode
     md.context_sourcefile = context_sourcefile
+    md.partname = partname
     md.blockmacro_topmatter = blockmacro_topmatter
     return md.reset().convert(markdown_markup)
 
