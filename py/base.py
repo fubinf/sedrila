@@ -1,7 +1,8 @@
 """Shortcut typenames, global constants, basic helpers."""
+import enum
 import json
 import logging
-import enum
+import re
 import sys
 import typing as tg
 
@@ -10,16 +11,16 @@ import rich
 import rich.table
 import yaml
 
-outstream = sys.stdout
+CONFIG_FILENAME = "sedrila.yaml"  # at top-level of source dir
+GLOSSARY_BASENAME = "glossary"  # .md at top-level of chapterdir, .html in build directory
+METADATA_FILE = "course.json"  # at top-level of build directory
+TEMPLATES_DIR = "templates"
+
 num_errors = 0
 msgs_seen = set()
 loglevel = logging.ERROR
 loglevels = dict(DEBUG=logging.DEBUG, INFO=logging.INFO, WARNING=logging.WARNING,
                  ERROR=logging.ERROR, CRITICAL=logging.CRITICAL)
-
-CONFIG_FILENAME = "sedrila.yaml"  # at top-level of source dir
-METADATA_FILE = "course.json"  # at top-level of build directory
-TEMPLATES_DIR = "templates"
 
 OStr = tg.Optional[str]
 StrAnyDict = dict[str, tg.Any]  # JSON or YAML structures
@@ -117,6 +118,13 @@ def spit_yaml(filename: str, content: StrAnyDict):
     spit(filename, yaml.safe_dump(content))
 
 
+def slugify(value: str) -> str:
+    """ Slugify a string, to make it URL friendly. """
+    separator = "-"
+    value = re.sub(r'[^\w\s-]', '', value).strip().lower()
+    return re.sub(r'[{}\s]+'.format(separator), separator, value)
+
+
 def debug(msg: str):
     if loglevel <= logging.DEBUG:
         _rich_print(msg)
@@ -169,3 +177,7 @@ def _rich_print(msg: str, enclose_in_tag: tg.Optional[str] = None):
         if enclose_in_tag:
             msg = f"[{enclose_in_tag}]{msg}[/{enclose_in_tag}]"            
         rich.print(msg)
+
+def _testmode():
+    """avoid text wrapping of b.error() etc."""
+    rich.get_console()._width = 10000
