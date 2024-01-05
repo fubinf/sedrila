@@ -25,5 +25,5 @@ def difficulty_symbol(level: int) -> str:
 
 
 def indented_block(text: str, level: int, classes: str) -> str:
-    return "".join([level * " ", f"<div class='indent{level} {classes}'>", text, "</div>"])
+    return "".join([(level+1) * "  ", f"<div class='indent{level} {classes}'>", text, "</div>"])
 

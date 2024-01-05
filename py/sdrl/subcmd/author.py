@@ -15,6 +15,7 @@ import sdrl.course
 import sdrl.html as h
 import sdrl.macros as macros
 import sdrl.markdown as md
+import sdrl.part
 
 help = """Creates and renders an instance of a SeDriLa course.
 Checks consistency of the course description beforehands.
@@ -29,8 +30,8 @@ def configure_argparser(subparser: argparse.ArgumentParser):
     subparser.add_argument('--include_stage', metavar="stage", default='',
                            help="include parts with this and higher 'stage:' entries in the generated output "
                                 "(default: only those with no stage)")
-    subparser.add_argument('--log', default="ERROR", choices=b.loglevels.keys(),
-                           help="Log level for logging to stdout")
+    subparser.add_argument('--log', default="WARNING", choices=b.loglevels.keys(),
+                           help="Log level for logging to stdout (default: WARNING)")
     subparser.add_argument('targetdir',
                            help="Directory to which output will be written")
 
@@ -60,8 +61,8 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     backup_targetdir(targetdir_s, markerfile=f"_{b.CONFIG_FILENAME}")
     os.mkdir(targetdir_s)
     os.mkdir(targetdir_i)
-    shutil.copyfile(b.CONFIG_FILENAME, f"{targetdir_s}/_{b.CONFIG_FILENAME}")  # mark dir as a SeDriLa instance
-    shutil.copyfile(b.CONFIG_FILENAME, f"{targetdir_i}/_{b.CONFIG_FILENAME}")  # mark dir as a SeDriLa instance
+    shutil.copyfile(course.configfile, f"{targetdir_s}/_{b.CONFIG_FILENAME}")  # mark dir as a SeDriLa instance
+    shutil.copyfile(course.configfile, f"{targetdir_i}/_{b.CONFIG_FILENAME}")  # mark dir as a SeDriLa instance
     # ----- copy baseresources:
     b.info(f"copying '{course.baseresourcedir}'")
     for filename in glob.glob(f"{course.baseresourcedir}/*"):
@@ -130,6 +131,10 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     # ----- generate metadata file:
     b.info(f"generating metadata file '{targetdir_s}/{b.METADATA_FILE}'")
     write_metadata(course, f"{targetdir_s}/{b.METADATA_FILE}")
+    # ----- generate glossary:
+    render_glossary(course, env, targetdir_s, b.Mode.STUDENT)
+    render_glossary(course, env, targetdir_i, b.Mode.INSTRUCTOR)
+    course.glossary.report_issues()
     # ------ report outcome:
     print(f"wrote student files to  '{targetdir_s}'")
     print(f"wrote instructor files to  '{targetdir_i}'")
@@ -148,13 +153,13 @@ def backup_targetdir(targetdir: str, markerfile: str):
     os.rename(targetdir, targetdir_bak)
 
 
-def toc(structure: sdrl.course.Structurepart) -> str:
+def toc(structure: sdrl.part.Structurepart) -> str:
     """Return a table-of-contents HTML fragment for the given structure via structural recursion."""
     parts = structure_path(structure)
     fulltoc = len(parts) == 1  # path only contains course
     assert isinstance(parts[-1], sdrl.course.Course)
     course = tg.cast(sdrl.course.Course, parts[-1])
-    result = []
+    result = ['']  # start with a newline
     for chapter in course.chapters:  # noqa
         if chapter.to_be_skipped:
             continue
@@ -171,6 +176,7 @@ def toc(structure: sdrl.course.Structurepart) -> str:
                 continue
             for task in effective_tasklist:
                 result.append(task.toc_entry)
+    result.append(course.glossary.toc_entry)
     return "\n".join(result)
 
 
@@ -341,8 +347,23 @@ def render_task(task: sdrl.course.Task, env, targetdir: str,
     render_structure(course, template, task, env, targetdir, mode, blockmacro_topmatter)
 
 
+def render_glossary(course: sdrl.course.Course, env, targetdir: str, mode: b.Mode):
+    glossary = course.glossary
+    b.info(f"generating glossary '{glossary.outputfile}'")
+    glossary_html = course.glossary.render(mode)
+    template = env.get_template("glossary.html")
+    output = template.render(sitetitle=course.title,
+                             index=course.chapters[0].slug, index_title=course.chapters[0].title,
+                             breadcrumb=h.breadcrumb(course, glossary),
+                             title=glossary.title,
+                             part=glossary,
+                             toc=course.toc, fulltoc=course.toc,
+                             content=glossary_html)
+    b.spit(f"{targetdir}/{glossary.outputfile}", output)
+
+
 def render_structure(course: sdrl.course.Course, 
-                     template, structure: sdrl.course.Structurepart, 
+                     template, structure: sdrl.part.Structurepart, 
                      env, targetdir: str, 
                      mode: b.Mode, blockmacro_topmatter: dict[str, str]):
     toc = (structure.taskgroup if isinstance(structure, sdrl.course.Task) else structure).toc
@@ -357,7 +378,7 @@ def render_structure(course: sdrl.course.Course,
     b.spit(f"{targetdir}/{structure.outputfile}", output)
 
 
-def structure_path(structure: sdrl.course.Structurepart) -> list[sdrl.course.Structurepart]:
+def structure_path(structure: sdrl.part.Structurepart) -> list[sdrl.part.Structurepart]:
     path = []
     if isinstance(structure, sdrl.course.Task):
         path.append(structure)
