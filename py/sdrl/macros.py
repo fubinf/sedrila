@@ -68,9 +68,12 @@ def expand_macro(sourcefile: str, partname: str, mm: re.Match) -> str:
     return expander(macrocall)
 
 
-def register_macro(name: str, numargs: int, expander: Macroexpander):
+def register_macro(name: str, numargs: int, expander: Macroexpander, redefine=False):
     global macrodefs
-    assert name not in macrodefs  # TODO_2: turn into checks with nice error messages
+    if redefine:
+        assert name in macrodefs
+    else:
+        assert name not in macrodefs
     assert 0 <= numargs <= 2
     assert name == name.upper()  # must be all uppercase
     macrodefs[name] = (numargs, expander)
