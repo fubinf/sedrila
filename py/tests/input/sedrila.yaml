@@ -1,0 +1,40 @@
+title: SeDriLa test
+shorttitle: SeDriLa
+profiles: ['PROFILE1', 'PROFILE2']
+stages: ['draft', 'alpha', 'beta']
+blockmacro_topmatter:
+  section_background: "## Section_Background"
+  section_background_default: ""
+  hint: "**Hint:** "
+  instructor: "## Instructor "
+  warning: "**Warning:** "
+  notice: "**Note:** "
+instructors:
+  - nameish: One Instructor
+    email: o.instructor@inf.fu-berlin.de
+    gitaccount: oinstr
+    keyfingerprint: .
+chapters:
+  - title: "Chapter 1" 
+    shorttitle: Chapter1
+    slug: ch1
+    taskgroups:
+      - title: "Task group 1.1"
+        shorttitle: taskgroup11
+        slug: tg11
+      - title: "Task group 1.2"
+        shorttitle: taskgroup12
+        slug: tg12
+        stage: alpha
+      - title: "Task group 1.3"
+        shorttitle: taskgroup13
+        slug: tg13draft
+        stage: draft
+  - title: "Chapter 2" 
+    shorttitle: Chapter2
+    slug: ch2draft
+    stage: draft
+    taskgroups:
+      - title: "Task group 2.1"
+        shorttitle: taskgroup21
+        slug: tg21
