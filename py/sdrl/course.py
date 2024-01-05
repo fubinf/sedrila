@@ -92,6 +92,7 @@ class Structurepart:
             b.error(f"{self.sourcefile}: metadata YAML is malformed: {str(exc)}")
 
 
+@functools.total_ordering
 class Task(Structurepart):
     DIFFICULTY_RANGE = range(1, len(h.difficulty_levels) + 1)
     TOC_LEVEL = 2  # indent level in table of contents
@@ -200,6 +201,18 @@ class Task(Structurepart):
             call.error(f"Difficulty must be in range {min(diffrange)}..{max(diffrange)}")
             return ""
         return h.difficulty_symbol(level)
+
+    def __eq__(self, other):
+        return other.slug == self.slug
+
+    def __lt__(self, other):
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        return (self.difficulty < other.difficulty or
+                (self.difficulty == other.difficulty and self.slug < other.slug))
+
+    def __hash__(self) -> int:
+        return hash(self.slug)
 
 
 class Course(Structurepart):
@@ -374,11 +387,21 @@ class Course(Structurepart):
                     dependencies.add(self.taskdict[requiredtask])
             graph[mytask] = dependencies
         # ----- compute taskorder (or report dependency cycle if one is found):
+        self.taskorder = self._taskordering_for_toc(graph)
+
+    def _taskordering_for_toc(self, graph) -> list[Task]:
+        sorter =  graphlib.TopologicalSorter(graph)
+        sorter.prepare()
+        result = []
         try:
-            self.taskorder = list(graphlib.TopologicalSorter(graph).static_order())
+            while sorter.is_active():
+                node_group = sorted(sorter.get_ready())
+                result.extend(node_group)
+                sorter.done(*node_group)        
         except graphlib.CycleError as exc:
             msg = "Some tasks' 'assumes' or 'requires' dependencies form a cycle:\n"
             b.critical(msg + exc.args[1])
+        return result
 
     def _task_or_taskgroup_exists(self, name: str) -> bool:
         return name in self.taskdict or name in self.taskgroupdict
