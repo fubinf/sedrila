@@ -87,7 +87,7 @@ class Glossary(part.Structurepart):
         term = macrocall.arg1
         target = "%s.html#%s" % (b.GLOSSARY_BASENAME, b.slugify(term))
         self._mentions(macrocall.partname, term)
-        return f"<a href='{target}' class='glossary-termref-term'>{term}</a>"
+        return f"<a href='{target}' class='glossary-termref-term'>{term}<span class='glossary-termref-suffix'></span></a>"
 
     def _complain_term(self, macrocall: macros.Macrocall) -> str:  # noqa
         b.error(f"'{macrocall.filename}': [TERM1], [TERM2], and [TERMLONG] can only be used on the glossary")
@@ -157,6 +157,8 @@ class Glossary(part.Structurepart):
             if term in self.termdefs:
                 b.error(f"{macrocall.macrocall_text}: Term '{term}' is already defined")
             self.termdefs.add(term)
+        # ----- open block:
+        result.extend("\n<div class='glossary-term-block'>\n")
         # ----- generate anchors:
         anchors = ("<a id='%s'></a>\n" % b.slugify(term) for term in termslist)
         result.extend(anchors)
@@ -181,6 +183,8 @@ class Glossary(part.Structurepart):
             links.append("\n </div>\n")
         if any_links:
             links.append("</div>\n")
+        # ----- close block:
+        result.extend("\n</div>\n")
         if self.term_linkslist is not None:
             b.error("'%s': %s is preceeded by a [TERMLONG] with no [ENDTERMLONG]" %
                     (macrocall.filename, macrocall.macrocall_text))
