@@ -235,7 +235,7 @@ def expand_hint(macrocall: macros.Macrocall) -> str:
     if macrocall.macroname == 'HINT':
         summary = macrocall.arg1
         intro = topmatter(macrocall, 'hint')
-        return f"<details class='blockmacro-hint'><summary>\n{intro}{summary}\n</summary>\n"
+        return f"<details class='blockmacro blockmacro-hint'><summary>\n{intro}{summary}\n</summary>\n"
     elif macrocall.macroname == 'ENDHINT':
         return "</details>"
     assert False, macrocall  # impossible
@@ -245,7 +245,7 @@ def expand_instructor(macrocall: macros.Macrocall) -> str:
     if macrocall.macroname == 'INSTRUCTOR':
         title = macrocall.arg1
         intro = topmatter(macrocall, 'instructor')
-        return f"<div class='blockmacro-instructor'>\n{intro}{title}"
+        return f"<div class='blockmacro blockmacro-instructor'>\n{intro}{title}"
     elif macrocall.macroname == 'ENDINSTRUCTOR':
         return "</div>"
     assert False, macrocall  # impossible
@@ -253,7 +253,7 @@ def expand_instructor(macrocall: macros.Macrocall) -> str:
 
 def expand_warning(macrocall: macros.Macrocall) -> str:
     if macrocall.macroname == 'WARNING':
-        return f"<div class='blockmacro-warning'>\n{topmatter(macrocall, 'warning')}"
+        return f"<div class='blockmacro blockmacro-warning'>\n{topmatter(macrocall, 'warning')}"
     elif macrocall.macroname == 'ENDWARNING':
         return "</div>"
     assert False, macrocall  # impossible
@@ -261,7 +261,7 @@ def expand_warning(macrocall: macros.Macrocall) -> str:
 
 def expand_notice(macrocall: macros.Macrocall) -> str:
     if macrocall.macroname == 'NOTICE':
-        return f"<div class='blockmacro-notice'>\n{topmatter(macrocall, 'notice')}"
+        return f"<div class='blockmacro blockmacro-notice'>\n{topmatter(macrocall, 'notice')}"
     elif macrocall.macroname == 'ENDNOTICE':
         return "</div>"
     assert False, macrocall  # impossible

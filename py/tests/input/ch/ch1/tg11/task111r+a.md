@@ -16,7 +16,7 @@ Here, we mention [TERMREF::Concept 3] and also [TERMREF::Concept 4 undefined].
 Body of Warning
 [ENDWARNING]
 [NOTICE]
-Body of Warning
+Body of Note
 [ENDNOTICE]
 [HINT::My Hint]
 Body of My Hint

@@ -58,19 +58,19 @@ Here, we mention
    </a>
    .
   </p>
-  <div class="blockmacro-warning">
+  <div class="blockmacro blockmacro-warning">
    <strong>
     Warning:
    </strong>
    Body of Warning
   </div>
-  <div class="blockmacro-notice">
+  <div class="blockmacro blockmacro-notice">
    <strong>
     Note:
    </strong>
-   Body of Warning
+   Body of Note
   </div>
-  <details class="blockmacro-hint">
+  <details class="blockmacro blockmacro-hint">
    <summary>
     <strong>
      Hint:
@@ -82,7 +82,7 @@ Here, we mention
    </p>
   </details>
  </div>
- <div class="blockmacro-instructor">
+ <div class="blockmacro blockmacro-instructor">
   <h2 id="instructor-instructorpart-heading">
    Instructor Instructorpart Heading
   </h2>
