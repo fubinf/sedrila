@@ -54,13 +54,13 @@ class Task(part.Structurepart):
         href = f"href='{self.outputfile}'"
         titleattr = f"title=\"{self.slug}\""
         diffsymbol = h.difficulty_symbol(self.difficulty)
-        timevalue = f" <span title='Timevalue: {self.timevalue} hours'>{self.timevalue}h</span>"
-        refs = (self._taskrefs('a', 'assumed_by') + self._taskrefs('r', 'required_by') +
-                self._taskrefs('A', 'assumes') + self._taskrefs('R', 'requires'))
+        timevalue = f"<span class='timevalue-decoration' title='Timevalue: {self.timevalue} hours'>{self.timevalue}</span>"
+        refs = (self._taskrefs('assumed_by') + self._taskrefs('required_by') +
+                self._taskrefs('assumes') + self._taskrefs('requires'))
         profiles = ""
         if self.profiles:
-            profiles = f" <span class='profiles-decoration'>({', '.join(self.profiles)})</span>"
-        return f"<a {href} {titleattr}>{self.title}</a> {diffsymbol}{timevalue}{refs}{profiles}"
+            profiles = f"<span class='profiles-decoration'>{', '.join(self.profiles)}</span>"
+        return f"<a {href} {titleattr}>{self.title}</a> {diffsymbol} {timevalue}{refs}{profiles}"
 
     def as_json(self) -> b.StrAnyDict:
         return dict(slug=self.slug,
@@ -119,7 +119,7 @@ class Task(part.Structurepart):
         self.profiles = task['profiles']
         return self
 
-    def _taskrefs(self, label: str, attr_name: str) -> str:
+    def _taskrefs(self, attr_name: str) -> str:
         """Create a toc link dedoration for one set of related tasks."""
         attr_cssclass = "%s-decoration" % attr_name.replace("_", "-")
         attr_label = attr_name.replace("_", " ")
@@ -127,8 +127,8 @@ class Task(part.Structurepart):
         if len(refslist) == 0:
             return ""
         title = "%s: %s" % (attr_label, ", ".join(refslist))
-        return (" <span class='%s' title='%s'>%s</span>" %
-                (attr_cssclass, title, label))
+        return ("<span class='%s' title='%s'>%s</span>" %
+                (attr_cssclass, title, ""))  # label is provided by CSS
 
     @classmethod
     def expand_diff(cls, call: macros.Macrocall) -> str:  # noqa
