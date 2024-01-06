@@ -29,12 +29,12 @@ expected_filelist = [
 
 expected_sidebar_task111 = """<div class="sidebar" id="sidebar">
     
-<div class='indent0 no-stage'><a href='chapter-ch1.html' title="ch1">Chapter 1</a></div>
-  <div class='indent1 no-stage'><a href='tg11.html' title="tg11">Task group 1.1</a></div>
-    <div class='indent2 stage-alpha'><a href='task112.html' title="task112">Task 1.1.2</a> <span class='difficulty2' title='Difficulty: low'>&#x26ab;&#xfe0e;</span> <span class='timevalue-decoration' title='Timevalue: 1.5 hours'>1.5</span><span class='assumed-by-decoration' title='assumed by: task111r+a'></span></div>
-    <div class='indent2 stage-alpha'><a href='task113.html' title="task113">Task 1.1.3</a> <span class='difficulty3' title='Difficulty: medium'>&#x26ab;&#xfe0e;</span> <span class='timevalue-decoration' title='Timevalue: 2.0 hours'>2.0</span><span class='required-by-decoration' title='required by: task111r+a'></span></div>
-    <div class='indent2 stage-beta'><a href='task111r+a.html' title="task111r+a">Task 1.1.1 requires+assumes</a> <span class='difficulty1' title='Difficulty: verylow'>&#x26ab;&#xfe0e;</span> <span class='timevalue-decoration' title='Timevalue: 1.0 hours'>1.0</span><span class='assumes-decoration' title='assumes: task112'></span><span class='requires-decoration' title='requires: task113'></span><span class='profiles-decoration'>PROFILE1</span></div>
-  <div class="indent0 no-stage"><a href="glossary.html" title="glossary">Glossary</a></div>
+<div class='indent0 no-stage'><a href='chapter-ch1.html' title="Chapter 1">ch1</a></div>
+  <div class='indent1 no-stage'><a href='tg11.html' title="Task group 1.1">tg11</a></div>
+    <div class='indent2 stage-alpha'><a href='task112.html' title="Task 1.1.2">task112</a> <span class='difficulty2' title='Difficulty: low'>&#x26ab;&#xfe0e;</span> <span class='timevalue-decoration' title='Timevalue: 1.5 hours'>1.5</span><span class='assumed-by-decoration' title='assumed by: task111r+a'></span></div>
+    <div class='indent2 stage-alpha'><a href='task113.html' title="Task 1.1.3">task113</a> <span class='difficulty3' title='Difficulty: medium'>&#x26ab;&#xfe0e;</span> <span class='timevalue-decoration' title='Timevalue: 2.0 hours'>2.0</span><span class='required-by-decoration' title='required by: task111r+a'></span></div>
+    <div class='indent2 stage-beta'><a href='task111r+a.html' title="Task 1.1.1 requires+assumes">task111r+a</a> <span class='difficulty1' title='Difficulty: verylow'>&#x26ab;&#xfe0e;</span> <span class='timevalue-decoration' title='Timevalue: 1.0 hours'>1.0</span><span class='assumes-decoration' title='assumes: task112'></span><span class='requires-decoration' title='requires: task113'></span><span class='profiles-decoration'>PROFILE1</span></div>
+  <div class="indent0 no-stage"><a href="glossary.html" title="glossary">Glossary of terms</a></div>
 </div>
 """
 
