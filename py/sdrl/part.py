@@ -37,8 +37,8 @@ class Structurepart:
 
     @property
     def toc_link_text(self) -> str:
-        titleattr = f"title=\"{self.slug}\""
-        return f"<a href='{self.outputfile}' {titleattr}>{self.title}</a>"
+        titleattr = f"title=\"{self.title}\""
+        return f"<a href='{self.outputfile}' {titleattr}>{self.slug}</a>"
 
     def as_json(self) -> b.StrAnyDict:
         return dict(title=self.title)
