@@ -28,10 +28,9 @@ https://github.com/fubinf/propra-inf/blob/main/sedrila.yaml
 
 About the entries:
 
-- `title` and `shorttitle`: can be chosen freely at all levels (course,
+- `title`: can be chosen freely at all levels (course,
   chapters, taskgroups).
-  Titles are used for headings and full menus and links, 
-  shortitles for breadcrumb navigation or shorter links.
+  Titles are used for headings and for tooltips of links.
 - `baseresourcedir`, `chapterdir`, `templatedir`:
   purely internal names of interest to course authors only.
   They describe the directory structure.

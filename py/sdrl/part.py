@@ -22,7 +22,6 @@ class Structurepart:
     content: str  # the markdown block
     slug: str  # the file/dir basename by which we refer to the part
     title: str  # title: value
-    shorttitle: str  # shorttitle: value
     stage: str = ''  # stage: value
     skipthis: bool  # do not include this chapter/taskgroup/task in generated site
     toc: str  # table of contents
@@ -42,7 +41,7 @@ class Structurepart:
         return f"<a href='{self.outputfile}' {titleattr}>{self.title}</a>"
 
     def as_json(self) -> b.StrAnyDict:
-        return dict(title=self.title, shorttitle=self.shorttitle)
+        return dict(title=self.title)
 
     def evaluate_stage(self, context: str, course: 'Course') -> None:
         """

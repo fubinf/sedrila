@@ -39,7 +39,7 @@ def configure_argparser(subparser: argparse.ArgumentParser):
 def execute(pargs: argparse.Namespace):
     b.set_loglevel(pargs.log)
     course = sdrl.course.Course(pargs.config, read_contentfiles=True, include_stage=pargs.include_stage)
-    b.info(f"## chapter {course.chapters[-1].shorttitle} status: {getattr(course.chapters[-1], 'status', '-')}")
+    b.info(f"## chapter {course.chapters[-1].slug} status: {getattr(course.chapters[-1], 'status', '-')}")
     generate(pargs, course)
     b.exit_if_errors()
     print_volume_report(course)

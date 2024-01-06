@@ -163,6 +163,7 @@ class Course(part.Structurepart):
       for bookkeeping/reporting.
     """
     configfile: str
+    breadcrumb_title: str
     baseresourcedir: str = f"{sedrila_libdir}/baseresources"
     chapterdir: str = 'ch'
     templatedir: str = f"{sedrila_libdir}/templates"
@@ -183,10 +184,10 @@ class Course(part.Structurepart):
         configdict = b.slurp_yaml(configfile)
         b.copyattrs(configfile, 
                     configdict, self,
-                    mustcopy_attrs='title, shorttitle, instructors, profiles, stages',
+                    mustcopy_attrs='title, breadcrumb_title, instructors, profiles, stages',
                     cancopy_attrs='baseresourcedir, chapterdir, templatedir, blockmacro_topmatter',
                     mustexist_attrs='chapters')
-        self.slug = self.shorttitle
+        self.slug = self.breadcrumb_title
         self.outputfile = "index.html"
         self.glossary = glossary.Glossary(self.chapterdir)
         if read_contentfiles:
@@ -208,7 +209,7 @@ class Course(part.Structurepart):
     @property
     def breadcrumb_item(self) -> str:
         titleattr = f"title=\"{h.as_attribute(self.title)}\""
-        return f"<a href='index.html' {titleattr}>{self.shorttitle}</a>"
+        return f"<a href='index.html' {titleattr}>{self.breadcrumb_title}</a>"
 
     @functools.cached_property
     def chapterdict(self) -> tg.Mapping[str, 'Chapter']:
@@ -269,7 +270,7 @@ class Course(part.Structurepart):
         for chapter in (c for c in self.chapters if not c.to_be_skipped):
             num_tasks = sum((1 for t in self.taskdict.values() if t.taskgroup.chapter == chapter))
             timevalue_sum = sum((t.timevalue for t in self.taskdict.values() if t.taskgroup.chapter == chapter))
-            result.append((chapter.shorttitle, num_tasks, timevalue_sum))
+            result.append((chapter.slug, num_tasks, timevalue_sum))
         return result
 
     def volume_report_per_difficulty(self) -> tg.Sequence[tg.Tuple[int, int, float]]:
@@ -358,7 +359,7 @@ class Chapter(part.Structurepart):
         context = f"chapter in {course.configfile}"
         b.copyattrs(context, 
                     chapter, self,
-                    mustcopy_attrs='title, shorttitle, slug',
+                    mustcopy_attrs='title, slug',
                     cancopy_attrs='stage',
                     mustexist_attrs='taskgroups')
         self.evaluate_stage(context, course)
@@ -375,7 +376,7 @@ class Chapter(part.Structurepart):
     @property
     def breadcrumb_item(self) -> str:
         titleattr = f"title=\"{h.as_attribute(self.title)}\""
-        return f"<a href='{self.outputfile}' {titleattr}>{self.shorttitle}</a>"
+        return f"<a href='{self.outputfile}' {titleattr}>{self.slug}</a>"
 
     @property
     def outputfile(self) -> str:
@@ -402,7 +403,7 @@ class Taskgroup(part.Structurepart):
         context = f"taskgroup in chapter '{chapter.slug}'"
         b.copyattrs(context,
                     taskgroupdict, self,
-                    mustcopy_attrs='title, shorttitle, slug',
+                    mustcopy_attrs='title, slug',
                     cancopy_attrs='tasks, stage',
                     mustexist_attrs='taskgroups')
         context = f"taskgroup '{self.slug}' in chapter '{chapter.slug}'"
@@ -424,7 +425,7 @@ class Taskgroup(part.Structurepart):
     @property
     def breadcrumb_item(self) -> str:
         titleattr = f"title=\"{h.as_attribute(self.title)}\""
-        return f"<a href='{self.outputfile}' {titleattr}>{self.shorttitle}</a>"
+        return f"<a href='{self.outputfile}' {titleattr}>{self.slug}</a>"
 
     @property
     def to_be_skipped(self) -> bool:
