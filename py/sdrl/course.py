@@ -359,17 +359,17 @@ class Chapter(part.Structurepart):
         context = f"chapter in {course.configfile}"
         b.copyattrs(context, 
                     chapter, self,
-                    mustcopy_attrs='title, slug',
-                    cancopy_attrs='stage',
-                    mustexist_attrs='taskgroups')
-        self.evaluate_stage(context, course)
+                    mustcopy_attrs='slug',
+                    mustexist_attrs='taskgroups',
+                    cancopy_attrs='')
         if read_contentfiles:
             self.read_partsfile(f"{self.course.chapterdir}/{self.slug}/index.md")
             b.copyattrs(context, 
                         self.metadata, self,
-                        mustcopy_attrs='',
-                        cancopy_attrs='todo',
-                        mustexist_attrs='', overwrite=False)
+                        mustcopy_attrs='title',
+                        cancopy_attrs='stage, todo',
+                        mustexist_attrs='', overwrite=True)
+        self.evaluate_stage(context, course)
         self.taskgroups = [Taskgroup(self, taskgroup, read_contentfiles) 
                            for taskgroup in (chapter.get('taskgroups') or [])]
 
@@ -403,8 +403,8 @@ class Taskgroup(part.Structurepart):
         context = f"taskgroup in chapter '{chapter.slug}'"
         b.copyattrs(context,
                     taskgroupdict, self,
-                    mustcopy_attrs='title, slug',
-                    cancopy_attrs='tasks, stage',
+                    mustcopy_attrs='slug',
+                    cancopy_attrs='tasks',
                     mustexist_attrs='taskgroups')
         context = f"taskgroup '{self.slug}' in chapter '{chapter.slug}'"
         self.outputfile = f"{self.slug}.html"
@@ -412,9 +412,9 @@ class Taskgroup(part.Structurepart):
             self.read_partsfile(f"{self.chapter.course.chapterdir}/{self.chapter.slug}/{self.slug}/index.md")
             b.copyattrs(context,
                         self.metadata, self,
-                        mustcopy_attrs='',
-                        cancopy_attrs='minimum, todo',
-                        mustexist_attrs='', overwrite=False)
+                        mustcopy_attrs='title',
+                        cancopy_attrs='minimum, stage, todo',
+                        mustexist_attrs='', overwrite=True)
         self.evaluate_stage(context, chapter.course)
         if read_contentfiles:
             self._create_tasks()

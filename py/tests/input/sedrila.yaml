@@ -15,20 +15,11 @@ instructors:
     gitaccount: oinstr
     keyfingerprint: .
 chapters:
-  - title: "Chapter 1" 
-    slug: ch1
+  - slug: ch1
     taskgroups:
-      - title: "Task group 1.1"
-        slug: tg11
-      - title: "Task group 1.2"
-        slug: tg12
-        stage: alpha
-      - title: "Task group 1.3"
-        slug: tg13draft
-        stage: draft
-  - title: "Chapter 2" 
-    slug: ch2draft
-    stage: draft
+      - slug: tg11
+      - slug: tg12
+      - slug: tg13draft
+  - slug: ch2draft
     taskgroups:
-      - title: "Task group 2.1"
-        slug: tg21
+      - slug: tg21
