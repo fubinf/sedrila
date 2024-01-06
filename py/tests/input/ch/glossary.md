@@ -9,5 +9,8 @@ This is ch/glossary.md.
 - Case 1 of Concept 3
 - Case 2
 [ENDTERMLONG]
+[TERMLONG::Concept 5]
+Definition of Concept 5.
+[ENDTERMLONG]
 
 End of glossary.md

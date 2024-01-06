@@ -126,7 +126,7 @@ class Glossary(part.Structurepart):
     def _expand_endtermlong(self, macrocall: macros.Macrocall) -> str:
         """[ENDTERMLONG]  (a [TERMLONG] has to be open)"""
         close_body = "\n\n</div>\n"
-        if self.term_linkslist:
+        if self.term_linkslist is not None:
             result = self.term_linkslist
             self.term_linkslist = None
             return close_body + "".join(result)
