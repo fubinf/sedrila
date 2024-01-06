@@ -1,0 +1,503 @@
+:root {
+    /* https://www.htmlgoodies.com/html5/a-guide-to-using-css-variables/ */
+    /* https://www.w3schools.com/cssref/css_colors.php */
+    /* https://www.fu-berlin.de/sites/corporate-design/grundlagen/farben/index.html */
+    --main-color: #9c0;            /* FU Berlin main color */
+    --difficulty1-color: #0066cc;  /* FU Berlin secondary color */
+    --difficulty2-color: #9c0;     /* the main color */
+    --difficulty3-color: #f90;     /* FU Berlin secondary color */
+    --difficulty4-color: #c00;     /* FU Berlin secondary color */
+    --sidebar-width: 450px;
+    --header-height: 70px;
+}
+
+
+/********** Links: */
+
+a:link {
+    color: var(--main-color);
+    filter: brightness(50%);
+}
+
+a>code {
+    background-color: rgba(255, 255, 255, 0.5);
+    color: var(--main-color);
+}
+
+a:visited {
+    color: var(--main-color);
+    filter: brightness(40%);
+}
+
+
+/********** Tags (alphabetical order): */
+
+body {
+    font-family: sans-serif;
+    margin: 1em 1.5em 1em 1.5em;
+    line-height: 130%;
+}
+
+code {
+    background-color: #eee;
+}
+
+details {
+    /* similar to .section-goal etc. */
+    display: block;
+    padding: 0.0em 0.9em;
+    margin: 0.4em 0 0.8em 0;
+    background-color: #06c3;
+    border: 1px solid gray;
+    border-radius: 0.5em;
+    box-shadow: 6px 6px 5px #888;
+}
+
+footer {
+    display: flex;
+    margin-top: 2ex;
+    padding: 0.5em;
+    background-color: lightgrey;
+    font-size: 80%;
+}
+
+h1,
+h2 {
+    font-family: serif;
+    line-height: 0.95;
+}
+
+header {
+    display: flex;
+    margin-bottom: 2ex;
+    padding: 1em 0.5em 0.5em 0.5em;
+    background-color: var(--main-color);
+    font-size: 100%;
+    position: fixed;
+}
+
+li {
+    padding: 0.15em 0;
+}
+
+summary {}
+
+/********** sidebar */
+
+.header {
+  width: 100%;
+  z-index: 1;
+}
+
+.sidebar {
+  height: 100%;
+  width: var(--sidebar-width);
+  position: fixed;
+  z-index: 1;
+  top: var(--header-height);
+  left: 0;
+  overflow-x: hidden;
+  padding: 10px;
+  transition: all 0.3s ease-out;
+}
+
+.sidebarhide {
+  left: calc(-20px - var(--sidebar-width)) !important;
+}
+
+.main {
+  margin-left: calc(10px + var(--sidebar-width));
+  padding-top: var(--header-height);
+  transition: all 0.3s ease-out;
+}
+
+.mainfull {
+  margin-left: 0px !important;
+}
+
+.header_in button {
+  background:transparent;
+  border:none;
+  width:30px;
+  height:30px;
+  cursor:pointer;
+  outline:0;
+}
+
+.toggle span {
+  width:100%;
+  height:3px;
+  background:#555;
+  display:block;
+  position:relative;
+  coursor:pointer;
+}
+
+.toggle span:before,
+.toggle span:after {
+  content:'';
+  position:absolute;
+  left:0;
+  width:100%;
+  height:100%;
+  background:#555;
+  transition: all 0.3s ease-out;
+}
+
+.toggle span:before {
+  top:-8px;
+}
+
+.toggle span:after {
+  top:8px;
+}
+
+.toggle span.toggle {
+  background:transparent;
+}
+
+.toggle span.toggle:before {
+  top:0;
+  transform:rotate(-45deg);
+  background:#4CAF50;
+  
+}
+
+.toggle span.toggle:after {
+  top:0;
+  transform:rotate(45deg);
+  background:#4CAF50;
+}
+
+
+/********** Pagetypes: */
+
+.pagetype-homepage {}
+.pagetype-chapter {}
+.pagetype-taskgroup {}
+.pagetype-task {}
+
+.pagetype-task-difficulty1 {
+    --instructions-border-color: var(--difficulty1-color);
+}
+
+.pagetype-task-difficulty2 {
+    --instructions-border-color: var(--difficulty2-color);
+}
+
+.pagetype-task-difficulty3 {
+    --instructions-border-color: var(--difficulty3-color);
+}
+
+.pagetype-task-difficulty4 {
+    --instructions-border-color: var(--difficulty4-color);
+}
+
+
+/********** Link and TOC decorations: */
+
+.difficulty1 {
+    color: var(--difficulty1-color);
+}
+
+.difficulty2 {
+    color: var(--difficulty2-color);
+}
+
+.difficulty3 {
+    color: var(--difficulty3-color);
+}
+
+.difficulty4 {
+    color: var(--difficulty4-color);
+}
+
+.timevalue-decoration {}
+
+.timevalue-decoration::after {
+    content: "h";
+}
+
+.assumes-decoration,
+.assumed-by-decoration,
+.requires-decoration,
+.required-by-decoration {
+    padding-right: 0.1em;
+    font-weight: bold;
+    color: #111;
+}
+
+.assumed-by-decoration,
+.required-by-decoration {
+    color: var(--difficulty3-color);
+    filter: brightness(50%);
+}
+
+.assumes-decoration::before {
+    content: " A";
+}
+
+.assumed-by-decoration::before {
+    content: " a";
+}
+
+.requires-decoration::before {
+    content: " R";
+}
+
+.required-by-decoration::before {
+    content: " r";
+}
+
+.profiles-decoration {
+    font-size: 90%;
+    font-style: oblique;
+}
+
+.profiles-decoration::before {
+    content: " (";
+}
+
+.profiles-decoration::after {
+    content: ")";
+}
+
+.nostage {}
+
+.stage-draft {
+    background-color: #999;
+}
+
+.stage-alpha {
+    background-color: #bbb;
+}
+
+.stage-beta::after {
+    content: " [beta]";
+}
+
+.indent0 {
+    display: block;
+}
+
+.indent1 {
+    display: block;
+    margin-left: 1em;
+}
+
+.indent2 {
+    display: block;
+    margin-left: 2em;
+}
+
+.indent3 {
+    display: block;
+    margin-left: 3em;
+}
+
+.indent4 {
+    display: block;
+    margin-left: 4em;
+}
+
+.indent0,
+.indent1,
+.indent2,
+.indent3,
+.indent4 {
+    padding: 0.15em 0;
+}
+
+
+/********** Blockmacros: */
+
+.admonition,
+.section-goal,
+.section-submission,
+.blockmacro {
+    padding: 0.0em 0.9em;
+    margin: 0.4em 0 0.8em 0;
+    border: 1px solid gray;
+    border-radius: 0.5em;
+    box-shadow: 6px 6px 5px #888;
+}
+
+.section-background {
+    background-color: #f8f8f8;
+    padding: 0.5em;
+}
+
+.section-background-default {}
+
+.section-goal {
+    background-color: #f5f5e0;
+}
+
+.section-goal-product {}
+.section-goal-idea {}
+.section-goal-experience {}
+.section-goal-trial {}
+
+.section-instructions {
+    border-left-width: 0.8em;
+    border-left-style: solid;
+    padding-left: 0.8em;
+    border-left-color: var(--instructions-border-color);
+}
+
+.section-instructions-detailed {}
+.section-instructions-loose {}
+.section-instructions-tricky {}
+
+.section-submission {
+    background-color: #9c03;
+}
+
+.section-submission-reflection {}
+.section-submission-information {}
+.section-submission-snippet {}
+.section-submission-trace {}
+.section-submission-program {}
+
+.blockmacro-instructor {
+    background-color: #f903;
+}
+
+.blockmacro-warning {
+    background-color: #c003;
+}
+
+.blockmacro-notice {
+    background-color: #06c3;
+}
+
+
+/********** Glossary: */
+
+.glossary-term-block {
+    margin-top: 1ex;
+    border-top: #bbbbbb solid thin;
+    padding-top: 1ex;
+    margin-bottom: 1ex;
+}
+
+.glossary-term-heading {
+    font-weight: bold;
+}
+
+.glossary-term-body {}
+.glossary-term-linkblock {}
+
+.glossary-term-links-explainedby::before {
+    content: "Explained by: "
+}
+
+.glossary-term-links-mentionedby::before {
+    content: "Mentioned by: "
+}
+
+.glossary-termref-term {
+    text-decoration: none;
+}
+
+.glossary-termref-term:hover {
+    text-decoration: underline;
+}
+
+.glossary-termref-suffix::after {
+    content: "Def"
+}
+
+.glossary-termref-suffix {
+  vertical-align: sub;
+  font-size: smaller;    
+}
+
+
+/********** timer: */
+
+#timer {
+  float: right;
+}
+#timer::before {
+  content: "⏲ ";
+}
+#timer .play::before {
+  content: "▶";
+}
+#timer .pause::before {
+  content: "⏸";
+}
+#timer .stop::before {
+  content: "⏹";
+}
+
+
+/********** misc: */
+
+.breadcrumbs {
+  float: left;
+}
+
+
+/********** Modifications for dark mode: */
+
+@media (prefers-color-scheme: dark) {
+    body, pre {
+        background-color: #222;
+        color: lightgray;
+    }
+
+    .section-goal {
+        background-color: #ae8b0c;
+        color: lightgray;
+    }
+
+    .section-background {
+        background-color: #444;
+        color: lightgray;
+    }
+    
+    .section-submission {
+        background-color: #9c03;
+    }
+
+    a:link {
+        color: var(--main-color);
+        filter: brightness(80%);
+    }
+
+    a:visited {
+        color: var(--main-color);
+        filter: brightness(50%);
+    }
+
+    header {
+        background-color: darkolivegreen;
+        color: lightgray;
+    }
+
+    footer, code {
+        background-color: #000;
+        color: lightgray;
+    }
+
+    .admonition,
+    .section-goal,
+    .section-submission,
+    .blockmacro {
+        box-shadow: 6px 6px 5px #000;
+    }
+}
+
+/********** Admonitions (TODO_2 phase out): */
+
+.admonition-title {
+    font-size: 105%;
+    font-style: italic;
+    font-weight: bold;
+}
+
+.admonition {
+    background-color: #f5f;
+}
