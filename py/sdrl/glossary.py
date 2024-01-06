@@ -15,7 +15,7 @@ class Glossary(part.Structurepart):
     Links to term definitions can already be generated because they have a canonical form:
     An anchor will exist on the glossary page for each alias of a term.
     In phase 2, the collected data are used to generate the actual glossary page or error messages.
-    Defines macros TERM1, TERM2, and TERMLONG to be used in the glossary file and
+    Defines macros TERM, TERMDEF, and TERMLONG to be used in the glossary file and
     TERMREF to be used anywhere.
     """
     chapterdir: str  # where to find GLOSSARY_FILE
@@ -71,14 +71,14 @@ class Glossary(part.Structurepart):
 
     def _register_macros_phase1(self):
         macros.register_macro("TERMREF", 1, self._expand_termref)
-        macros.register_macro("TERM1", 1, self._complain_term)
-        macros.register_macro("TERM2", 2, self._complain_term)
+        macros.register_macro("TERM", 1, self._complain_term)
+        macros.register_macro("TERMDEF", 2, self._complain_term)
         macros.register_macro("TERMLONG", 1, self._complain_term)
         macros.register_macro("ENDTERMLONG", 0, self._ignore_endtermlong)
 
     def _register_macros_phase2(self):
-        macros.register_macro("TERM1", 1, self._expand_term1, redefine=True)
-        macros.register_macro("TERM2", 2, self._expand_term2, redefine=True)
+        macros.register_macro("TERM", 1, self._expand_term, redefine=True)
+        macros.register_macro("TERMDEF", 2, self._expand_termdef, redefine=True)
         macros.register_macro("TERMLONG", 1, self._expand_termlong, redefine=True)
         macros.register_macro("ENDTERMLONG", 0, self._expand_endtermlong, redefine=True)
 
@@ -100,13 +100,13 @@ class Glossary(part.Structurepart):
     def _ignore_endtermlong(self, macrocall: macros.Macrocall) -> str:  # noqa
         return ""
 
-    def _expand_term1(self, macrocall: macros.Macrocall) -> str:
-        """[TERM1::term|second form of term|third form|and so on], no definition text is supplied"""
+    def _expand_term(self, macrocall: macros.Macrocall) -> str:
+        """[TERM::term|second form of term|third form|and so on], no definition text is supplied"""
         macrocall.arg2 = ""  # empty body
-        return self._expand_term2(macrocall)
+        return self._expand_termdef(macrocall)
 
-    def _expand_term2(self, macrocall: macros.Macrocall) -> str:
-        """[TERM2::term|second form of term|etc::Short definition of term]"""
+    def _expand_termdef(self, macrocall: macros.Macrocall) -> str:
+        """[TERMDEF::term|second form of term|etc::Short definition of term]"""
         termdef = macrocall.arg2
         result = self._expand_any_termdef(macrocall)
         # ----- generate body:
