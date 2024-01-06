@@ -1,4 +1,4 @@
-title: Glossary
+title: Glossary of terms
 ---
 This is ch/glossary.md.
 

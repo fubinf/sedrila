@@ -42,8 +42,12 @@ class Glossary(part.Structurepart):
 
     @property
     def breadcrumb_item(self) -> str:
-        titleattr = f"title=\"{h.as_attribute(self.title)}\""
-        return f"<a href='{self.outputfile}' {titleattr}>{self.slug}</a>"
+        titleattr = f"title=\"{h.as_attribute(self.slug)}\""
+        return f"<a href='{self.outputfile}' {titleattr}>{self.title}</a>"
+
+    @property
+    def toc_link_text(self) -> str:
+        return self.breadcrumb_item
 
     def explains(self, partname: str, term: str):  # called by author.py
         if term not in self.explainedby:
