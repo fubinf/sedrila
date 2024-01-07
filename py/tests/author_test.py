@@ -1,20 +1,20 @@
 # pytest tests
+import argparse
 import contextlib
 import glob
 import shutil
-import sys
-import unittest.mock
 
 import bs4
 
 import base as b
-import sedrila
+import sdrl.course
+import sdrl.subcmd.author
 
 expected_output = """[TERMLONG::Concept 3]: Term 'Concept 3' is already defined
 ch/glossary.md: These terms lack a definition: ['Concept 2 undefined', 'Concept 4 undefined']
 wrote student files to  '../output'
 wrote instructor files to  '../output/cino2r2s2tu'
-==== 2 errors. Exiting. ====
+ch/ch1/tg12/task113.duplicate: name collision: ch/ch1/tg11/task113.md and ch/ch1/tg12/task113.duplicate
 """
 
 expected_filelist = [
@@ -112,20 +112,22 @@ def test_sedrila_author(capfd):
 
 
 def _call_sedrila_author():
-    class ExitError(Exception):
-        def __init__(self, status: int):
-            super().__init__()
-            self.status = status
+    # ----- prepare call:
+    pargs = argparse.Namespace()
+    pargs.config = b.CONFIG_FILENAME
+    pargs.include_stage = "alpha"
+    pargs.log = "WARNING"
+    pargs.targetdir = "../output"
+    # ----- do call akin to sdrl.subcmd.author.execute():
+    b.set_loglevel(pargs.log)
+    course = sdrl.course.Course(pargs.config, read_contentfiles=True, include_stage=pargs.include_stage)
+    sdrl.subcmd.author.generate(pargs, course)
+    # ----- now force additional errors beyond what the test input produces:
+    tg12 = course.taskgroup("tg12")
+    task113duplicate = tg12._add_task(sdrl.course.Task().from_file("ch/ch1/tg12/task113.duplicate", taskgroup=tg12))
+    # ----- check number of errors produced:
+    assert b.num_errors == 2 + 1  # 2 from generate(), 1 additional
 
-    def pseudoexit(status: int):
-        raise ExitError(status)
-
-    sys.argv = ["sedrila", "author", "--include_stage", "alpha", "../output"]  # the commandline
-    try:
-        with unittest.mock.patch.object(sys, 'exit', pseudoexit):
-            sedrila.main()  # the sedrila call
-    except ExitError as _exit:
-        assert _exit.status == 2+1  # number of errors plus one for the exit message itself
 
 def _get_output(capfd) -> str:
     actual_output, actual_err = capfd.readouterr()

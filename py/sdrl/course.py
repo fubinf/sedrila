@@ -81,6 +81,7 @@ class Task(part.Structurepart):
                     cancopy_attrs='stage, explains, assumes, requires, profiles',  # TODO 2: check profiles against sedrila.yaml
                     mustexist_attrs='')
         self.evaluate_stage(file, taskgroup.chapter.course)
+        taskgroup.chapter.course.namespace_add(self.sourcefile, self)
 
         # ----- ensure assumes/requires/profiles are lists:
         def _handle_strlist(attrname: str):
@@ -173,6 +174,7 @@ class Course(part.Structurepart):
     chapters: list['Chapter']
     stages: list[str]  # list of allowed values of stage in parts 
 
+    namespace: dict[str, part.Structurepart]  # the parts known so far
     include_stage: str  # lowest stage that parts must have to be included in output
     include_stage_index: int  # index in stages list, or len(stages) if include_stage is ""
 
@@ -189,6 +191,8 @@ class Course(part.Structurepart):
                     mustexist_attrs='chapters')
         self.slug = self.breadcrumb_title
         self.outputfile = "index.html"
+        self.namespace = dict()
+        self.namespace_add(configfile, self)
         self.glossary = glossary.Glossary(self.chapterdir)
         if read_contentfiles:
             self.read_partsfile(f"{self.chapterdir}/index.md")
@@ -243,7 +247,7 @@ class Course(part.Structurepart):
         """Return Chapter for given slug or None if no such Chapter exists."""
         return self.chapterdict.get(slug)
 
-    def taskgroup(self, slug: str) -> tg.Optional[Task]:
+    def taskgroup(self, slug: str) -> tg.Optional['Taskgroup']:
         """Return Taskgroup for given slug or None if no such task exists."""
         return self.taskgroupdict.get(slug)
 
@@ -251,18 +255,20 @@ class Course(part.Structurepart):
         """Return Task for given taskname or None if no such task exists."""
         return self.taskdict.get(taskname)
 
-    def _all_taskgroups(self) -> tg.Generator['Taskgroup', None, None]:
-        """To be used only for initializing taskgroupdict, so we can assume all taskgroups to be known"""
-        for chapter in self.chapters:
-            for taskgroup in chapter.taskgroups:
-                yield taskgroup
+    def get_part(self, context: str, partname: str) -> part.Structurepart:
+        """Return part for given partname or self if no such part exists."""
+        if partname in self.namespace:
+            return self.namespace[partname]
+        b.error(f"{context}: part '{partname}' does not exist")
+        return self
 
-    def _all_tasks(self) -> tg.Generator[Task, None, None]:
-        """To be used only for initializing taskdict, so we can assume all tasks to be known"""
-        for chapter in self.chapters:
-            for taskgroup in chapter.taskgroups:
-                for task in taskgroup.tasks:
-                    yield task
+    def namespace_add(self, context: str, newpart: part.Structurepart):
+        name = newpart.slug
+        if name in self.namespace:
+            b.error("%s: name collision: %s and %s" %
+                    (context, self._slugfilename(self.namespace[name]), self._slugfilename(newpart)))
+        else:
+            self.namespace[name] = newpart
 
     def volume_report_per_chapter(self) -> tg.Sequence[tg.Tuple[str, int, float]]:
         """Tuples of (chaptername, num_tasks, timevalue_sum)"""
@@ -299,6 +305,19 @@ class Course(part.Structurepart):
                 if required_task:
                     required_task.required_by.append(taskname)
 
+    def _all_taskgroups(self) -> tg.Generator['Taskgroup', None, None]:
+        """To be used only for initializing taskgroupdict, so we can assume all taskgroups to be known"""
+        for chapter in self.chapters:
+            for taskgroup in chapter.taskgroups:
+                yield taskgroup
+
+    def _all_tasks(self) -> tg.Generator[Task, None, None]:
+        """To be used only for initializing taskdict, so we can assume all tasks to be known"""
+        for chapter in self.chapters:
+            for taskgroup in chapter.taskgroups:
+                for task in taskgroup.tasks:
+                    yield task
+
     def _check_links(self):
         for task in self.taskdict.values():
             b.debug(f"Task '{task.slug}'\tassumes {task.assumes},\trequires {task.requires}")
@@ -331,6 +350,16 @@ class Course(part.Structurepart):
             graph[mytask] = dependencies
         # ----- compute taskorder (or report dependency cycle if one is found):
         self.taskorder = self._taskordering_for_toc(graph)
+
+    @staticmethod
+    def _slugfilename(p: part.Structurepart) -> str:
+        fullpath = p.sourcefile
+        basename = os.path.basename(fullpath)
+        dirname = os.path.dirname(fullpath)
+        if basename == "index.md":
+            return dirname
+        else:
+            return fullpath
 
     def _taskordering_for_toc(self, graph) -> list[Task]:
         sorter =  graphlib.TopologicalSorter(graph)
@@ -370,6 +399,7 @@ class Chapter(part.Structurepart):
                         cancopy_attrs='stage, todo',
                         mustexist_attrs='', overwrite=True)
         self.evaluate_stage(context, course)
+        course.namespace_add(self.sourcefile, self)
         self.taskgroups = [Taskgroup(self, taskgroup, read_contentfiles) 
                            for taskgroup in (chapter.get('taskgroups') or [])]
 
@@ -416,6 +446,7 @@ class Taskgroup(part.Structurepart):
                         cancopy_attrs='minimum, stage, todo',
                         mustexist_attrs='', overwrite=True)
         self.evaluate_stage(context, chapter.course)
+        chapter.course.namespace_add(self.sourcefile, self)
         if read_contentfiles:
             self._create_tasks()
         else:
