@@ -77,3 +77,8 @@ def register_macro(name: str, numargs: int, expander: Macroexpander, redefine=Fa
     assert 0 <= numargs <= 2
     assert name == name.upper()  # must be all uppercase
     macrodefs[name] = (numargs, expander)
+
+
+def _testmode_reset():
+    global macrodefs
+    macrodefs = dict()
