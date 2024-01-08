@@ -22,11 +22,13 @@ def test_instructor_parts(capfd):
     with TempDirEnvironContextMgr(**{sut.USER_CMD_VAR: "echo SEDRILA_INSTRUCTOR_COMMAND was called"}) as mgr:
         os.environ[sut.REPOS_HOME_VAR] = mgr.newdir  # will not be unpatched; not a problem
         # ----- test clone:
+        b._testmode_reset()
         sut.checkout_student_repo(TEST_REPO, home=mgr.newdir)  # will clone
         assert "Cloning into" in capfd.readouterr().err
         assert os.getcwd().endswith(git.username_from_repo_url(TEST_REPO))
         os.chdir(mgr.newdir)
         # ----- test pull:
+        b._testmode_reset()
         sut.checkout_student_repo(TEST_REPO, home=mgr.newdir)  # will pull and get "Already up to date."
         assert "Already up to date" in capfd.readouterr().out
         assert os.getcwd().endswith(git.username_from_repo_url(TEST_REPO))
@@ -34,6 +36,7 @@ def test_instructor_parts(capfd):
         os.mkdir('out')
         shutil.copy(METADATA_FILE, 'out')
         # ----- read data from repo:
+        b._testmode_reset()
         course = sdrl.course.Course(f"out/{b.METADATA_FILE}", 
                                     read_contentfiles=False, include_stage="")
         r.compute_student_work_so_far(course)
@@ -41,6 +44,7 @@ def test_instructor_parts(capfd):
         assert entries[0] == ('Task1', 1.0, 1.0, 0, False)
         # ----- rewrite submission file:
         # the repo's submission file contains dict(Task1="CHECK", NonExistingTask3="CHECK")
+        b._testmode_reset()
         sut.rewrite_submission_file(course, r.SUBMISSION_FILE)
         submission = b.slurp_yaml(r.SUBMISSION_FILE)
         assert submission['NonExistingTask3'] == r.NONTASK_MARK
