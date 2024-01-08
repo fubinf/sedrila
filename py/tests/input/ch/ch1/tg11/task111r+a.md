@@ -10,7 +10,8 @@ requires: task113
 [SECTION::background::default]
 
 Section "Background" of Task 1.1.1.
-Here, we mention [TERMREF::Concept 3] and also [TERMREF::Concept 4 undefined].
+Here, we mention [TERMREF::Concept 3], [TERMREF2::Concept 3::ditto], [TERMREF2::Concept 3::-s]
+and also [TERMREF::Concept 4 undefined].
 
 [WARNING]
 Body of Warning

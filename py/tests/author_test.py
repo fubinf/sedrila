@@ -8,6 +8,7 @@ import bs4
 
 import base as b
 import sdrl.course
+import sdrl.macros as macros
 import sdrl.subcmd.author
 
 expected_output = """[TERMLONG::Concept 3]: Term 'Concept 3' is already defined
@@ -47,14 +48,28 @@ expected_body_task111 = """
   <p>
    Section "Background" of Task 1.1.1.
 Here, we mention
-   <a href="glossary.html#concept-3" class="glossary-termref-term">
+   <a class="glossary-termref-term" href="glossary.html#concept-3">
     Concept 3
-    <span class='glossary-termref-suffix'></span>
+    <span class="glossary-termref-suffix">
+    </span>
+   </a>
+   ,
+   <a class="glossary-termref-term" href="glossary.html#concept-3">
+    ditto
+    <span class="glossary-termref-suffix">
+    </span>
+   </a>
+   ,
+   <a class="glossary-termref-term" href="glossary.html#concept-3">
+    Concept 3s
+    <span class="glossary-termref-suffix">
+    </span>
    </a>
    and also
-   <a href="glossary.html#concept-4-undefined" class="glossary-termref-term">
+   <a class="glossary-termref-term" href="glossary.html#concept-4-undefined">
     Concept 4 undefined
-    <span class='glossary-termref-suffix'></span>
+    <span class="glossary-termref-suffix">
+    </span>
    </a>
    .
   </p>
@@ -99,7 +114,6 @@ def test_sedrila_author(capfd):
     shutil.rmtree("py/tests/output", ignore_errors=True)  # do our best to get rid of old outputs
     # ----- create output:
     with contextlib.chdir("py/tests/input"):
-        b._testmode()
         _call_sedrila_author()
         actual_output = _get_output(capfd)
     # ----- check output:
@@ -119,6 +133,8 @@ def _call_sedrila_author():
     pargs.log = "WARNING"
     pargs.targetdir = "../output"
     # ----- do call akin to sdrl.subcmd.author.execute():
+    b._testmode_reset()
+    macros._testmode_reset()
     b.set_loglevel(pargs.log)
     course = sdrl.course.Course(pargs.config, read_contentfiles=True, include_stage=pargs.include_stage)
     sdrl.subcmd.author.generate(pargs, course)
@@ -164,7 +180,7 @@ def _check_task_html():
 
 
 def _check_glossary():
-    ...
+    pass  # will be tested by glossary_test.py
 
 
 def _check_reporting(actual_output: str):
@@ -172,16 +188,16 @@ def _check_reporting(actual_output: str):
     _compare_line_by_line(actual_output, expected_output)
 
 
-def _compare_line_by_line(actual: str, expected: str, strip=False, force_doublequotes=False):
-    if force_doublequotes:
-        # bs4's re-generated markup text uses varying quote characters, so canonicalize brutally:
-        actual = actual.replace("'", '"')  # turn all singlequotes into doublequotes
-        expected = expected.replace("'", '"')
+def _compare_line_by_line(actual: str, expected: str, strip=False):
     actual_lines = actual.split('\n')
     expected_lines = expected.split('\n')
     for i in range(len(actual_lines)):
         if strip:
-            assert actual_lines[i].strip() == expected_lines[i].strip()
+            if actual_lines[i].strip() != expected_lines[i].strip():
+                print("actual::", actual)
+                assert actual_lines[i].strip() == expected_lines[i].strip()
         else:
-            assert actual_lines[i] == expected_lines[i]
+            if actual_lines[i] != expected_lines[i]:
+                print("actual::", actual)
+                assert actual_lines[i] == expected_lines[i]
     assert len(actual_lines) == len(expected_lines)
