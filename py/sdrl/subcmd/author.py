@@ -79,15 +79,6 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
             taskgroup.toc = toc(taskgroup)
     # ----- register macroexpanders:
     b.info("registering macros")
-    macros.register_macro('TAS', 1, functools.partial(expand_ta, course))  # short link to task
-    macros.register_macro('TAL', 1, functools.partial(expand_ta, course))  # long link
-    macros.register_macro('TAM', 2, functools.partial(expand_ta, course))  # manual link
-    macros.register_macro('TGS', 1, functools.partial(expand_tg, course))  # short link to taskgroup
-    macros.register_macro('TGL', 1, functools.partial(expand_tg, course))  # long link
-    macros.register_macro('TGM', 2, functools.partial(expand_tg, course))  # manual link
-    macros.register_macro('CHS', 1, functools.partial(expand_ch, course))  # short link to chapter
-    macros.register_macro('CHL', 1, functools.partial(expand_ch, course))  # long link
-    macros.register_macro('CHM', 2, functools.partial(expand_ch, course))  # manual link
     macros.register_macro('PARTREF', 1, functools.partial(expand_partref, course))  # slug as linktext
     macros.register_macro('PARTREFTITLE', 1, functools.partial(expand_partref, course))  # title as linktext
     macros.register_macro('PARTREFMANUAL', 2, functools.partial(expand_partref, course))  # explicit linktext
@@ -181,57 +172,6 @@ def toc(structure: sdrl.part.Structurepart) -> str:
                 result.append(task.toc_entry)
     result.append(course.glossary.toc_entry)
     return "\n".join(result)
-
-
-def expand_ta(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
-    taskname = macrocall.arg1
-    linktext = macrocall.arg2
-    task = course.task(taskname)
-    if task is None:
-        macrocall.error(f"Task '{taskname}' does not exist")
-        return ""
-    if macrocall.macroname == "TAS":
-        return task.breadcrumb_item
-    elif macrocall.macroname == "TAL":
-        return task.toc_link_text
-    elif macrocall.macroname == "TAM":
-        return f"[{html.escape(linktext, quote=False)}]({task.outputfile})"
-    else:
-        assert False, macrocall  # impossible
-
-
-def expand_tg(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
-    slug = macrocall.arg1
-    linktext = macrocall.arg2
-    taskgroup = course.taskgroup(slug)
-    if taskgroup is None:
-        macrocall.error(f"Taskgroup '{slug}' does not exist")
-        return ""
-    if macrocall.macroname == "TGS":
-        return taskgroup.breadcrumb_item
-    elif macrocall.macroname == "TGL":
-        return taskgroup.toc_link_text
-    elif macrocall.macroname == "TGM":
-        return f"[{html.escape(linktext, quote=False)}]({taskgroup.outputfile})"
-    else:
-        assert False, macrocall  # impossible
-
-
-def expand_ch(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
-    slug = macrocall.arg1
-    linktext = macrocall.arg2
-    chapter = course.chapter(slug)
-    if chapter is None:
-        macrocall.error(f"Chapter '{slug}' does not exist")
-        return ""
-    if macrocall.macroname == "CHS":
-        return chapter.breadcrumb_item
-    elif macrocall.macroname == "CHL":
-        return chapter.toc_link_text
-    elif macrocall.macroname == "CHM":
-        return f"[{html.escape(linktext, quote=False)}]({chapter.outputfile})"
-    else:
-        assert False, macrocall  # impossible
 
 
 def expand_partref(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
