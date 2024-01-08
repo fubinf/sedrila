@@ -71,6 +71,7 @@ class Glossary(part.Structurepart):
 
     def _register_macros_phase1(self):
         macros.register_macro("TERMREF", 1, self._expand_termref)
+        macros.register_macro("TERMREF2", 2, self._expand_termref)
         macros.register_macro("TERM", 1, self._complain_term)
         macros.register_macro("TERMDEF", 2, self._complain_term)
         macros.register_macro("TERMLONG", 1, self._complain_term)
@@ -89,12 +90,15 @@ class Glossary(part.Structurepart):
     
     def _expand_termref(self, macrocall: macros.Macrocall) -> str:
         term = macrocall.arg1
+        label = term if not macrocall.arg2 else macrocall.arg2  # unify calls to TERMREF and TERMREF2
+        if label.startswith("-"):  # arg2 is meant to be a suffix
+            label = term + label[1:]
         target = "%s.html#%s" % (b.GLOSSARY_BASENAME, b.slugify(term))
         self._mentions(macrocall.partname, term)
-        return f"<a href='{target}' class='glossary-termref-term'>{term}<span class='glossary-termref-suffix'></span></a>"
+        return f"<a href='{target}' class='glossary-termref-term'>{label}<span class='glossary-termref-suffix'></span></a>"
 
-    def _complain_term(self, macrocall: macros.Macrocall) -> str:  # noqa
-        b.error(f"'{macrocall.filename}': [TERM1], [TERM2], and [TERMLONG] can only be used on the glossary")
+    def _complain_term(self, mc: macros.Macrocall) -> str:  # noqa
+        b.error(f"'{mc.filename}: {mc.macrocall_text}': [{mc.macroname}] can only be used in the glossary")
         return ""  # no expansion in phase 1
 
     def _ignore_endtermlong(self, macrocall: macros.Macrocall) -> str:  # noqa
@@ -172,8 +176,8 @@ class Glossary(part.Structurepart):
         links = []
         explainedby_names = self._collect_parts(self.explainedby, termslist)
         mentionedby_names = self._collect_parts(self.mentionedby, termslist)
-        explainedby_links = [f"[TAS::{part}]" for part in explainedby_names]  # TODO_1: make work for taskgroup/chapter
-        mentionedby_links = [f"[TAS::{part}]" for part in mentionedby_names]
+        explainedby_links = sorted((f"[PARTREF::{part}]" for part in explainedby_names))
+        mentionedby_links = sorted((f"[PARTREF::{part}]" for part in mentionedby_names))
         any_links = explainedby_links or mentionedby_links
         if any_links:
             links.append("\n<div class='glossary-term-linkblock'>\n")
