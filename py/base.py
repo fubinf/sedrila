@@ -178,6 +178,9 @@ def _rich_print(msg: str, enclose_in_tag: tg.Optional[str] = None):
             msg = f"[{enclose_in_tag}]{msg}[/{enclose_in_tag}]"            
         rich.print(msg)
 
-def _testmode():
-    """avoid text wrapping of b.error() etc."""
+def _testmode_reset():
+    """reset error counter; avoid text wrapping of b.error() etc."""
+    global num_errors, msgs_seen
+    num_errors = 0
+    msgs_seen = set()
     rich.get_console()._width = 10000

@@ -88,6 +88,9 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     macros.register_macro('CHS', 1, functools.partial(expand_ch, course))  # short link to chapter
     macros.register_macro('CHL', 1, functools.partial(expand_ch, course))  # long link
     macros.register_macro('CHM', 2, functools.partial(expand_ch, course))  # manual link
+    macros.register_macro('PARTREF', 1, functools.partial(expand_partref, course))  # slug as linktext
+    macros.register_macro('PARTREFTITLE', 1, functools.partial(expand_partref, course))  # title as linktext
+    macros.register_macro('PARTREFMANUAL', 2, functools.partial(expand_partref, course))  # explicit linktext
     macros.register_macro('DIFF', 1, sdrl.course.Task.expand_diff)
     macros.register_macro('HINT', 1, expand_hint)
     macros.register_macro('ENDHINT', 0, expand_hint)
@@ -229,6 +232,14 @@ def expand_ch(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
         return f"[{html.escape(linktext, quote=False)}]({chapter.outputfile})"
     else:
         assert False, macrocall  # impossible
+
+
+def expand_partref(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
+    part = course.get_part(macrocall.filename, macrocall.arg1)
+    linktext = dict(PARTREF=part.slug, 
+                    PARTREFTITLE=part.title, 
+                    PARTREFMANUAL=macrocall.arg2)[macrocall.macroname]
+    return f"<a href='{part.outputfile}' class='partref-link>{html.escape(linktext)}</a>"
 
 
 def expand_hint(macrocall: macros.Macrocall) -> str:
