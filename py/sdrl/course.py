@@ -193,9 +193,9 @@ class Course(part.Structurepart):
         self.outputfile = "index.html"
         self.namespace = dict()
         self.namespace_add(configfile, self)
-        self.glossary = glossary.Glossary(self.chapterdir)
         if read_contentfiles:
             self.read_partsfile(f"{self.chapterdir}/index.md")
+            self.glossary = glossary.Glossary(self.chapterdir)
         if include_stage in self.stages:
             self.include_stage = include_stage
             self.include_stage_index = self.stages.index(include_stage)
@@ -256,7 +256,7 @@ class Course(part.Structurepart):
         return self.taskdict.get(taskname)
 
     def get_part(self, context: str, partname: str) -> part.Structurepart:
-        """Return part for given partname or self if no such part exists."""
+        """Return part for given partname or self (and create an error) if no such part exists."""
         if partname in self.namespace:
             return self.namespace[partname]
         b.error(f"{context}: part '{partname}' does not exist")
