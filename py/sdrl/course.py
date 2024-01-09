@@ -197,6 +197,7 @@ class Course(part.Partscontainer):
             self.read_partsfile(f"{self.chapterdir}/index.md")
             self.find_zipdirs(self.chapterdir)
             self.glossary = glossary.Glossary(self.chapterdir)
+            self.namespace_add("", self.glossary)
         if include_stage in self.stages:
             self.include_stage = include_stage
             self.include_stage_index = self.stages.index(include_stage)
