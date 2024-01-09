@@ -154,7 +154,7 @@ class Task(part.Structurepart):
         return hash(self.slug)
 
 
-class Course(part.Structurepart):
+class Course(part.Partscontainer):
     """
     The master data object for this run.
     Can be initialized in two different ways: 
@@ -195,6 +195,7 @@ class Course(part.Structurepart):
         self.namespace_add(configfile, self)
         if read_contentfiles:
             self.read_partsfile(f"{self.chapterdir}/index.md")
+            self.find_zipdirs(self.chapterdir)
             self.glossary = glossary.Glossary(self.chapterdir)
         if include_stage in self.stages:
             self.include_stage = include_stage
@@ -379,7 +380,7 @@ class Course(part.Structurepart):
         return name in self.taskdict or name in self.taskgroupdict
 
 
-class Chapter(part.Structurepart):
+class Chapter(part.Partscontainer):
     course: Course
     taskgroups: tg.Sequence['Taskgroup']
     
@@ -398,6 +399,7 @@ class Chapter(part.Structurepart):
                         mustcopy_attrs='title',
                         cancopy_attrs='stage, todo',
                         mustexist_attrs='', overwrite=True)
+            self.find_zipdirs(self.course.chapterdir)
         self.evaluate_stage(context, course)
         course.namespace_add(self.sourcefile, self)
         self.taskgroups = [Taskgroup(self, taskgroup, read_contentfiles) 
@@ -423,7 +425,7 @@ class Chapter(part.Structurepart):
         return result
 
 
-class Taskgroup(part.Structurepart):
+class Taskgroup(part.Partscontainer):
     TOC_LEVEL = 1  # indent level in table of contents
     chapter: Chapter
     tasks: list['Task']
@@ -445,6 +447,7 @@ class Taskgroup(part.Structurepart):
                         mustcopy_attrs='title',
                         cancopy_attrs='minimum, stage, todo',
                         mustexist_attrs='', overwrite=True)
+            self.find_zipdirs(self.chapter.course.chapterdir)
         self.evaluate_stage(context, chapter.course)
         chapter.course.namespace_add(self.sourcefile, self)
         if read_contentfiles:
