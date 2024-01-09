@@ -1,6 +1,24 @@
 # `sedrila` use for course authors
 
-What you need to provide as a course author:
+Assumes Unix filenames, will not work properly on Windows.
+On a Windows platform, use WSL or Cygwin.
+
+A sedrila course consists of chapters, taskgroups, tasks, a glossary,
+possibly .zip directories, and a config file.
+Each chapter, taskgroup, or task (as well as the glossary) is represented
+by a text file containing YAML metadata ("front matter") and a body
+using Markdown markup (plus various sedrila-specific macros, 
+plus sometimes "replacement blocks").
+
+The content below describes the details of these data (Section 1),
+how to generate the course website from it (Section 2),
+and how to make and maintain a fork of an existing sedrila course (Section 3)
+
+
+# 1. Content structure of a sedrila course
+
+## 1.0 Overview: What you provide as a course author
+
 - One plain text file per potential task.  
   That file contains metadata (at the top of the file in Yaml format) and
   the task description offered to the students (including
@@ -12,42 +30,49 @@ What you need to provide as a course author:
   - 'taskgroups' (typically 2 to 6 per chapter) form a second level below that
 - A central configuration file `sedrila.yaml`, which contains global configuration data,
   global metadata and most metadata for chapters and taskgroups.
-- Page format templates to be used for the rendered HTML pages
-  (in [Jinja2](https://jinja.palletsprojects.com/en/3.1.x/) format, 
-  defaults are included and are usually sufficient).
-- A CSS file (a simple default is included and is often sufficient).
+- A glossary file `glossary.md`, which defines common terms the tasks may refer to.
+- Perhaps page format templates to be used for the rendered HTML pages
+  (in [Jinja2](https://jinja.palletsprojects.com/en/3.1.x/) format). 
+  Defaults are included with sedrila and are usually sufficient.
+- Probably some CSS rules in `local.css` or a complete set of CSS rules in `sedrila.css`.
+  A default `sedrila.css` is included and may be sufficient.
 
 
-# 1. Content structure of a sedrila course
-
-## 1.1 `sedrila.yaml`: The global configuration file  # TODO 2: add the missing parts
+## 1.1 `sedrila.yaml`: The global configuration file
 
 This is best explained by example. Have a look at:
 
-https://github.com/fubinf/propra-inf/blob/main/sedrila.yaml
+https://github.com/fubinf/propra-inf/blob/main/sedrila.yaml (content in German, but that should hardly matter)
 
 About the entries:
 
-- `title`: can be chosen freely at all levels (course,
-  chapters, taskgroups).
+- `title`: Course title, can be chosen freely.
+  A title exists at all levels (course, chapter, taskgroup, task).
   Titles are used for headings and for tooltips of links.
-- `baseresourcedir`, `chapterdir`, `templatedir`:
-  purely internal names of interest to course authors only.
-  They describe the directory structure.
+- `breadcrumb_title`: Short title of the course to be used in the breadcrumb navigation.
+- `baseresourcedir` is optional and states where the few CSS and JavaScript files live. 
+  Not defining a `baseresourcedir` means to use the built-in default files.  
+- `chapterdir`: Where the course content lives.  
   The names of directories below `chapterdir` are the slugs of chapters (level 1)
-  and the slugs of taskgroups (level 2).
-  Slugs are used for the filenames in the generated HTML directory.
+  and the slugs of taskgroups (level 2).  
+  Slugs are used for two purposes: as short names for identifying a part and
+  for the filenames in the generated HTML directory.  
+  There are five part types: course, chapter, taskgroup, task, and glossary.
+  For a task defined by file `abc.md`, the slug (and hence taskname) is `abc`.
+- `templatedir` is also optional and states where the Jinja2 templates for the overall page structures live. 
+  Not defining a `templatedir` means to use the built-in default files,  
+  which is probably sufficient for most cases.
 - `profiles`: The list of allowed entries in the `profiles:` metadata list of a part.
   A profile describes an area of interest, such as a topic area or professional specialty.
   This is meant to add a second grouping to the tasks besides that provided by chapters and taskgroups.
 - `stages`: ordered list of allowed values for the 'stage:' metadata entry for tasks, taskgroups, and chapters.
   Meant to represent the development stage of a part, from a draft entry to a finished one.
-  For instance, if stages are `['draft', 'alpha', 'beta']` and sedrila is called with
+  For instance, if stages are `['draft', 'alpha', 'beta']` (the recommended set) and sedrila is called with
   option `--include_stage alpha`, then parts with stage `alpha` or `beta` are used,
   as are those with no `stage:` entry, but parts with stage `draft` will be suppressed.
   No stage is the default and represents finished entries.
 - `blockmacro_topmatter`: specifies fixed text that is inserted in the generated HTML files
-  before the block content of a SECTION, HINT, NOTICE, WARNING, or INSTRUCTOR block macro call.
+  before the block content of a SECTION, HINT, NOTICE, WARNING, or INSTRUCTOR block macro call, see below.
   For SECTION, there are entries for each type (1st argument to the macro call) and
   further entries for each subtype (2nd argument).
   The generated HTML will also use corresponding CSS classes for each of those entire blocks.
@@ -55,9 +80,10 @@ About the entries:
   for their work. 
   When they accept or reject student work in a _"submission.yaml checked"_ commit,
   instructors must sign that commit. 
-  The `instructors.fingerprint` entries (of GnuPG GPG key fingerprints) determine,
+  The `instructors.fingerprint` entries (of GnuPG GPG key fingerprints) determine
   which signatures `sedrila` will consider valid.
-- `chapters`: describes the course content at the chapter and taskgroup level.
+- `chapters`: describes the course content at the chapter and taskgroup level by listing
+  the directory name of each chapter and taskgroup.
   The individual tasks are found by inspecting all `*.md` files in a taskgroup directory.
 
 
@@ -84,6 +110,7 @@ mychapter1
         ...
 mynextchapter
     ... 
+glossary.md
 index.md
 ```
 
@@ -92,17 +119,78 @@ course by mentioning them in `sedrila.yaml`, which also defines their order.
 All tasks within a taskgroup will be used,
 their order is determined by a topological sort according to possible dependencies, see below.
 
-The directory names of chapters and taskgroups must be unique throughout the course.
-The file names of tasks must be unique throughout the course.
-By convention, chapter and taskgroup names use lowercase, task names use CamelCase.
-
+The names of all parts must be distinct (unique) throughout the course.
 The top-level `index.md` file is the course's homepage (the landing page).
 The `index.md` files at chapter level act as chapter landing pages,
 those at taskgroup level act as task group landing pages.
 The latter two types follow a similar technical format as described below for task files.
 
 
-## 1.3 Task files: YAML top matter
+## 1.3 Special sedrila markup: Macros
+
+The specific macros will be described further down.
+General things to know about macros are these:
+
+- Macros have names in all UPPERCASE and each have 0, 1, or 2 formal parameters.
+- Sedrila supplies a fixed set of macros, discussed further down.
+- Macro calls come in square brackets, parameters use a `::` as delimiter.    
+  Examples: [SOMEMACRONAME], [OTHERMACRO::arg1], [YETANOTHER::arg1::arg2].
+- If a macro is not defined or has a different number of parameters than supplied in the call,
+  sedrila will complain.
+- A macro call cannot be split over multiple lines.
+- Some macros serve as markup for blocks of text. These macros come in `X`/`ENDX` pairs:  
+  ```
+  [WARNING::arg1]
+  body text, as many lines as needed
+  [ENDWARNING]
+  ```
+- Due to the simplistic parser used, an `X`/`ENDX` block cannot be nested in another
+  `X`/`ENDX` block and both macro calls must be alone on a line by themselves.
+- Non-block macro calls can be mixed with other content on a line.
+
+
+## 1.4 Special sedrila markup: replacement blocks
+
+A replacement block looks like this:
+```
+some text <replacement id="someId">text to be replaced</replacement> some more text.
+```
+The idea is that the text to be replaced is somehow location-dependent
+(such as the URL of a server of the local university)
+and other universities using the same ProPra should be able to replace it
+with their own local version in a simple manner.
+Simple means they can fork the ProPra repository but need hardly ever make
+any change to the actual task files, only to a single, central _replacements file_.
+
+The replacements file is `replacements.md` in the top level of the ProPra repo.
+It contains simply a list of replacement blocks:
+
+```
+<replacement id="someId">
+our adapted local text (could also be on a single line instead of three)
+</replacement>
+
+
+<replacement id="otherId">
+This is a longer replacement that can continue for multiple paragraphs.
+
+Replacements can use _any_ **markup**, including macro calls,
+only excluding other replacements.
+[WARNING]
+Beware of the dog!
+[ENDWARNING]
+
+## Next heading
+And so on.  
+</replacement>
+```
+
+Sedrila will replace the `text to be replaced` with its counterpart from the replacement file
+exactly as written and will remove the `<replacement id="someId">` and `</replacement>` pseudo tags.
+The `id` should start with the respective task, taskgroup, or chapter name.
+
+
+## 1.5 Task files: YAML top matter
 
 The meat of a SeDriLa course is in the individual task files.
 A task file is a Markdown file in a particular format.
@@ -117,9 +205,10 @@ Here is a small example:
 
 ```
 title: Convention for Git commit messages for work time tracking
-timevalue: 1
+timevalue: 1.0
 difficulty: 1
-status: incomplete
+stage: alpha
+explains: concept 1, other concept
 assumes: Git101
 requires: CreateRepo
 ---
@@ -142,12 +231,15 @@ The YAML attributes have the following meaning:
 - `difficulty`: integer (1, 2, 3, or 4), required.  
   The difficulty level of the task. Will be shown as markup in the task's menu entry.
   Meaning: 1:very_simple, 2:simple, 3:medium, 4:difficult.
-- `status`: string, optional.  
-  This can be any length, but only the first word is used semantically as the status, 
+- `stage`: string, optional.  
+  This can be any length, but only the first word is used semantically as the stage, 
   everything else is just comment.
-  Currently, the only first word allowed is "incomplete".
-  Tasks, task groups, or chapters marked as incomplete will be left out of the generated
-  web pages, unless a flag is provided in the sedrila call to include them as well.
+  Tasks, task groups, or chapters marked with too-low a stage (according to the value
+  supplied with the `--include_stage` options of the commandline sedrila call)
+  will be left out of the generated web pages.
+- `explains`: string, optional. Comma-separated list of terms defined in the glossary,
+  meaning that the present task description offers relevant information about these terms.
+  The task name will be listed among the "explained by" parts in the glossary entry.
 - `assumes`: string (a comma-separated list of task or taskgroup names), optional.  
   The present task assumes that the student already possesses the knowledge that can be learned from 
   those tasks, but the student can decide whether they want to do the tasks or have the knowledge
@@ -162,12 +254,188 @@ The YAML attributes have the following meaning:
   If the list is empty, leave out the entry.
 
 
-## 1.4 Task files: markdown macros for content structure  TODO 2
+## 1.6 `[SECTION]`/`[ENDSECTION]` macros for content structure
 
-((Currently described in file `how-to.md` in the sister repo `propra-inf`))
+It is useful for learners if tasks follow a recurring content structure,
+possibly with corresponding visual structure.
+The `[SECTION::sectiontype::sectionsubtype]` macro supports both.
+
+Sections follow one after another; they are usually not nested.  
+They are marked up for example like this:
+```
+[SECTION::goal::idea]
+Understand section markup
+[ENDSECTION]
+```
+
+Section types (like `goal` above) and subtypes (like `idea` above) 
+come from a fixed list declared via the
+`blockmacro_topmatter` part of `sedrila.yaml`.
+Each type and subtype will use corresponding CSS styles in the generated output,
+so that the visual appearance can be customized.
+
+Although each sedrila course can hence decide its section structure itself,
+sedrila comes with a recommendation:
+
+### 1.6.1 Recommendation for section usage and `[SECTION]` types
+
+The entire body of a task description is divided into sections; 
+the only extra text is possibly a number of `[INSTRUCTOR]`/`[ENDINSTRUCTOR]` blocks
+before, between, or (most likely) after the sections.
+
+In contrast, chapters' and taskgroups' `index.md` files can optionally use 
+goal and background sections at their top, but then always
+continue with section-free text for characterizing the content of the chapter or taskgroup.
+
+The page title is a `<h1>` heading, `[SECTION::...]` macros by convention generate a `<h2>` heading.
+Therefore, inside sections you should use (if needed) `### ` headings.
+
+#### 1.6.1.1 `[SECTION::goal::...]`
+
+Short definition what is to be learned (this is the prefered type) or 
+achieved (if this is mostly a stepping stone for something else). 
+
+The goal is always formulated in first-person perspective ("I").
+It is either short or a bulleted list of short items.
+Can be positioned first (this is the prefered structure) or 
+nested inside the background section (using [INNERSECTION::goal::...]) or
+after the entire background.
+
+#### 1.6.1.2 `[SECTION::background::default]`  
+
+Knowledge required for understanding the instructions and solving the task.
+
+Only present if needed. Keep this short.  
+If lots of background are needed, turn it into steps of the instructions.
+
+#### 1.6.1.3 `[SECTION::instructions::...]`  
+
+The main part of the task: Instructions what to do.
+
+More strongly than for other sections, 
+this section looks hugely different depending on difficulty level.
+See the discussion of difficulty levels above and of instructions subtypes below.
+
+#### 1.6.1.4 `[SECTION::submission::...]`  
+
+Final part of the task: Description what to prepare for the instructor to check.
+
+Characterizes 
+
+- the format (eg. `.md` file or `.py` file or directory with several files),
+- the content, 
+- and perhaps quality criteria.
 
 
-## 1.5 Taskgroup `index.md` files
+### 1.6.2 Recommendation for section subtypes
+
+#### 1.6.2.1 goal
+
+- `[SECTION::goal::product]`:  
+  A work product itself is the task's goal (because we want to have it or want to build on top of it).
+  Usually difficulty 3 or 4.
+- `[SECTION::goal::idea]`:  
+  Understanding a concept or idea is the goal. Difficulty 1, 2, or 3.
+- `[SECTION::goal::experience]`:  
+  Accumulating experience from actual technical problem-solving is the task's goal.
+  Difficulty 3 or 4.
+- `[SECTION::goal::trial]`:  
+  The task's goal is a mix of the types 'idea' (mostly) and 'experience' (smaller part). 
+  Difficulty 1 to 3 (or perhaps 4).
+
+
+#### 1.6.2.2 background
+
+- `[SECTION::background::default]`:  
+  There is only one type of background section.
+
+
+#### 1.6.2.3 instructions
+
+- `[SECTION::instructions::detailed]`:  
+  The instructions are such that the student must merely follow them closely for 
+  solving the task and hardly needs to do problem-solving themselves.
+  These tasks are easy (difficulty 1 or 2) for the students but
+  difficult for the authors, because we need to think of so many things.
+- `[SECTION::instructions::loose]`:  
+  The instructions are less complete; the student must fill instruction gaps of moderate size
+  but we provide information where to look for the material to fill them.
+  Difficulty 3 or 4.
+- `[SECTION::instructions::tricky]`:  
+  The instructions are of a general nature, far removed from the detail required for a solution.
+  The student must not only determine many details, but must also make decisions that can
+  easily go wrong, making a successful solution much harder.
+  Difficulty 4.
+
+
+#### 1.6.2.4 submission
+
+- `[SECTION::submission::reflection]`:  
+  Students submit a text containing their thoughts about something.
+- `[SECTION::submission::information]`:  
+  Students submit concrete information they found in an inquiry. 
+- `[SECTION::submission::snippet]`:  
+  Students submit a short snippet of program text, e.g. a shell command (or a few).
+- `[SECTION::submission::trace]`:  
+  Students submit a log of an interactive session or the output of a program run. 
+- `[SECTION::submission::program]`:  
+  Students submit an entire program with many moving parts.
+
+
+### 1.6.3 `[INNERSECTION]`/`[ENDINNERSECTION]`
+
+If you insist on nesting some of your sections, use a maximum nesting depth of 1
+and use the `[INNERSECTION]`/`[ENDINNERSECTION]` pair of macros for the nested section.
+The same types and subtypes apply.
+
+
+## 1.7 Other block macros: `[INSTRUCTOR]`, `[WARNING]`, `[HINT]`, `[INCLUDE]`, hyperlinks
+
+- `[INNERSECTION::type::subtypes]`/`[ENDINNERSECTION]`:
+  The same functionality as `[SECTION::type::subtypes]`, but used within some other section
+  rather than after it. (Needed to make our simplistic parser work properly for this case.)
+- `[WARNING]`/`[ENDWARNING]`:    
+  A warning of a pitfall to be avoided.
+  Will render as an eye-catching text box.
+- `[HINT::title text]`/`[ENDHINT]`:  
+  Information, typically in the instructions section, that is helpful for solving the task
+  but that students are intended to find out themselves.
+  Therefore, the body text of the hint is not visible initially, only the title text is.
+  Students can fold out the hint body when they recognize they need more help.
+  Use this in particular for making sure a task that is intended to be
+  difficulty 3 does not end up being difficulty 4.
+  Use it also to make it likely that a task at difficulty 2 is interesting enough for
+  somebody who would rather do difficulty 3.
+
+
+## 1.8 Other macros 
+
+### 1.8.1 Macros for hyperlinks: `[PARTREF]`, `[PARTREFTITLE]`, `[PARTREFMANUAL]`, `[TERMREF]`
+
+- `[PARTREF::partname]`: 
+  Create a hyperlink to the part description file for task, taskgroup, chapter, or zipfile `partname`,
+  using the partname as the link text.
+- `[PARTREFTITLE::partname]`: 
+  Ditto, but using the part's title as the link text.
+- `[PARTREFMANUAL::partname::link text]`: 
+  Ditto, but using the given link text.
+- `[TERMREF::term]`:
+  Create a hyperlink to the glossary entry `term`; see under glossary below.
+
+
+### 1.8.2 `[INCLUDE]`, `[TOC]`, `[DIFF]`
+
+- `[INCLUDE::filename]`: inserts the entire contents of file `filename` verbatim
+  into the Markdown input stream at this point.
+  Useful for having small Python programs (etc.) as separate files during development,
+  so they can be executed and tested.
+  The students copy/paste the file from within the page in the web browser.
+  Also perhaps useful for inserting identical blocks of text needed in several places.
+- `[TOC]`: Generates a table of contents from the markdown headings present in the file
+- `[DIFF::level]` generates the task difficulty mark for the given level, from 1 (very simple) to 4 (difficult).
+
+
+## 1.9 Taskgroup `index.md` files
 
 A taskgroup is described by an `index.md` file in the respective directory,
 which consists of a YAML part and text part much like a task file.
@@ -176,15 +444,54 @@ The text part provides an idea of the taskgroup's topic area
 and in particular motivates why that knowledge is helpful.
 
 The YAML part can have only few entries:
+- `title`, `stage`, `explains`: like for tasks.
 - `minimum`: integer, optional.  
   The minimum number of tasks that must be done in this taskgroup for the taskgroup
   to be considered done if it appears in a task's `assumes` or `requires` list.
   If no `minimum` entry exists, it means all tasks of the taskgroup must be done.
-- `status`: Like for tasks.
 
-## 1.6 Chapter `index.md` files
 
-Just like taskgroup `index.md` files, except that `minimum` entries are not allowed.
+## 1.10 Chapter `index.md` files
+
+Just like taskgroup `index.md` files, except that `explains` entries and `minimum` entries are not allowed.
+
+
+## 1.11 The glossary: `glossary.md` in `chapterdir`, `[TERM]` macro
+
+The glossary is a singleton living at the `chapterdir` top-level directory.
+It is generated from a source file `glossary.md`.
+The YAML topmatter has only one attribute: `title`.
+
+The body of the file mostly consists of term definition blocks like the following
+```
+[TERM::myterm|otherform|yet another]
+As much markdown text as required for defining the term.
+- may have itemized lists 
+- and other markup
+- in particular calls to the [TERMREF]/[TERMREF2] macros described above
+[ENDTERM]
+```
+This defines a term that shows up in the glossary as `myterm`,
+but can be referenced by any of 
+`[TERMREF::myterm]`, `[TERMREF::otherform]`, or `[TERMREF::yet another]`. 
+
+
+## 1.12 `.zip` directories
+
+At the level of a chapter or a taskgroup, you can place a subdirectory
+with a name ending in `.zip`, say, `myarchive.zip`.
+
+Sedrila will zip the contents of that directory into a zipfile of the same name
+in the generated output.
+The directory structure within that zipfile will reflect the directory structure
+both above and below the zipdirectory, so if you have a file, say,
+`chapterdir/mychapter/mytaskgroup/myarchive.zip/mysubdir/myfile.txt`,
+the generated zipfile `myarchive.zip` will contain an entry
+`mychapter/mytaskgroup/myarchive/mysubdir/myfile.txt`.
+
+This is useful for supplying learners with resources they can download easily
+if multiple files are involved, and still keep those files in an easily editable form.
+Use this for handsful of files. For large structures, apply separate repositories.
 
 
 # 2. Calling `sedrila`  TODO 2: describe sedrila author calls
