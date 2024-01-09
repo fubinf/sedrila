@@ -1,10 +1,16 @@
 """
 Common superclass for
-a) Course, Chapter, Taskgroup, Task as defined in course.py
-b) Glossary as defined in glossary.py
-Not all attributes make full sense for the latter, but we use it for uniformity's sake.
+a) Course, Chapter, Taskgroup (all via Partscontainer), and Task, all defined in course.py 
+b) Glossary, defined in glossary.py
+c) ZipDir
+Not all attributes are needed for all parts; 
+the design is a bit scruffy, which saves various intermediate superclasses.
 """
+
+import glob
+import os.path
 import re
+import zipfile
 
 import yaml
 
@@ -43,7 +49,7 @@ class Structurepart:
     def as_json(self) -> b.StrAnyDict:
         return dict(title=self.title)
 
-    def evaluate_stage(self, context: str, course: 'Course') -> None:
+    def evaluate_stage(self, context: str, course) -> None:
         """
         Cut the 'stage' attribute down to its first word, check it against course.stages, report violations.
         Set self.skipthis according to course.include_stage.
@@ -83,3 +89,62 @@ class Structurepart:
             self.metadata = yaml.safe_load(self.metadata_text)
         except yaml.YAMLError as exc:
             b.error(f"{self.sourcefile}: metadata YAML is malformed: {str(exc)}")
+
+
+class Zipdir(Structurepart):
+    """
+    Turn directories named ch/mychapter/mytaskgroup/myzipdir.zip 
+    containing a tree of files, say, myfile.txt
+    into an output file myzipdir.zip
+    that contains mychapter/mytaskgroup/myzipdir/myfile.txt.  
+    """
+    innerpath: str  # relative pathname of the zipdir, to be re-created in the ZIP archive
+
+    def __init__(self, dirprefix: str, dirname: str, outputdir: str):
+        assert dirname.startswith(dirprefix)
+        assert dirname[-1] != '/'  # dirprefix must not end with a slash, else our logic would break
+        self.sourcefile = dirname
+        self.slug = self.outputfile = os.path.basename(dirname)  # e.g. myfile.zip
+        bareslug = self.slug[:-4]  # e.g. myfile
+        innerpath1 = os.path.dirname(dirname).replace(dirprefix+'/', '', 1)
+        self.innerpath = f"{innerpath1}/{bareslug}"
+
+    def render(self, targetdir: str):
+        with zipfile.ZipFile(f"{targetdir}/{self.outputfile}", mode='w') as archive:
+            self._zip_the_files(archive)
+
+    def _zip_the_files(self, archive: zipfile.ZipFile):
+        for dirpath, dirnames, filenames in os.walk(self.sourcefile):
+            for filename in sorted(filenames):
+                sourcename = f"{dirpath}/{filename}"
+                targetname = self._path_in_zip(sourcename)
+                archive.write(sourcename, targetname)
+
+    def _path_in_zip(self, sourcename: str) -> str:
+        """
+        Remove outside-of-zipdir prefix, then use innerpath plus inside-of-zipdir remainder.
+        """
+        slugpos = sourcename.find(self.slug)  # will always exist
+        remainder = sourcename[slugpos+len(self.slug)+1:]
+        return f"{self.innerpath}/{remainder}"
+
+
+class Partscontainer(Structurepart):
+    """A Structurepart that can contain other Structureparts."""
+    zipdirs: list[Zipdir]
+    
+    def find_zipdirs(self, dirprefix: str):
+        """find all dirs (not files!) *.zip in inputdir (not below!), warns about *.zip files"""
+        self.zipdirs = []
+        inputdir = os.path.dirname(self.sourcefile)
+        outputdir = os.path.dirname(self.outputfile)
+        zipdirs = glob.glob(f"{inputdir}/*.zip")
+        for dirname in zipdirs:
+            if os.path.isdir(dirname):
+                self.zipdirs.append(Zipdir(dirprefix, dirname, outputdir))
+            else:
+                b.warning(f"'{dirname}' is a file, not a dir, and will be ignored.")
+
+    def render_zipdirs(self, targetdir):
+        for zipdir in self.zipdirs:
+            zipdir.render(targetdir)
