@@ -1,0 +1,1 @@
+This file goes into myarchive.zip verbatim, as ch1/myarchive/zipped.txt.

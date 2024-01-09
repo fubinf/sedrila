@@ -3,6 +3,7 @@ import argparse
 import contextlib
 import glob
 import shutil
+import zipfile
 
 import bs4
 
@@ -24,6 +25,7 @@ expected_filelist = [
     'glossary.html',
     'index.html',
     'local.css',
+    'myarchive.zip',
     'sedrila.css', 'sidebar.js',
     'task111r+a.html', 'task112.html', 'task113.html', 'tg11.html', 'tg12.html', 
 ]
@@ -121,6 +123,7 @@ def test_sedrila_author(capfd):
         _check_filelist()
         _check_toc()
         _check_task_html()
+        _check_zipfile()
         _check_glossary()
         _check_reporting(actual_output)
 
@@ -182,6 +185,10 @@ def _check_task_html():
 def _check_glossary():
     pass  # will be tested by glossary_test.py
 
+
+def _check_zipfile():
+    with zipfile.ZipFile("myarchive.zip") as zip:
+        assert zip.namelist() == ["ch1/myarchive/zipped.txt"]
 
 def _check_reporting(actual_output: str):
     """Check actual_output line-for-line to be like expected_output."""
