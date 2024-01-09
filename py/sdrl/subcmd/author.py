@@ -98,8 +98,8 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     macros.register_macro('INCLUDE', 1, expand_include)
     # ----- generate top-level file:
     b.info(f"generating top-level index files")
-    render_welcome(course, env, targetdir_s, b.Mode.STUDENT, course.blockmacro_topmatter)
-    render_welcome(course, env, targetdir_i, b.Mode.INSTRUCTOR, course.blockmacro_topmatter)
+    render_homepage(course, env, targetdir_s, b.Mode.STUDENT, course.blockmacro_topmatter)
+    render_homepage(course, env, targetdir_i, b.Mode.INSTRUCTOR, course.blockmacro_topmatter)
     # ----- generate chapter and taskgroup files:
     b.info(f"generating chapter and taskgroup files")
     for chapter in course.chapters:
@@ -272,23 +272,25 @@ def topmatter(macrocall: macros.Macrocall, name: str) -> str:
         return ""  # neutral result
 
 
-def render_welcome(course: sdrl.course.Course, env, targetdir: str, 
-                   mode: b.Mode, blockmacro_topmatter: dict[str, str]):
+def render_homepage(course: sdrl.course.Course, env, targetdir: str,
+                    mode: b.Mode, blockmacro_topmatter: dict[str, str]):
     template = env.get_template("homepage.html")
-    if hasattr(course, "content"):
-        render_structure(course, template, course, env, targetdir, mode, blockmacro_topmatter)
+    render_structure(course, template, course, env, targetdir, mode, blockmacro_topmatter)
+    course.render_zipdirs(targetdir)
 
 
 def render_chapter(chapter: sdrl.course.Chapter, env, targetdir: str, 
                    mode: b.Mode, blockmacro_topmatter: dict[str, str]):
     template = env.get_template("chapter.html")
     render_structure(chapter.course, template, chapter, env, targetdir, mode, blockmacro_topmatter)
+    chapter.render_zipdirs(targetdir)
 
 
 def render_taskgroup(taskgroup: sdrl.course.Taskgroup, env, targetdir: str, 
                      mode: b.Mode, blockmacro_topmatter: dict[str, str]):
     template = env.get_template("taskgroup.html")
     render_structure(taskgroup.chapter.course, template, taskgroup, env, targetdir, mode, blockmacro_topmatter)
+    taskgroup.render_zipdirs(targetdir)
 
 
 def render_task(task: sdrl.course.Task, env, targetdir: str, 
@@ -330,6 +332,7 @@ def render_structure(course: sdrl.course.Course,
 
 
 def structure_path(structure: sdrl.part.Structurepart) -> list[sdrl.part.Structurepart]:
+    """List of nested parts, from a given part up to the course."""
     path = []
     if isinstance(structure, sdrl.course.Task):
         path.append(structure)
