@@ -43,7 +43,7 @@ Correspondingly, it basically has three functions:
   - The template is a directory tree 
     (maintained in a git repository and developed much like software by the course owners)
     with a prescribed structure that contains all the task descriptions, written in Markdown.
-  - The instance is a directory tree of static HTML pages.
+  - The instance is a directory of static HTML pages.
   - The generation is controlled by a configuration file.
 - `student` tells the students how many hours are on their timevalue account so far
   and helps them prepare a submission to an instructor.
@@ -64,7 +64,7 @@ pip install sedrila
 
 ## 2.2 Usage instructions
 
-There separate instructions for each user group:
+There are separate instructions for each user group:
 
 - [Course authors](doc/authors.md) 
   who formulate tasks and decide their timevalues before a SeDriLa course starts.
@@ -101,18 +101,19 @@ sedrila --help
 - Task-level metadata is stored in YAML format at the top of each task Markdown file
   to obtain locality and to make it easier to randomize task selection when
   creating a course instance.
-- We use a few custom Markdown extensions ("macros") for
+- We use a various custom Markdown extensions ("macros") for
   - file-local table of contents;
-  - value-added integrity-checked links to tasks, taskgroups, chapters;
+  - value-added integrity-checked links to tasks, taskgroups, chapters,
+    and glossary entries;
   - embedding instructor-only content to be used for the instructor version of the webpages;
+  - embedding highlighted optional hints (with fold/unfold functionality);
   - other preconfigured formatting, in particular for structuring the content of task descriptions
     into background, goal, instruction, and deliverables ("submission") parts.
-- We use plain, passive HTML for the generated course webpage.
+- We use plain, mostly passive HTML for the generated course webpage, 
+  with only very little JavaScript.
 - We support localizing a fork of a sedrila course in a manner that can avoid most
   merge conflicts with later improvements of the original course.
 - We use a student git repository for all solution transportation and bookkeeping.
-- We assume the first path element of the git repository URL is a username and
-  identifies the student. 
 
 
 ## 3.2 Bookkeeping architecture
@@ -162,5 +163,5 @@ If you intend to do it yourself, add your name in parens:
 `TODO 1: find proper formulation (Lutz)`
 
 Then use the IDE global search to work through these layer-by-layer.
-Demote items to a lower priority (or remove them) when they become stale.
+Demote items to a lower priority when they become stale or remove them.
 Kick out prio 3 items when they become unlikely.
