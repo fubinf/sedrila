@@ -11,6 +11,7 @@ import rich
 import rich.table
 import yaml
 
+
 CONFIG_FILENAME = "sedrila.yaml"  # at top-level of source dir
 GLOSSARY_BASENAME = "glossary"  # .md at top-level of chapterdir, .html in build directory
 METADATA_FILE = "course.json"  # at top-level of build directory
@@ -89,13 +90,15 @@ def copyattrs(context: str, source: StrAnyDict, target: tg.Any,
 
 def slurp(resource: str) -> str:
     """Reads local file (via filename) or http resource (via URL)."""
-    if resource.startswith('http:') or resource.startswith('https://'):
-        response = requests.get(resource)
-        return response.text
-    else:
-        with open(resource, 'rt', encoding='utf8') as f:
-            return f.read()
-
+    try:
+        if resource.startswith('http:') or resource.startswith('https://'):
+            response = requests.get(resource)
+            return response.text
+        else:
+            with open(resource, 'rt', encoding='utf8') as f:
+                return f.read()
+    except:
+        critical(f"'{resource}' does not exist")
 
 def slurp_json(resource: str) -> StrAnyDict:
     return json.loads(slurp(resource))
