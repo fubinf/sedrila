@@ -22,6 +22,7 @@ ch/ch1/tg12/task113.duplicate: name collision: ch/ch1/tg11/task113.md and ch/ch1
 expected_filelist = [
     '_sedrila.yaml',
     'chapter-ch1.html', 'cino2r2s2tu', 'course.json',
+    'favicon-32x32.png',
     'glossary.html',
     'index.html',
     'local.css',
