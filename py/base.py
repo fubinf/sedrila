@@ -130,17 +130,17 @@ def slugify(value: str) -> str:
 
 def debug(msg: str):
     if loglevel <= logging.DEBUG:
-        _rich_print(msg)
+        rich_print(msg)
 
 
 def info(msg: str):
     if loglevel <= logging.INFO:
-        _rich_print(msg)
+        rich_print(msg)
 
 
 def warning(msg: str):
     if loglevel <= logging.WARNING:
-        _rich_print(msg, "yellow")
+        rich_print(msg, "yellow")
 
 
 def error(msg: str):
@@ -148,13 +148,13 @@ def error(msg: str):
     if msg not in msgs_seen:
         num_errors += 1
     if loglevel <= logging.ERROR:
-        _rich_print(msg, "red")
+        rich_print(msg, "red")
 
 
 def critical(msg: str):
     global num_errors
     num_errors += 1
-    _rich_print(msg, "bold red")
+    rich_print(msg, "bold red")
     sys.exit(num_errors)
 
 
@@ -172,7 +172,7 @@ def Table() -> rich.table.Table:
                             show_edge=False, show_footer=False)
 
 
-def _rich_print(msg: str, enclose_in_tag: tg.Optional[str] = None):
+def rich_print(msg: str, enclose_in_tag: tg.Optional[str] = None):
     """Print any message, but each one only once."""
     global msgs_seen
     if msg not in msgs_seen:

@@ -4,7 +4,7 @@ There are two ways how these objects can be instantiated:
 In 'author' mode, 'read_contentfiles' is true and metadata comes from sedrila.yaml and the partfiles.
 Otherwise, 'read_contentfiles' is false and metadata comes from METADATA_FILE. 
 """
-
+import dataclasses
 import functools
 import glob
 import graphlib
@@ -272,25 +272,34 @@ class Course(part.Partscontainer):
         else:
             self.namespace[name] = newpart
 
-    def volume_report_per_chapter(self) -> tg.Sequence[tg.Tuple[str, int, float]]:
-        """Tuples of (chaptername, num_tasks, timevalue_sum)"""
-        result = []
-        for chapter in (c for c in self.chapters if not c.to_be_skipped):
-            num_tasks = sum((1 for t in self.taskdict.values() if t.taskgroup.chapter == chapter))
-            timevalue_sum = sum((t.timevalue for t in self.taskdict.values() if t.taskgroup.chapter == chapter))
-            result.append((chapter.slug, num_tasks, timevalue_sum))
-        return result
+    @dataclasses.dataclass
+    class Volumereport:
+        rows: tg.Sequence[tg.Tuple[str, int, float]]
+        columnheads: tg.Sequence[str]
 
-    def volume_report_per_difficulty(self) -> tg.Sequence[tg.Tuple[int, int, float]]:
-        """Tuples of (difficulty, num_tasks, timevalue_sum)"""
+    def _volume_report(self, rowitems: tg.Iterable, column1head: str,
+                       select: tg.Callable[[Task, tg.Any], bool],
+                       render: tg.Callable[[tg.Any], str]) -> Volumereport:
+        """Tuples of (chaptername, num_tasks, timevalue_sum)."""
         result = []
-        for difficulty in Task.DIFFICULTY_RANGE:
-            num_tasks = sum((1 for t in self.taskdict.values() 
-                             if t.difficulty == difficulty and not t.to_be_skipped))
-            timevalue_sum = sum((t.timevalue for t in self.taskdict.values() 
-                                 if t.difficulty == difficulty and not t.to_be_skipped))
-            result.append((difficulty, num_tasks, timevalue_sum))
-        return result
+        for row in rowitems:
+            num_tasks = sum((1 for t in self.taskdict.values() if select(t, row) and not t.to_be_skipped))
+            timevalue_sum = sum((t.timevalue for t in self.taskdict.values() if select(t, row) and not t.to_be_skipped))
+            if num_tasks > 0:
+                result.append((render(row), num_tasks, timevalue_sum))
+        return self.Volumereport(result, (column1head, "#Tasks", "Timevalue"))
+
+    def volume_report_per_chapter(self) -> Volumereport:
+        return self._volume_report(self.chapters, "Chapter",
+                                   lambda t, c: t.taskgroup.chapter == c, lambda c: c.slug)
+
+    def volume_report_per_difficulty(self) -> Volumereport:
+        return self._volume_report(Task.DIFFICULTY_RANGE, "Difficulty",
+                                   lambda t, d: t.difficulty == d, lambda d: h.difficulty_levels[d-1])
+
+    def volume_report_per_stage(self) -> Volumereport:
+        return self._volume_report(self.stages + [None], "Stage",
+                                   lambda t, s: t.stage == s, lambda s: s or "(none)")
 
     def _add_inverse_links(self):
         """add Task.required_by/Task.assumed_by lists."""

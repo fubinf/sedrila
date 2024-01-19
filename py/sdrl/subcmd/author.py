@@ -32,6 +32,8 @@ def configure_argparser(subparser: argparse.ArgumentParser):
                                 "(default: only those with no stage)")
     subparser.add_argument('--log', default="WARNING", choices=b.loglevels.keys(),
                            help="Log level for logging to stdout (default: WARNING)")
+    subparser.add_argument('--sums', action='store_const', const=True, default=False,
+                           help="Print task volume reports")
     subparser.add_argument('targetdir',
                            help="Directory to which output will be written")
 
@@ -42,7 +44,8 @@ def execute(pargs: argparse.Namespace):
     b.info(f"## chapter {course.chapters[-1].slug} status: {getattr(course.chapters[-1], 'status', '-')}")
     generate(pargs, course)
     b.exit_if_errors()
-    print_volume_report(course)
+    if pargs.sums:
+        print_volume_report(course)
 
 
 def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
@@ -353,29 +356,23 @@ def write_metadata(course: sdrl.course.Course, filename: str):
 
 
 def print_volume_report(course: sdrl.course.Course):
-    """Show total timevalues per difficulty and per chapter."""
-    table = b.Table()
-    table.add_column("Difficulty")
-    table.add_column("#Tasks", justify="right")
-    table.add_column("Timevalue", justify="right")
-    for difficulty, numtasks, timevalue in course.volume_report_per_difficulty():
-        table.add_row(f"{difficulty}:{h.difficulty_levels[difficulty-1]}",
-                      str(numtasks), 
-                      "%5.1f" % timevalue)
-    table.add_row("[b]=TOTAL", 
-                  f"[b]{len(course.taskdict)}", 
-                  "[b]%5.1f" % sum((t.timevalue for t in course._all_tasks()
-                                    if not t.to_be_skipped)))
-    b.info(table)  # noqa
-    table = b.Table()
-    table.add_column("Chapter")
-    table.add_column("#Tasks", justify="right")
-    table.add_column("Timevalue", justify="right")
-    for chaptername, numtasks, timevalue in course.volume_report_per_chapter():
-        table.add_row(chaptername,
-                      str(numtasks), 
-                      "%5.1f" % timevalue)
-    b.info(table)  # noqa
+    """Show total timevalues per stage, difficulty, and chapter."""
+    for report in (course.volume_report_per_stage(),
+                   course.volume_report_per_difficulty(),
+                   course.volume_report_per_chapter()):
+        table = b.Table()
+        table.add_column(report.columnheads[0])
+        table.add_column(report.columnheads[1], justify="right")
+        table.add_column(report.columnheads[2], justify="right")
+        totaltasks = totaltime = 0
+        for name, numtasks, timevalue in report.rows:
+            table.add_row(name,
+                          str(numtasks),
+                          "%5.1f" % timevalue)
+            totaltasks += numtasks
+            totaltime += timevalue
+        table.add_row("[b]=TOTAL", f"[b]{totaltasks}","[b]%5.1f" % totaltime)
+        b.rich_print(table)  # noqa
 
 
 def _instructor_targetdir(pargs: argparse.Namespace) -> str:
