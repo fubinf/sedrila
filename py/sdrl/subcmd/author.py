@@ -182,7 +182,7 @@ def expand_partref(course: sdrl.course.Course, macrocall: macros.Macrocall) -> s
     linktext = dict(PARTREF=part.slug, 
                     PARTREFTITLE=part.title, 
                     PARTREFMANUAL=macrocall.arg2)[macrocall.macroname]
-    return f"<a href='{part.outputfile}' class='partref-link>{html.escape(linktext)}</a>"
+    return f"<a href='{part.outputfile}' class='partref-link'>{html.escape(linktext)}</a>"
 
 
 def expand_hint(macrocall: macros.Macrocall) -> str:
