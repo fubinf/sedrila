@@ -300,7 +300,29 @@ def render_task(task: sdrl.course.Task, env, targetdir: str,
                 mode: b.Mode, blockmacro_topmatter: dict[str, str]):
     template = env.get_template("task.html")
     course = task.taskgroup.chapter.course
+    task.linkslist = render_task_linkslist(task)
     render_structure(course, template, task, env, targetdir, mode, blockmacro_topmatter)
+
+
+def render_task_linkslist(task: sdrl.course.Task) -> str:
+    """HTML for the links to assumes/requires related tasks to be included on a task page."""
+    links = []
+    assumes_links = sorted((f"[PARTREF::{part}]" for part in task.assumes))
+    requires_links = sorted((f"[PARTREF::{part}]" for part in task.requires))
+    any_links = assumes_links or requires_links
+    if any_links:
+        links.append("\n<div class='assumes-requires-linkblock'>\n")
+    if assumes_links:
+        links.append(" <div class='assumes-links'>\n   ")
+        links.append("  " + macros.expand_macros("-", task.slug, ", ".join(assumes_links)))
+        links.append("\n </div>\n")
+    if requires_links:
+        links.append(" <div class='requires-links'>\n")
+        links.append("  " + macros.expand_macros("-", task.slug, ", ".join(requires_links)))
+        links.append("\n </div>\n")
+    if any_links:
+        links.append("</div>\n")
+    return "".join(links)
 
 
 def render_glossary(course: sdrl.course.Course, env, targetdir: str, mode: b.Mode):
