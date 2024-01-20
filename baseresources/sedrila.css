@@ -372,6 +372,21 @@ summary {}
 }
 
 
+/********** Specifics for Tasks: */
+
+.assumes-requires-linkblock {
+    margin-bottom: 2ex;
+}
+
+.assumes-links::before {
+    content: "Assumes: "
+}
+
+.requires-links::before {
+    content: "Requires: "
+}
+
+
 /********** Glossary: */
 
 .glossary-term-block {
