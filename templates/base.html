@@ -35,6 +35,9 @@
         <h1>{{title}}</h1>
       {% endif %}
     {% endblock %}
+    {% block linkslist %}
+       <!--linkslist appears only in tasks-->
+    {% endblock %}
     {% block mainpart %}
       <div>
           {{ content }}

@@ -328,6 +328,7 @@ def render_structure(course: sdrl.course.Course,
                              index=course.chapters[0].slug, index_title=course.chapters[0].title,
                              breadcrumb=h.breadcrumb(*structure_path(structure)[::-1]),
                              title=structure.title,
+                             linkslist=structure.linkslist,
                              part=structure,
                              toc=toc, fulltoc=course.toc,
                              content=html)

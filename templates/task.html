@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{% block linkslist %}
+    {{linkslist}}
+{% endblock %}
 {% block mainpart %}
   <div id="taskbody" class="pagetype-task pagetype-task-difficulty{{ part.difficulty}}">
       {{ content }}
