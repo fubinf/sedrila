@@ -47,12 +47,14 @@ def as_fingerprint(raw: str) -> str:
 
 
 def copyattrs(context: str, source: StrAnyDict, target: tg.Any, 
-              mustcopy_attrs: str, cancopy_attrs: str, mustexist_attrs: str, overwrite=True):
+              mustcopy_attrs: str, cancopy_attrs: str, mustexist_attrs: str, 
+              typecheck: dict[str, type]=dict(), overwrite=True):
     """
     Copies data from YAML or JSON mapping 'source' to class object 'target' and checks attribute set of d.
     mustcopy_attrs, cancopy_attrs, and mustexist_attrs are comma-separated attribute name lists.
     mustcopy_attrs and cancopy_attrs are copied; mustcopy_attrs and mustexist_attrs must exist; 
     cancopy_attrs need not exist.
+    typecheck defines types for attrs that must not be str.
     If overwrite is False, fails if attribute already exists in target.
     Prints error and stops on problems, using 'context' as location info in the error message.
     E.g. copyattrs(sourcefile, yaml, self, "title,shorttitle,dir", "templatedir", "chapters")
@@ -86,6 +88,10 @@ def copyattrs(context: str, source: StrAnyDict, target: tg.Any,
     extra_attrs = source_names - set(mustcopy_names) - set(cancopy_names) - set(mustexist_names)
     if extra_attrs:
         error(f"{context}: unexpected extra attributes found: {extra_attrs}")
+    for attrname, its_type in typecheck.items():
+        value = getattr(target, attrname, None)
+        if value and not isinstance(value, its_type):
+            error(f"'{context}': attribute '{attrname}' should be {str(its_type)} (is '{value}')")
 
 
 def slurp(resource: str) -> str:

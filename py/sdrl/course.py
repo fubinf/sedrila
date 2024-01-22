@@ -8,6 +8,7 @@ import dataclasses
 import functools
 import glob
 import graphlib
+import numbers
 import os
 import re
 import typing as tg
@@ -54,7 +55,8 @@ class Task(part.Structurepart):
         href = f"href='{self.outputfile}'"
         titleattr = f"title=\"{self.title}\""
         diffsymbol = h.difficulty_symbol(self.difficulty)
-        timevalue = f"<span class='timevalue-decoration' title='Timevalue: {self.timevalue} hours'>{self.timevalue}</span>"
+        timevalue = ("<span class='timevalue-decoration' title='Timevalue: %s hours'>%s</span>" %
+                     (self.timevalue, self.timevalue))
         refs = (self._taskrefs('assumed_by') + self._taskrefs('required_by') +
                 self._taskrefs('assumes') + self._taskrefs('requires'))
         profiles = ""
@@ -79,7 +81,8 @@ class Task(part.Structurepart):
                     self.metadata, self,
                     mustcopy_attrs='title, timevalue, difficulty',
                     cancopy_attrs='stage, explains, assumes, requires, profiles',  # TODO 2: check profiles against sedrila.yaml
-                    mustexist_attrs='')
+                    mustexist_attrs='',
+                    typecheck=dict(timevalue=numbers.Number, difficulty=int))
         self.evaluate_stage(file, taskgroup.chapter.course)
         taskgroup.chapter.course.namespace_add(self.sourcefile, self)
 
