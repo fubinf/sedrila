@@ -389,7 +389,7 @@ and use the `[INNERSECTION]`/`[ENDINNERSECTION]` pair of macros for the nested s
 The same types and subtypes apply.
 
 
-## 1.7 Other block macros: `[INSTRUCTOR]`, `[WARNING]`, `[HINT]`, `[INCLUDE]`, hyperlinks
+## 1.7 Other block macros: `[INSTRUCTOR]`, `[WARNING]`, `[HINT]`
 
 - `[INNERSECTION::type::subtypes]`/`[ENDINNERSECTION]`:
   The same functionality as `[SECTION::type::subtypes]`, but used within some other section
@@ -408,7 +408,7 @@ The same types and subtypes apply.
   somebody who would rather do difficulty 3.
 
 
-## 1.8 Other macros 
+## 1.8 Other macros: `[INCLUDE]`, `[PARTREFx]`, `[TERMREF]`, etc.
 
 ### 1.8.1 Macros for hyperlinks: `[PARTREF]`, `[PARTREFTITLE]`, `[PARTREFMANUAL]`, `[TERMREF]`
 
@@ -430,7 +430,8 @@ The same types and subtypes apply.
   Useful for having small Python programs (etc.) as separate files during development,
   so they can be executed and tested.
   The students copy/paste the file from within the page in the web browser.
-  Also perhaps useful for inserting identical blocks of text needed in several places.
+  Also perhaps useful for inserting identical blocks of text needed in several places;
+  use filesuffix `.inc` in those cases to avoid confusion with task files.
 - `[TOC]`: Generates a table of contents from the markdown headings present in the file
 - `[DIFF::level]` generates the task difficulty mark for the given level, from 1 (very simple) to 4 (difficult).
 
@@ -456,7 +457,7 @@ The YAML part can have only few entries:
 Just like taskgroup `index.md` files, except that `explains` entries and `minimum` entries are not allowed.
 
 
-## 1.11 The glossary: `glossary.md` in `chapterdir`, `[TERM]` macro
+## 1.11 The glossary: `glossary.md` in `chapterdir`, `[TERM]`/`[TERM0]` macros
 
 The glossary is a singleton living at the `chapterdir` top-level directory.
 It is generated from a source file `glossary.md`.
@@ -474,6 +475,9 @@ As much markdown text as required for defining the term.
 This defines a term that shows up in the glossary as `myterm`,
 but can be referenced by any of 
 `[TERMREF::myterm]`, `[TERMREF::otherform]`, or `[TERMREF::yet another]`. 
+
+Use `[TERM0]` in case no definition of the term is needed because the automatically added
+cross-references to parts mentioning and (in particular) explaining it suffice.
 
 
 ## 1.12 `.zip` directories

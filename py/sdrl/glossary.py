@@ -15,7 +15,7 @@ class Glossary(part.Structurepart):
     Links to term definitions can already be generated because they have a canonical form:
     An anchor will exist on the glossary page for each alias of a term.
     In phase 2, the collected data are used to generate the actual glossary page or error messages.
-    Defines macros TERM, TERMDEF, and TERMLONG to be used in the glossary file and
+    Defines macros TERM0 and TERM to be used in the glossary file and
     TERMREF to be used anywhere.
     """
     chapterdir: str  # where to find GLOSSARY_FILE
@@ -37,7 +37,7 @@ class Glossary(part.Structurepart):
         self.explainedby = dict()
         self.mentionedby = dict()
         self.termdefs = set()
-        self.term_linkslist = None  # set by [TERMLONG], used and unset by [ENDTERMLONG]
+        self.term_linkslist = None  # set by [TERM], used and unset by [ENDTERM]
         self._register_macros_phase1()
 
     @property
@@ -72,16 +72,14 @@ class Glossary(part.Structurepart):
     def _register_macros_phase1(self):
         macros.register_macro("TERMREF", 1, self._expand_termref)
         macros.register_macro("TERMREF2", 2, self._expand_termref)
+        macros.register_macro("TERM0", 1, self._complain_term)
         macros.register_macro("TERM", 1, self._complain_term)
-        macros.register_macro("TERMDEF", 2, self._complain_term)
-        macros.register_macro("TERMLONG", 1, self._complain_term)
-        macros.register_macro("ENDTERMLONG", 0, self._ignore_endtermlong)
+        macros.register_macro("ENDTERM", 0, self._ignore_endtermlong)
 
     def _register_macros_phase2(self):
+        macros.register_macro("TERM0", 1, self._expand_term0, redefine=True)
         macros.register_macro("TERM", 1, self._expand_term, redefine=True)
-        macros.register_macro("TERMDEF", 2, self._expand_termdef, redefine=True)
-        macros.register_macro("TERMLONG", 1, self._expand_termlong, redefine=True)
-        macros.register_macro("ENDTERMLONG", 0, self._expand_endtermlong, redefine=True)
+        macros.register_macro("ENDTERM", 0, self._expand_endterm, redefine=True)
 
     # ----- internals:
     
@@ -104,13 +102,13 @@ class Glossary(part.Structurepart):
     def _ignore_endtermlong(self, macrocall: macros.Macrocall) -> str:  # noqa
         return ""
 
-    def _expand_term(self, macrocall: macros.Macrocall) -> str:
+    def _expand_term0(self, macrocall: macros.Macrocall) -> str:
         """[TERM::term|second form of term|third form|and so on], no definition text is supplied"""
         macrocall.arg2 = ""  # empty body
         return self._expand_termdef(macrocall)
 
     def _expand_termdef(self, macrocall: macros.Macrocall) -> str:
-        """[TERMDEF::term|second form of term|etc::Short definition of term]"""
+        """allows two-argument macro calls that include a short definition"""
         termdef = macrocall.arg2
         result = self._expand_any_termdef(macrocall)
         # ----- generate body:
@@ -122,20 +120,20 @@ class Glossary(part.Structurepart):
         # ----- done!:
         return "".join(result)
 
-    def _expand_termlong(self, macrocall: macros.Macrocall) -> str:
-        """[TERMLONG::term|second form of term|etc]"""
+    def _expand_term(self, macrocall: macros.Macrocall) -> str:
+        """[TERM::term|second form of term|etc]"""
         open_body = "\n<div class='glossary-term-body'>\n\n"
         return "".join(self._expand_any_termdef(macrocall)) + open_body
 
-    def _expand_endtermlong(self, macrocall: macros.Macrocall) -> str:
-        """[ENDTERMLONG]  (a [TERMLONG] has to be open)"""
+    def _expand_endterm(self, macrocall: macros.Macrocall) -> str:
+        """[ENDTERM]  (a [TERM] has to be open)"""
         close_body = "\n\n</div>\n"
         if self.term_linkslist is not None:
             result = self.term_linkslist
             self.term_linkslist = None
             return close_body + "".join(result)
         else:
-            b.error(f"'{macrocall.filename}': [ENDTERMLONG] is lacking its [TERMLONG::...]")
+            b.error(f"'{macrocall.filename}': [ENDTERM] is lacking its [TERM::...]")
             return ""
 
     @staticmethod
@@ -152,7 +150,7 @@ class Glossary(part.Structurepart):
                 result |= termrefdict[term]
         return result
 
-    def _expand_any_termdef(self, macrocall: macros.Macrocall) -> list[str]:  # [TERM2], [TERMLONG]
+    def _expand_any_termdef(self, macrocall: macros.Macrocall) -> list[str]:  # [TERM0], [TERM]
         """Sets self.term_linkslist as a side effect."""
         separator = '|'
         file, part = macrocall.filename, macrocall.partname
@@ -194,7 +192,7 @@ class Glossary(part.Structurepart):
         # ----- close block:
         result.extend("\n</div>\n")
         if self.term_linkslist is not None:
-            b.error("'%s': %s is preceeded by a [TERMLONG] with no [ENDTERMLONG]" %
+            b.error("'%s': %s is preceeded by a [TERM] with no [ENDTERM]" %
                     (macrocall.filename, macrocall.macrocall_text))
         self.term_linkslist = links
         # ----- done!:

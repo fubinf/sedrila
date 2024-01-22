@@ -12,7 +12,7 @@ import sdrl.course
 import sdrl.macros as macros
 import sdrl.subcmd.author
 
-expected_output = """[TERMLONG::Concept 3]: Term 'Concept 3' is already defined
+expected_output = """[TERM::Concept 3]: Term 'Concept 3' is already defined
 ch/glossary.md: These terms lack a definition: ['Concept 2 undefined', 'Concept 4 undefined']
 wrote student files to  '../output'
 wrote instructor files to  '../output/cino2r2s2tu'

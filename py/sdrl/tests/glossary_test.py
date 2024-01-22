@@ -11,7 +11,7 @@ expected_ref_myterm = """
 <span class='glossary-term-heading'>myterm</span>
 
 </div>
-%s
+
 <div class='glossary-term-linkblock'>
  <div class='glossary-term-links-explainedby'>
    ExplainingPart
@@ -23,8 +23,8 @@ expected_ref_myterm = """
 """
 
 
-expected_output = """'src2: [TERM::impossibleterm]': [TERM] can only be used in the glossary
-[TERMDEF::myterm::The Definition]: Term 'myterm' is already defined
+expected_output = """'src2: [TERM0::impossibleterm]': [TERM0] can only be used in the glossary
+[TERM0::myterm]: Term 'myterm' is already defined
 py/sdrl/tests/data/glossary.md: This term lacks a definition: ['mynoterm']
 """
 
@@ -42,10 +42,10 @@ def test_glossary(capsys):
     ref_myterm2b = macros.expand_macros("src",  "mypart", "[TERMREF2::myterm::mytrm2]") 
     ref_mynoterm = macros.expand_macros("src",  "mypart", "[TERMREF::mynoterm]")  # undefined term
     # ----- add term definitions:
-    premature_def = macros.expand_macros("src2",  "glossary", "[TERM::impossibleterm]")  # --> error msg
+    premature_def = macros.expand_macros("src2",  "glossary", "[TERM0::impossibleterm]")  # --> error msg
     glossary_html = glossary.render(b.Mode.STUDENT)
-    def_myterm_a = macros.expand_macros("glossary.md",  "glossary", "[TERM::myterm]") 
-    def_myterm_b = macros.expand_macros("glossary.md",  "glossary", "[TERMDEF::myterm::The Definition]")
+    def_myterm_a = macros.expand_macros("glossary.md",  "glossary", "[TERM0::myterm]") 
+    def_myterm_b = macros.expand_macros("glossary.md",  "glossary", "[TERM0::myterm]")
     # ----- check for undefined terms:
     glossary.report_issues()
     # ----- prepare checking:
@@ -57,7 +57,7 @@ def test_glossary(capsys):
     assert ">mytrm2<" in ref_myterm2b
     assert ">mynoterm<" in ref_mynoterm  # renders just like an existing one
     # ----- check term definitions:
-    assert def_myterm_a == expected_ref_myterm % ""  # empty middle part
-    assert def_myterm_b == expected_ref_myterm % "<span class='glossary-term-body'>The Definition</span>\n\n"
+    print(def_myterm_a)
+    assert def_myterm_a == expected_ref_myterm
     # ----- check error output:
     assert out == expected_output
