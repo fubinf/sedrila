@@ -17,14 +17,14 @@ import sdrl.macros as macros
 import sdrl.markdown as md
 import sdrl.part
 
-help = """Creates and renders an instance of a SeDriLa course.
+meaning = """Creates and renders an instance of a SeDriLa course.
 Checks consistency of the course description beforehands.
 """
 
 OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR = "cino2r2s2tu"  # quasi-anagram of "instructors"
 
 
-def configure_argparser(subparser: argparse.ArgumentParser):
+def add_arguments(subparser: argparse.ArgumentParser):
     subparser.add_argument('--config', metavar="configfile", default=b.CONFIG_FILENAME,
                            help="SeDriLa configuration description YAML file")
     subparser.add_argument('--include_stage', metavar="stage", default='',

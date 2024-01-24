@@ -8,7 +8,7 @@ import git
 import sdrl.course
 import sdrl.repo as r
 
-help = """Help instructors evaluate a student's submission of several finished tasks.
+meaning = """Help instructors evaluate a student's submission of several finished tasks.
 """
 
 REPOS_HOME_VAR = "SEDRILA_INSTRUCTOR_REPOS_HOME"
@@ -16,7 +16,7 @@ USER_CMD_VAR = "SEDRILA_INSTRUCTOR_COMMAND"
 USER_CMD_DEFAULT = "/bin/bash"  # fallback only if $SHELL is not set
 
 
-def configure_argparser(subparser):
+def add_arguments(subparser):
     subparser.add_argument('course_url',
                            help="where to find course description")
     subparser.add_argument('repo_url',

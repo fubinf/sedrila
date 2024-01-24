@@ -7,9 +7,9 @@ import sdrl.course
 import sdrl.participant
 import sdrl.repo as r
 
-help = """Reports on course execution so far or prepares submission to instructor."""
+meaning = """Reports on course execution so far or prepares submission to instructor."""
 
-def configure_argparser(subparser):
+def add_arguments(subparser):
     subparser.add_argument('--submission', action='store_true',
                            help=f"generate {r.SUBMISSION_FILE} with possible tasks to be checked by instructor")
 
