@@ -122,7 +122,7 @@ def render_markdown(context_sourcefile: str, partname: str, markdown_markup: str
 
 extensions = [SedrilaExtension(), 
               'admonition', 'attr_list', 'codehilite', 'fenced_code', 
-              'sane_lists', 'toc']
+              'sane_lists', 'toc', 'smarty']
 # https://python-markdown.github.io/extensions/admonition/
 # https://python-markdown.github.io/extensions/attr_list/
 # https://python-markdown.github.io/extensions/code_hilite/
@@ -136,6 +136,9 @@ extension_configs = {
     },
     'codehilite': {
         'linenums': True
+    },
+    'smarty': {
+        'smart_quotes': False
     }
 }
 

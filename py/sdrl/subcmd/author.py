@@ -86,19 +86,14 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     macros.register_macro('PARTREFTITLE', 1, functools.partial(expand_partref, course))  # title as linktext
     macros.register_macro('PARTREFMANUAL', 2, functools.partial(expand_partref, course))  # explicit linktext
     macros.register_macro('DIFF', 1, sdrl.course.Task.expand_diff)
-    macros.register_macro('HINT', 1, expand_hint)
-    macros.register_macro('ENDHINT', 0, expand_hint)
-    macros.register_macro('INSTRUCTOR', 1, expand_instructor)
-    macros.register_macro('ENDINSTRUCTOR', 0, expand_instructor)
-    macros.register_macro('WARNING', 0, expand_warning)
-    macros.register_macro('ENDWARNING', 0, expand_warning)
-    macros.register_macro('NOTICE', 0, expand_notice)
-    macros.register_macro('ENDNOTICE', 0, expand_notice)
     macros.register_macro('SECTION', 2, expand_section)
     macros.register_macro('ENDSECTION', 0, expand_section)
     macros.register_macro('INNERSECTION', 2, expand_section)
     macros.register_macro('ENDINNERSECTION', 0, expand_section)
     macros.register_macro('INCLUDE', 1, expand_include)
+    for key, value in (course.blockmacro_topmatter.get('blocks') or {}).items():
+        macros.register_macro(key.upper(), 0 if isinstance(value, str) or not(value.get('arg')) else 1, expand_block)
+        macros.register_macro('END' + key.upper(), 0, expand_block)
     # ----- generate top-level file:
     b.info(f"generating top-level index files")
     render_homepage(course, env, targetdir_s, b.Mode.STUDENT, course.blockmacro_topmatter)
@@ -185,40 +180,21 @@ def expand_partref(course: sdrl.course.Course, macrocall: macros.Macrocall) -> s
     return f"<a href='{part.outputfile}' class='partref-link'>{html.escape(linktext)}</a>"
 
 
-def expand_hint(macrocall: macros.Macrocall) -> str:
-    if macrocall.macroname == 'HINT':
-        summary = macrocall.arg1
-        intro = topmatter(macrocall, 'hint')
-        return f"<details class='blockmacro blockmacro-hint'><summary>\n{intro}{summary}\n</summary>\n"
-    elif macrocall.macroname == 'ENDHINT':
-        return "</details>"
-    assert False, macrocall  # impossible
-
-
-def expand_instructor(macrocall: macros.Macrocall) -> str:
-    if macrocall.macroname == 'INSTRUCTOR':
-        title = macrocall.arg1
-        intro = topmatter(macrocall, 'instructor')
-        return f"<div class='blockmacro blockmacro-instructor'>\n{intro}{title}"
-    elif macrocall.macroname == 'ENDINSTRUCTOR':
-        return "</div>"
-    assert False, macrocall  # impossible
-
-
-def expand_warning(macrocall: macros.Macrocall) -> str:
-    if macrocall.macroname == 'WARNING':
-        return f"<div class='blockmacro blockmacro-warning'>\n{topmatter(macrocall, 'warning')}"
-    elif macrocall.macroname == 'ENDWARNING':
-        return "</div>"
-    assert False, macrocall  # impossible
-
-
-def expand_notice(macrocall: macros.Macrocall) -> str:
-    if macrocall.macroname == 'NOTICE':
-        return f"<div class='blockmacro blockmacro-notice'>\n{topmatter(macrocall, 'notice')}"
-    elif macrocall.macroname == 'ENDNOTICE':
-        return "</div>"
-    assert False, macrocall  # impossible
+def expand_block(macrocall: macros.Macrocall) -> str:
+    topmatter = macrocall.md.blockmacro_topmatter
+    end = macrocall.macroname.startswith('END')
+    macroname = (macrocall.macroname if not end else macrocall.macroname[3:]).lower()
+    macro = topmatter['blocks'].get(macroname)
+    if not macro:
+        assert False, macrocall #invalid macro
+    tagname = 'div' if isinstance(macro, str) else (macro.get('tag') or 'div')
+    if end:
+        return f"</{tagname}>"
+    else:
+        content = (macro if isinstance(macro, str) else macro.get('label')) + ('' if isinstance(macro, str) or not(macro.get('arg')) else macrocall.arg1)
+        if tagname == 'details':
+            content = f"<summary>\n{content}\n</summary>"
+        return f"<{tagname} class='blockmacro blockmacro-{macroname}'>\n{content}"
 
 
 def expand_section(macrocall: macros.Macrocall) -> str:
