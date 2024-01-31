@@ -90,6 +90,7 @@ class Structurepart:
             self.metadata = yaml.safe_load(self.metadata_text)
         except yaml.YAMLError as exc:
             b.error(f"{self.sourcefile}: metadata YAML is malformed: {str(exc)}")
+            self.metadata = dict()  # use empty metadata as a weak replacement
 
 
 class Zipdir(Structurepart):
