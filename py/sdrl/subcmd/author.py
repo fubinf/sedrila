@@ -220,7 +220,9 @@ def expand_section(macrocall: macros.Macrocall) -> str:
 
 def expand_include(macrocall: macros.Macrocall) -> str:
     """
-    [INCLUDE::filename] inserts file contents verbatim into the Markdown text.
+    [INCLUDE::filename] inserts file contents into the Markdown text.
+    If the file has suffix *.md or *.md.inc, it is macro-expanded beforehands,
+    contents of all other files are inserted verbatim.
     The filename is relative to the location of the file containing the macro call."""
     filename = macrocall.arg1
     path = os.path.dirname(macrocall.filename)
@@ -229,7 +231,11 @@ def expand_include(macrocall: macros.Macrocall) -> str:
         macrocall.error(f"file '{fullfilename}' does not exist")
         return ""
     with open(fullfilename, "rt", encoding='utf8') as f:
-        return f.read()
+        rawcontent = f.read()
+    if filename.endswith('.md') or filename.endswith('.md.inc'):
+        return macros.expand_macros(md.md.context_sourcefile, md.md.partname, rawcontent)
+    else:
+        return rawcontent
 
 
 def section_topmatter(macrocall: macros.Macrocall, typeslist: list[str]) -> str:
