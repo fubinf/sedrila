@@ -1,4 +1,12 @@
-"""Macros extend Markdown by a [MYMACRO::arg1::arg2] syntax."""
+"""
+Macros extend Markdown by a [MYMACRO::arg1::arg2] syntax.
+Some macros are just that: A fixed manner to convert their arguments into a string.
+Some use state that gets baked into their expander function via a closure.
+Some use state that is maintained here in an arbitrarily-named namespace, 
+so that several macros can share state.
+Macros can get notified when the next part starts being processed, 
+so they can reset part-specific state. 
+"""
 
 import dataclasses
 import re
@@ -27,10 +35,11 @@ class Macrocall:
 
 
 Macroexpander = tg.Callable[[Macrocall], str]
-Macrodef = tg.Tuple[str, int, Macroexpander]  # name, num_args, expander
+Partswitcher = tg.Callable[[str], None]  # newpartname
+Macrodef = tg.Tuple[int, Macroexpander, Partswitcher]  # num_args, expander, switcher
 
-macrodefs: dict[str, tg.Tuple[int, Macroexpander]] = dict()
-
+macrodefs: dict[str, Macrodef] = dict()  # macroname -> macrodef
+macrostate: dict[str, tg.Any] = dict()  # namespace -> state_object
 
 macro_regexp = r"\[([A-Z][A-Z0-9_]+)(?:::(.+?))?(?:::(.+?))?\](?=[^(]|$)"  
 # bracketed all-caps: [ALL2_CAPS] with zero to two arguments: [NAME::arg] or [NAME::arg1::arg2]
@@ -57,7 +66,7 @@ def expand_macro(sourcefile: str, partname: str, mm: re.Match) -> str:
     if macroname not in macrodefs:
         macrocall.error(f"Macro '{macroname}' is not defined")
         return call  # unexpanded version helps the user most
-    numargs, expander = macrodefs[macroname]
+    numargs, expander, switcher = macrodefs[macroname]
     # ----- check args:
     if my_numargs != numargs:
         macrocall.error("Macro '%s' called with %d args, expects %d" %
@@ -68,17 +77,32 @@ def expand_macro(sourcefile: str, partname: str, mm: re.Match) -> str:
     return expander(macrocall)
 
 
-def register_macro(name: str, numargs: int, expander: Macroexpander, redefine=False):
+def get_state(namespace: str) -> tg.Any:
+    return macrostate[namespace]  # must exist
+
+
+def set_state(namespace: str, obj: tg.Any):
+    macrostate[namespace] = obj
+
+
+def switch_part(newpartname: str):
+    for nargs, expander, switcher in macrodefs.values():
+        switcher(newpartname)
+
+
+def register_macro(name: str, numargs: int, expander: Macroexpander, 
+                   switcher: Partswitcher = lambda p: None, redefine=False):
     global macrodefs
     if redefine:
         assert name in macrodefs
     else:
         assert name not in macrodefs
     assert 0 <= numargs <= 2
-    assert name == name.upper()  # must be all uppercase
-    macrodefs[name] = (numargs, expander)
+    assert name == name.upper()  # macronames must be all uppercase
+    macrodefs[name] = (numargs, expander, switcher)
 
 
 def _testmode_reset():
-    global macrodefs
+    global macrodefs, macrostate
     macrodefs = dict()
+    macrostate = dict()
