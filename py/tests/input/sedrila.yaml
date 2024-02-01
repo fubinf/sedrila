@@ -6,9 +6,16 @@ blockmacro_topmatter:
   section_background: "## Section_Background"
   section_background_default: ""
   hint: "**Hint:** "
-  instructor: "## Instructor "
-  warning: "**Warning:** "
-  notice: "**Note:** "
+  blockmacros:
+    INSTRUCTOR:
+      args: 1
+      label: "## Instructor "
+    WARNING:
+      args: 0
+      label: "**Warning:** "
+    NOTICE:
+      args: 0
+      label: "**Note:** "
 instructors:
   - nameish: One Instructor
     email: o.instructor@inf.fu-berlin.de
