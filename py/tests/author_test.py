@@ -86,7 +86,15 @@ Here, we mention
    <strong>
     Note:
    </strong>
-   Body of Note
+   Enumeration:
+   <span class="enumeration-ec">
+    1
+   </span>
+   ,
+   <span class="enumeration-ec">
+    2
+   </span>
+   .
   </div>
   <details class="blockmacro blockmacro-hint">
    <summary>
@@ -164,6 +172,7 @@ def _check_toc():
 
 
 def _check_task_html():
+    # ----- check the complex task111r+a:
     with open("task111r+a.html", encoding='utf8') as fp:
         actual_soup = bs4.BeautifulSoup(fp, features='html5lib', from_encoding='utf8')
         expected_soup = bs4.BeautifulSoup(expected_body_task111, features='html5lib')
@@ -173,6 +182,13 @@ def _check_task_html():
     actual_html = actual_body.prettify()
     expected_html = expected_body.prettify()
     _compare_line_by_line(actual_html, expected_html)
+    # ----- check resetting of enumerations in task112:
+    with open("task112.html", encoding='utf8') as fp:
+        content = fp.read()
+    expected = "<span class='enumeration-ec'>1</span>"
+    if not expected in content:
+        print(content)
+        assert expected in content
 
 
 def _check_glossary():

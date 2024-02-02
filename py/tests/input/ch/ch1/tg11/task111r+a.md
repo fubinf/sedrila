@@ -17,7 +17,7 @@ and also [TERMREF::Concept 4 undefined].
 Body of Warning
 [ENDWARNING]
 [NOTICE]
-Body of Note
+Enumeration: [EC], [EC].
 [ENDNOTICE]
 [HINT::My Hint]
 Body of My Hint
