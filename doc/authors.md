@@ -386,14 +386,24 @@ Characterizes
 
 If you insist on nesting some of your sections, use a maximum nesting depth of 1
 and use the `[INNERSECTION]`/`[ENDINNERSECTION]` pair of macros for the nested section.
-The same types and subtypes apply.
+It works exactly like `[SECTION]` and the same types and subtypes apply.
 
 
-## 1.7 Other block macros: `[INSTRUCTOR]`, `[WARNING]`, `[HINT]`
+## 1.7 Instructor-only information: The `[INSTRUCTOR]` block macro
 
-- `[INNERSECTION::type::subtypes]`/`[ENDINNERSECTION]`:
-  The same functionality as `[SECTION::type::subtypes]`, but used within some other section
-  rather than after it. (Needed to make our simplistic parser work properly for this case.)
+- `[INSTRUCTOR::heading]`/`[ENDINSTRUCTOR]`:
+  This macro creates a distinctly-formatted block of text with a variable heading
+  that contains information to be used by the course instructors for deciding acceptance/rejection
+  of task solutions submitted by students.  
+  The macro has a special status within sedrila: sedrila generates a student version and an
+  instructor version of the course and the contents of `[INSTRUCTOR]` blocks will be misssing 
+  from the student version.
+
+
+## 1.8 Other block macros: `[NOTICE]`, `[WARNING]`, `[HINT]`
+
+- `[NOTICE]`/`[ENDNOTICE]`:    
+  A semi-important note with potentially different formatting than normal text.
 - `[WARNING]`/`[ENDWARNING]`:    
   A warning of a pitfall to be avoided.
   Will render as an eye-catching text box.
@@ -408,9 +418,9 @@ The same types and subtypes apply.
   somebody who would rather do difficulty 3.
 
 
-## 1.8 Other macros: `[INCLUDE]`, `[PARTREFx]`, `[TERMREF]`, etc.
+## 1.9 Other macros: `[INCLUDE]`, `[PARTREFx]`, `[TERMREF]`, etc.
 
-### 1.8.1 Macros for hyperlinks: `[PARTREF]`, `[PARTREFTITLE]`, `[PARTREFMANUAL]`, `[TERMREF]`
+### 1.9.1 Macros for hyperlinks: `[PARTREF]`, `[PARTREFTITLE]`, `[PARTREFMANUAL]`, `[TERMREF]`
 
 - `[PARTREF::partname]`: 
   Create a hyperlink to the part description file for task, taskgroup, chapter, or zipfile `partname`,
@@ -423,7 +433,37 @@ The same types and subtypes apply.
   Create a hyperlink to the glossary entry `term`; see under glossary below.
 
 
-### 1.8.2 `[INCLUDE]`, `[TOC]`, `[DIFF]`
+### 1.9.2 Macros for instruction enumerations: `[EC]`, `[EQ]`, `[ER]`, `[EREFC]`, `[EREFQ]`, `[EREFR]`
+
+The split between `[SECTION::instructions::...]` and `[SECTION::submission::...]` is often inconvenient
+both for authors and students: The instructions may contain, say, 17 steps, and 5 of those
+produce some part of what is to be submitted in the end.
+Having to refer to those 5 in the `submission` section manually is laborious and error-prone.
+
+The macros `[EC]`, `[EQ]`, `[ER]` all generate a highlighted label containing a number
+that counts upwards in each call within each task.
+In the macro names, E stands for enumeration,
+C stands for command, Q for question, R for requirement.
+By having three separate counters, one can have tasks
+that mix up to three different submission parts of different character, 
+e.g. a protocol file create by the `script` command for commands,
+a markdown file written manually for questions,
+a python file implementing requirements, etc.
+
+The content of `[SECTION::submission::...]` can then often be a fixed boilerplate text module
+for each submission type, which can nicely be reproduced identically via the 
+`[INCLUDE]` macro (see below).
+
+In `[INSTRUCTOR]`, one may want to refer to some of those pieces with like markup.
+This can be created using the `EREFx` macros (for "reference").
+E.g. `[EREFC::3]` would refer to the third call of the commands enumeration.
+
+Sedrila does not implement a full cross-reference mechanism with labels and label references,
+because of the strong within-task locality that the cross-references will usually have,
+which makes manual cross-referencing the simpler approach.
+
+
+### 1.9.3 `[INCLUDE]`, `[TOC]`, `[DIFF]`
 
 - `[INCLUDE::filename]`: inserts the entire contents of file `filename` verbatim
   into the Markdown input stream at this point.
@@ -436,9 +476,9 @@ The same types and subtypes apply.
 - `[DIFF::level]` generates the task difficulty mark for the given level, from 1 (very simple) to 4 (difficult).
 
 
-## 1.9 Taskgroup `index.md` files
+## 1.10 Taskgroup `index.md` files and chapter `index.md` files
 
-A taskgroup is described by an `index.md` file in the respective directory,
+A **taskgroup** is described by an `index.md` file in the respective directory,
 which consists of a YAML part and text part much like a task file.
 
 The text part provides an idea of the taskgroup's topic area
@@ -451,10 +491,9 @@ The YAML part can have only few entries:
   to be considered done if it appears in a task's `assumes` or `requires` list.
   If no `minimum` entry exists, it means all tasks of the taskgroup must be done.
 
-
-## 1.10 Chapter `index.md` files
-
-Just like taskgroup `index.md` files, except that `explains` entries and `minimum` entries are not allowed.
+Likewise, a **chapter** is described by an `index.md` file in the respective directory.
+These files work like taskgroup `index.md` files, except that 
+`explains` entries and `minimum` entries are not allowed.
 
 
 ## 1.11 The glossary: `glossary.md` in `chapterdir`, `[TERM]`/`[TERM0]` macros
