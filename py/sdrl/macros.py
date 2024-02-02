@@ -35,7 +35,7 @@ class Macrocall:
 
 
 Macroexpander = tg.Callable[[Macrocall], str]
-Partswitcher = tg.Callable[[str], None]  # newpartname
+Partswitcher = tg.Callable[[str, str], None]  # macroname, newpartname
 Macrodef = tg.Tuple[int, Macroexpander, Partswitcher]  # num_args, expander, switcher
 
 macrodefs: dict[str, Macrodef] = dict()  # macroname -> macrodef
@@ -82,16 +82,18 @@ def get_state(namespace: str) -> tg.Any:
 
 
 def set_state(namespace: str, obj: tg.Any):
+    global macrostate
     macrostate[namespace] = obj
 
 
 def switch_part(newpartname: str):
-    for nargs, expander, switcher in macrodefs.values():
-        switcher(newpartname)
+    for macroname, macrodef in macrodefs.items():
+        nargs, expander, switcher = macrodef
+        switcher(macroname, newpartname)
 
 
 def register_macro(name: str, numargs: int, expander: Macroexpander, 
-                   switcher: Partswitcher = lambda p: None, redefine=False):
+                   switcher: Partswitcher = lambda mn,pn: None, redefine=False):
     global macrodefs
     if redefine:
         assert name in macrodefs

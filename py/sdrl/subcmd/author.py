@@ -174,6 +174,12 @@ def register_macros(course):
     for key, value in (course.blockmacro_topmatter.get('blockmacros') or {}).items():
         macros.register_macro(key, value.get('args'), expand_block)
         macros.register_macro(f'END{key}', 0, expand_block)
+    macros.register_macro('EC', 0, expand_enumeration, partswitch_enumeration)
+    macros.register_macro('EQ', 0, expand_enumeration, partswitch_enumeration)
+    macros.register_macro('ER', 0, expand_enumeration, partswitch_enumeration)
+    macros.register_macro('EREFC', 1, expand_enumerationref)
+    macros.register_macro('EREFQ', 1, expand_enumerationref)
+    macros.register_macro('EREFR', 1, expand_enumerationref)
     macros.register_macro('INCLUDE', 1, expand_include)
     macros.register_macro('DIFF', 1, sdrl.course.Task.expand_diff)
 
@@ -189,8 +195,6 @@ def expand_partref(course: sdrl.course.Course, macrocall: macros.Macrocall) -> s
 def expand_section(macrocall: macros.Macrocall) -> str:
     """
     [SECTION::goal::goaltype1,goaltype2] etc.
-    Blocks of [SECTION::forinstructor::itype] lots of text [ENDSECTION]
-    can be removed by the Sedrila markdown extension before processing; see there.
     [INNERSECTION] is equivalent and serves for one level of proper nesting if needed.
     (Nesting [SECTION][ENDSECTION] blocks happens to work, but for the wrong reasons.)
     """
@@ -229,12 +233,32 @@ def expand_block(macrocall: macros.Macrocall) -> str:
         return f"<div class='blockmacro blockmacro-{macroname.lower()}'>\n{content}"
 
 
+def expand_enumeration(macrocall: macros.Macrocall) -> str:
+    macroname = macrocall.macroname
+    classname = f"enumeration-{macroname.lower()}"
+    value = macros.get_state(macroname) + 1
+    macros.set_state(macroname, value)
+    return f"<span class='{classname}'>{value}</span>"
+
+
+def partswitch_enumeration(macroname: str, newpartname: str):  # noqa
+    macros.set_state(macroname, 0)  # is independent of newpartname
+
+def expand_enumerationref(macrocall: macros.Macrocall) -> str:
+    # markup matches that of expand_enumeration(), argument is not checked in any way
+    macroname = macrocall.macroname
+    classname = f"enumeration-{macroname.lower()}"
+    value = macrocall.arg1
+    return f"<span class='{classname}'>{value}</span>"
+
+
 def expand_include(macrocall: macros.Macrocall) -> str:
     """
     [INCLUDE::filename] inserts file contents into the Markdown text.
     If the file has suffix *.md or *.md.inc, it is macro-expanded beforehands,
     contents of all other files are inserted verbatim.
-    The filename is relative to the location of the file containing the macro call."""
+    The filename is relative to the location of the file containing the macro call.
+    """
     filename = macrocall.arg1
     path = os.path.dirname(macrocall.filename)
     fullfilename = os.path.join(path, filename)
@@ -337,6 +361,7 @@ def render_structure(course: sdrl.course.Course,
                      template, structure: sdrl.part.Structurepart, 
                      env, targetdir: str, 
                      mode: b.Mode, blockmacro_topmatter: dict[str, str]):
+    macros.switch_part(structure.slug)
     toc = (structure.taskgroup if isinstance(structure, sdrl.course.Task) else structure).toc
     html = md.render_markdown(structure.sourcefile, structure.slug, structure.content, mode, blockmacro_topmatter)
     output = template.render(sitetitle=course.title,
