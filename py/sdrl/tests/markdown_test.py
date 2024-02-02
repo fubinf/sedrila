@@ -6,5 +6,5 @@ import sdrl.markdown as md
     
 def test_perhaps_suppress_instructorinfo():
     md.md.mode = b.Mode.STUDENT  # turns on the suppression
-    content = "one [SECTION::forinstructor::x] two [ENDSECTION] three"
+    content = "one [INSTRUCTOR::my heading] two [ENDINSTRUCTOR] three"
     assert md.SedrilaPreprocessor(md.md).perhaps_suppress_instructorinfo(content) == "one  three"

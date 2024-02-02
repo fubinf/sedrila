@@ -39,11 +39,11 @@ class SedrilaPreprocessor(mdpre.Preprocessor):
         return content.split("\n")
 
     def perhaps_suppress_instructorinfo(self, content: str) -> str:
-        """in instructor mode, suppress all [SECTION::forinstructor::x] texttexttext [ENDSECTION] blocks"""
+        """in instructor mode, suppress all [INSTRUCTOR::heading] texttexttext [ENDINSTRUCTOR] blocks"""
         if self.md.mode == b.Mode.INSTRUCTOR:
             return content  # leave instructorinfo in instructor mode
         else:               # remove instructorinfo in student mode
-            block_re = r"\[SECTION::forinstructor.+?ENDSECTION\]"  # non-greedy middle part!
+            block_re = r"\[INSTRUCTOR::.+?ENDINSTRUCTOR\]"  # non-greedy middle part, just in case
             newcontent = re.sub(block_re, "", content, flags=re.DOTALL)
             return newcontent
 

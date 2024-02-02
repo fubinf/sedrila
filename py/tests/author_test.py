@@ -100,14 +100,6 @@ Here, we mention
    </p>
   </details>
  </div>
- <div class="blockmacro blockmacro-instructor">
-  <h2 id="instructor-instructorpart-heading">
-   Instructor Instructorpart Heading
-  </h2>
-  <p>
-   Body of instructorpart
-  </p>
- </div>
 </div>
 """
 
@@ -203,9 +195,9 @@ def _compare_line_by_line(actual: str, expected: str, strip=False):
         if strip:
             if actual_lines[i].strip() != expected_lines[i].strip():
                 print("actual::", actual)
-                assert actual_lines[i].strip() == expected_lines[i].strip()
+                assert (i+1, actual_lines[i].strip()) == (i+1, expected_lines[i].strip())
         else:
             if actual_lines[i] != expected_lines[i]:
                 print("actual::", actual)
-                assert actual_lines[i] == expected_lines[i]
+                assert (i+1, actual_lines[i]) == (i+1, expected_lines[i])
     assert len(actual_lines) == len(expected_lines)
