@@ -10,7 +10,8 @@ by a text file containing YAML metadata ("front matter") and a body
 using Markdown markup (plus various sedrila-specific macros, 
 plus sometimes "replacement blocks").
 
-The content below describes the details of these data (Section 1),
+The content below describes the details of these data (Section 1,
+including advice about what content to put where in Sections 1.2 and 1.6),
 how to generate the course website from it (Section 2),
 and how to make and maintain a fork of an existing sedrila course (Section 3)
 
@@ -118,12 +119,73 @@ Chapters and taskgroups are included (or not) in the actual generated
 course by mentioning them in `sedrila.yaml`, which also defines their order.
 All tasks within a taskgroup will be used,
 their order is determined by a topological sort according to possible dependencies, see below.
+Chapters and taskgroups group tasks according to topic area or some other kind of task type.
 
 The names of all parts must be distinct (unique) throughout the course.
 The top-level `index.md` file is the course's homepage (the landing page).
 The `index.md` files at chapter level act as chapter landing pages,
 those at taskgroup level act as task group landing pages.
 The latter two types follow a similar technical format as described below for task files.
+
+
+### 1.2.1 sedrila principle 1: Opinionatedness
+
+The sedrila tool is an opinionated framework: Many decisions regarding what makes a good
+SeDriLa course are built into the framework to various degrees.
+
+At the most fundamental level, this is reflected in architectural decisions, such as
+the three-level structure described above or the split between a student version
+and an instructor version of the generated websites.
+
+At an intermediate level, many of the macros described further down reflect such decisions.
+At the least technical level, the present document contains authoring advice at the level
+of the natural language course content that is interwoven with how the remainder is designed. 
+
+
+### 1.2.2 The 4 factors writing style: Orientation, motivation, instruction, knowledge
+
+The various pieces of writing in a SeDriLa course serve four different generic purposes.
+Each purpose is mostly (if not exclusively) followed in certain places within the
+technical structure:
+
+- **Orientation:** What is this about?  
+  This question is answered in the `index.md` files of chapters and taskgroups
+  and in the `goal` sections of tasks.
+  Keep those contents very concise.
+- **Motivation:** Why should I (as a student) be interested in this?  
+  This question is answered in the `background` sections of tasks.
+  Keep those contents very concise.
+  Move recurring parts to glossary entries.
+- **Instruction:** What do I need to do?  
+  This question is answered in the `instruction` and `submission` sections of tasks.
+  Keep those contents concise and
+  see the discussion of the `[EC]`, `[EQ]`, `[ER]`, `[EREFC]`, `[EREFQ]`, and `[EREFR]`
+  macros further down for how to avoid redundancy between those two sections.
+- **Knowledge** is any knowledge (as opposed to practical skills and experience) we would like 
+  students to learn.
+  Rather than adding respective information on the side in some task with a different purpose,
+  introduce a separate task for which this knowledge is required for solving it;
+  submission subtypes `reflection` and `information` are suitable for this purpose.
+
+
+### 1.2.3 Further principles: granularity, redundancy-avoidance, cross-referencing
+
+Granularity: Keep tasks small, between 0.5 hours and 4 hours timevalue;
+split tasks when they become too large.
+Split tasks when they serve more than one or perhaps two purposes at once. 
+
+Avoid duplicating information that is longer than a half-sentence.
+Two techniques help in doing so:
+
+- Put information in a glossary entry and refer to that.
+- Create a separate task around that information and `assume` that task where needed
+  or cross-reference it in another task's text.
+
+Make generous use of cross-references from a task to related other tasks
+in order to link tasks beyond the rigid chapter/taskgroup structure.
+The global `explains`, `assumes`, and `requires` relationships can do much of that.
+Add further cross-references in the text (via the `PARTREF` macros) whereever useful,
+perhaps in a `NOTICE` block, often near the end of the `background` section.
 
 
 ## 1.3 Special sedrila markup: Macros
