@@ -1,4 +1,5 @@
 import argparse
+import datetime as dt
 import functools
 import glob
 import html
@@ -43,9 +44,9 @@ def execute(pargs: argparse.Namespace):
     course = sdrl.course.Course(pargs.config, read_contentfiles=True, include_stage=pargs.include_stage)
     b.info(f"## chapter {course.chapters[-1].slug} status: {getattr(course.chapters[-1], 'status', '-')}")
     generate(pargs, course)
-    b.exit_if_errors()
     if pargs.sums:
         print_volume_report(course)
+    b.exit_if_errors()
 
 
 def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
@@ -398,7 +399,19 @@ def write_metadata(course: sdrl.course.Course, filename: str):
 
 def print_volume_report(course: sdrl.course.Course):
     """Show total timevalues per stage, difficulty, and chapter."""
-    for report in (course.volume_report_per_stage(),
+    # ----- print cumulative timevalues per stage as comma-separated values (CSV):
+    volume_report_per_stage = course.volume_report_per_stage()
+    print("date", end="")
+    for stage, numtasks, timevalue in volume_report_per_stage.rows:
+        print(f",{stage}", end="")
+    print("")  # newline
+    print(dt.date.today().strftime("%Y-%m-%d"), end="")
+    for stage, numtasks, timevalue in volume_report_per_stage.rows:
+        print(f",{timevalue}", end="")
+    print("")  # newline
+
+    # ----- print all reports as rich tables:
+    for report in (volume_report_per_stage,
                    course.volume_report_per_difficulty(),
                    course.volume_report_per_chapter()):
         table = b.Table()

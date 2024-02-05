@@ -282,13 +282,14 @@ class Course(part.Partscontainer):
 
     def _volume_report(self, rowitems: tg.Iterable, column1head: str,
                        select: tg.Callable[[Task, tg.Any], bool],
-                       render: tg.Callable[[tg.Any], str]) -> Volumereport:
-        """Tuples of (chaptername, num_tasks, timevalue_sum)."""
+                       render: tg.Callable[[tg.Any], str],
+                       include_all=False) -> Volumereport:
+        """Tuples of (category, num_tasks, timevalue_sum)."""
         result = []
         for row in rowitems:
             num_tasks = sum((1 for t in self.taskdict.values() if select(t, row) and not t.to_be_skipped))
             timevalue_sum = sum((t.timevalue for t in self.taskdict.values() if select(t, row) and not t.to_be_skipped))
-            if num_tasks > 0:
+            if num_tasks > 0 or include_all:
                 result.append((render(row), num_tasks, timevalue_sum))
         return self.Volumereport(result, (column1head, "#Tasks", "Timevalue"))
 
@@ -302,7 +303,7 @@ class Course(part.Partscontainer):
 
     def volume_report_per_stage(self) -> Volumereport:
         return self._volume_report(self.stages + [None], "Stage",
-                                   lambda t, s: t.stage == s, lambda s: s or "(none)")
+                                   lambda t, s: t.stage == s, lambda s: s or "done", include_all=True)
 
     def _add_inverse_links(self):
         """add Task.required_by/Task.assumed_by lists."""
