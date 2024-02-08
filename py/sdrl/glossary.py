@@ -156,7 +156,7 @@ class Glossary(part.Structurepart):
         file, part = macrocall.filename, macrocall.partname
         terms = macrocall.arg1
         termslist = terms.split(separator)
-        mainterm = termslist[0]
+        headingtext = " | ".join(termslist)  # we keep the original order
         result = []
         # ----- report duplicate entries:
         for term in termslist:
@@ -169,7 +169,7 @@ class Glossary(part.Structurepart):
         anchors = ("<a id='%s'></a>\n" % b.slugify(term) for term in termslist)
         result.extend(anchors)
         # ----- generate heading:  TODO_2 include alternative forms of term?
-        result.append(f"<span class='glossary-term-heading'>{mainterm}</span>\n")
+        result.append(f"<span class='glossary-term-heading'>{headingtext}</span>\n")
         # ----- generate links:
         links = []
         explainedby_names = self._collect_parts(self.explainedby, termslist)
