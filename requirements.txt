@@ -1,6 +1,7 @@
 argparse_subcommand
 Jinja2
 Markdown
+mdx_linkify
 Pygments
 PyYAML
 requests
