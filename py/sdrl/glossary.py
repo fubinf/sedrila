@@ -199,7 +199,7 @@ class Glossary(part.Structurepart):
         return result
 
     def _mentions(self, partname: str, term: str):  # called by phase 1 TERMREF macro expansion
-        if partname:
+        if partname and partname != "glossary": #avoid links from glossary to itself
             if term not in self.mentionedby:
                 self.mentionedby[term] = set()
             self.mentionedby[term].add(partname)
