@@ -198,9 +198,9 @@ class Course(part.Partscontainer):
         self.namespace_add(configfile, self)
         if read_contentfiles:
             self.read_partsfile(f"{self.chapterdir}/index.md")
-            self.find_zipdirs(self.chapterdir)
             self.glossary = glossary.Glossary(self.chapterdir)
             self.namespace_add("", self.glossary)
+            self.find_zipdirs(self.chapterdir)
         if include_stage in self.stages:
             self.include_stage = include_stage
             self.include_stage_index = self.stages.index(include_stage)
@@ -211,6 +211,7 @@ class Course(part.Partscontainer):
             self.include_stage_index = len(self.stages)
         self.chapters = [Chapter(self, ch, read_contentfiles) 
                          for ch in configdict['chapters']]
+        self._collect_zipdirs()
         self._check_links()
         self._add_inverse_links()
         self._compute_taskorder()
@@ -332,6 +333,16 @@ class Course(part.Partscontainer):
             for taskgroup in chapter.taskgroups:
                 for task in taskgroup.tasks:
                     yield task
+
+    def _collect_zipdirs(self):
+        for zd in self.zipdirs:
+            self.namespace_add(zd.sourcefile, zd)
+        for ch in self.chapters:
+            for zd in ch.zipdirs:
+                self.namespace_add(zd.sourcefile, zd)
+            for tg in ch.taskgroups:
+                for zd in tg.zipdirs:
+                    self.namespace_add(zd.sourcefile, zd)
 
     def _check_links(self):
         for task in self.taskdict.values():

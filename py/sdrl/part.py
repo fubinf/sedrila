@@ -106,7 +106,7 @@ class Zipdir(Structurepart):
         assert dirname.startswith(dirprefix)
         assert dirname[-1] != '/'  # dirprefix must not end with a slash, else our logic would break
         self.sourcefile = dirname
-        self.slug = self.outputfile = os.path.basename(dirname)  # e.g. myfile.zip
+        self.slug = self.title = self.outputfile = os.path.basename(dirname)  # e.g. myfile.zip
         bareslug = self.slug[:-4]  # e.g. myfile
         innerpath1 = os.path.dirname(dirname).replace(dirprefix+'/', '', 1)
         self.innerpath = f"{innerpath1}/{bareslug}"
