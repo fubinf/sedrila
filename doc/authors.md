@@ -202,7 +202,7 @@ General things to know about macros are these:
 - A macro call cannot be split over multiple lines.
 - Some macros serve as markup for blocks of text. These macros come in `X`/`ENDX` pairs:  
   ```
-  [WARNING::arg1]
+  [WARNING]
   body text, as many lines as needed
   [ENDWARNING]
   ```
@@ -599,18 +599,22 @@ if multiple files are involved, and still keep those files in an easily editable
 Use this for handsful of files. For large structures, apply separate repositories.
 
 
-# 2. Calling `sedrila`  TODO 2: describe sedrila author calls
+# 2. Calling `sedrila`
 
-The typical call for generating the HTML website from a sedrila course is
+The standard call for generating the HTML website from a sedrila course is
 `sedrila author outputdir`.
 This will create the student version of the website at location `outputdir`
 and the instructor version at `outputdir/cino2r2s2tu`.
-Both versions will exclude all tasks, taskgroups, and chapters marked as
-`status: incomplete` in their metadata.
+Both versions will exclude all tasks, taskgroups, and chapters that have a
+`stage:` entry in their metadata.
 
-To include those as well, add option `--incomplete`.  
-To obtain more detailed console output during the generation, use `--log INFO`.  
-To use an alternative configuration file, use something like `--config myconfig.yaml`.  
+- To include those as well, add option `--include_stage minstage` where `minstage`
+  is the lowest stage that should be included; all higher ones will be included as well.  
+- To obtain more detailed console output during the generation, use `--log INFO`.  
+- To use an alternative configuration file, use something like `--config myconfig.yaml`.  
+- Option `--sums` generates reports about the volume of tasks per chapter,
+  per difficulty, and per stage.
+
 If you use a development setup with a source installation of sedrila,
 use a shell alias such as 
 `alias sedrila='python /my/work/dir/sedrila/py/sedrila.py'`.
