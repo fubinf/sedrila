@@ -347,7 +347,7 @@ def render_glossary(course: sdrl.course.Course, env, targetdir: str, mode: b.Mod
     glossary = course.glossary
     b.info(f"generating glossary '{glossary.outputfile}'")
     glossary_html = course.glossary.render(mode)
-    template = env.get_template("glossary.html")
+    template = env.get_template(f"{b.GLOSSARY_BASENAME}.html")
     output = template.render(sitetitle=course.title,
                              index=course.chapters[0].slug, index_title=course.chapters[0].title,
                              breadcrumb=h.breadcrumb(course, glossary),
