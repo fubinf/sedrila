@@ -311,7 +311,6 @@ summary {}
 
 /********** Blockmacros: */
 
-.admonition,
 .section-goal,
 .section-submission,
 .blockmacro {
@@ -497,22 +496,9 @@ summary {}
         color: lightgray;
     }
 
-    .admonition,
     .section-goal,
     .section-submission,
     .blockmacro {
         box-shadow: 6px 6px 5px #000;
     }
-}
-
-/********** Admonitions (TODO_2 phase out): */
-
-.admonition-title {
-    font-size: 105%;
-    font-style: italic;
-    font-weight: bold;
-}
-
-.admonition {
-    background-color: #f5f;
 }
