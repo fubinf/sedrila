@@ -133,7 +133,7 @@ class Zipdir(Structurepart):
 
 class Partscontainer(Structurepart):
     """A Structurepart that can contain other Structureparts."""
-    zipdirs: list[Zipdir]
+    zipdirs: list[Zipdir] = []
     
     def find_zipdirs(self, dirprefix: str):
         """find all dirs (not files!) *.zip in inputdir (not below!), warns about *.zip files"""
