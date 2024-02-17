@@ -168,7 +168,7 @@ class Glossary(part.Structurepart):
         # ----- generate anchors:
         anchors = ("<a id='%s'></a>\n" % b.slugify(term) for term in termslist)
         result.extend(anchors)
-        # ----- generate heading:  TODO_2 include alternative forms of term?
+        # ----- generate heading:
         result.append(f"<span class='glossary-term-heading'>{headingtext}</span>\n")
         # ----- generate links:
         links = []
