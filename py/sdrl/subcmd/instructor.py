@@ -6,6 +6,7 @@ import time
 import base as b
 import git
 import sdrl.course
+import sdrl.interactive as i
 import sdrl.repo as r
 
 meaning = """Help instructors evaluate a student's submission of several finished tasks.
@@ -17,29 +18,55 @@ USER_CMD_DEFAULT = "/bin/bash"  # fallback only if $SHELL is not set
 
 
 def add_arguments(subparser):
-    subparser.add_argument('course_url',
-                           help="where to find course description")
     subparser.add_argument('repo_url',
                            help="where to find student input")
-    subparser.add_argument('--get', action='store_true',
+    subparser.add_argument('--get', default="True", action=argparse.BooleanOptionalAction,
                            help="pull or clone student repo")
-    subparser.add_argument('--put', action='store_true',
-                           help="commit pull or clone student repo")
+    subparser.add_argument('--check', default="True", action=argparse.BooleanOptionalAction,
+                           help="perform actual checking via interactive mode or subshell")
+    subparser.add_argument('--put', default="True", action=argparse.BooleanOptionalAction,
+                           help="commit and push to student repo")
+    subparser.add_argument('--interactive', action=argparse.BooleanOptionalAction,
+                           help="open interactive terminal interface to approve or reject tasks")
+    subparser.add_argument('--log', default="INFO", choices=b.loglevels.keys(),
+                           help="Log level for logging to stdout (default: INFO)")
 
 
 def execute(pargs: argparse.Namespace):
+    b.set_loglevel(pargs.log)
     if os.environ.get(REPOS_HOME_VAR) is None:
-        b.critical(f"Environment variable {REPOS_HOME_VAR} must be set (student workdirs directory)")
-    home = os.environ.get(REPOS_HOME_VAR)
-    checkout_student_repo(pargs.repo_url, home)
-    metadatafile = f"{pargs.course_url}/{b.METADATA_FILE}"
+        b.warning(f"Environment variable {REPOS_HOME_VAR} is not set. Assume current directory as student workdirs directory")
+    home = os.environ.get(REPOS_HOME_VAR) or "."
+    if pargs.get:
+        checkout_student_repo(pargs.repo_url, home)
+    else:
+        b.warning("not pulling user repo, relying on existing state")
+    if not(pargs.put) and not(pargs.check):
+        os.chdir("..")
+        return
+    student = sdrl.participant.Student()
+    metadatafile = f"{student.course_url}/{b.METADATA_FILE}"
     course = sdrl.course.Course(metadatafile, read_contentfiles=False, include_stage="")
     r.compute_student_work_so_far(course)
     entries, workhours_total, timevalue_total = r.student_work_so_far(course)
-    rewrite_submission_file(course, r.SUBMISSION_FILE)
-    call_instructor_cmd(course, instructor_cmd(), iteration=0)
-    validate_submission_file(course, r.SUBMISSION_FILE)
-    commit_and_push(r.SUBMISSION_FILE)
+    opentasks = rewrite_submission_file(course, r.SUBMISSION_FILE)
+    entries = list(filter(lambda entry: entry[0] in opentasks, entries))
+    if not(pargs.check):
+        b.info("Don't run check, just prepare commit")
+    elif not(entries):
+        b.info("No tasks to check found. Assuming check already done. Preparing commit.")
+    elif pargs.interactive:
+        rejections = i.grade_entries(entries)
+        if rejections is None:
+            b.info("Nothing selected, nothing to do")
+            return
+        b.spit_yaml(r.SUBMISSION_FILE, r.submission_file_entries(course, entries, rejections))
+    else:
+        call_instructor_cmd(course, instructor_cmd(), iteration=0)
+    if pargs.put:
+        validate_submission_file(course, r.SUBMISSION_FILE)
+        commit_and_push(r.SUBMISSION_FILE)
+    os.chdir("..")
 
 
 def checkout_student_repo(repo_url, home):
@@ -61,6 +88,7 @@ def rewrite_submission_file(course: sdrl.course.Course, filename: str):
     entries = b.slurp_yaml(filename)
     rewrite_submission_entries(course, entries)
     b.spit_yaml(filename, entries)
+    return [taskname for taskname, mark in entries.items() if mark != r.NONTASK_MARK and mark != r.ACCEPT_MARK]
 
 
 def rewrite_submission_entries(course: sdrl.course.Course, entries: b.StrAnyDict):

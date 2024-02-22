@@ -1,6 +1,7 @@
 """Technical operations for reading information from git repos."""
 import dataclasses
 import datetime as dt
+import getpass
 import os
 import re
 import subprocess as sp
@@ -84,5 +85,8 @@ def username_from_repo_url(repo_url: str) -> str:
     repo_url_regexp = r":([\w_\.-]+)/"
     mm = re.search(repo_url_regexp, repo_url)
     if repo_url.startswith("http") or not mm:
+        #for testing purposes, local paths are allowed but default to the current user
+        if os.path.isdir(repo_url):
+            return getpass.getuser()
         b.critical(f"Git url '{repo_url}' is not usable.\nNeed one like 'git@server:useraccount/reponame.git'.")
     return mm.group(1) if mm else None  # tests will patch b.critical away
