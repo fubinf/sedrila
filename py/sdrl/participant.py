@@ -1,14 +1,21 @@
+import os
+
 import base as b
 
 PARTICIPANT_FILE = "student.yaml"
 
 class Student:
     def __init__(self):
+        root = "."
         try:
-            data = b.slurp_yaml(PARTICIPANT_FILE)
+            #grant students some slack. if they are calling from inside a working dir, it's fine.
+            if not(os.path.isfile(PARTICIPANT_FILE)) and os.path.isfile(os.path.join("..", PARTICIPANT_FILE)):
+                root = ".."
+            data = b.slurp_yaml(os.path.join(root, PARTICIPANT_FILE))
         except:
             b.critical(f"cannot read '{PARTICIPANT_FILE}'")
         try:
+            self.root = root
             self.course_url = data['course_url']
             assert isinstance(self.course_url, str)
             self.student_name = data['student_name']
@@ -20,3 +27,11 @@ class Student:
         except:
             b.critical(f"malformed file '{PARTICIPANT_FILE}': must contain "
                        "course_url, student_name, student_id, partner_student_name, partner_student_id.")
+
+    @staticmethod
+    def prompts(dict):
+        dict.setdefault('student_name', "Name")
+        dict.setdefault('student_id', "ID")
+        dict.setdefault('partner_student_name', "Partner's name")
+        dict.setdefault('partner_student_id', "Partner's ID")
+        return dict

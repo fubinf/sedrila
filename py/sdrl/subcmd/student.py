@@ -1,42 +1,82 @@
 import argparse
+import os
 import typing as tg
+import requests
 
 import base as b
 import git
 import sdrl.course
+import sdrl.interactive as i
 import sdrl.participant
 import sdrl.repo as r
 
 meaning = """Reports on course execution so far or prepares submission to instructor."""
 
 def add_arguments(subparser):
+    subparser.add_argument('--init', action=argparse.BooleanOptionalAction,
+                           help="start initialization for student repo directory")
     subparser.add_argument('--submission', action='store_true',
                            help=f"generate {r.SUBMISSION_FILE} with possible tasks to be checked by instructor")
+    subparser.add_argument('--interactive', default="True", action=argparse.BooleanOptionalAction,
+                           help="open interactive terminal interface to select tasks to submit")
+    subparser.add_argument('--log', default="INFO", choices=b.loglevels.keys(),
+                           help="Log level for logging to stdout (default: INFO)")
 
 
 def execute(pargs: argparse.Namespace):
+    b.set_loglevel(pargs.log)
+    if pargs.init:
+        init()
+        return
     student = sdrl.participant.Student()
     metadatafile = f"{student.course_url}/{b.METADATA_FILE}"
     course = sdrl.course.Course(metadatafile, read_contentfiles=False, include_stage="")
     r.compute_student_work_so_far(course)
     entries, workhours_total, timevalue_total = r.student_work_so_far(course)
     if pargs.submission:
-        prepare_submission_file(course, entries, pargs.course_url)
+        prepare_submission_file(course, student.root, entries, pargs.interactive)
     else:
         report_student_work_so_far(course, entries, workhours_total, timevalue_total)
 
 
-def prepare_submission_file(course: sdrl.course.Course, entries: tg.Sequence[r.ReportEntry],
-                            course_url: str):
+def init():
+    data = {}
+    while True:
+        data['course_url'] = os.path.dirname(input("Course URL: "))
+        metadatafile = f"{data['course_url']}/{b.METADATA_FILE}"
+        try:
+            if metadatafile.startswith("file:///"):
+                data['course_url'] = data['course_url'][7:]
+                coursedata = b.slurp_json(metadatafile[7:])
+            else:
+                resp = requests.get(url=metadatafile)
+                coursedata = resp.json()
+        except:
+            accept = input("Error fetching URL. Continue anyways? [yN] ")
+            if not(accept.startswith("y") or accept.startswith("Y")):
+                continue
+        break
+    init_data = coursedata.get('init_data') or {}
+    prompts = sdrl.participant.Student.prompts(init_data.get('studentprompts') or {})
+    for value in prompts:
+        data[value] = input(prompts[value] + ": ")
+    b.spit_yaml("student.yaml", data)
+
+
+def prepare_submission_file(course: sdrl.course.Course, root: str, entries: tg.Sequence[r.ReportEntry], interactive: bool = False):
+    if interactive:
+        entries = i.select_entries(entries)
+    if not(entries):
+        b.info("No entries to submit.")
+        return
     # ----- write file:
-    b.spit_yaml(r.SUBMISSION_FILE, r.submission_file_entries(course, entries))
+    b.spit_yaml(os.path.join(root, r.SUBMISSION_FILE), r.submission_file_entries(course, entries))
     b.info(f"Wrote file '{r.SUBMISSION_FILE}'.")
     # ----- give instructions for next steps:
-    b.info(f"1. Remove all entries from it that you do not want to submit yet.")
-    b.info(f"2. Commit it with commit message '{r.SUBMISSION_COMMIT_MSG}'.")
-    b.info(f"3. Then send the following to your instructor by email:")
+    b.info(f"1. Commit it with commit message '{r.SUBMISSION_COMMIT_MSG}'.")
+    b.info(f"2. Then send the following to your instructor by email:")
     b.info(f"  Subject: Please check submission")
-    b.info(f"  sedrila instructor --submission {course_url} {git.origin_remote_of_local_repo()}")
+    b.info(f"  sedrila instructor {git.origin_remote_of_local_repo()}")
     show_instructors(course)
 
 
@@ -52,9 +92,9 @@ def report_student_work_so_far(course: sdrl.course.Course, entries: tg.Sequence[
         task = course.taskdict[taskname]
         ra_list = task.rejections * [r.REJECT_MARK] + ([r.ACCEPT_MARK] if task.accepted else [])
         ra_string = ", ".join(ra_list)
-        table.add_row(taskname, "%4.1f" % workhours, "%4.1f" % timevalue, ra_string)
+        table.add_row(taskname, "%4.2f" % workhours, "%4.2f" % timevalue, ra_string)
     # table.add_section()
-    table.add_row("[b]=TOTAL[/b]", "[b]%5.1f[/b]" % workhours_total, "[b]%5.1f[/b]" % timevalue_total, "")
+    table.add_row("[b]=TOTAL[/b]", "[b]%5.2f[/b]" % workhours_total, "[b]%5.2f[/b]" % timevalue_total, "")
     b.info(table)
 
 

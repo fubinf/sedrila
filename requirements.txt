@@ -6,3 +6,4 @@ Pygments
 PyYAML
 requests
 rich
+blessed
