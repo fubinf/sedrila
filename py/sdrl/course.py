@@ -182,6 +182,7 @@ class Course(part.Partscontainer):
     include_stage_index: int  # index in stages list, or len(stages) if include_stage is ""
 
     taskorder: list[Task]  # If task B assumes or requires A, A will be before B in this list.
+    init_data: b.StrAnyDict
     glossary: glossary.Glossary
 
     def __init__(self, configfile: str, read_contentfiles: bool, include_stage: str):
@@ -190,7 +191,7 @@ class Course(part.Partscontainer):
         b.copyattrs(configfile, 
                     configdict, self,
                     mustcopy_attrs='title, breadcrumb_title, instructors, profiles, stages',
-                    cancopy_attrs='baseresourcedir, chapterdir, templatedir, blockmacro_topmatter',
+                    cancopy_attrs='baseresourcedir, chapterdir, templatedir, blockmacro_topmatter, init_data',
                     mustexist_attrs='chapters')
         self.slug = self.breadcrumb_title
         self.outputfile = "index.html"
@@ -241,10 +242,13 @@ class Course(part.Partscontainer):
 
     def as_json(self) -> b.StrAnyDict:
         result = dict(baseresourcedir=self.baseresourcedir, 
+                      breadcrumb_title=self.breadcrumb_title,
+                      stages=self.stages,
                       chapterdir=self.chapterdir,
                       templatedir=self.templatedir,
                       instructors=self.instructors,
                       profiles=self.profiles,
+                      init_data=self.init_data,
                       chapters=[chapter.as_json() for chapter in self.chapters])
         result.update(super().as_json())
         return result
@@ -416,7 +420,7 @@ class Chapter(part.Partscontainer):
                     chapter, self,
                     mustcopy_attrs='slug',
                     mustexist_attrs='taskgroups',
-                    cancopy_attrs='')
+                    cancopy_attrs='title')
         if read_contentfiles:
             self.read_partsfile(f"{self.course.chapterdir}/{self.slug}/index.md")
             b.copyattrs(context, 
@@ -461,7 +465,7 @@ class Taskgroup(part.Partscontainer):
         b.copyattrs(context,
                     taskgroupdict, self,
                     mustcopy_attrs='slug',
-                    cancopy_attrs='tasks',
+                    cancopy_attrs='tasks, title',
                     mustexist_attrs='taskgroups')
         context = f"taskgroup '{self.slug}' in chapter '{chapter.slug}'"
         self.outputfile = f"{self.slug}.html"
