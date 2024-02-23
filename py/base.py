@@ -16,6 +16,7 @@ CONFIG_FILENAME = "sedrila.yaml"  # at top-level of source dir
 GLOSSARY_BASENAME = "glossary"  # .md at top-level of chapterdir, .html in build directory
 METADATA_FILE = "course.json"  # at top-level of build directory
 TEMPLATES_DIR = "templates"
+SEDRILA_COMMAND_ENV = "SEDRILA_COMMAND"
 
 num_errors = 0
 msgs_seen = set()

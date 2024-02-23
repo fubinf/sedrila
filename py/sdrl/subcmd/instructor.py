@@ -1,6 +1,7 @@
 import argparse
 import os
 import re
+import subprocess as sp
 import time
 
 import base as b
@@ -37,10 +38,7 @@ def execute(pargs: argparse.Namespace):
     if os.environ.get(REPOS_HOME_VAR) is None:
         b.warning(f"Environment variable {REPOS_HOME_VAR} is not set. Assume current directory as student workdirs directory")
     home = os.environ.get(REPOS_HOME_VAR) or "."
-    if pargs.get:
-        checkout_student_repo(pargs.repo_url, home)
-    else:
-        b.warning("not pulling user repo, relying on existing state")
+    checkout_student_repo(pargs.repo_url, home, pargs.get)
     if not(pargs.put) and not(pargs.check):
         os.chdir("..")
         return
@@ -62,22 +60,33 @@ def execute(pargs: argparse.Namespace):
             return
         b.spit_yaml(r.SUBMISSION_FILE, r.submission_file_entries(course, entries, rejections))
     else:
-        call_instructor_cmd(course, instructor_cmd(), iteration=0)
+        call_instructor_cmd(course, instructor_cmd(), pargs, iteration=0)
     if pargs.put:
         validate_submission_file(course, r.SUBMISSION_FILE)
         commit_and_push(r.SUBMISSION_FILE)
     os.chdir("..")
 
 
-def checkout_student_repo(repo_url, home):
+def checkout_student_repo(repo_url, home, pull):
     """Pulls or clones student repo and changes into its directory."""
-    username = git.username_from_repo_url(repo_url)
-    os.chdir(home)
-    if os.path.exists(username):
-        os.chdir(username)
-        b.info(f"**** pulling repo in existing directory '{os.getcwd()}'")
-        git.pull()
+    inrepo = os.path.isdir(".git") and os.path.isfile("student.yaml")
+    if inrepo:
+        username = os.path.basename(os.getcwd())
     else:
+        username = git.username_from_repo_url(repo_url)
+        os.chdir(home)
+    if os.path.exists(username) or inrepo:
+        if not(inrepo):
+            os.chdir(username)
+        b.info(f"**** pulling repo in existing directory '{os.getcwd()}'")
+        if pull:
+            git.pull()
+        else:
+            b.warning("not pulling user repo, relying on existing state")
+    else:
+        if not(pull):
+            b.warning("attempted to grade non-existing user without pulling.")
+            b.warning("ignore and clone regardless.")
         git.clone(repo_url, username)
         os.chdir(username)
         b.info(f"**** cloned repo into new directory '{os.getcwd()}'")
@@ -103,7 +112,7 @@ def rewrite_submission_entries(course: sdrl.course.Course, entries: b.StrAnyDict
             entries[taskname] += f" (previously rejected {task.rejections}x)"
 
 
-def call_instructor_cmd(course: sdrl.course.Course, cmd: str, iteration: int):
+def call_instructor_cmd(course: sdrl.course.Course, cmd: str, pargs: argparse.Namespace, iteration: int):
     """Calls user-set command as indicated by environment variables"""
     if iteration == 0:
         b.info(f"Will now call the command given in the {USER_CMD_VAR} environment variable or else")
@@ -111,10 +120,14 @@ def call_instructor_cmd(course: sdrl.course.Course, cmd: str, iteration: int):
         b.info(f"The resulting command in your case will be:\n  '{cmd}'")
         b.info("Exit that command (e.g. the shell) to trigger automatic commit+push")
         b.info(f"of the modified {r.SUBMISSION_FILE}.")
+        b.info(f"Please change status of tasks in {r.SUBMISSION_FILE} to either {r.ACCEPT_MARK}\nor {r.REJECT_MARK} accordingly.")
+        b.info("You can also just run `sedrila` to get an interactive list.")
     else:
         b.info(f"Calling '{cmd}' again. (You can Ctrl-C right after it.)")
-    os.system(cmd)
+    os.environ[b.SEDRILA_COMMAND_ENV] = f"instructor {pargs.repo_url} --interactive --no-get --no-put"
+    sp.run(cmd, shell=True)
     time.sleep(0.8)  # give user a chance to hit Ctrl-C
+    del os.environ[b.SEDRILA_COMMAND_ENV]
 
 
 def instructor_cmd() -> str:
