@@ -182,7 +182,7 @@ class Course(part.Partscontainer):
     include_stage_index: int  # index in stages list, or len(stages) if include_stage is ""
 
     taskorder: list[Task]  # If task B assumes or requires A, A will be before B in this list.
-    init_data: b.StrAnyDict
+    init_data: b.StrAnyDict = {}
     glossary: glossary.Glossary
 
     def __init__(self, configfile: str, read_contentfiles: bool, include_stage: str):

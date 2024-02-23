@@ -67,7 +67,7 @@ def execute(pargs: argparse.Namespace):
     os.chdir("..")
 
 
-def checkout_student_repo(repo_url, home, pull):
+def checkout_student_repo(repo_url, home, pull = True):
     """Pulls or clones student repo and changes into its directory."""
     inrepo = os.path.isdir(".git") and os.path.isfile("student.yaml")
     if inrepo:
@@ -112,7 +112,7 @@ def rewrite_submission_entries(course: sdrl.course.Course, entries: b.StrAnyDict
             entries[taskname] += f" (previously rejected {task.rejections}x)"
 
 
-def call_instructor_cmd(course: sdrl.course.Course, cmd: str, pargs: argparse.Namespace, iteration: int):
+def call_instructor_cmd(course: sdrl.course.Course, cmd: str, pargs: argparse.Namespace = None, iteration: int = 0):
     """Calls user-set command as indicated by environment variables"""
     if iteration == 0:
         b.info(f"Will now call the command given in the {USER_CMD_VAR} environment variable or else")
@@ -124,10 +124,12 @@ def call_instructor_cmd(course: sdrl.course.Course, cmd: str, pargs: argparse.Na
         b.info("You can also just run `sedrila` to get an interactive list.")
     else:
         b.info(f"Calling '{cmd}' again. (You can Ctrl-C right after it.)")
-    os.environ[b.SEDRILA_COMMAND_ENV] = f"instructor {pargs.repo_url} --interactive --no-get --no-put"
+    if pargs:
+        os.environ[b.SEDRILA_COMMAND_ENV] = f"instructor {pargs.repo_url} --interactive --no-get --no-put"
     sp.run(cmd, shell=True)
     time.sleep(0.8)  # give user a chance to hit Ctrl-C
-    del os.environ[b.SEDRILA_COMMAND_ENV]
+    if pargs:
+        del os.environ[b.SEDRILA_COMMAND_ENV]
 
 
 def instructor_cmd() -> str:
