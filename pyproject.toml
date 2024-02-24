@@ -1,0 +1,73 @@
+# https://packaging.python.org/en/latest/
+# https://packaging.python.org/en/latest/specifications/pyproject-toml/
+# https://packaging.python.org/en/latest/guides/writing-pyproject-toml/
+# https://python-poetry.org/docs/pyproject/
+[tool.poetry]
+name = "sedrila"
+version = "0.5.0"  # keep in sync with base.py
+description = "Tool infrastructure for building and running \"self-driven lab\" courses"
+license = "MIT"
+authors = ["Lutz Prechelt <prechelt@inf.fu-berlin.de>"]
+readme = "README.md"
+homepage = "https://github.com/fubinf/sedrila"
+repository = "https://github.com/fubinf/sedrila"
+keywords = ["static site generator"]
+classifiers = [  # https://pypi.org/classifiers/
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Intended Audience :: Education",
+    "Operating System :: Unix",
+    "Topic :: Documentation",
+    "Topic :: Education :: Computer Aided Instruction (CAI)",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Text Processing :: Markup",
+    "Topic :: Text Processing :: Markup :: Markdown",
+]
+
+# https://python-poetry.org/docs/pyproject/#packages
+packages = [
+    { include = "*.py", from = "py" },
+    { include = "sdrl/*.py", from = "py" },
+    { include = "sdrl/subcmd/*.py", from = "py" },
+]
+include = [
+    "README.md", 
+    "LICENSE", 
+    "pyproject.toml",
+    "templates/*",
+    "baseresources/*",
+]
+
+# https://python-poetry.org/docs/pyproject/#dependencies-and-dependency-groups
+# https://python-poetry.org/docs/master/managing-dependencies/
+# https://python-poetry.org/docs/dependency-specification/
+[tool.poetry.dependencies]
+python = "^3.11"
+argparse_subcommand = "^1.1"
+blessed = "^1.20"
+Jinja2 = "^3.1"
+Markdown = "^3.5"
+mdx_linkify = "^2.1"
+Pygments = "^2.17"
+PyYAML = "^6.0"
+requests = "^2.31"
+rich = "^13.7"
+
+[tool.poetry.group.dev.dependencies]
+beautifulsoup4 = "^4.12"
+html5lib = "^1.1"
+pytest = "^8.0"
+
+# https://python-poetry.org/docs/pyproject/#scripts
+[tool.poetry.scripts]
+sedrila = "sedrila:main"
+
+# for  poetry publish  use:
+# export POETRY_HTTP_BASIC_PYPI_USERNAME=<username>
+# export POETRY_HTTP_BASIC_PYPI_PASSWORD=<password>
+
+# https://docs.pytest.org/en/latest/reference/customize.html
+[tool.pytest.ini_options]
+pythonpath = "py"
