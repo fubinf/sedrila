@@ -2,11 +2,12 @@
 
 import argparse_subcommand as ap_sub
 import os
+import sys
 
 import base as b
 import sdrl.subcmd  # this is where the subcommands will be found
 
-description = "Tool for 'self-driven lab' (SeDriLa) university courses."
+description = f"sedrila {b.SEDRILA_VERSION}: Tool for 'self-driven lab' (SeDriLa) university courses."
 
 moduletype = type(sdrl)
 functiontype = type(lambda: 1)
