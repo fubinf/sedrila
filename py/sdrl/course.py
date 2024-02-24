@@ -20,7 +20,10 @@ import sdrl.macros as macros
 import sdrl.part as part
 
 
-sedrila_libdir = f"{os.path.dirname(__file__)}/../.."  # top-level dir of sedrila library install
+sedrila_libdir = os.path.dirname(os.path.dirname(__file__))  # either 'py' (for dev install) or top-level
+if sedrila_libdir.endswith('py'):  # we are a dev install and must go one more level up:
+    sedrila_libdir = os.path.dirname(sedrila_libdir)
+
 
 @functools.total_ordering
 class Task(part.Structurepart):
