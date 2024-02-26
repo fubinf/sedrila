@@ -3,6 +3,7 @@ site_url: https://sedrila.readthedocs.io
 theme: readthedocs
 nav:
   - "General Ideas": general_ideas.md
+  - "Installation": installation.md
   - "User Guide for Course Authors": authors.md
   - "User Guide for Course Instructors": instructors.md
   - "User Guide for Students": students.md

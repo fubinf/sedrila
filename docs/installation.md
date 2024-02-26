@@ -1,4 +1,6 @@
-# User installation
+# sedrila Installation
+
+## 1. User installation
 
 Get [pipx](https://pipx.pypa.io/stable/installation/) and then do
 
@@ -7,7 +9,7 @@ pipx install sedrila
 ```
 
 
-# Developer installation
+## 2. Developer installation
 
 In case you want to make changes to sedrila yourself,
 this is how to set up development:

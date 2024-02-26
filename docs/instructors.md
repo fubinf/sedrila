@@ -1,6 +1,6 @@
 # `sedrila` use for instructors
 
-## 1 Preparations  TODO 2: add details
+## 1. Preparations  TODO 2: add details
 
 - install `sedrila`
 - install `gpg`
@@ -10,7 +10,7 @@
 - set `SEDRILA_INSTRUCTOR_COMMAND` environment variable
 
 
-## 2 Checking a submission  TODO 2: add details
+## 2. Checking a submission  TODO 2: add details
 
 - receive command by email
 - execute command
