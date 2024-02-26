@@ -175,3 +175,29 @@ If you intend to do it yourself, add your name in parens:
 Then use the IDE global search to work through these layer-by-layer.
 Demote items to a lower priority when they become stale or remove them.
 Kick out prio 3 items when they become unlikely.
+
+
+## 3.4 Target directory structure
+
+The current layout of the source tree is wrong.
+Currently, the `templates` and `baseresources` directories will end up 
+as top-level directories when the package is installed,
+which means they will clash with any top-level modules of that name
+anywhere in our dependencies.
+
+We need to perform the following refactorings to arrive at a proper structure:
+
+- `py` --> `sedrila`: This will be the top level directory that gets installed.
+- `sedrila/sdrl/*` --> `sedrila/*`: We remove the now-intermediate namespace.
+  This implies joining the current `sdrl/tests` into `sedrila/tests`.
+- `templates` --> `sedrila/templates`: The HTML templates simply become part of the
+  tree to be installed.
+- `baseresources` --> `sedrila/baseresources`: Ditto.
+- `doc` --> `docs`: This is the more common name. 
+  Requires fixing some links in the markdown.
+
+These changes require a lot of changes of import statements.
+For instance, the current module `base` will become `sedrila.base`
+and `sdrl.course` will become `sedrila.course`.
+The logic for computing `sedrila_libdir` in `courses.py` must be adapted.
+The files lists in `pyproject.toml` must be corrected.
