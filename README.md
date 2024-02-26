@@ -54,12 +54,13 @@ Correspondingly, it basically has three functions:
 
 # 2. How to use `sedrila`
 
-## 2.1 User installation (not yet implemented, TODO 3)
+## 2.1 User installation
+
+Get [pipx](https://pipx.pypa.io/stable/installation/) and then do
 
 ```
-pip install sedrila
+pipx install sedrila
 ```
-(Eventually, we will probably want to use a method that results in an executable.)
 
 
 ## 2.2 Usage instructions
@@ -77,17 +78,26 @@ There are separate instructions for each user group:
 ## 2.3 Developer installation
 
 In case you want to make changes to sedrila yourself,
-this is how to set up development. 
-You'll probably want to do this in a fresh venv.
+this is how to set up development:
+Get [poetry](https://python-poetry.org/docs/) and then do
 
 ```
 git clone git@github.com:fubinf/sedrila.git
 cd sedrila
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
-source /absolute/path/to/sedrila/cmd/attach_sedrila.bash.inc
+poetry install
+alias act_poetry="source $(poetry env info --path)/bin/activate"
+act_poetry
+alias sedrila="python `pwd`/py/sedrila.py"
 sedrila --help
 ```
+
+`poetry install` creates a venv and installs all dependencies into it.  
+Put the `act_poetry` alias in your `.bashrc` and use it each time you want to work
+on a poetry-based developer install like this.  
+As usual, use `deactivate` to deactivate the poetry-generated venv when needed.  
+Put the `sedrila` alias in your `.bashrc` and use it each time you want to call
+sedrila conveniently; replace the ``pwd`` with the sedrila directory.
+(This alias will soon be replaced by a sedrila executable in the venv.)
 
 
 # 3. Internal technical notes
@@ -143,7 +153,7 @@ is based on the following ideas:
   No such mechanism is implemented so far, though.
 
 
-## 3.3 TODO handling during development
+## 3.3 TODO-handling during development
 
 We use this convention for the development of `sedrila`.
 It may also be helpful for course authors if the team is small enough.
