@@ -16,9 +16,9 @@ how to generate the course website from it (Section 2),
 and how to make and maintain a fork of an existing sedrila course (Section 3)
 
 
-# 1. Content structure of a sedrila course
+## 1. Content structure of a sedrila course
 
-## 1.0 Overview: What you provide as a course author
+### 1.0 Overview: What you provide as a course author
 
 - One plain text file per potential task.  
   That file contains metadata (at the top of the file in Yaml format) and
@@ -39,7 +39,7 @@ and how to make and maintain a fork of an existing sedrila course (Section 3)
   A default `sedrila.css` is included and may be sufficient.
 
 
-## 1.1 `sedrila.yaml`: The global configuration file
+### 1.1 `sedrila.yaml`: The global configuration file
 
 This is best explained by example. Have a look at:
 
@@ -88,7 +88,7 @@ About the entries:
   The individual tasks are found by inspecting all `*.md` files in a taskgroup directory.
 
 
-## 1.2 Three-level directory tree: chapters, taskgroups, tasks
+### 1.2 Three-level directory tree: chapters, taskgroups, tasks
 
 The main part of a sedrila course directory tree is the subtree below
 the `chapterdir`. It contains the course content and has a structure like this:
@@ -128,7 +128,7 @@ those at taskgroup level act as task group landing pages.
 The latter two types follow a similar technical format as described below for task files.
 
 
-### 1.2.1 sedrila principle 1: Opinionatedness
+#### 1.2.1 sedrila principle 1: Opinionatedness
 
 The sedrila tool is an opinionated framework: Many decisions regarding what makes a good
 SeDriLa course are built into the framework to various degrees.
@@ -142,7 +142,7 @@ At the least technical level, the present document contains authoring advice at 
 of the natural language course content that is interwoven with how the remainder is designed. 
 
 
-### 1.2.2 The 4 factors writing style: Orientation, motivation, instruction, knowledge
+#### 1.2.2 The 4 factors writing style: Orientation, motivation, instruction, knowledge
 
 The various pieces of writing in a SeDriLa course serve four different generic purposes.
 Each purpose is mostly (if not exclusively) followed in certain places within the
@@ -168,7 +168,7 @@ technical structure:
   submission subtypes `reflection` and `information` are suitable for this purpose.
 
 
-### 1.2.3 Further principles: granularity, redundancy-avoidance, cross-referencing
+#### 1.2.3 Further principles: granularity, redundancy-avoidance, cross-referencing
 
 Granularity: Keep tasks small, between 0.5 hours and 4 hours timevalue;
 split tasks when they become too large.
@@ -188,7 +188,7 @@ Add further cross-references in the text (via the `PARTREF` macros) whereever us
 perhaps in a `NOTICE` block, often near the end of the `background` section.
 
 
-## 1.3 Special sedrila markup: Macros
+### 1.3 Special sedrila markup: Macros
 
 The specific macros will be described further down.
 General things to know about macros are these:
@@ -211,7 +211,7 @@ General things to know about macros are these:
 - Non-block macro calls can be mixed with other content on a line.
 
 
-## 1.4 Special sedrila markup: replacement blocks
+### 1.4 Special sedrila markup: replacement blocks
 
 A replacement block looks like this:
 ```
@@ -252,7 +252,7 @@ exactly as written and will remove the `<replacement id="someId">` and `</replac
 The `id` should start with the respective task, taskgroup, or chapter name.
 
 
-## 1.5 Task files: YAML top matter
+### 1.5 Task files: YAML top matter
 
 The meat of a SeDriLa course is in the individual task files.
 A task file is a Markdown file in a particular format.
@@ -316,7 +316,7 @@ The YAML attributes have the following meaning:
   If the list is empty, leave out the entry.
 
 
-## 1.6 `[SECTION]`/`[ENDSECTION]` macros for content structure
+### 1.6 `[SECTION]`/`[ENDSECTION]` macros for content structure
 
 It is useful for learners if tasks follow a recurring content structure,
 possibly with corresponding visual structure.
@@ -339,7 +339,7 @@ so that the visual appearance can be customized.
 Although each sedrila course can hence decide its section structure itself,
 sedrila comes with a recommendation:
 
-### 1.6.1 Recommendation for section usage and `[SECTION]` types
+#### 1.6.1 Recommendation for section usage and `[SECTION]` types
 
 The entire body of a task description is divided into sections; 
 the only extra text is possibly a number of `[INSTRUCTOR]`/`[ENDINSTRUCTOR]` blocks
@@ -352,7 +352,7 @@ continue with section-free text for characterizing the content of the chapter or
 The page title is a `<h1>` heading, `[SECTION::...]` macros by convention generate a `<h2>` heading.
 Therefore, inside sections you should use (if needed) `### ` headings.
 
-#### 1.6.1.1 `[SECTION::goal::...]`
+##### 1.6.1.1 `[SECTION::goal::...]`
 
 Short definition what is to be learned (this is the prefered type) or 
 achieved (if this is mostly a stepping stone for something else). 
@@ -363,14 +363,14 @@ Can be positioned first (this is the prefered structure) or
 nested inside the background section (using [INNERSECTION::goal::...]) or
 after the entire background.
 
-#### 1.6.1.2 `[SECTION::background::default]`  
+##### 1.6.1.2 `[SECTION::background::default]`  
 
 Knowledge required for understanding the instructions and solving the task.
 
 Only present if needed. Keep this short.  
 If lots of background are needed, turn it into steps of the instructions.
 
-#### 1.6.1.3 `[SECTION::instructions::...]`  
+##### 1.6.1.3 `[SECTION::instructions::...]`  
 
 The main part of the task: Instructions what to do.
 
@@ -378,7 +378,7 @@ More strongly than for other sections,
 this section looks hugely different depending on difficulty level.
 See the discussion of difficulty levels above and of instructions subtypes below.
 
-#### 1.6.1.4 `[SECTION::submission::...]`  
+##### 1.6.1.4 `[SECTION::submission::...]`  
 
 Final part of the task: Description what to prepare for the instructor to check.
 
@@ -389,9 +389,9 @@ Characterizes
 - and perhaps quality criteria.
 
 
-### 1.6.2 Recommendation for section subtypes
+#### 1.6.2 Recommendation for section subtypes
 
-#### 1.6.2.1 goal
+##### 1.6.2.1 goal
 
 - `[SECTION::goal::product]`:  
   A work product itself is the task's goal (because we want to have it or want to build on top of it).
@@ -406,13 +406,13 @@ Characterizes
   Difficulty 1 to 3 (or perhaps 4).
 
 
-#### 1.6.2.2 background
+##### 1.6.2.2 background
 
 - `[SECTION::background::default]`:  
   There is only one type of background section.
 
 
-#### 1.6.2.3 instructions
+##### 1.6.2.3 instructions
 
 - `[SECTION::instructions::detailed]`:  
   The instructions are such that the student must merely follow them closely for 
@@ -430,7 +430,7 @@ Characterizes
   Difficulty 4.
 
 
-#### 1.6.2.4 submission
+##### 1.6.2.4 submission
 
 - `[SECTION::submission::reflection]`:  
   Students submit a text containing their thoughts about something.
@@ -444,14 +444,14 @@ Characterizes
   Students submit an entire program with many moving parts.
 
 
-### 1.6.3 `[INNERSECTION]`/`[ENDINNERSECTION]`
+#### 1.6.3 `[INNERSECTION]`/`[ENDINNERSECTION]`
 
 If you insist on nesting some of your sections, use a maximum nesting depth of 1
 and use the `[INNERSECTION]`/`[ENDINNERSECTION]` pair of macros for the nested section.
 It works exactly like `[SECTION]` and the same types and subtypes apply.
 
 
-## 1.7 Instructor-only information: The `[INSTRUCTOR]` block macro
+### 1.7 Instructor-only information: The `[INSTRUCTOR]` block macro
 
 - `[INSTRUCTOR::heading]`/`[ENDINSTRUCTOR]`:
   This macro creates a distinctly-formatted block of text with a variable heading
@@ -462,7 +462,7 @@ It works exactly like `[SECTION]` and the same types and subtypes apply.
   from the student version.
 
 
-## 1.8 Other block macros: `[NOTICE]`, `[WARNING]`, `[HINT]`
+### 1.8 Other block macros: `[NOTICE]`, `[WARNING]`, `[HINT]`
 
 - `[NOTICE]`/`[ENDNOTICE]`:    
   A semi-important note with potentially different formatting than normal text.
@@ -480,9 +480,9 @@ It works exactly like `[SECTION]` and the same types and subtypes apply.
   somebody who would rather do difficulty 3.
 
 
-## 1.9 Other macros: `[INCLUDE]`, `[PARTREFx]`, `[TERMREF]`, etc.
+### 1.9 Other macros: `[INCLUDE]`, `[PARTREFx]`, `[TERMREF]`, etc.
 
-### 1.9.1 Macros for hyperlinks: `[PARTREF]`, `[PARTREFTITLE]`, `[PARTREFMANUAL]`, `[TERMREF]`
+#### 1.9.1 Macros for hyperlinks: `[PARTREF]`, `[PARTREFTITLE]`, `[PARTREFMANUAL]`, `[TERMREF]`
 
 - `[PARTREF::partname]`: 
   Create a hyperlink to the part description file for task, taskgroup, chapter, or zipfile `partname`,
@@ -495,7 +495,7 @@ It works exactly like `[SECTION]` and the same types and subtypes apply.
   Create a hyperlink to the glossary entry `term`; see under glossary below.
 
 
-### 1.9.2 Macros for instruction enumerations: `[EC]`, `[EQ]`, `[ER]`, `[EREFC]`, `[EREFQ]`, `[EREFR]`
+#### 1.9.2 Macros for instruction enumerations: `[EC]`, `[EQ]`, `[ER]`, `[EREFC]`, `[EREFQ]`, `[EREFR]`
 
 The split between `[SECTION::instructions::...]` and `[SECTION::submission::...]` is often inconvenient
 both for authors and students: The instructions may contain, say, 17 steps, and 5 of those
@@ -525,7 +525,7 @@ because of the strong within-task locality that the cross-references will usuall
 which makes manual cross-referencing the simpler approach.
 
 
-### 1.9.3 `[INCLUDE]`, `[TOC]`, `[DIFF]`
+#### 1.9.3 `[INCLUDE]`, `[TOC]`, `[DIFF]`
 
 - `[INCLUDE::filename]`: inserts the entire contents of file `filename` verbatim
   into the Markdown input stream at this point.
@@ -538,7 +538,7 @@ which makes manual cross-referencing the simpler approach.
 - `[DIFF::level]` generates the task difficulty mark for the given level, from 1 (very simple) to 4 (difficult).
 
 
-## 1.10 Taskgroup `index.md` files and chapter `index.md` files
+### 1.10 Taskgroup `index.md` files and chapter `index.md` files
 
 A **taskgroup** is described by an `index.md` file in the respective directory,
 which consists of a YAML part and text part much like a task file.
@@ -558,7 +558,7 @@ These files work like taskgroup `index.md` files, except that
 `explains` entries and `minimum` entries are not allowed.
 
 
-## 1.11 The glossary: `glossary.md` in `chapterdir`, `[TERM]`/`[TERM0]` macros
+### 1.11 The glossary: `glossary.md` in `chapterdir`, `[TERM]`/`[TERM0]` macros
 
 The glossary is a singleton living at the `chapterdir` top-level directory.
 It is generated from a source file `glossary.md`.
@@ -581,7 +581,7 @@ Use `[TERM0]` in case no definition of the term is needed because the automatica
 cross-references to parts mentioning and (in particular) explaining it suffice.
 
 
-## 1.12 `.zip` directories
+### 1.12 `.zip` directories
 
 At the level of a chapter or a taskgroup, you can place a subdirectory
 with a name ending in `.zip`, say, `myarchive.zip`.
@@ -599,7 +599,7 @@ if multiple files are involved, and still keep those files in an easily editable
 Use this for handsful of files. For large structures, apply separate repositories.
 
 
-# 2. Calling `sedrila`
+## 2. Calling `sedrila`
 
 The standard call for generating the HTML website from a sedrila course is
 `sedrila author outputdir`.
@@ -620,9 +620,9 @@ use a shell alias such as
 `alias sedrila='python /my/work/dir/sedrila/py/sedrila.py'`.
 
 
-# 3. Customization of a sedrila course
+## 3. Customization of a sedrila course
 
-## 3.1 Forking an existing course
+### 3.1 Forking an existing course
 
 One design goal of sedrila is that course authors should be able to fork an existing ("upstream")
 sedrila course authored by people from a different university and adapt the fork to their needs,
@@ -637,13 +637,13 @@ The support for this has the following components:
 
 These mechanisms are described in the next three subsections. 
 
-## 3.2 Templates for HTML layout
+### 3.2 Templates for HTML layout
 
 The format of the resulting HTML files is determined per page type by the Jinja2 templates
 in directory `templates`.
 For examples, see https://github.com/fubinf/propra-inf/tree/main/templates
 
-## 3.3 Modifying the CSS
+### 3.3 Modifying the CSS
 
 By convention, the Jinja2 templates of a course should always include exactly two
 CSS files: `sedrila.css` and `local.css`.
@@ -654,7 +654,7 @@ By convention, the original course puts all its styles into `sedrila.css` and
 the fork can overwrite some of them in its `local.css`.
 In the original course, `local.css` is empty and never changes.
 
-## 3.4 The `<replacement>` mechanism
+### 3.4 The `<replacement>` mechanism
 
 The authors of the original course identify all parts in their text that refer
 to local entities, for instance department names, server URLs, or local rules
