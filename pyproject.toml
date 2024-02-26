@@ -58,6 +58,7 @@ rich = "^13.7"
 [tool.poetry.group.dev.dependencies]
 beautifulsoup4 = "^4.12"
 html5lib = "^1.1"
+mkdocs = "^1.5"
 pytest = "^8.0"
 
 # https://python-poetry.org/docs/pyproject/#scripts
