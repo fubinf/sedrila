@@ -67,11 +67,11 @@ pipx install sedrila
 
 There are separate instructions for each user group:
 
-- [Course authors](doc/authors.md) 
+- [Course authors](docs/authors.md) 
   who formulate tasks and decide their timevalues before a SeDriLa course starts.
-- [Students](doc/students.md) 
+- [Students](docs/students.md) 
   who take the course.
-- [Instructors](doc/instructors.md)
+- [Instructors](docs/instructors.md)
   who check solutions of tasks when students submit them.
 
 
@@ -133,7 +133,7 @@ and of _"earned value"_ effort hours (called "timevalue") certified by an instru
 is based on the following ideas:
 
 - When students commit a partial or completed task XYZ, they use a prescribed format 
-  for the commit message as described on the [students page](doc/students.md).
+  for the commit message as described on the [students page](docs/students.md).
 - A script can collect, accumulate, and tabulate these _actual_ work times for the student's information
   and show them side-by-side with the timevalues (_expected_ work times).
   The information is also useful for evidence-based improvement of the course contents.
@@ -193,8 +193,6 @@ We need to perform the following refactorings to arrive at a proper structure:
 - `templates` --> `sedrila/templates`: The HTML templates simply become part of the
   tree to be installed.
 - `baseresources` --> `sedrila/baseresources`: Ditto.
-- `doc` --> `docs`: This is the more common name. 
-  Requires fixing some links in the markdown.
 
 These changes require a lot of changes of import statements.
 For instance, the current module `base` will become `sedrila.base`
