@@ -1,0 +1,6 @@
+site_name: "sedrila: Tool infrastructure for building and running 'self-driven lab' courses" 
+site_url: https://sedrila.readthedocs.io
+nav:
+  - "User Guide for Course Authors": authors.md
+  - "User Guide for Course Instructors": instructors.md
+  - "User Guide for Students": students.md
