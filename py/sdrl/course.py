@@ -44,6 +44,18 @@ class Task(part.Structurepart):
 
     taskgroup: 'Taskgroup'  # where the task belongs
 
+    def open_rejections(self) -> (int, bool):
+        rejection_allowance = self.taskgroup.chapter.course.rejection_allowance
+        if not(rejection_allowance) or rejection_allowance.isnumeric():
+            allowance = 0 if not(rejection_allowance) else int(rejection_allowance)
+            return (max(0, allowance - self.rejections), self.rejections > allowance)
+        if rejection_allowance.startswith("inf") or rejection_allowance == "unlimited":
+            return (-1, False)
+        parts = rejection_allowance.split("+")
+        allowance = sum([int(part) for part in parts if part.isnumeric()])
+        allowance += self.timevalue * sum([int(part.split("/")[0]) for part in parts if "/h" in part])
+        return (max(0, allowance - self.rejections), self.rejections > allowance)
+
     @property
     def breadcrumb_item(self) -> str:
         return f"<a href='{self.outputfile}'>{self.slug}</a>"
@@ -186,6 +198,8 @@ class Course(part.Partscontainer):
 
     taskorder: list[Task]  # If task B assumes or requires A, A will be before B in this list.
     init_data: b.StrAnyDict = {}
+    out_dir: str = None
+    rejection_allowance: str = None #nothing, plain number, infinite or something like 1+2/h
     glossary: glossary.Glossary
 
     def __init__(self, configfile: str, read_contentfiles: bool, include_stage: str):
@@ -194,7 +208,7 @@ class Course(part.Partscontainer):
         b.copyattrs(configfile, 
                     configdict, self,
                     mustcopy_attrs='title, breadcrumb_title, instructors, profiles, stages',
-                    cancopy_attrs='baseresourcedir, chapterdir, templatedir, blockmacro_topmatter, init_data',
+                    cancopy_attrs='baseresourcedir, chapterdir, templatedir, blockmacro_topmatter, init_data, out_dir, rejection_allowance',
                     mustexist_attrs='chapters')
         self.slug = self.breadcrumb_title
         self.outputfile = "index.html"
@@ -252,6 +266,8 @@ class Course(part.Partscontainer):
                       instructors=self.instructors,
                       profiles=self.profiles,
                       init_data=self.init_data,
+                      out_dir=self.out_dir,
+                      rejection_allowance=self.rejection_allowance,
                       chapters=[chapter.as_json() for chapter in self.chapters])
         result.update(super().as_json())
         return result

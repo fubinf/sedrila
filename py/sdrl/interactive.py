@@ -4,11 +4,14 @@ import typing as tg
 import base as b
 import sdrl.repo as r
 
+ACCEPT_SYMBOL = "✓"
+REJECT_SYMBOL = "X"
+
 def prefix(entry: r.ReportEntry, selected: dict[str, bool], rejected: dict[str, bool]):
     if selected[entry[0]]:
-        return "✓"
+        return ACCEPT_SYMBOL
     if not(rejected is None) and rejected[entry[0]]:
-        return "X"
+        return REJECT_SYMBOL
     return " "
 
 

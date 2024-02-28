@@ -35,8 +35,8 @@ def add_arguments(subparser: argparse.ArgumentParser):
                            help="Log level for logging to stdout (default: WARNING)")
     subparser.add_argument('--sums', action='store_const', const=True, default=False,
                            help="Print task volume reports")
-    subparser.add_argument('targetdir',
-                           help="Directory to which output will be written")
+    subparser.add_argument('targetdir', action=TargetDirAction,
+                           help=f"Directory to which output will be written. Defaults to out_dir in {b.CONFIG_FILENAME}")
 
 
 def execute(pargs: argparse.Namespace):
@@ -56,8 +56,8 @@ def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
     the link generation.
     Uses the basenames of the chapter and taskgroup directories as keys.
     """
-    targetdir_s = pargs.targetdir  # for students
-    targetdir_i = _instructor_targetdir(pargs)  # for instructors
+    targetdir_s = pargs.targetdir or course.out_dir  # for students
+    targetdir_i = _instructor_targetdir(pargs, course)  # for instructors
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(course.templatedir), autoescape=False)
     # ----- prepare directories:
     b.info(f"preparing directories '{targetdir_s}', '{targetdir_i}'")
@@ -429,7 +429,17 @@ def print_volume_report(course: sdrl.course.Course):
         b.rich_print(table)  # noqa
 
 
-def _instructor_targetdir(pargs: argparse.Namespace) -> str:
-    default = f"{pargs.targetdir}/{OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR}"
+def _instructor_targetdir(pargs: argparse.Namespace, course: sdrl.course.Course) -> str:
+    default = f"{pargs.targetdir or course.out_dir}/{OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR}"
     has_instructor_targetdir = getattr(pargs, 'instructor_targetdir', False)
     return pargs.instructor_targetdir if has_instructor_targetdir else default
+
+
+#allow target dir to be optional without --
+class TargetDirAction(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        kwargs['required'] = False
+        super().__init__(option_strings, dest, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, values)
