@@ -49,13 +49,17 @@ def accumulate_workhours_per_task(workentries: tg.Sequence[WorkEntry], course: s
             pass  # ignore non-existing tasknames quietly
 
 
-def checked_tuples_from_commits(hashes: tg.Sequence[str]) -> tg.Sequence[CheckedTuple]:
-    """Collect the individual checks across all 'submission.yaml checked' commits."""
+def checked_tuples_from_commits(hasheslist: tg.Sequence[tg.Sequence[str]]) -> tg.Sequence[CheckedTuple]:
+    """Collect the individual checks across all 'submission.yaml checked' commits.
+    The state of a task should always be the last one in a given group."""
     result = []
-    for refid in hashes:
-        submission = yaml.safe_load(git.contents_of_file_version(refid, SUBMISSION_FILE, encoding='utf8'))
-        for taskname, tasknote in submission['submission'].items():
-            result.append((refid, taskname, tasknote))
+    for hashes in hasheslist:
+        groupdict: dict[str, CheckedTuple] = {}
+        for refid in hashes:
+            submission = yaml.safe_load(git.contents_of_file_version(refid, SUBMISSION_FILE, encoding='utf8'))
+            for taskname, tasknote in submission['submission'].items():
+                groupdict[taskname] = (refid, taskname, tasknote)
+        result.extend(groupdict.values())
     return result
 
 
@@ -68,23 +72,28 @@ def compute_student_work_so_far(course: sdrl.course.Course):
     commits = git.commits_of_local_repo()
     workhours = workhours_of_commits(commits)
     accumulate_workhours_per_task(workhours, course)
-    hashes = submission_checked_commit_hashes(course, commits)
-    checked_tuples = checked_tuples_from_commits(hashes)
+    hasheslist = submission_checked_commit_hashes(course, commits)
+    checked_tuples = checked_tuples_from_commits(hasheslist)
     accumulate_timevalues_and_attempts(checked_tuples, course)
 
 
 def submission_checked_commit_hashes(course: sdrl.course.Course,
-                                     commits: tg.Sequence[git.Commit]) -> tg.Sequence[str]:
-    """List of hashes of properly instructor-signed commits of finished submission checks."""
+                                     commits: tg.Sequence[git.Commit]) -> tg.Sequence[tg.Sequence[str]]:
+    """List of hashes of properly instructor-signed commits of finished submission checks.
+    This will be grouped by consecutively done commits of instructors and student."""
     allowed_signers = [b.as_fingerprint(instructor['keyfingerprint'])
                        for instructor in course.instructors]
-    result = []
+    group = []
+    result = [group]
     for commit in commits:
         b.debug(f"commit.subject, fpr: {commit.subject}, {commit.key_fingerprint}")
         right_subject = re.match(SUBMISSION_CHECKED_COMMIT_MSG, commit.subject) is not None
         right_signer = commit.key_fingerprint and b.as_fingerprint(commit.key_fingerprint) in allowed_signers
+        if not(right_signer) and group:
+            group = []
+            result.append(group)
         if right_subject and right_signer:
-            result.append(commit.hash)
+            group.append(commit.hash)
     return result
 
 
