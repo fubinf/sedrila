@@ -10,8 +10,8 @@
       "keyfingerprint": "--"
     }
   ],
-  "profiles": ['DBS', 'DSCI', 'OPS', 'SYS', 'TEST', 'WEB'],
-  "stages": ['draft', 'alpha', 'beta'],
+  "profiles": ["DBS", "DSCI", "OPS", "SYS", "TEST", "WEB"],
+  "stages": ["draft", "alpha", "beta"],
   "chapters": [
     {
       "slug": "basis",
@@ -27,7 +27,7 @@
               "difficulty": 2,
               "assumes": [],
               "requires": [],
-              "profiles": [],
+              "profiles": []
             },
             {
               "slug": "B",
@@ -36,7 +36,7 @@
               "difficulty": 3,
               "assumes": [],
               "requires": [],
-              "profiles": [],
+              "profiles": []
             },
             { "slug": "Task1", "title": "Task1", "timevalue": 1.0, "difficulty": 1,
               "assumes": [], "requires": [], "profiles": []  },
@@ -45,10 +45,10 @@
             { "slug": "Task3", "title": "Task3", "timevalue": 3.0, "difficulty": 3,
               "assumes": [], "requires": [], "profiles": []  }
           ],
-          "title": "Linux-Umgebung schaffen",
+          "title": "Linux-Umgebung schaffen"
         }
       ]
     }
   ],
-  "title": "Dummy SeDriLa for testing",
+  "title": "Dummy SeDriLa for testing"
 }
