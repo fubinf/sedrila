@@ -57,7 +57,7 @@ def checked_tuples_from_commits(hasheslist: tg.Sequence[tg.Sequence[str]]) -> tg
         groupdict: dict[str, CheckedTuple] = {}
         for refid in hashes:
             submission = yaml.safe_load(git.contents_of_file_version(refid, SUBMISSION_FILE, encoding='utf8'))
-            for taskname, tasknote in submission['submission'].items():
+            for taskname, tasknote in submission.items():
                 groupdict[taskname] = (refid, taskname, tasknote)
         result.extend(groupdict.values())
     return result

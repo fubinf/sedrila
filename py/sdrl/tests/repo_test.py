@@ -1,6 +1,5 @@
 # pytest tests. Some of them work on Linux only (just like sedrila overall).
 
-from itertools import chain
 import os
 import re
 import subprocess
@@ -15,79 +14,96 @@ import sdrl.subcmd.student
 
 from tests.testbase import TempDirEnvironContextMgr
 
-GIT_USER = "user@example.org"
-INSTRUCTOR_USER = "instructor"
+INSTRUCTOR_USER = "sedrila-test-instructor"
+GIT_USER = f"{INSTRUCTOR_USER}@example.org"
 
 def init_repo():
-    os.system("git config user.name 'SeDriLa Dummy'")
     os.system("git init -b main")
+    os.system("git config user.name 'SeDriLa Dummy'")
 
 def commit(*args, **kwargs):
     signed = kwargs.pop('signed', False)
     user = kwargs.pop('user', "user")
-    if signed:
-        os.system("gpgconf --kill gpg-agent")
     os.system(f"git config user.email {user}@example.org")
     for message in args:
         gitcmd = f"git commit {'-S' if signed else ''} --allow-empty -m'{message}'"
-        if signed:
-            gitcmd = f"GPG_TTY=$(tty) gpg-agent --daemon -- {gitcmd}"
-        os.system(gitcmd)
-    if signed:
-        os.system("gpgconf --kill gpg-agent")
+        os.system(with_env(gitcmd))
+
+def request_grading(*args):
+    b.spit_yaml(r.SUBMISSION_FILE, {task: r.CHECK_MARK for task in args})
+    os.system(f"git add '{r.SUBMISSION_FILE}'")
+    commit(f"please check {r.SUBMISSION_FILE}")
 
 def grade(grades):
     b.spit_yaml(r.SUBMISSION_FILE, grades)
     os.system(f"git add '{r.SUBMISSION_FILE}'")
     commit(f"{r.SUBMISSION_FILE} checked", user=INSTRUCTOR_USER, signed=True)
 
+def with_env(command):
+    return f"GPG_TTY=$(tty) HOME=. {command}"
+
+def remove_existing_keys():
+    try:
+        fpr_output = subprocess.check_output(with_env(f"gpg --fingerprint --with-colons {INSTRUCTOR_USER}"), shell=True)
+        fpr_lines = [line.decode("ASCII") for line in fpr_output.splitlines() if line.startswith(b"fpr:")]
+        for line in fpr_lines:
+            mm = re.search(r"fpr:+([\dA-F]+)", line)
+            subprocess.run(with_env(f"gpg --batch --delete-secret-keys {mm.group(1)}"), shell=True)
+    except Exception:
+        pass
+
 def create_gpg_key() -> str:
     os.system("gpgconf --kill gpg-agent")
-    os.system(f"gpg --quick-gen-key --batch --pinentry-mode loopback --passphrase '' {GIT_USER} default default never")
-    fpr_output = subprocess.check_output("HOME=. gpg --fingerprint --with-colons", shell=True)
+    os.system(with_env("gpg-agent --daemon"))
+    remove_existing_keys()
+    os.system(with_env(f"gpg --quick-gen-key --batch --pinentry-mode loopback --passphrase '' {GIT_USER} default default never"))
+    fpr_output = subprocess.check_output(with_env("gpg --fingerprint --with-colons"), shell=True)
     print("create_gpg_key:", fpr_output)
-    mm = re.search(rb"fpr:+([\dA-F]+)", fpr_output)
+    fpr_lines = [line.decode("ASCII") for line in fpr_output.splitlines() if line.startswith(b"fpr:")]
+    mm = re.search(r"fpr:+([\dA-F]+)", fpr_lines[0])
     assert mm
-    return str(mm.group(1))  # the fingerprint-proper only
+    return mm.group(1)  # the fingerprint-proper only
 
 def test_student_work_so_far():
     def preparations():
         commit("hello", "%A 3.25h", "%A 0:45h"),
-        grade({"A", f"{r.REJECT_MARK}  some comment about the problem\n"})
+        grade({"A": f"{r.REJECT_MARK}  some comment about the problem\n"})
 
-    def assertions(course, commits):
-        hasheslists = r.submission_checked_commit_hashes(course, commits)
-        hashes = list(chain.from_iterable(hasheslists))
-        print("hashes:", hashes)
-        checked_tuples = r.checked_tuples_from_commits(hashes)
-        print("checked_tuples:", checked_tuples)
-        r.accumulate_timevalues_and_attempts(checked_tuples, course)
+    def assertions(course):
+        #subprocess.run("/bin/bash", shell=True)
         # ----- report workhours and timevalue per task:
         entries, workhours_total, timevalue_total = r.student_work_so_far(course)
         print("ReportEntries: ", entries)
         assert workhours_total == 4.0
         assert timevalue_total == 0.0
         assert len(entries) == 1
-        #assert entries[0] == ("A", 4.0, 1.0, 1, False) #why is this wrong?
-        assert entries[0] == ("A", 4.0, 1.0, 0, False)
+        assert entries[0] == ("A", 4.0, 1.0, 1, False)
 
     run_inside_repo(preparations, assertions)
 
 def run_inside_repo(preparations, assertions):
+    global fingerprint
     with TempDirEnvironContextMgr(HOME='.') as mgr:
         #----- initialize test environment:
         course_json = b.slurp_json(f"{mgr.origdir}/py/sdrl/tests/data/{b.METADATA_FILE}")  # config template
         fingerprint = create_gpg_key()
-        course_json['instructors'][0]['fingerprint'] = fingerprint  
+        course_json['instructors'][0]['keyfingerprint'] = fingerprint  
+        course_json['instructors'][0]['email'] = INSTRUCTOR_USER + "@example.org"
         b.spit_json(b.METADATA_FILE, course_json)  # final course config
         init_repo()
+        os.system(f"git config user.signingkey {fingerprint}")
         preparations()
         #----- initialize application environment:
         course = sdrl.course.Course(b.METADATA_FILE, read_contentfiles=False, include_stage="")
         commits = git.commits_of_local_repo()
         workhours = r.workhours_of_commits(commits)
         r.accumulate_workhours_per_task(workhours, course)
-        assertions(course, commits)
+        hashes = r.submission_checked_commit_hashes(course, commits)
+        print("hashes:", hashes)
+        checked_tuples = r.checked_tuples_from_commits(hashes)
+        print("checked_tuples:", checked_tuples)
+        r.accumulate_timevalues_and_attempts(checked_tuples, course)
+        assertions(course)
 
 
 def test_parse_taskname_workhours():
