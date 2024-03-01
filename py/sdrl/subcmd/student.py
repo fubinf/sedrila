@@ -34,6 +34,7 @@ def execute(pargs: argparse.Namespace):
     r.compute_student_work_so_far(course)
     entries, workhours_total, timevalue_total = r.student_work_so_far(course)
     if pargs.submission:
+        entries = [entry for entry in entries if not(course.task(entry[0]).open_rejections()[1])] #filter final rejections
         prepare_submission_file(course, student.root, entries, pargs.interactive)
     else:
         report_student_work_so_far(course, entries, workhours_total, timevalue_total)

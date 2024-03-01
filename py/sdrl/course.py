@@ -8,6 +8,7 @@ import dataclasses
 import functools
 import glob
 import graphlib
+import math
 import numbers
 import os
 import re
@@ -53,7 +54,7 @@ class Task(part.Structurepart):
             return (-1, False)
         parts = rejection_allowance.split("+")
         allowance = sum([int(part) for part in parts if part.isnumeric()])
-        allowance += self.timevalue * sum([int(part.split("/")[0]) for part in parts if "/h" in part])
+        allowance += math.floor(self.timevalue) * sum([int(part.split("/")[0]) for part in parts if "/h" in part])
         return (max(0, allowance - self.rejections), self.rejections > allowance)
 
     @property

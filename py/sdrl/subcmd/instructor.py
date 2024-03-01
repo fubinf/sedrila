@@ -48,7 +48,7 @@ def execute(pargs: argparse.Namespace):
     r.compute_student_work_so_far(course)
     entries, workhours_total, timevalue_total = r.student_work_so_far(course)
     opentasks = rewrite_submission_file(course, r.SUBMISSION_FILE)
-    entries = list(filter(lambda entry: entry[0] in opentasks, entries))
+    entries = list(filter(lambda entry: entry[0] in opentasks and not(course.task(entry[0]).open_rejections()[1]), entries))
     if not(pargs.check):
         b.info("Don't run check, just prepare commit")
     elif not(entries):

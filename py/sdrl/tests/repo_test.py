@@ -67,6 +67,7 @@ def create_gpg_key() -> str:
 def test_student_work_so_far():
     def preparations():
         commit("hello", "%A 3.25h", "%A 0:45h"),
+        request_grading("A")
         grade({"A": f"{r.REJECT_MARK}  some comment about the problem\n"})
 
     def assertions(course):
@@ -81,7 +82,7 @@ def test_student_work_so_far():
 
     run_inside_repo(preparations, assertions)
 
-def run_inside_repo(preparations, assertions):
+def run_inside_repo(preparations, assertions, coursemodifications = None):
     global fingerprint
     with TempDirEnvironContextMgr(HOME='.') as mgr:
         #----- initialize test environment:
@@ -89,13 +90,15 @@ def run_inside_repo(preparations, assertions):
         fingerprint = create_gpg_key()
         course_json['instructors'][0]['keyfingerprint'] = fingerprint  
         course_json['instructors'][0]['email'] = INSTRUCTOR_USER + "@example.org"
+        if coursemodifications:
+            coursemodifications(course_json)
         b.spit_json(b.METADATA_FILE, course_json)  # final course config
         init_repo()
         os.system(f"git config user.signingkey {fingerprint}")
         preparations()
         #----- initialize application environment:
         course = sdrl.course.Course(b.METADATA_FILE, read_contentfiles=False, include_stage="")
-        commits = git.commits_of_local_repo()
+        commits = git.commits_of_local_repo(reverse=True)
         workhours = r.workhours_of_commits(commits)
         r.accumulate_workhours_per_task(workhours, course)
         hashes = r.submission_checked_commit_hashes(course, commits)
