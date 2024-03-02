@@ -67,8 +67,9 @@ def create_gpg_key() -> str:
 def test_student_work_so_far():
     def preparations():
         commit("hello", "%A 3.25h", "%A 0:45h"),
+        grade({"A": f"{r.REJECT_MARK}"}) #should not throw, but should not count
         request_grading("A")
-        grade({"A": f"{r.REJECT_MARK}  some comment about the problem\n"})
+        grade({"A": f"{r.REJECT_MARK}  some comment about the problem"})
 
     def assertions(course):
         #subprocess.run("/bin/bash", shell=True)

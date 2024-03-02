@@ -60,7 +60,10 @@ def checked_tuples_from_commits(hasheslist: tg.Sequence[tg.Sequence[str]]) -> tg
     for hashes in hasheslist:
         if not(hashes):
             continue
-        requested = list(yaml.safe_load(git.contents_of_file_version(hashes.pop(0), SUBMISSION_FILE, encoding='utf8')).keys())
+        try:
+            requested = list(yaml.safe_load(git.contents_of_file_version(hashes.pop(0), SUBMISSION_FILE, encoding='utf8')).keys())
+        except Exception:
+            continue #no submission file yet, grading isn't allowed
         groupdict: dict[str, CheckedTuple] = {}
         for refid in hashes:
             submission = yaml.safe_load(git.contents_of_file_version(refid, SUBMISSION_FILE, encoding='utf8'))
@@ -105,7 +108,7 @@ def submission_checked_commit_hashes(course: sdrl.course.Course,
             if group:
                 group = []
                 result.append(group)
-        if right_subject and right_signer:
+        if right_subject and right_signer and student_commit:
             if not(group):
                 group.append(student_commit.hash)
             group.append(commit.hash)
