@@ -34,10 +34,10 @@ def request_grading(*args):
     os.system(f"git add '{r.SUBMISSION_FILE}'")
     commit(f"please check {r.SUBMISSION_FILE}")
 
-def grade(grades):
+def grade(grades, signed=True):
     b.spit_yaml(r.SUBMISSION_FILE, grades)
     os.system(f"git add '{r.SUBMISSION_FILE}'")
-    commit(f"{r.SUBMISSION_FILE} checked", user=INSTRUCTOR_USER, signed=True)
+    commit(f"{r.SUBMISSION_FILE} checked", user=INSTRUCTOR_USER, signed=signed)
 
 def with_env(command):
     return f"GPG_TTY=$(tty) HOME=. {command}"

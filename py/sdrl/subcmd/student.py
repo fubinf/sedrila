@@ -82,7 +82,7 @@ def prepare_submission_file(course: sdrl.course.Course, root: str, entries: tg.S
 
 
 def report_student_work_so_far(course: sdrl.course.Course, entries: tg.Sequence[r.ReportEntry],
-                               workhours_total: float, timevalue_total: float):
+                               workhours_total: float, timevalue_total: float, out = None):
     b.info("Your work so far:")
     table = b.Table()
     table.add_column("Taskname")
@@ -95,10 +95,12 @@ def report_student_work_so_far(course: sdrl.course.Course, entries: tg.Sequence[
         if task.rejections > 0:
             ra_string += f"{i.REJECT_SYMBOL}*{task.rejections}"
             (open_rejections, blocked) = task.open_rejections()
-            if blocked:
-                ra_string = b.REJECT_MARK
             ra_string += "" if open_rejections < 0 else f"/{open_rejections+task.rejections}"
+            if blocked:
+                ra_string = r.REJECT_MARK
         table.add_row(taskname, "%4.2f" % workhours, "%4.2f" % timevalue, ra_string)
+        if out is not None:
+            out.append((taskname, "%4.2f" % workhours, "%4.2f" % timevalue, ra_string))
     # table.add_section()
     table.add_row("[b]=TOTAL[/b]", "[b]%5.2f[/b]" % workhours_total, "[b]%5.2f[/b]" % timevalue_total, "")
     b.info(table)

@@ -122,6 +122,7 @@ def call_instructor_cmd(course: sdrl.course.Course, cmd: str, pargs: argparse.Na
         b.info(f"of the modified {r.SUBMISSION_FILE}.")
         b.info(f"Please change status of tasks in {r.SUBMISSION_FILE} to either {r.ACCEPT_MARK}\nor {r.REJECT_MARK} accordingly.")
         b.info("You can also just run `sedrila` to get an interactive list.")
+        b.info("Feel free to add remarks at the end of the accept/reject lines.")
     else:
         b.info(f"Calling '{cmd}' again. (You can Ctrl-C right after it.)")
     if pargs:
