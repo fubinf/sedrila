@@ -56,6 +56,20 @@ class SedrilaPreprocessor(mdpre.Preprocessor):
 class SedrilaPostprocessor(mdpost.Postprocessor):
     LT_ERSATZ = "\u269f"  # ⚟ 
     GT_ERSATZ = "\u269e"  # ⚞ 
+    AMP_ERSATZ = "\u203b"  # ※ 
+    RE_GROUP1 = r"\1"
+    lt_hide_search_re = r"<(\S)"
+    gt_hide_search_re = r"(\S)>"
+    htmlesc_hide_search_re = r"&(\S)"
+    lt_hide_repl_re = LT_ERSATZ + RE_GROUP1
+    gt_hide_repl_re = RE_GROUP1 + GT_ERSATZ
+    htmlesc_hide_repl_re = AMP_ERSATZ + RE_GROUP1
+    lt_unhide_search_re = f"(<p>)?" + LT_ERSATZ
+    gt_unhide_search_re = GT_ERSATZ + f"(</p>)?"
+    amp_unhide_search_str = AMP_ERSATZ
+    lt_unhide_repl_re = "<"
+    gt_unhide_repl_re = ">"
+    amp_unhide_repl_str = "&"
 
     def run(self, text: str) -> str:
         return self.unhide_html_tags(text)  # hide_html_tags() happens in the preprocessor
@@ -72,8 +86,24 @@ class SedrilaPostprocessor(mdpost.Postprocessor):
         So we hide the HTML tags by 
         replacing '<' and '>' by obscure Unicode characters in a preprocessor
         and undoing this in the present postprocessor at the end.
+        BEWARE: 
+        - There will be '<' and '>' in normal Markdown text as well.
+          These do not represent HTML tags and must be kept, 
+          so that Markdown can encode them as '&lt;' and '&gt;' later.
+        - To show HTML source text in our Markdown files, that HTML will have to be sent
+          through an escaping filter (that encodes "<p>" as "&lt;p&gt;" etc.).
+          Therefore, we must protect HTML escape sequences by replacing their '&' and
+          undoing that later.
+        - Of course, '&' characters that are not part of an HTML escape sequence
+          must be left alone, so that Markdown can convert them into '&amp;'.
+        - And of course, you must never use those obscure replacement characters in your
+          Markdown text yourself.
+        (If your head is now spinning, that's not you, it's a domain property.) 
         """
-        return content.replace('<', cls.LT_ERSATZ).replace('>', cls.GT_ERSATZ)
+        content = re.sub(cls.lt_hide_search_re, cls.lt_hide_repl_re, content)
+        content = re.sub(cls.gt_hide_search_re, cls.gt_hide_repl_re, content)
+        content = re.sub(cls.htmlesc_hide_search_re, cls.htmlesc_hide_repl_re, content)
+        return content
     
     @classmethod
     def unhide_html_tags(cls, content: str) -> str:
@@ -87,10 +117,9 @@ class SedrilaPostprocessor(mdpost.Postprocessor):
         The second case cannot be avoided; it must be repaired:
         We remove <p> right before an LT_ERSATZ and </p> right after a GT_ERSATZ. 
         """
-        lt_ersatz_re = f"(<p>)?" + cls.LT_ERSATZ
-        gt_ersatz_re = cls.GT_ERSATZ + f"(</p>)?"
-        content = re.sub(lt_ersatz_re, '<', content)
-        content = re.sub(gt_ersatz_re, '>', content)
+        content = re.sub(cls.lt_unhide_search_re, cls.lt_unhide_repl_re, content)
+        content = re.sub(cls.gt_unhide_search_re, cls.gt_unhide_repl_re, content)
+        content = content.replace(cls.amp_unhide_search_str, cls.amp_unhide_repl_str)
         return content
 
 
