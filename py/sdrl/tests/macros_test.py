@@ -8,7 +8,7 @@ def expander(macrocall: macros.Macrocall):
 
 
 def test_expand_macros():
-    macros.macrodefs = dict()
+    macros._testmode_reset()
     macros.register_macro('MA', 0, expander)
     macros.register_macro('MB', 1, expander)
     macros.register_macro('MC', 2, expander)
@@ -17,7 +17,7 @@ def test_expand_macros():
     
 
 def test_expand_nonexisting_macro(capsys):
-    macros.macrodefs = dict()
+    macros._testmode_reset()
     macros.register_macro('MA', 0, expander)
     assert macros.expand_macros("-", "-", "[MABC]") == "[MABC]"
     out, err = capsys.readouterr()
@@ -25,7 +25,7 @@ def test_expand_nonexisting_macro(capsys):
 
 
 def test_expand_macro_with_wrong_args(capsys):
-    macros.macrodefs = dict()
+    macros._testmode_reset()
     macros.register_macro('MA', 0, expander)
     macros.register_macro('MB', 1, expander)
     macros.register_macro('MC', 2, expander)

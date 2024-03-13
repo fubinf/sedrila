@@ -9,6 +9,7 @@ so they can reset part-specific state.
 """
 
 import dataclasses
+import itertools
 import re
 import typing as tg
 
@@ -38,7 +39,8 @@ Macroexpander = tg.Callable[[Macrocall], str]
 Partswitcher = tg.Callable[[str, str], None]  # macroname, newpartname
 Macrodef = tg.Tuple[int, Macroexpander, Partswitcher]  # num_args, expander, switcher
 
-macrodefs: dict[str, Macrodef] = dict()  # macroname -> macrodef
+macrodefs_early: dict[str, Macrodef] = dict()  # macroname -> macrodef
+macrodefs_late: dict[str, Macrodef] = dict()  # macroname -> macrodef
 macrostate: dict[str, tg.Any] = dict()  # namespace -> state_object
 
 macro_regexp = r"\[([A-Z][A-Z0-9_]+)(?:::(.+?))?(?:::(.+?))?\](?=[^(]|$)"  
@@ -46,17 +48,18 @@ macro_regexp = r"\[([A-Z][A-Z0-9_]+)(?:::(.+?))?(?:::(.+?))?\](?=[^(]|$)"
 # suppress matches on normal links: [TEXT](url)
 
 
-def expand_macros(sourcefile: str, partname: str, markup: str) -> str:
+def expand_macros(sourcefile: str, partname: str, markup: str, is_early_phase=False) -> str:
     """Apply matching macrodefs, report errors for non-matching macro calls."""
     def my_expand_macro(mm: re.Match) -> str:
-        return expand_macro(sourcefile, partname, mm)
+        return expand_macro(sourcefile, partname, mm, is_early_phase)
     return re.sub(macro_regexp, my_expand_macro, markup)
 
 
-def expand_macro(sourcefile: str, partname: str, mm: re.Match) -> str:
-    """Apply matching macrodef or report error."""
-    global macrodefs
+def expand_macro(sourcefile: str, partname: str, mm: re.Match, is_early_phase=False) -> str:
+    """Apply matching macrodef or report error or wait for late phase to report it then."""
+    global macrodefs_early, macrodefs_late
     import sdrl.markdown
+    macrodefs = (macrodefs_early if is_early_phase else macrodefs_late)
     call, macroname, arg1, arg2 = mm.group(), mm.group(1), mm.group(2), mm.group(3)
     macrocall = Macrocall(md=sdrl.markdown.md, filename=sourcefile, partname=partname,
                           macrocall_text=call,
@@ -64,13 +67,15 @@ def expand_macro(sourcefile: str, partname: str, mm: re.Match) -> str:
     my_numargs = (arg1 is not None) + (arg2 is not None)
     # ----- check name:
     if macroname not in macrodefs:
-        macrocall.error(f"Macro '{macroname}' is not defined")
+        if not is_early_phase:  # so we do not complain twice
+            macrocall.error(f"Macro '{macroname}' is not defined")
         return call  # unexpanded version helps the user most
     numargs, expander, switcher = macrodefs[macroname]
     # ----- check args:
     if my_numargs != numargs:
-        macrocall.error("Macro '%s' called with %d args, expects %d" %
-                        (macroname, my_numargs, numargs))
+        if not is_early_phase:  # so we do not complain twice
+            macrocall.error("Macro '%s' called with %d args, expects %d" %
+                            (macroname, my_numargs, numargs))
         return call  # unexpanded version helps the user most
     # ----- expand:
     b.debug(f"expanding {macrocall.macrocall_text}")
@@ -87,14 +92,22 @@ def set_state(namespace: str, obj: tg.Any):
 
 
 def switch_part(newpartname: str):
-    for macroname, macrodef in macrodefs.items():
+    """Patch all macrodefs to mention a different part than previously (yes, it's ugly)."""
+    for macroname, macrodef in itertools.chain(macrodefs_early.items(), macrodefs_late.items()):
         nargs, expander, switcher = macrodef
         switcher(macroname, newpartname)
 
 
 def register_macro(name: str, numargs: int, expander: Macroexpander, 
-                   switcher: Partswitcher = lambda mn,pn: None, redefine=False):
-    global macrodefs
+                   switcher: Partswitcher = lambda mn,pn: None, 
+                   redefine=False, expand_early=False):
+    """
+    Macros that generate Markdown source only must be expanded early (before Markdown processing),
+    all others should be expanded late (after Markdown processing) to avoid the hassle
+    of having HTML tags mixed with Markdown markup.
+    """
+    global macrodefs_early, macrodefs_late
+    macrodefs = (macrodefs_early if expand_early else macrodefs_late)
     if redefine:
         assert name in macrodefs
     else:
@@ -105,6 +118,6 @@ def register_macro(name: str, numargs: int, expander: Macroexpander,
 
 
 def _testmode_reset():
-    global macrodefs, macrostate
-    macrodefs = dict()
+    global macrodefs_early, macrodefs_late, macrostate
+    macrodefs_early, macrodefs_late = (dict(), dict())
     macrostate = dict()
