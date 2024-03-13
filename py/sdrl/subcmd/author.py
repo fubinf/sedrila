@@ -163,6 +163,8 @@ def toc(structure: sdrl.part.Structurepart) -> str:
 
 
 def register_macros(course):
+    macros.register_macro('INCLUDE', 1, expand_include, expand_early=True)
+    macros.register_macro('HREF', 1, functools.partial(expand_href, course))  # show and link a URL
     macros.register_macro('PARTREF', 1, functools.partial(expand_partref, course))  # slug as linktext
     macros.register_macro('PARTREFTITLE', 1, functools.partial(expand_partref, course))  # title as linktext
     macros.register_macro('PARTREFMANUAL', 2, functools.partial(expand_partref, course))  # explicit linktext
@@ -181,8 +183,11 @@ def register_macros(course):
     macros.register_macro('EREFC', 1, expand_enumerationref)
     macros.register_macro('EREFQ', 1, expand_enumerationref)
     macros.register_macro('EREFR', 1, expand_enumerationref)
-    macros.register_macro('INCLUDE', 1, expand_include)
     macros.register_macro('DIFF', 1, sdrl.course.Task.expand_diff)
+
+
+def expand_href(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
+    return f"<a href='{macrocall.arg1}'>{macrocall.arg1}</a>"
 
 
 def expand_partref(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:

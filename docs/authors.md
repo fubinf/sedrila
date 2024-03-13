@@ -480,10 +480,12 @@ It works exactly like `[SECTION]` and the same types and subtypes apply.
   somebody who would rather do difficulty 3.
 
 
-### 1.9 Other macros: `[INCLUDE]`, `[PARTREFx]`, `[TERMREF]`, etc.
+### 1.9 Other macros: `[INCLUDE]`, cross-references, counters, etc.
 
-#### 1.9.1 Macros for hyperlinks: `[PARTREF]`, `[PARTREFTITLE]`, `[PARTREFMANUAL]`, `[TERMREF]`
+#### 1.9.1 Macros for hyperlinks: `[HREF]`, `[PARTREF]`, `[PARTREFTITLE]`, `[PARTREFMANUAL]`, `[TERMREF]`
 
+- `[HREF::url]`: Equivalent to the plain Markdown markup `[url](url)`, but avoids the repetition
+  of the often-lengthy URL.
 - `[PARTREF::partname]`: 
   Create a hyperlink to the part description file for task, taskgroup, chapter, or zipfile `partname`,
   using the partname as the link text.
@@ -534,7 +536,7 @@ which makes manual cross-referencing the simpler approach.
   The students copy/paste the file from within the page in the web browser.
   Also perhaps useful for inserting identical blocks of text needed in several places;
   use filesuffix `.inc` in those cases to avoid confusion with task files.
-- `[TOC]`: Generates a table of contents from the markdown headings present in the file
+- `[TOC]`: Generates a table of contents from the Markdown headings present in the file
 - `[DIFF::level]` generates the task difficulty mark for the given level, from 1 (very simple) to 4 (difficult).
 
 
