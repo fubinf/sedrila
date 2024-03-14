@@ -76,7 +76,13 @@ About the entries:
   before the block content of a SECTION, HINT, NOTICE, WARNING, or INSTRUCTOR block macro call, see below.
   For SECTION, there are entries for each type (1st argument to the macro call) and
   further entries for each subtype (2nd argument).
+  The text is HTML text. If the macro has parameters, they can be used by including
+  `{arg1}` or `{arg2}` in the string.
   The generated HTML will also use corresponding CSS classes for each of those entire blocks.
+  The best way to understand this is to just look at the generated HTML files.
+  Special generation logic for SECTION and HINT is hardwired into sedrila,
+  but WARNING, NOTICE, and INSTRUCTOR all follow the same logic and you can introduce further
+  such macros if you want -- this is the reason why those three are all uppercase in sedrila.yaml.
 - `instructors`: The source of truth for who can give students credit 
   for their work. 
   When they accept or reject student work in a _"submission.yaml checked"_ commit,
