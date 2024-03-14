@@ -164,8 +164,10 @@ def toc(structure: sdrl.part.Structurepart) -> str:
 
 def register_macros(course):
     MM = macros.MM
+    # ----- register EARLY-mode macros:
     macros.register_macro('INCLUDE', 1, MM.EARLY,
                           expand_include)
+    # ----- register INNER-mode macros:
     macros.register_macro('HREF', 1, MM.INNER,
                           functools.partial(expand_href, course))  # show and link a URL
     macros.register_macro('PARTREF', 1, MM.INNER, 
@@ -181,14 +183,23 @@ def register_macros(course):
     macros.register_macro('EREFQ', 1, MM.INNER, expand_enumerationref)
     macros.register_macro('EREFR', 1, MM.INNER, expand_enumerationref)
     macros.register_macro('DIFF', 1, MM.INNER, sdrl.course.Task.expand_diff)
+    # ----- register hard-coded block macros:
     macros.register_macro('SECTION', 2, MM.BLOCKSTART, expand_section)
     macros.register_macro('ENDSECTION', 0, MM.BLOCKEND, expand_section)
     macros.register_macro('INNERSECTION', 2, MM.BLOCKSTART, expand_section)
     macros.register_macro('ENDINNERSECTION', 0, MM.BLOCKEND, expand_section)
     macros.register_macro('HINT', 1, MM.BLOCKSTART, expand_hint)
     macros.register_macro('ENDHINT', 0, MM.BLOCKEND, expand_hint)
-    for key, value in (course.blockmacro_topmatter.get('blockmacros') or {}).items():
-        macros.register_macro(key, value.get('args'), MM.BLOCKSTART, expand_block)
+    # ----- register generic block macros:
+    generic_defs = {key:val for key, val in course.blockmacro_topmatter.items() if key.isupper()}
+    for key, value in generic_defs.items():
+        if "{arg2}" in value:
+            args = 2
+        elif "{arg1}" in value:
+            args = 1
+        else:
+            args = 0
+        macros.register_macro(key, args, MM.BLOCKSTART, expand_block)
         macros.register_macro(f'END{key}', 0, MM.BLOCKEND, expand_block)
 
 
@@ -206,18 +217,32 @@ def expand_partref(course: sdrl.course.Course, macrocall: macros.Macrocall) -> s
 
 def expand_section(macrocall: macros.Macrocall) -> str:
     """
-    [SECTION::goal::goaltype1,goaltype2] etc.
+    [SECTION::goal::subtype1,subtype2] etc.
     [INNERSECTION] is equivalent and serves for one level of proper nesting if needed.
     (Nesting [SECTION][ENDSECTION] blocks happens to work, but for the wrong reasons.)
+    A section [SECTION]...[ENDSECTION] like the ahove gets rendered into the following structure:
+    <div class='section section-goal'>
+      <div class='section-subtypes section-goal-subtypes'>
+        <div class='section-subtype section-goal-subtype1'>section_goal_subtype1_topmatter</div>
+        <div class='section-subtype section-goal-subtype2'>section_goal_subtype2_topmatter</div>
+      </div>
+      section_goal_topmatter
+      the entire body of the section block
+    </div>
     """
-    sectionname = macrocall.arg1
-    sectiontypes = macrocall.arg2
+    sectiontype = macrocall.arg1
+    sectionsubtypes = macrocall.arg2
     if macrocall.macroname in ('SECTION', 'INNERSECTION'):
-        typeslist = sectiontypes.split(",")
-        types_cssclass_list = (f"section-{sectionname}-{t}" for t in typeslist)
-        div = "<div class='section %s %s'>" % (f"section-{sectionname}", " ".join(types_cssclass_list))
-        thetopmatter = section_topmatter(macrocall, typeslist)
-        return f"{div}\n{thetopmatter}"
+        r = []  # results list, to be join'ed
+        r.append(f"<div class='section section-{sectiontype}'>")  # level 1
+        r.append(f"<div class='section-subtypes section-{sectiontype}-subtypes'>")  # level 2
+        subtypeslist = sectionsubtypes.split(",")
+        for subtype in subtypeslist:
+            matter = topmatter(macrocall, f'section_{sectiontype}_{subtype}')
+            r.append(f"<div class='section-subtype section-{sectiontype}-{subtype}'>{matter}</div>")
+        r.append("</div>")  # end level 2
+        r.append(topmatter(macrocall, f'section_{sectiontype}'))
+        return "\n".join(r)
     elif macrocall.macroname in ('ENDSECTION', 'ENDINNERSECTION'):
         return "</div>"
     assert False, macrocall  # impossible
@@ -225,23 +250,20 @@ def expand_section(macrocall: macros.Macrocall) -> str:
 
 def expand_hint(macrocall: macros.Macrocall) -> str:
     if macrocall.macroname == 'HINT':
-        summary = macrocall.arg1
-        intro = topmatter(macrocall, 'hint')
-        return f"<details class='blockmacro blockmacro-hint'><summary>\n{intro}{summary}\n</summary>\n"
+        content = topmatter(macrocall, 'hint').format(arg1=macrocall.arg1)
+        return f"<details class='blockmacro blockmacro-hint'><summary>\n{content}\n</summary>\n"
     elif macrocall.macroname == 'ENDHINT':
         return "</details>"
     assert False, macrocall  # impossible
 
 
 def expand_block(macrocall: macros.Macrocall) -> str:
-    topmatter = macrocall.md.blockmacro_topmatter
     is_end = macrocall.macroname.startswith('END')
     macroname = (macrocall.macroname if not is_end else macrocall.macroname[3:])
-    descriptor = topmatter['blockmacros'][macroname]
     if is_end:
         return f"</div>"
     else:
-        content = descriptor.get('label') + (macrocall.arg1 if descriptor.get('args') > 0 else '')
+        content = topmatter(macrocall, macroname).format(arg1=macrocall.arg1, arg2=macrocall.arg2)
         return f"<div class='blockmacro blockmacro-{macroname.lower()}'>\n{content}"
 
 
@@ -283,15 +305,6 @@ def expand_include(macrocall: macros.Macrocall) -> str:
         return macros.expand_macros(md.md.context_sourcefile, md.md.partname, rawcontent)
     else:
         return rawcontent
-
-
-def section_topmatter(macrocall: macros.Macrocall, typeslist: list[str]) -> str:
-    sectionname = macrocall.arg1
-    result = ""
-    for part in [""] + typeslist:
-        name = f"section_{sectionname}{'_' if part else ''}{part}"
-        result += topmatter(macrocall, name)
-    return result
 
 
 def topmatter(macrocall: macros.Macrocall, name: str) -> str:
