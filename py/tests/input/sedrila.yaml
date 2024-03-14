@@ -3,19 +3,12 @@ breadcrumb_title: SeDriLa
 profiles: ['PROFILE1', 'PROFILE2']
 stages: ['draft', 'alpha', 'beta']
 blockmacro_topmatter:
-  section_background: "## Section_Background"
+  section_background: "<h2>Section_Background</h2>"
   section_background_default: ""
-  hint: "**Hint:** "
-  blockmacros:
-    INSTRUCTOR:
-      args: 1
-      label: "## Instructor "
-    WARNING:
-      args: 0
-      label: "**Warning:** "
-    NOTICE:
-      args: 0
-      label: "**Note:** "
+  hint: "<strong>Hint: {arg1}</strong> "
+  WARNING: "<strong>Warning:</strong> "
+  NOTICE: "<strong>Note:</strong> "
+  INSTRUCTOR: "<h2>Instructor: {arg1}</h2>"
 instructors:
   - nameish: One Instructor
     email: o.instructor@inf.fu-berlin.de
