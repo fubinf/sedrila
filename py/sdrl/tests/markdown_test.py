@@ -1,4 +1,5 @@
 # pytest tests
+import pytest
 
 import base as b
 import sdrl.markdown as md
@@ -30,18 +31,41 @@ def test_keep_greaterthan_lessthan():
     assert render(markup) == output
 
 
-def test_macrocall():
+@pytest.mark.parametrize(
+    ['layout','markup','output'], [
+        ['layout1',
+         'text\n[END]\n[START]\ntext',
+         '<p>text\n[END]\n[START]\ntext</p>',
+        ],
+        ['layout2',
+         'text\n[END]\n\n[START]\ntext',
+         '<p>text\n</p>[END]\n[START]<p>\ntext</p>',
+         ],
+        ['layout3',
+         'text\n\n[END]\n[START]\n\ntext',
+         '<p>text</p>\n[END]\n[START]\n<p>text</p>',
+         ],
+        ['layout4',
+         'text\n\n[END]\n\n[START]\n\ntext',
+         '<p>text</p>\n[END]\n[START]\n<p>text</p>',
+         ],
+    ])
+def test_macrocall(layout, markup, output):
     def expander(macrocall: macros.Macrocall):
-        return f"{macrocall.macroname}({macrocall.arg1},{macrocall.arg2})"
+        return f"{macrocall.macrocall_text}"
 
     macros._testmode_reset()
-    macros.register_macro('MA', 1, expander)
-    markup = "text [MA::argument] more text"
-    output = "<p>text MA(argument,) more text</p>"
-    assert render(markup) == output
+    macros.register_macro('START', 0, macros.MM.BLOCKSTART, expander)
+    macros.register_macro('END', 0, macros.MM.BLOCKEND, expander)
+    rendered = render(markup)
+    print("##", layout)
+    print("    markup input:\n", markup, sep="")
+    print("    should out:\n", output, sep="")
+    print("    actual out:\n", rendered, sep="")
+    assert rendered == output
 
 
-def test_verbatim_html_charescapes_yet_keep_free_ampersands():
-    markup = "&lt; Meier & Söhne"
-    output = "<p>&lt; Meier &amp; Söhne</p>"
+def test_html_charescapes_and_free_ampersands():
+    markup = "&lt; Meier & Söhne , `&lt; Meier & Söhne`"
+    output = "<p>&lt; Meier &amp; Söhne , <code>&amp;lt; Meier &amp; Söhne</code></p>"
     assert render(markup) == output

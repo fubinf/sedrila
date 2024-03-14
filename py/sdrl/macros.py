@@ -161,7 +161,7 @@ def expand_macro(sourcefile: str, partname: str, mm: re.Match, is_early_phase=Fa
             ppre = ""
         elif not ppre and ppost  == '</p>':  # Layout 3
             ppost = ""  # remove
-        elif ppre and ppost:  # Layout 4
+        elif ppre == '<p>' and ppost == '</p>':  # Layout 4
             ppre = ""  # remove
             ppost = ""  # remove
         else:
@@ -174,13 +174,14 @@ def expand_macro(sourcefile: str, partname: str, mm: re.Match, is_early_phase=Fa
             ppost = ""
         elif ppre == '<p>' and not ppost:  # Layout 3
             ppre = ""  # remove
-        elif ppre and ppost:  # Layout 4
+        elif ppre == '<p>' and ppost == '</p>':  # Layout 4
             ppre = ""  # remove
             ppost = ""  # remove
         else:
             assert False, mm.group()
     else:
         assert False    
+    # return f"pre<{ppre}>exp<{expansion}>post<{ppost}>"
     return f"{ppre}{expansion}{ppost}"
 
 
