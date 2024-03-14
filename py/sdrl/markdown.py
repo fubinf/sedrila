@@ -136,6 +136,13 @@ class AdmonitionFilter(mdt.Treeprocessor):
                     divparent.remove(div)  # show  !!! instructor  blocks only in instructor mode
 
 
+class SedrilaMarkdown(markdown.Markdown):
+    mode: macros.MM
+    context_sourcefile: str
+    partname: str
+    blockmacro_topmatter: dict[str, str]
+
+
 def render_markdown(context_sourcefile: str, partname: str, markdown_markup: str, 
                     mode: b.Mode, blockmacro_topmatter: dict[str, str]) -> str:
     """
@@ -177,6 +184,6 @@ extension_configs = {
     }
 }
 
-md = markdown.Markdown(extensions=extensions, extension_configs=extension_configs)
+md = SedrilaMarkdown(extensions=extensions, extension_configs=extension_configs)
 # '[TOC]' is Markdown, but looks syntactically like a macro call, so make 'TOC' a macro:
 macros.register_macro('TOC', 0, macros.MM.INNER, lambda mc: f"[{mc.macroname}]")

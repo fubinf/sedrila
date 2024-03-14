@@ -75,7 +75,7 @@ import base as b
 @dataclasses.dataclass
 class Macrocall:
     """Represent where and how a macro was called, allow producing errors/warnings for it."""
-    md: markdown.Markdown
+    md: 'SedrilaMarkdown'
     filename: str
     partname: str
     macrocall_text: str
