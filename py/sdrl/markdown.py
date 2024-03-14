@@ -33,9 +33,10 @@ class SedrilaPreprocessor(mdpre.Preprocessor):
     def run(self, lines: list[str]) -> list[str]:
         content = "\n".join(lines)  # we work on the entire markup at once
         content = self.perhaps_suppress_instructorinfo(content)  
-        content = self.make_replacements(content)  
-        content = macros.expand_macros(self.md.context_sourcefile, self.md.partname, content)
-        content = SedrilaPostprocessor.hide_html_tags(content)
+        content = self.make_replacements(content)
+        content = macros.expand_macros(self.md.context_sourcefile, self.md.partname, content,
+                                       is_early_phase=True)
+        # content = SedrilaPostprocessor.hide_html_tags(content)
         return content.split("\n")
 
     def perhaps_suppress_instructorinfo(self, content: str) -> str:
@@ -72,7 +73,9 @@ class SedrilaPostprocessor(mdpost.Postprocessor):
     amp_unhide_repl_str = "&"
 
     def run(self, text: str) -> str:
-        return self.unhide_html_tags(text)  # hide_html_tags() happens in the preprocessor
+        text = macros.expand_macros(self.md.context_sourcefile, self.md.partname, text)
+        return text
+        # return self.unhide_html_tags(text)  # hide_html_tags() happens in the preprocessor
 
     @classmethod
     def hide_html_tags(cls, content: str) -> str:
@@ -150,9 +153,9 @@ def render_markdown(context_sourcefile: str, partname: str, markdown_markup: str
 # ######### initialization:
 
 extensions = [SedrilaExtension(), 
-              'admonition', 'attr_list', 'codehilite', 'fenced_code', 
+              'admonition', 'attr_list', 'codehilite', 'fenced_code',
               'sane_lists', 'toc', 'smarty',
-              'mdx_linkify']
+             ]
 # https://python-markdown.github.io/extensions/admonition/
 # https://python-markdown.github.io/extensions/attr_list/
 # https://python-markdown.github.io/extensions/code_hilite/
@@ -160,7 +163,7 @@ extensions = [SedrilaExtension(),
 # https://python-markdown.github.io/extensions/sane_lists/
 # https://python-markdown.github.io/extensions/smarty/
 # https://python-markdown.github.io/extensions/toc/
-# https://github.com/daGrevis/mdx_linkify
+# https://github.com/daGrevis/mdx_linkify  breaks the correct handling of `a < b` and cannot be used
 
 extension_configs = {
     'toc': {
@@ -175,5 +178,5 @@ extension_configs = {
 }
 
 md = markdown.Markdown(extensions=extensions, extension_configs=extension_configs)
-# '[TOC]' is a macro call, so make 'TOC' a macro:
-macros.register_macro('TOC', 0, lambda mc: f"[{mc.macroname}]")
+# '[TOC]' is Markdown, but looks syntactically like a macro call, so make 'TOC' a macro:
+macros.register_macro('TOC', 0, macros.MM.EARLY, lambda mc: f"[{mc.macroname}]")

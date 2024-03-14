@@ -70,16 +70,16 @@ class Glossary(part.Structurepart):
             b.error(f"{self.sourcefile}: {what} a definition: {sorted(undefined_terms)}")
 
     def _register_macros_phase1(self):
-        macros.register_macro("TERMREF", 1, self._expand_termref)
-        macros.register_macro("TERMREF2", 2, self._expand_termref)
-        macros.register_macro("TERM0", 1, self._complain_term)
-        macros.register_macro("TERM", 1, self._complain_term)
-        macros.register_macro("ENDTERM", 0, self._ignore_endtermlong)
+        macros.register_macro("TERMREF", 1, macros.MM.INNER, self._expand_termref)
+        macros.register_macro("TERMREF2", 2, macros.MM.INNER, self._expand_termref)
+        macros.register_macro("TERM0", 1, macros.MM.INNER, self._complain_term)
+        macros.register_macro("TERM", 1, macros.MM.BLOCKSTART, self._complain_term)
+        macros.register_macro("ENDTERM", 0, macros.MM.BLOCKEND, self._ignore_endtermlong)
 
     def _register_macros_phase2(self):
-        macros.register_macro("TERM0", 1, self._expand_term0, redefine=True)
-        macros.register_macro("TERM", 1, self._expand_term, redefine=True)
-        macros.register_macro("ENDTERM", 0, self._expand_endterm, redefine=True)
+        macros.register_macro("TERM0", 1, macros.MM.INNER, self._expand_term0, redefine=True)
+        macros.register_macro("TERM", 1, macros.MM.BLOCKSTART, self._expand_term, redefine=True)
+        macros.register_macro("ENDTERM", 0, macros.MM.BLOCKEND, self._expand_endterm, redefine=True)
 
     # ----- internals:
     

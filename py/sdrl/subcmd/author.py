@@ -163,27 +163,33 @@ def toc(structure: sdrl.part.Structurepart) -> str:
 
 
 def register_macros(course):
-    macros.register_macro('INCLUDE', 1, expand_include, expand_early=True)
-    macros.register_macro('HREF', 1, functools.partial(expand_href, course))  # show and link a URL
-    macros.register_macro('PARTREF', 1, functools.partial(expand_partref, course))  # slug as linktext
-    macros.register_macro('PARTREFTITLE', 1, functools.partial(expand_partref, course))  # title as linktext
-    macros.register_macro('PARTREFMANUAL', 2, functools.partial(expand_partref, course))  # explicit linktext
-    macros.register_macro('SECTION', 2, expand_section)
-    macros.register_macro('ENDSECTION', 0, expand_section)
-    macros.register_macro('INNERSECTION', 2, expand_section)
-    macros.register_macro('ENDINNERSECTION', 0, expand_section)
-    macros.register_macro('HINT', 1, expand_hint)
-    macros.register_macro('ENDHINT', 0, expand_hint)
+    MM = macros.MM
+    macros.register_macro('INCLUDE', 1, MM.EARLY,
+                          expand_include)
+    macros.register_macro('HREF', 1, MM.INNER,
+                          functools.partial(expand_href, course))  # show and link a URL
+    macros.register_macro('PARTREF', 1, MM.INNER, 
+                          functools.partial(expand_partref, course))  # slug as linktext
+    macros.register_macro('PARTREFTITLE', 1, MM.INNER, 
+                          functools.partial(expand_partref, course))  # title as linktext
+    macros.register_macro('PARTREFMANUAL', 2, MM.INNER, 
+                          functools.partial(expand_partref, course))  # explicit linktext
+    macros.register_macro('EC', 0, MM.INNER, expand_enumeration, partswitch_enumeration)
+    macros.register_macro('EQ', 0, MM.INNER, expand_enumeration, partswitch_enumeration)
+    macros.register_macro('ER', 0, MM.INNER, expand_enumeration, partswitch_enumeration)
+    macros.register_macro('EREFC', 1, MM.INNER, expand_enumerationref)
+    macros.register_macro('EREFQ', 1, MM.INNER, expand_enumerationref)
+    macros.register_macro('EREFR', 1, MM.INNER, expand_enumerationref)
+    macros.register_macro('DIFF', 1, MM.INNER, sdrl.course.Task.expand_diff)
+    macros.register_macro('SECTION', 2, MM.BLOCKSTART, expand_section)
+    macros.register_macro('ENDSECTION', 0, MM.BLOCKEND, expand_section)
+    macros.register_macro('INNERSECTION', 2, MM.BLOCKSTART, expand_section)
+    macros.register_macro('ENDINNERSECTION', 0, MM.BLOCKEND, expand_section)
+    macros.register_macro('HINT', 1, MM.BLOCKSTART, expand_hint)
+    macros.register_macro('ENDHINT', 0, MM.BLOCKEND, expand_hint)
     for key, value in (course.blockmacro_topmatter.get('blockmacros') or {}).items():
-        macros.register_macro(key, value.get('args'), expand_block)
-        macros.register_macro(f'END{key}', 0, expand_block)
-    macros.register_macro('EC', 0, expand_enumeration, partswitch_enumeration)
-    macros.register_macro('EQ', 0, expand_enumeration, partswitch_enumeration)
-    macros.register_macro('ER', 0, expand_enumeration, partswitch_enumeration)
-    macros.register_macro('EREFC', 1, expand_enumerationref)
-    macros.register_macro('EREFQ', 1, expand_enumerationref)
-    macros.register_macro('EREFR', 1, expand_enumerationref)
-    macros.register_macro('DIFF', 1, sdrl.course.Task.expand_diff)
+        macros.register_macro(key, value.get('args'), MM.BLOCKSTART, expand_block)
+        macros.register_macro(f'END{key}', 0, MM.BLOCKEND, expand_block)
 
 
 def expand_href(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:

@@ -2,7 +2,7 @@
 
 import base as b
 import sdrl.markdown as md
-
+import sdrl.macros as macros
 
 def render(markup: str) -> str:
     md.md.mode = b.Mode.INSTRUCTOR
@@ -27,6 +27,17 @@ def test_keep_htmltags():
 def test_keep_greaterthan_lessthan():
     markup = "a < b and `b > c`"
     output = "<p>a &lt; b and <code>b &gt; c</code></p>"
+    assert render(markup) == output
+
+
+def test_macrocall():
+    def expander(macrocall: macros.Macrocall):
+        return f"{macrocall.macroname}({macrocall.arg1},{macrocall.arg2})"
+
+    macros._testmode_reset()
+    macros.register_macro('MA', 1, expander)
+    markup = "text [MA::argument] more text"
+    output = "<p>text MA(argument,) more text</p>"
     assert render(markup) == output
 
 

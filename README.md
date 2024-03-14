@@ -1,3 +1,5 @@
+[![Documentation Status](https://readthedocs.org/projects/sedrila/badge/?version=latest)](https://sedrila.readthedocs.io/en/latest/?badge=latest)
+
 # `sedrila`: Tool infrastructure for building and running "self-driven lab" courses
 
 A "self-driven lab" (SeDriLa) course is one where students select freely 
