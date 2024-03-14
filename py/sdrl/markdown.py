@@ -179,4 +179,4 @@ extension_configs = {
 
 md = markdown.Markdown(extensions=extensions, extension_configs=extension_configs)
 # '[TOC]' is Markdown, but looks syntactically like a macro call, so make 'TOC' a macro:
-macros.register_macro('TOC', 0, macros.MM.EARLY, lambda mc: f"[{mc.macroname}]")
+macros.register_macro('TOC', 0, macros.MM.INNER, lambda mc: f"[{mc.macroname}]")
