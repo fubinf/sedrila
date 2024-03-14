@@ -16,9 +16,11 @@ and also [TERMREF::Concept 4 undefined].
 [WARNING]
 Body of Warning
 [ENDWARNING]
+
 [NOTICE]
 Enumeration: [EC], [EC].
 [ENDNOTICE]
+
 [HINT::My Hint]
 Body of My Hint
 [ENDHINT]

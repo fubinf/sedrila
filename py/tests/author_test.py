@@ -44,8 +44,12 @@ expected_sidebar_task111 = """<div class="sidebar" id="sidebar">
 
 expected_body_task111 = """
 <div class="pagetype-task pagetype-task-difficulty1" id="taskbody">
- <div class="section section-background section-background-default">
-  <h2 id="section_background">
+ <div class="section section-background">
+  <div class="section-subtypes section-background-subtypes">
+   <div class="section-subtype section-background-default">
+   </div>
+  </div>
+  <h2>
    Section_Background
   </h2>
   <p>
@@ -80,28 +84,31 @@ Here, we mention
    <strong>
     Warning:
    </strong>
-   Body of Warning
+   <p>
+    Body of Warning
+   </p>
   </div>
   <div class="blockmacro blockmacro-notice">
    <strong>
     Note:
    </strong>
-   Enumeration:
-   <span class="enumeration-ec">
-    1
-   </span>
-   ,
-   <span class="enumeration-ec">
-    2
-   </span>
-   .
+   <p>
+    Enumeration:
+    <span class="enumeration-ec">
+     1
+    </span>
+    ,
+    <span class="enumeration-ec">
+     2
+    </span>
+    .
+   </p>
   </div>
   <details class="blockmacro blockmacro-hint">
    <summary>
     <strong>
-     Hint:
+     Hint: My Hint
     </strong>
-    My Hint
    </summary>
    <p>
     Body of My Hint
@@ -109,7 +116,9 @@ Here, we mention
   </details>
  </div>
 </div>
+
 """
+
 
 def test_sedrila_author(capfd):
     """System test. Lots of hardcoded knowledge about the output of sedrila author."""

@@ -33,7 +33,7 @@ def test_glossary(capsys):
     # ----- prepare dummy glossary:
     b._testmode_reset()
     macros._testmode_reset()
-    macros.register_macro('PARTREF', 1, lambda mc: mc.arg1)  # render plain partname
+    macros.register_macro('PARTREF', 1, macros.MM.INNER, lambda mc: mc.arg1)  # render plain partname
     glossary = sdrl.glossary.Glossary("py/sdrl/tests/data")  # contains a title-only glossary.md
     # ----- add term references:
     glossary.explains("ExplainingPart", "myterm")
