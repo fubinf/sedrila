@@ -622,6 +622,9 @@ Both versions will exclude all tasks, taskgroups, and chapters that have a
 - To use an alternative configuration file, use something like `--config myconfig.yaml`.  
 - Option `--sums` generates reports about the volume of tasks per chapter,
   per difficulty, and per stage.
+- If you only change one or two task files many times, use `--cache`
+  to greatly speed up rendering. It will keep the entire structure and only
+  replace the HTML for modified task files. 
 
 If you use a development setup with a source installation of sedrila,
 use a shell alias such as 
