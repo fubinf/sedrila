@@ -6,6 +6,7 @@ import html
 import json
 import os
 import os.path
+import pickle
 import shutil
 import typing as tg
 
@@ -22,7 +23,7 @@ meaning = """Creates and renders an instance of a SeDriLa course.
 Checks consistency of the course description beforehands.
 """
 
-OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR = "cino2r2s2tu"  # quasi-anagram of "instructors"
+OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR = "cino2r2s2tu"  # alphabetically sorted count-anagram of "instructors"
 
 
 def add_arguments(subparser: argparse.ArgumentParser):
@@ -35,91 +36,149 @@ def add_arguments(subparser: argparse.ArgumentParser):
                            help="Log level for logging to stdout (default: WARNING)")
     subparser.add_argument('--sums', action='store_const', const=True, default=False,
                            help="Print task volume reports")
-    subparser.add_argument('targetdir', action=TargetDirAction,
-                           help=f"Directory to which output will be written. Defaults to out_dir in {b.CONFIG_FILENAME}")
+    subparser.add_argument('--cache', action='store_const', const=True, default=False,
+                           help="re-use metadata and output, re-render only task files that have changed")
+    subparser.add_argument('targetdir',
+                           help=f"Directory to which output will be written.")
 
 
 def execute(pargs: argparse.Namespace):
     b.set_loglevel(pargs.log)
-    course = sdrl.course.Course(pargs.config, read_contentfiles=True, include_stage=pargs.include_stage)
+    course = get_course(pargs)
     b.info(f"## chapter {course.chapters[-1].slug} status: {getattr(course.chapters[-1], 'status', '-')}")
-    generate(pargs, course)
+    generate(course)
     if pargs.sums:
         print_volume_report(course)
     b.exit_if_errors()
 
 
-def generate(pargs: argparse.Namespace, course: sdrl.course.Course):
+def get_course(pargs):
+    CacheMode = sdrl.course.CacheMode
+    targetdir_s = pargs.targetdir  # for students
+    targetdir_i = f"{targetdir_s}/{OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR}"  # for instructors
+    cache_file = cache_filename(targetdir_i)
+    if not pargs.cache or not os.path.exists(cache_file):  # no cache present
+        course = sdrl.course.Course(pargs.config, read_contentfiles=True, include_stage=pargs.include_stage)
+        course.cache_mode = CacheMode.WRITE if pargs.cache else CacheMode.UNCACHED
+    else:  # we have a filled cache
+        print(f"using cache file '{cache_file}'")
+        with open(cache_file, 'rb') as f:
+            course = pickle.load(f)
+        course.cache_mode = sdrl.course.CacheMode.READ
+        course.mtime = os.stat(cache_file).st_mtime  # reference timestamp for tasks to have changed
+    course.targetdir_s = targetdir_s
+    course.targetdir_i = targetdir_i
+    return course
+
+
+def generate(course: sdrl.course.Course):
     """
     Render the tasks, intros and navigation stuff to output directories (student version, instructor version).
     For each, tenders all HTML into a single flat directory because this greatly simplifies
     the link generation.
     Uses the basenames of the chapter and taskgroup directories as keys.
     """
-    targetdir_s = pargs.targetdir or course.out_dir  # for students
-    targetdir_i = _instructor_targetdir(pargs, course)  # for instructors
+    targetdir_s = course.targetdir_s
+    targetdir_i = course.targetdir_i
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(course.templatedir), autoescape=False)
-    # ----- prepare directories:
-    b.info(f"preparing directories '{targetdir_s}', '{targetdir_i}'")
-    backup_targetdir(targetdir_i, markerfile=f"_{b.CONFIG_FILENAME}")  # must do _i first if it is a subdir of _s
-    backup_targetdir(targetdir_s, markerfile=f"_{b.CONFIG_FILENAME}")
-    os.mkdir(targetdir_s)
-    os.mkdir(targetdir_i)
-    shutil.copyfile(course.configfile, f"{targetdir_s}/_{b.CONFIG_FILENAME}")  # mark dir as a SeDriLa instance
-    shutil.copyfile(course.configfile, f"{targetdir_i}/_{b.CONFIG_FILENAME}")  # mark dir as a SeDriLa instance
-    # ----- copy baseresources:
-    b.info(f"copying '{course.baseresourcedir}'")
-    for filename in glob.glob(f"{course.baseresourcedir}/*"):
-        b.debug(f"copying '{filename}'\t-> '{targetdir_s}'")
-        shutil.copy(filename, targetdir_s)
-        b.debug(f"copying '{filename}'\t-> '{targetdir_i}'")
-        shutil.copy(filename, targetdir_i)
-    # ----- add tocs to upper structure parts:
-    b.info(f"building tables-of-content (TOCs)")
-    course.toc = toc(course)
-    for chapter in course.chapters:
-        chapter.toc = toc(chapter)
-        for taskgroup in chapter.taskgroups:
-            taskgroup.toc = toc(taskgroup)
-    # ----- register macroexpanders:
-    b.info("registering macros")
+    prepare_directories(course)
+    copy_baseresources(course)
+    add_tocs_to_upper_parts(course)
     register_macros(course)
+    generate_upper_parts_files(course, env)
+    generate_task_files(course, env)
+    generate_metadata_and_glossary(course, env)
+    if course.cache_mode == sdrl.course.CacheMode.READ:
+        os.utime(cache_filename(course))  # update mtime of cache file to now
+    else:
+        print(f"wrote student files to  '{targetdir_s}'")
+        print(f"wrote instructor files to  '{targetdir_i}'")
+
+
+def generate_metadata_and_glossary(course: sdrl.course.Course, env):
+    if course.cache_mode == sdrl.course.CacheMode.READ:
+        return  # nothing to do
+    b.info(f"generating metadata file '{course.targetdir_s}/{b.METADATA_FILE}'")
+    write_metadata(course, f"{course.targetdir_s}/{b.METADATA_FILE}")
+    render_glossary(course, env, course.targetdir_s, b.Mode.STUDENT)
+    render_glossary(course, env, course.targetdir_i, b.Mode.INSTRUCTOR)
+    course.glossary.report_issues()
+
+
+def generate_task_files(course: sdrl.course.Course, env):
+    using_cache = course.cache_mode == sdrl.course.CacheMode.READ
+    which = " for modified tasks" if using_cache else ""
+    b.info(f"generating task files{which}")
+    for taskname, task in course.taskdict.items():
+        if task.to_be_skipped or task.taskgroup.to_be_skipped or task.taskgroup.chapter.to_be_skipped \
+                or (using_cache and task_is_unchanged(task)):
+            continue  # ignore the incomplete task
+        b.debug(f"  task '{task.slug}'")
+        if using_cache:
+            print(f"re-rendering task '{task.slug}'")
+        render_task(task, env, course.targetdir_s, b.Mode.STUDENT)
+        render_task(task, env, course.targetdir_i, b.Mode.INSTRUCTOR)
+
+
+def generate_upper_parts_files(course: sdrl.course.Course, env):
+    if course.cache_mode == sdrl.course.CacheMode.READ:
+        return  # nothing to do
     # ----- generate top-level file:
     b.info(f"generating top-level index files")
-    render_homepage(course, env, targetdir_s, b.Mode.STUDENT, course.blockmacro_topmatter)
-    render_homepage(course, env, targetdir_i, b.Mode.INSTRUCTOR, course.blockmacro_topmatter)
+    render_homepage(course, env, course.targetdir_s, b.Mode.STUDENT)
+    render_homepage(course, env, course.targetdir_i, b.Mode.INSTRUCTOR)
     # ----- generate chapter and taskgroup files:
     b.info(f"generating chapter and taskgroup files")
     for chapter in course.chapters:
         if chapter.to_be_skipped:
             continue  # ignore the entire incomplete chapter
         b.info(f"  chapter '{chapter.slug}'")
-        render_chapter(chapter, env, targetdir_s, b.Mode.STUDENT, course.blockmacro_topmatter)
-        render_chapter(chapter, env, targetdir_i, b.Mode.INSTRUCTOR, course.blockmacro_topmatter)
+        render_chapter(chapter, env, course.targetdir_s, b.Mode.STUDENT)
+        render_chapter(chapter, env, course.targetdir_i, b.Mode.INSTRUCTOR)
         for taskgroup in chapter.taskgroups:
             if taskgroup.to_be_skipped or taskgroup.chapter.to_be_skipped:
                 continue  # ignore the entire incomplete taskgroup
             b.info(f"    taskgroup '{taskgroup.slug}'")
-            render_taskgroup(taskgroup, env, targetdir_s, b.Mode.STUDENT, course.blockmacro_topmatter)
-            render_taskgroup(taskgroup, env, targetdir_i, b.Mode.INSTRUCTOR, course.blockmacro_topmatter)
-    # ----- generate task files:
-    b.info(f"generating task files")
-    for taskname, task in course.taskdict.items():
-        if task.to_be_skipped or task.taskgroup.to_be_skipped or task.taskgroup.chapter.to_be_skipped:
-            continue  # ignore the incomplete task
-        b.debug(f"  task '{task.slug}'")
-        render_task(task, env, targetdir_s, b.Mode.STUDENT, course.blockmacro_topmatter)
-        render_task(task, env, targetdir_i, b.Mode.INSTRUCTOR, course.blockmacro_topmatter)
-    # ----- generate metadata file:
-    b.info(f"generating metadata file '{targetdir_s}/{b.METADATA_FILE}'")
-    write_metadata(course, f"{targetdir_s}/{b.METADATA_FILE}")
-    # ----- generate glossary:
-    render_glossary(course, env, targetdir_s, b.Mode.STUDENT)
-    render_glossary(course, env, targetdir_i, b.Mode.INSTRUCTOR)
-    course.glossary.report_issues()
-    # ------ report outcome:
-    print(f"wrote student files to  '{targetdir_s}'")
-    print(f"wrote instructor files to  '{targetdir_i}'")
+            render_taskgroup(taskgroup, env, course.targetdir_s, b.Mode.STUDENT)
+            render_taskgroup(taskgroup, env, course.targetdir_i, b.Mode.INSTRUCTOR)
+
+
+def add_tocs_to_upper_parts(course: sdrl.course.Course):
+    b.info(f"building tables-of-content (TOCs)")
+    course.toc = toc(course)
+    for chapter in course.chapters:
+        chapter.toc = toc(chapter)
+        for taskgroup in chapter.taskgroups:
+            taskgroup.toc = toc(taskgroup)
+
+
+def copy_baseresources(course: sdrl.course.Course):
+    if course.cache_mode == sdrl.course.CacheMode.READ:
+        return  # nothing to do
+    b.info(f"copying '{course.baseresourcedir}'")
+    for filename in glob.glob(f"{course.baseresourcedir}/*"):
+        b.debug(f"copying '{filename}'\t-> '{course.targetdir_s}'")
+        shutil.copy(filename, course.targetdir_s)
+        b.debug(f"copying '{filename}'\t-> '{course.targetdir_i}'")
+        shutil.copy(filename, course.targetdir_i)
+
+
+def prepare_directories(course: sdrl.course.Course):
+    if course.cache_mode == sdrl.course.CacheMode.READ:
+        b.info(f"cached mode: leaving directories as they are: '{course.targetdir_s}', '{course.targetdir_i}'")
+    else:
+        b.info(f"preparing directories '{course.targetdir_s}', '{course.targetdir_i}'")
+        backup_targetdir(course.targetdir_i, markerfile=f"_{b.CONFIG_FILENAME}")  # do _i first if it is a subdir of _s
+        backup_targetdir(course.targetdir_s, markerfile=f"_{b.CONFIG_FILENAME}")
+        os.mkdir(course.targetdir_s)
+        os.mkdir(course.targetdir_i)
+        # mark dirs as SeDriLa instances:
+        shutil.copyfile(course.configfile, f"{course.targetdir_s}/_{b.CONFIG_FILENAME}")  
+        shutil.copyfile(course.configfile, f"{course.targetdir_i}/_{b.CONFIG_FILENAME}")
+    if course.cache_mode == sdrl.course.CacheMode.WRITE:
+        with open(cache_filename(course), 'wb') as f:
+            pickle.dump(course, f)
+        print(f"wrote cache file '{cache_filename(course)}'")
 
 
 def backup_targetdir(targetdir: str, markerfile: str):
@@ -164,6 +223,9 @@ def toc(structure: sdrl.part.Structurepart) -> str:
 
 def register_macros(course):
     MM = macros.MM
+    b.info("registering macros")
+    if course.cache_mode == sdrl.course.CacheMode.READ:
+        course.glossary._register_macros_phase1()  # modifies state in module 'mocros'! 
     # ----- register EARLY-mode macros:
     macros.register_macro('INCLUDE', 1, MM.EARLY,
                           expand_include)
@@ -191,7 +253,7 @@ def register_macros(course):
     macros.register_macro('HINT', 1, MM.BLOCKSTART, expand_hint)
     macros.register_macro('ENDHINT', 0, MM.BLOCKEND, expand_hint)
     # ----- register generic block macros:
-    generic_defs = {key:val for key, val in course.blockmacro_topmatter.items() if key.isupper()}
+    generic_defs = {key: val for key, val in course.blockmacro_topmatter.items() if key.isupper()}
     for key, value in generic_defs.items():
         if "{arg2}" in value:
             args = 2
@@ -278,6 +340,7 @@ def expand_enumeration(macrocall: macros.Macrocall) -> str:
 def partswitch_enumeration(macroname: str, newpartname: str):  # noqa
     macros.set_state(macroname, 0)  # is independent of newpartname
 
+
 def expand_enumerationref(macrocall: macros.Macrocall) -> str:
     # markup matches that of expand_enumeration(), argument is not checked in any way
     macroname = macrocall.macroname
@@ -307,43 +370,29 @@ def expand_include(macrocall: macros.Macrocall) -> str:
         return rawcontent
 
 
-def topmatter(macrocall: macros.Macrocall, name: str) -> str:
-    topmatterdict = macrocall.md.blockmacro_topmatter  # noqa
-    if name in topmatterdict:
-        return topmatterdict[name]
-    else:
-        b.error("'%s', %s\n  blockmacro_topmatter '%s' is not defined in config" %
-                (macrocall.filename, macrocall.macrocall_text, name))
-        return ""  # neutral result
-
-
-def render_homepage(course: sdrl.course.Course, env, targetdir: str,
-                    mode: b.Mode, blockmacro_topmatter: dict[str, str]):
+def render_homepage(course: sdrl.course.Course, env, targetdir: str, mode: b.Mode):
     template = env.get_template("homepage.html")
-    render_structure(course, template, course, env, targetdir, mode, blockmacro_topmatter)
+    render_structure(course, template, course, targetdir, mode)
     course.render_zipdirs(targetdir)
 
 
-def render_chapter(chapter: sdrl.course.Chapter, env, targetdir: str, 
-                   mode: b.Mode, blockmacro_topmatter: dict[str, str]):
+def render_chapter(chapter: sdrl.course.Chapter, env, targetdir: str, mode: b.Mode):
     template = env.get_template("chapter.html")
-    render_structure(chapter.course, template, chapter, env, targetdir, mode, blockmacro_topmatter)
+    render_structure(chapter.course, template, chapter, targetdir, mode)
     chapter.render_zipdirs(targetdir)
 
 
-def render_taskgroup(taskgroup: sdrl.course.Taskgroup, env, targetdir: str, 
-                     mode: b.Mode, blockmacro_topmatter: dict[str, str]):
+def render_taskgroup(taskgroup: sdrl.course.Taskgroup, env, targetdir: str, mode: b.Mode):
     template = env.get_template("taskgroup.html")
-    render_structure(taskgroup.chapter.course, template, taskgroup, env, targetdir, mode, blockmacro_topmatter)
+    render_structure(taskgroup.chapter.course, template, taskgroup, targetdir, mode)
     taskgroup.render_zipdirs(targetdir)
 
 
-def render_task(task: sdrl.course.Task, env, targetdir: str, 
-                mode: b.Mode, blockmacro_topmatter: dict[str, str]):
+def render_task(task: sdrl.course.Task, env, targetdir: str, mode: b.Mode):
     template = env.get_template("task.html")
     course = task.taskgroup.chapter.course
     task.linkslist = render_task_linkslist(task)
-    render_structure(course, template, task, env, targetdir, mode, blockmacro_topmatter)
+    render_structure(course, template, task, targetdir, mode)
 
 
 def render_task_linkslist(task: sdrl.course.Task) -> str:
@@ -382,13 +431,12 @@ def render_glossary(course: sdrl.course.Course, env, targetdir: str, mode: b.Mod
     b.spit(f"{targetdir}/{glossary.outputfile}", output)
 
 
-def render_structure(course: sdrl.course.Course, 
-                     template, structure: sdrl.part.Structurepart, 
-                     env, targetdir: str, 
-                     mode: b.Mode, blockmacro_topmatter: dict[str, str]):
+def render_structure(course: sdrl.course.Course, template, structure: sdrl.part.Structurepart, 
+                     targetdir: str, mode: b.Mode):
     macros.switch_part(structure.slug)
     toc = (structure.taskgroup if isinstance(structure, sdrl.course.Task) else structure).toc
-    html = md.render_markdown(structure.sourcefile, structure.slug, structure.content, mode, blockmacro_topmatter)
+    html = md.render_markdown(structure.sourcefile, structure.slug, structure.content, mode, 
+                              course.blockmacro_topmatter)
     output = template.render(sitetitle=course.title,
                              index=course.chapters[0].slug, index_title=course.chapters[0].title,
                              breadcrumb=h.breadcrumb(*structure_path(structure)[::-1]),
@@ -398,23 +446,6 @@ def render_structure(course: sdrl.course.Course,
                              toc=toc, fulltoc=course.toc,
                              content=html)
     b.spit(f"{targetdir}/{structure.outputfile}", output)
-
-
-def structure_path(structure: sdrl.part.Structurepart) -> list[sdrl.part.Structurepart]:
-    """List of nested parts, from a given part up to the course."""
-    path = []
-    if isinstance(structure, sdrl.course.Task):
-        path.append(structure)
-        structure = structure.taskgroup
-    if isinstance(structure, sdrl.course.Taskgroup):
-        path.append(structure)
-        structure = structure.chapter
-    if isinstance(structure, sdrl.course.Chapter):
-        path.append(structure)
-        structure = structure.course
-    if isinstance(structure, sdrl.course.Course):
-        path.append(structure)
-    return path
 
 
 def write_metadata(course: sdrl.course.Course, filename: str):
@@ -449,21 +480,45 @@ def print_volume_report(course: sdrl.course.Course):
                           "%5.1f" % timevalue)
             totaltasks += numtasks
             totaltime += timevalue
-        table.add_row("[b]=TOTAL", f"[b]{totaltasks}","[b]%5.1f" % totaltime)
+        table.add_row("[b]=TOTAL", f"[b]{totaltasks}", "[b]%5.1f" % totaltime)
         b.rich_print(table)  # noqa
 
 
-def _instructor_targetdir(pargs: argparse.Namespace, course: sdrl.course.Course) -> str:
-    default = f"{pargs.targetdir or course.out_dir}/{OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR}"
-    has_instructor_targetdir = getattr(pargs, 'instructor_targetdir', False)
-    return pargs.instructor_targetdir if has_instructor_targetdir else default
+def cache_filename(context: tg.Union[sdrl.course.Course, str]) -> str:
+    if isinstance(context, sdrl.course.Course):
+        return f"{context.targetdir_i}/{b.CACHE_FILE}"
+    else:
+        # the context _is_ the targetdir_i:
+        return f"{context}/{b.CACHE_FILE}"
 
 
-#allow target dir to be optional without --
-class TargetDirAction(argparse.Action):
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        kwargs['required'] = False
-        super().__init__(option_strings, dest, **kwargs)
+def structure_path(structure: sdrl.part.Structurepart) -> list[sdrl.part.Structurepart]:
+    """List of nested parts, from a given part up to the course."""
+    path = []
+    if isinstance(structure, sdrl.course.Task):
+        path.append(structure)
+        structure = structure.taskgroup
+    if isinstance(structure, sdrl.course.Taskgroup):
+        path.append(structure)
+        structure = structure.chapter
+    if isinstance(structure, sdrl.course.Chapter):
+        path.append(structure)
+        structure = structure.course
+    if isinstance(structure, sdrl.course.Course):
+        path.append(structure)
+    return path
 
-    def __call__(self, parser, namespace, values, option_string=None):
-        setattr(namespace, self.dest, values)
+
+def task_is_unchanged(task: sdrl.course.Task) -> bool:
+    task_mtime = os.stat(task.sourcefile).st_mtime
+    return task_mtime < task.taskgroup.chapter.course.mtime
+
+
+def topmatter(macrocall: macros.Macrocall, name: str) -> str:
+    topmatterdict = macrocall.md.blockmacro_topmatter  # noqa
+    if name in topmatterdict:
+        return topmatterdict[name]
+    else:
+        b.error("'%s', %s\n  blockmacro_topmatter '%s' is not defined in config" %
+                (macrocall.filename, macrocall.macrocall_text, name))
+        return ""  # neutral result

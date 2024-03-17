@@ -5,6 +5,7 @@ In 'author' mode, 'read_contentfiles' is true and metadata comes from sedrila.ya
 Otherwise, 'read_contentfiles' is false and metadata comes from METADATA_FILE. 
 """
 import dataclasses
+import enum
 import functools
 import glob
 import graphlib
@@ -173,6 +174,12 @@ class Task(part.Structurepart):
         return hash(self.slug)
 
 
+class CacheMode(enum.Enum):
+    UNCACHED = 0  # read and render everything afresh 
+    WRITE = 1  # read metadata, write cache, render everything afresh 
+    READ = 3  # read metadata from cache, reuse rendered files
+
+
 class Course(part.Partscontainer):
     """
     The master data object for this run.
@@ -196,11 +203,14 @@ class Course(part.Partscontainer):
     namespace: dict[str, part.Structurepart]  # the parts known so far
     include_stage: str  # lowest stage that parts must have to be included in output
     include_stage_index: int  # index in stages list, or len(stages) if include_stage is ""
+    cache_mode: CacheMode
+    mtime: float  # in READ cache mode: tasks have changed if they are younger than this
 
     taskorder: list[Task]  # If task B assumes or requires A, A will be before B in this list.
     init_data: b.StrAnyDict = {}
-    out_dir: str = None
-    rejection_allowance: str = None #nothing, plain number, infinite or something like 1+2/h
+    targetdir_s: str  # where to render student output files
+    targetdir_i: str  # where to render instructor output files
+    rejection_allowance: str = None # nothing, plain number, infinite or something like 1+2/h
     glossary: glossary.Glossary
 
     def __init__(self, configfile: str, read_contentfiles: bool, include_stage: str):
@@ -209,7 +219,8 @@ class Course(part.Partscontainer):
         b.copyattrs(configfile, 
                     configdict, self,
                     mustcopy_attrs='title, breadcrumb_title, instructors, profiles, stages',
-                    cancopy_attrs='baseresourcedir, chapterdir, templatedir, blockmacro_topmatter, init_data, out_dir, rejection_allowance',
+                    cancopy_attrs=('baseresourcedir, chapterdir, templatedir, '
+                                   'blockmacro_topmatter, init_data, rejection_allowance'),
                     mustexist_attrs='chapters')
         self.slug = self.breadcrumb_title
         self.outputfile = "index.html"
@@ -267,7 +278,6 @@ class Course(part.Partscontainer):
                       instructors=self.instructors,
                       profiles=self.profiles,
                       init_data=self.init_data,
-                      out_dir=self.out_dir,
                       rejection_allowance=self.rejection_allowance,
                       chapters=[chapter.as_json() for chapter in self.chapters])
         result.update(super().as_json())

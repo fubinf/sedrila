@@ -141,6 +141,7 @@ def test_sedrila_author(capfd):
 def _call_sedrila_author():
     # ----- prepare call:
     pargs = argparse.Namespace()
+    pargs.cache = False
     pargs.config = b.CONFIG_FILENAME
     pargs.include_stage = "alpha"
     pargs.log = "WARNING"
@@ -149,8 +150,8 @@ def _call_sedrila_author():
     b._testmode_reset()
     macros._testmode_reset()
     b.set_loglevel(pargs.log)
-    course = sdrl.course.Course(pargs.config, read_contentfiles=True, include_stage=pargs.include_stage)
-    sdrl.subcmd.author.generate(pargs, course)
+    course = sdrl.subcmd.author.get_course(pargs)
+    sdrl.subcmd.author.generate(course)
     # ----- now force additional errors beyond what the test input produces:
     tg12 = course.taskgroup("tg12")
     task113duplicate = tg12._add_task(sdrl.course.Task().from_file("ch/ch1/tg12/task113.duplicate", taskgroup=tg12))
