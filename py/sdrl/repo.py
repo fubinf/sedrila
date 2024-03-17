@@ -152,7 +152,7 @@ def submission_file_entries(course: sdrl.course.Course, entries: tg.Sequence[Rep
         else:
             if accepted:
                 candidates[taskname] = ACCEPT_MARK
-            elif taskname in rejected:
+            elif taskname in rejections:
                 candidates[taskname] = REJECT_MARK
             else:
                 candidates[taskname] = CHECK_MARK
@@ -161,7 +161,7 @@ def submission_file_entries(course: sdrl.course.Course, entries: tg.Sequence[Rep
 
 def _parse_taskname_workhours(commit_msg: str) -> tg.Optional[WorkEntry]:
     """Return pair of (taskname, workhours) from commit message if present, or None otherwise."""
-    worktime_regexp = r"\s*[#%]([\w\s]+?)\s+(?:(-?\d+(?:\.\d+)?)|(-?\d+):(\d\d)) ?h\b"  # %MyTask117 3.5h  or  %SomeStuff 3:45h
+    worktime_regexp = r"\s*[#%]([\w\s.-]+?)\s+(?:(-?\d+(?:\.\d+)?)|(-?\d+):(\d\d)) ?h\b"  # %MyTask117 3.5h  or  %SomeStuff 3:45h
     mm = re.match(worktime_regexp, commit_msg)
     if not mm:
         return None  # not the format we're looking for
