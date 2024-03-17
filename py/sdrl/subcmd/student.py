@@ -1,6 +1,7 @@
 import argparse
 import os
 import typing as tg
+import readline
 import requests
 
 import base as b
@@ -13,7 +14,7 @@ import sdrl.repo as r
 meaning = """Reports on course execution so far or prepares submission to instructor."""
 
 def add_arguments(subparser):
-    subparser.add_argument('--init', action=argparse.BooleanOptionalAction,
+    subparser.add_argument('--init', action='store_true', default="False",
                            help="start initialization for student repo directory")
     subparser.add_argument('--submission', action='store_true',
                            help=f"generate {r.SUBMISSION_FILE} with possible tasks to be checked by instructor")
