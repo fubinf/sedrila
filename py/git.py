@@ -29,10 +29,11 @@ def clone(repo_url: str, targetdir: str):
     os.system(f"git clone {repo_url} {targetdir}")
 
 
-def commit(*filenames, msg):
+def commit(*filenames, msg, **kwargs):
     for filename in filenames:
         add(filename)
-    os.system(f"git commit -m'{msg}'")
+    signed = kwargs.pop('signed', False)
+    os.system(f"git commit {'-S ' if signed else ''}-m'{msg}'")
 
 
 def commits_of_local_repo(reverse=False) -> tg.Sequence[Commit]:

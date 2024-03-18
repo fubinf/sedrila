@@ -97,7 +97,7 @@ def rewrite_submission_file(course: sdrl.course.Course, filename: str):
     entries = b.slurp_yaml(filename)
     rewrite_submission_entries(course, entries)
     b.spit_yaml(filename, entries)
-    return [taskname for taskname, mark in entries.items() if mark != r.NONTASK_MARK and mark != r.ACCEPT_MARK]
+    return [taskname for taskname, mark in entries.items() if mark != r.NONTASK_MARK]
 
 
 def rewrite_submission_entries(course: sdrl.course.Course, entries: b.StrAnyDict):
@@ -159,5 +159,5 @@ def validate_submission_file(course: sdrl.course.Course, filename: str) -> bool:
 
 def commit_and_push(filename: str):
     assert filename == r.SUBMISSION_FILE  # our only purpose here, the arg is for clarity
-    git.commit(*[filename], msg=f"{r.SUBMISSION_FILE} checked")
+    git.commit(*[filename], msg=f"{r.SUBMISSION_FILE} checked", signed=True)
     git.push()
