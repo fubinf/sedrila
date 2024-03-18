@@ -146,13 +146,13 @@ def submission_file_entries(course: sdrl.course.Course, entries: tg.Sequence[Rep
     """taskname -> CHECK_MARK  for each yet-to-be-accepted task with effort in any commit."""
     candidates = dict()
     for taskname, workhoursum, timevalue, rejections, accepted in entries:
-        if rejections is None:
+        if rejected is None:
             if not accepted:
                 candidates[taskname] = CHECK_MARK
         else:
             if accepted:
                 candidates[taskname] = ACCEPT_MARK
-            elif taskname in rejections:
+            elif taskname in rejected:
                 candidates[taskname] = REJECT_MARK
             else:
                 candidates[taskname] = CHECK_MARK
