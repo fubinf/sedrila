@@ -14,7 +14,7 @@ import sdrl.repo as r
 meaning = """Reports on course execution so far or prepares submission to instructor."""
 
 def add_arguments(subparser):
-    subparser.add_argument('--init', action='store_true', default="False",
+    subparser.add_argument('--init', action='store_true',
                            help="start initialization for student repo directory")
     subparser.add_argument('--submission', action='store_true',
                            help=f"generate {r.SUBMISSION_FILE} with possible tasks to be checked by instructor")
