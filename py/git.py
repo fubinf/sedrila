@@ -88,5 +88,10 @@ def username_from_repo_url(repo_url: str) -> str:
         #for testing purposes, local paths are allowed but default to the current user
         if os.path.isdir(repo_url):
             return getpass.getuser()
+        if not mm:
+            repo_url_regexp = r"/([\w_\.-]+)/([\w_\.-]+).git"
+            mm = re.search(repo_url_regexp, repo_url)
+        if mm and mm.group(1):
+            return mm.group(1)
         b.critical(f"Git url '{repo_url}' is not usable.\nNeed one like 'git@server:useraccount/reponame.git'.")
     return mm.group(1) if mm else None  # tests will patch b.critical away
