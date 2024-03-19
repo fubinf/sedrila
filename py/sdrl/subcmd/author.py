@@ -116,6 +116,7 @@ def generate_task_files(course: sdrl.course.Course, env):
         b.debug(f"  task '{task.slug}'")
         if using_cache:
             print(f"re-rendering task '{task.slug}'")
+            task.read_partsfile(task.sourcefile)
         render_task(task, env, course.targetdir_s, b.Mode.STUDENT)
         render_task(task, env, course.targetdir_i, b.Mode.INSTRUCTOR)
 
