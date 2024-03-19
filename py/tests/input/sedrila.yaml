@@ -14,6 +14,7 @@ instructors:
     email: o.instructor@inf.fu-berlin.de
     gitaccount: oinstr
     keyfingerprint: .
+    pubkey: .
 chapters:
   - slug: ch1
     taskgroups:

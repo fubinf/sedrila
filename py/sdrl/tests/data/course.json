@@ -7,7 +7,8 @@
     {
       "nameish": "Dummy Instructor",
       "account": "dummy",
-      "keyfingerprint": "--"
+      "keyfingerprint": "--",
+      "pubkey": "--"
     }
   ],
   "profiles": ["DBS", "DSCI", "OPS", "SYS", "TEST", "WEB"],
