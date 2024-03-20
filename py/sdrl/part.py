@@ -28,7 +28,8 @@ class Structurepart:
     content: str  # the markdown block
     slug: str  # the file/dir basename by which we refer to the part
     title: str  # title: value
-    linkslist: str = ''  # generated HTML of cross reference links
+    linkslist_top: str = ''  # generated HTML of cross reference links
+    linkslist_bottom: str = ''  # generated HTML of cross reference links
     stage: str = ''  # stage: value
     skipthis: bool  # do not include this chapter/taskgroup/task in generated site
     toc: str  # table of contents

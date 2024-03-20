@@ -404,25 +404,28 @@ def render_taskgroup(taskgroup: sdrl.course.Taskgroup, env, targetdir: str, mode
 def render_task(task: sdrl.course.Task, env, targetdir: str, mode: b.Mode):
     template = env.get_template("task.html")
     course = task.taskgroup.chapter.course
-    task.linkslist = render_task_linkslist(task)
+    task.linkslist_top = render_task_linkslist(task, 'assumes', 'requires')
+    task.linkslist_bottom = render_task_linkslist(task, 'assumed_by', 'required_by')
     render_structure(course, template, task, targetdir, mode)
 
 
-def render_task_linkslist(task: sdrl.course.Task) -> str:
-    """HTML for the links to assumes/requires related tasks to be included on a task page."""
+def render_task_linkslist(task: sdrl.course.Task, a_attr: str, r_attr: str) -> str:
+    """HTML for the links to assumes/requires (or assumed_by/required_by) related tasks on a task page."""
     links = []
-    assumes_links = sorted((f"[PARTREF::{part}]" for part in task.assumes))
-    requires_links = sorted((f"[PARTREF::{part}]" for part in task.requires))
-    any_links = assumes_links or requires_links
+    a_links = sorted((f"[PARTREF::{part}]" for part in getattr(task, a_attr)))
+    r_links = sorted((f"[PARTREF::{part}]" for part in getattr(task, r_attr)))
+    a_cssname = a_attr.replace("_", "")
+    r_cssname = r_attr.replace("_", "")
+    any_links = a_links or r_links
     if any_links:
-        links.append("\n<div class='assumes-requires-linkblock'>\n")
-    if assumes_links:
-        links.append(" <div class='assumes-links'>\n   ")
-        links.append("  " + macros.expand_macros("-", task.slug, ", ".join(assumes_links)))
+        links.append(f"\n<div class='{a_cssname}-{r_cssname}-linkblock'>\n")
+    if a_links:
+        links.append(f" <div class='{a_cssname}-links'>\n   ")
+        links.append("  " + macros.expand_macros("-", task.slug, ", ".join(a_links)))
         links.append("\n </div>\n")
-    if requires_links:
-        links.append(" <div class='requires-links'>\n")
-        links.append("  " + macros.expand_macros("-", task.slug, ", ".join(requires_links)))
+    if r_links:
+        links.append(f" <div class='{r_cssname}-links'>\n")
+        links.append("  " + macros.expand_macros("-", task.slug, ", ".join(r_links)))
         links.append("\n </div>\n")
     if any_links:
         links.append("</div>\n")
@@ -454,7 +457,8 @@ def render_structure(course: sdrl.course.Course, template, structure: sdrl.part.
                              index=course.chapters[0].slug, index_title=course.chapters[0].title,
                              breadcrumb=h.breadcrumb(*structure_path(structure)[::-1]),
                              title=structure.title,
-                             linkslist=structure.linkslist,
+                             linkslist_top=structure.linkslist_top,
+                             linkslist_bottom=structure.linkslist_bottom,
                              part=structure,
                              toc=toc, fulltoc=course.toc,
                              content=html)
