@@ -196,6 +196,7 @@ class Course(part.Partscontainer):
     templatedir: str = f"{sedrila_libdir}/templates"
     blockmacro_topmatter: dict[str, str]
     instructors: list[b.StrAnyDict]
+    htaccess_template: str  # structure of .htaccess file generated in instructor website
     profiles: list[str]  # list of all allowed profile shortnames
     chapters: list['Chapter']
     stages: list[str]  # list of allowed values of stage in parts 
@@ -220,7 +221,7 @@ class Course(part.Partscontainer):
                     configdict, self,
                     mustcopy_attrs='title, breadcrumb_title, instructors, profiles, stages',
                     cancopy_attrs=('baseresourcedir, chapterdir, templatedir, '
-                                   'blockmacro_topmatter, init_data, rejection_allowance'),
+                                   'blockmacro_topmatter, htaccess_template, init_data, rejection_allowance'),
                     mustexist_attrs='chapters')
         self.slug = self.breadcrumb_title
         self.outputfile = "index.html"
