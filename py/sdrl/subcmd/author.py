@@ -88,11 +88,23 @@ def generate(course: sdrl.course.Course):
     generate_upper_parts_files(course, env)
     generate_task_files(course, env)
     generate_metadata_and_glossary(course, env)
+    generate_htaccess(course)
     if course.cache_mode == sdrl.course.CacheMode.READ:
         os.utime(cache_filename(course))  # update mtime of cache file to now
     else:
         print(f"wrote student files to  '{targetdir_s}'")
         print(f"wrote instructor files to  '{targetdir_i}'")
+
+
+def generate_htaccess(course: sdrl.course.Course):
+    if not course.htaccess_template:
+        return  # nothing to do
+    userlist = [u['webaccount'] for u in course.instructors]
+    htaccess_txt = (course.htaccess_template.format( 
+                       userlist_commas=",".join(userlist), 
+                       userlist_spaces=" ".join(userlist),
+                       userlist_quotes_spaces=" ".join((f'"{u}"' for u in userlist))))
+    b.spit(f"{course.targetdir_i}/.htaccess", htaccess_txt)
 
 
 def generate_metadata_and_glossary(course: sdrl.course.Course, env):
