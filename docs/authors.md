@@ -1,7 +1,7 @@
 # `sedrila` use for course authors
 
 Assumes Unix filenames, will not work properly on Windows.
-On a Windows platform, use WSL or Cygwin.
+On a Windows platform, use WSL (or Cygwin).
 
 A sedrila course consists of chapters, taskgroups, tasks, a glossary,
 possibly .zip directories, and a config file.
@@ -37,6 +37,12 @@ and how to make and maintain a fork of an existing sedrila course (Section 3)
   Defaults are included with sedrila and are usually sufficient.
 - Probably some CSS rules in `local.css` or a complete set of CSS rules in `sedrila.css`.
   A default `sedrila.css` is included and may be sufficient.
+
+From these materials, sedrila generates two versions of the course website:
+one for students, another for instructors.
+The latter is identical to the student version except  
+a) it includes the `[INSTRUCTOR]` parts of the tasks (which are missing in the student version) and  
+b) it may include an `.htaccess` file for limiting access to the instructors.
 
 
 ### 1.1 `sedrila.yaml`: The global configuration file
@@ -84,11 +90,28 @@ About the entries:
   but WARNING, NOTICE, and INSTRUCTOR all follow the same logic and you can introduce further
   such macros if you want -- this is the reason why those three are all uppercase in sedrila.yaml.
 - `instructors`: The source of truth for who can give students credit 
-  for their work. 
-  When they accept or reject student work in a _"submission.yaml checked"_ commit,
-  instructors must sign that commit. 
-  The `instructors.fingerprint` entries (of GnuPG GPG key fingerprints) determine
-  which signatures `sedrila` will consider valid.
+  for their work. A list of dictionaries, each of which has the following entries:  
+  `nameish`: the personal name or nickname of the instructor so students know who they can talk to,  
+  `email`: the email address of the instructor to which students send their submission requests,  
+  `gitaccount`: username on the git server that students must allow read/write access of their
+  repository so the instructor can deposit their signed _"submission.yaml checked"_ commits 
+  of accepted submissions,    
+  `webaccount`: username on the webserver to which the webserver should grant access to the
+  instructor part of the website,    
+  `keyfingerprint`: fingerprint of the GPG key by which the instructor will sign their commits,
+  which shows up in git listings and is used by sedrila for signature validation,    
+  `pubkey`: The GPG public key used for validate instructor signatures as a PGP PUBLIC KEY BLOCK.
+- `htaccess_template`: In case you are using an Apache httpd webserver for serving
+  the generated pages, sedrila can generate into the instructor part an `.htaccess` file
+  that instructs Apache to serve those files to instructors only.
+  If you do not need such a file, just include no `htaccess_template` entry in your `sedrila.yaml`
+  file at all.
+  If you want it, put its entire concent into the entry, with the actual instructor usernames
+  replaced by one of the following:  
+  `{userlist_commas}`: The list of usernames, separated by a comma.  
+  `{userlist_spaces}`: The list of usernames, separated by a space.  
+  `{userlist_quotes_spaces}`: The list of usernames, each enclosed in double quotes, separated by a space.
+- `init_data`: The prompts presented to the student in the dialog of `sedrila student --init`.
 - `chapters`: describes the course content at the chapter and taskgroup level by listing
   the directory name of each chapter and taskgroup.
   The individual tasks are found by inspecting all `*.md` files in a taskgroup directory.
