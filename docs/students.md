@@ -21,20 +21,26 @@ course webpages are found.
 The instructors need your name and student id in order to do their work,
 so you need to tell them those.
 
-`sedrila` expects these three items in a file called `student.yaml`
-at the top level of your git repository.
-Its contents will look roughly like this:
+The command `sedrila student --init` in your project folder will create
+a file calles `student.yaml` with the relevant information.
+You will be prompted for a course url which you can copy from your
+browser and paste it without any changes made to it.
 
-```
-course_url: https://someserver.my-university.de/courses/sedrila/WS2028
-student_name: Givenname Familyname
-student_id: 12345678
-partner_student_name: Givenname2 Familyname2
-partner_student_id: 12345679
-```
-Prepare this file with your data and commit it to your git repository.
+Afterwards, you will be prompted for the necessary information to allow
+instructors to grade you.
+
 Committing work for a task works without this file being present, but
 making a submission only works if the file exists.
+
+After adding those information, it will import the gpg keys of the instructors.
+Technically, this step is optional and you will be prompted for continueing
+with it. However, since sedrila only considers gradings from instructors
+as valid, not doing this step will prevent sedrila from presenting your
+progress properly.
+
+You can call `sedrila student --import-keys` at any time to import all keys
+associated with your course if you skipped it or need updates to them later.
+
 
 
 ## 3. How to make a commit for a task
@@ -62,9 +68,10 @@ Using that convention has two advantages for you:
 
 Your commit messages should look as follows:
 
-`#SomeTask 2:15h description words`
+`%SomeTask 2:15h description words`
 
-The `#` is fixed and always the same, like for Twitter hash tags.  
+The `%` is fixed and always the same. It is a prefix to tell time keeping
+commits apart from others like a request for grading.  
 `SomeTask` is the name of the task. Make sure you spell this right.  
 `2:15h` is how long you worked on the new data in this commit (here: 2 hours and 15 minutes).  
 `description words` is whatever you have to say to describe the actual content of the 
@@ -74,7 +81,7 @@ If the task is still incomplete, describe what you did that is new in this commi
 
 Decimal hours are possible as well:
 
-`#SomeTask 2.75h description words`
+`%SomeTask 2.75h description words`
 
 This entry means 2 hours and 45 minutes.
 When `sedrila` creates a work time report for you, it will use decimal hours.

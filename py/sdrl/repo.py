@@ -3,6 +3,7 @@ Logic for handling information coming from git repos:
 effort commits, submissions, submission checks.
 """
 import re
+import subprocess as sp
 import typing as tg
 
 import yaml
@@ -74,6 +75,19 @@ def checked_tuples_from_commits(hasheslist: tg.Sequence[tg.Sequence[str]]) -> tg
                 groupdict[taskname] = (refid, taskname, tasknote)
         result.extend(groupdict.values())
     return result
+
+
+def import_gpg_keys(instructors: tg.Sequence[b.StrAnyDict]):
+    for instructor in instructors:
+        if not(instructor.get('pubkey')):
+            b.warning("No key present for " + instructor.get('nameish') + ", skipping")
+            continue
+        b.info("Importing key for " + instructor.get('nameish'))
+        if type(instructor['pubkey']) is list:
+            instructor['pubkey'] = "\n".join(instructor['pubkey'])
+        if not(instructor['pubkey'].startswith("-----")):
+            instructor['pubkey'] = "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\n" + instructor['pubkey'] + "\n-----END PGP PUBLIC KEY BLOCK-----"
+        sp.run(["gpg", "--import"], input=instructor['pubkey'], encoding='ascii')
 
 
 def compute_student_work_so_far(course: sdrl.course.Course):

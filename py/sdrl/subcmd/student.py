@@ -20,6 +20,8 @@ def add_arguments(subparser):
                            help=f"generate {r.SUBMISSION_FILE} with possible tasks to be checked by instructor")
     subparser.add_argument('--interactive', default="True", action=argparse.BooleanOptionalAction,
                            help="open interactive terminal interface to select tasks to submit")
+    subparser.add_argument('--import-keys', action='store_true',
+                           help="(re)import all public gpg keys for the given course")
     subparser.add_argument('--log', default="INFO", choices=b.loglevels.keys(),
                            help="Log level for logging to stdout (default: INFO)")
 
@@ -37,6 +39,8 @@ def execute(pargs: argparse.Namespace):
     if pargs.submission:
         entries = [entry for entry in entries if not(course.task(entry[0]).open_rejections()[1])] #filter final rejections
         prepare_submission_file(course, student.root, entries, pargs.interactive)
+    elif pargs.import_keys:
+        r.import_gpg_keys(course.instructors)
     else:
         report_student_work_so_far(course, entries, workhours_total, timevalue_total)
 
@@ -56,6 +60,7 @@ def init():
         except:
             accept = input("Error fetching URL. Continue anyways? [yN] ")
             if not(accept.startswith("y") or accept.startswith("Y")):
+                coursedata = {}
                 continue
         break
     init_data = coursedata.get('init_data') or {}
@@ -63,6 +68,16 @@ def init():
     for value in prompts:
         data[value] = input(prompts[value] + ": ")
     b.spit_yaml("student.yaml", data)
+    if not(coursedata.get('instructors')):
+        b.warning("No information about instructors present. Skipping key import.")
+        return
+    gpgimportwarning = init_data.get('gpgimportwarning') or """
+        Next step is the import of the public keys from the instructors of the course.
+        This is necessary to correctly show your progress.
+        If you want to abort this, you can Ctrl+C now.
+        Press enter to continue."""
+    input(gpgimportwarning)
+    r.import_gpg_keys(coursedata['instructors'])
 
 
 def prepare_submission_file(course: sdrl.course.Course, root: str, entries: tg.Sequence[r.ReportEntry], interactive: bool = False):
