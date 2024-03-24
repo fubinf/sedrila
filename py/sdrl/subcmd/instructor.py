@@ -8,6 +8,7 @@ import base as b
 import git
 import sdrl.course
 import sdrl.interactive as i
+import sdrl.participant
 import sdrl.repo as r
 
 meaning = """Help instructors evaluate a student's submission of several finished tasks.
@@ -19,7 +20,7 @@ USER_CMD_DEFAULT = "/bin/bash"  # fallback only if $SHELL is not set
 
 
 def add_arguments(subparser):
-    subparser.add_argument('repo_url',
+    subparser.add_argument('repo_url', action=RepoUrlAction,
                            help="where to find student input")
     subparser.add_argument('--get', default="True", action=argparse.BooleanOptionalAction,
                            help="pull or clone student repo")
@@ -35,9 +36,13 @@ def add_arguments(subparser):
 
 def execute(pargs: argparse.Namespace):
     b.set_loglevel(pargs.log)
+    home_fallback = "."
     if os.environ.get(REPOS_HOME_VAR) is None:
         b.warning(f"Environment variable {REPOS_HOME_VAR} is not set. Assume current directory as student workdirs directory")
-    home = os.environ.get(REPOS_HOME_VAR) or "."
+        if pargs.repo_url and os.path.isfile(sdrl.participant.PARTICIPANT_FILE):
+            b.warning("It looks like you are already inside a student dir. Assuming parent directory instead.")
+            home_fallback = ".."
+    home = os.environ.get(REPOS_HOME_VAR) or home_fallback
     checkout_student_repo(pargs.repo_url, home, pargs.get)
     if not(pargs.put) and not(pargs.check):
         os.chdir("..")
@@ -161,3 +166,13 @@ def commit_and_push(filename: str):
     assert filename == r.SUBMISSION_FILE  # our only purpose here, the arg is for clarity
     git.commit(*[filename], msg=f"{r.SUBMISSION_FILE} checked", signed=True)
     git.push()
+
+
+#allow repo_url to be optional without --
+class RepoUrlAction(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        kwargs['required'] = not(os.path.isfile(sdrl.participant.PARTICIPANT_FILE))
+        super().__init__(option_strings, dest, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, values)
