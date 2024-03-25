@@ -175,13 +175,15 @@ def submission_file_entries(course: sdrl.course.Course, entries: tg.Sequence[Rep
 
 def _parse_taskname_workhours(commit_msg: str) -> tg.Optional[WorkEntry]:
     """Return pair of (taskname, workhours) from commit message if present, or None otherwise."""
-    worktime_regexp = r"\s*[#%]([\w\s.-]+?)\s+(?:(-?\d+(?:\.\d+)?)|(-?\d+):(\d\d)) ?h\b"  # %MyTask117 3.5h  or  %SomeStuff 3:45h
+    worktime_regexp = (r"\s*[#%](?P<name>[\w.-]+?)\s+"
+                       r"(?:(?P<dectime>-?\d+(\.\d+)?)|"
+                          r"(?P<hh>-?\d+):(?P<mm>\d\d)) ?h\b")  # %MyTask117 3.5h  or  %Some-Stuff 3:45h
     mm = re.match(worktime_regexp, commit_msg)
     if not mm:
         return None  # not the format we're looking for
-    taskname = mm.group(1)
-    if mm.group(2):  # decimal time
-        workhours = float(mm.group(2))
+    taskname = mm.group('name')
+    if mm.group('dectime'):  # decimal time
+        workhours = float(mm.group('dectime'))
     else:
-        workhours = float(mm.group(3)) + float(mm.group(4)) / 60  # hh:mm format
+        workhours = float(mm.group('hh')) + float(mm.group('mm')) / 60  # hh:mm format
     return taskname, workhours
