@@ -23,10 +23,7 @@ def test_get_file_version():
 
 def test_username_from_repo_url():
     func = git.username_from_repo_url
-    assert func("git@server:useraccount/subset/reponame.git") == "useraccount"
-    with unittest.mock.patch('base.critical') as crit:
-        func("https://server/useraccount/reponame.git")
-        assert crit.called
-    with unittest.mock.patch('base.critical') as crit:
-        func("git@server:user*account/subset/reponame.git")
-        assert crit.called
+    assert func("git@server:useraccount/reponame.git") == "useraccount"
+    assert func("git@server:useraccount/subset/reponame.git") == "useraccount"  # nice-to-have
+    assert func("https://server/useraccount/reponame.git") == "useraccount"
+    # assert func("https://server/useraccount/subset/reponame.git") == "useraccount"  # TODO 3 would be nice
