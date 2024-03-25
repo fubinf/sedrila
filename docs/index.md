@@ -16,3 +16,5 @@ The sedrila tool supports three user groups:
   receive student submissions; accept or reject student solutions
 - [Students](students.md):
   submit finished tasks; compute status tables of submissions and time value earned
+
+[changelog](changelog.md)
