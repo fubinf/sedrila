@@ -13,6 +13,28 @@ and then course instructors and students for executing it.
 Find the [documentation at readthedocs](https://sedrila.readthedocs.io).
 
 
+## Ideas for future versions
+
+- Process `SEDRILA_INSTRUCTOR_COURSE_URLS` as described in the instructor documentation.
+- `sedrila instructor` should keep a JSON file `student_course_urls.json` that maps student usernames
+  to the course URL first seen for that student, because if a student ever changed
+  the URL in the `student.yaml`, prior signed commits of instructors might become 
+  invalid semantically if the new course has a different set of tasks.  
+  The map is added to when a `student.yaml` is first seen
+  and checked against at each later time.  
+  Note that a student taking part a second time, with a fresh repo,
+  might require manual editing of that JSON file to remove that entry.
+- Better yet, there could be an option `sedrial instructor --allow-repo2` that 
+  performs that editing automatically
+  and also checks that the new repo contains no instructor-signed commits.
+- Command `sedrila instructor --clean-up-repos-home`
+  to clean up instructor work directory trees-of-trees
+  by deleting all level-1 subtrees in which the `student.yaml`
+  has a `course_url` that is not mentioned in the 
+  `SEDRILA_INSTRUCTOR_COURSE_URLS`environment variable.
+  This option should ask a safety question before starting to work.
+
+
 ## Development process: TODO-handling during development
 
 We use this convention for the development of `sedrila`.
