@@ -112,6 +112,15 @@ About the entries:
   `{userlist_spaces}`: The list of usernames, separated by a space.  
   `{userlist_quotes_spaces}`: The list of usernames, each enclosed in double quotes, separated by a space.
 - `init_data`: The prompts presented to the student in the dialog of `sedrila student --init`.
+- `allowed_attempts`: Students have a maximum number of times they can present a task
+  until it must be accepted by the instructor, called the `allowed_attempts` of that task.
+  If the task gets rejected that many times, it will never be accepted later on, i.e.,
+  sedrila will never count the timevalue of that task as work that has been done by the student.  
+  `allowed_attempts` is a string of the strict form `n + x/h` with the following meaning:  
+  Assume you have specified `allowed_attempts: 2 + 0.5/h`,  
+  then tasks with a timevalue of 0.5, 1.0, 1.5, 2.0, 3.0, 4.0 hours will have  
+  theoretical allowed attempts of 2.25, 2.5, 2.75, 3.0, 3.5, 4.0,
+  and actual allowed attempts of 2, 2, 2, 3, 3, 4, respectively.
 - `chapters`: describes the course content at the chapter and taskgroup level by listing
   the directory name of each chapter and taskgroup.
   The individual tasks are found by inspecting all `*.md` files in a taskgroup directory.
