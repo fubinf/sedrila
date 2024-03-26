@@ -31,8 +31,8 @@ def accumulate_timevalues_and_attempts(checked_tuples: tg.Sequence[CheckedTuple]
         b.debug(f"tuple: {refid}, {taskname}, {tasknote}")
         task = course.task(taskname)
         if tasknote.startswith(ACCEPT_MARK):
-            if task.open_rejections()[1]:
-                b.warning(f"Attempted to accept task that was over the rejection limit: {taskname}")
+            if not task.remaining_attempts:
+                b.warning(f"Cannot accept task that has consumed its allowed attempts: {taskname}")
             else:
                 task.accepted = True
                 b.debug(f"{taskname} accepted")

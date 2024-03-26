@@ -6,6 +6,7 @@ from repo_test import commit, request_grading, grade, run_inside_repo
 
 def test_student_work_so_far():
     def preparations():
+        """make various fixed student commits and instructor commits"""
         commit("%A 1h", "%B 1h"),
         request_grading("A", "B")
         grade({"A": r.REJECT_MARK}) #should not count double
@@ -29,16 +30,16 @@ def test_student_work_so_far():
         # ----- report workhours and timevalue per task:
         entries, workhours_total, timevalue_total = r.student_work_so_far(course)
         print("ReportEntries: ", entries)
-        entrymap = {e[0]: (*course.task(e[0]).open_rejections(), *e[1:]) for e in entries}
-        #(open rejections, rejections overused, invested hours, task hours, rejections, accepted)
-        assert entrymap["A"] == (0, True, 3.0, 1.0, 3, False) #last accept commit didn't count due to being over rejection limit
-        assert entrymap["B"] == (1, False, 3.0, 2.5, 2, True)
-        assert entrymap["Task1"] == (2, False, 1.0, 1.0, 0, False) #rejection not counted, because it wasn't requested
-        assert entrymap["Task2"] == (3, False, 1.0, 2.0, 0, False) #accepting not counted, because it wasn't requested
+        entrymap = {e[0]: (course.task(e[0]).remaining_attempts, *e[1:]) for e in entries}
+        # (open rejections, rejections overused, invested hours, task hours, rejections, accepted)
+        assert entrymap["A"] == (0, 3.0, 1.0, 3, False)  # last accept commit didn't count: it was over rejection limit
+        assert entrymap["B"] == (1, 3.0, 2.5, 2, True)
+        assert entrymap["Task1"] == (2, 1.0, 1.0, 0, False)  # rejection not counted because it wasn't requested
+        assert entrymap["Task2"] == (3, 1.0, 2.0, 0, False)  # acceptance not counted because it wasn't requested
         table = []
         s.report_student_work_so_far(course, entries, workhours_total, timevalue_total, table)
-        assert ("A", "3.00", "1.00", r.REJECT_MARK) in table
-        assert ("B", "3.00", "2.50", f"{i.ACCEPT_SYMBOL} {i.REJECT_SYMBOL}*2/3") in table
+        assert ("A", "3.00", "1.00", f"{r.REJECT_MARK} (after 2 attempts)") in table
+        assert ("B", "3.00", "2.50", f"{i.ACCEPT_SYMBOL} {i.REJECT_SYMBOL*2}") in table
         assert ("Task1", "1.00", "1.00", "") in table
         assert ("Task2", "1.00", "2.00", "") in table
 

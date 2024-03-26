@@ -1,7 +1,7 @@
 import argparse
 import os
 import typing as tg
-import readline
+import readline  # noqa, is active automatically for input()
 import requests
 
 import base as b
@@ -37,7 +37,7 @@ def execute(pargs: argparse.Namespace):
     r.compute_student_work_so_far(course)
     entries, workhours_total, timevalue_total = r.student_work_so_far(course)
     if pargs.submission:
-        entries = [entry for entry in entries if not(course.task(entry[0]).open_rejections()[1])] #filter final rejections
+        entries = [entry for entry in entries if course.task(entry[0]).remaining_attempts]  # without final rejections
         prepare_submission_file(course, student.root, entries, pargs.interactive)
     elif pargs.import_keys:
         r.import_gpg_keys(course.instructors)
@@ -109,16 +109,17 @@ def report_student_work_so_far(course: sdrl.course.Course, entries: tg.Sequence[
         task = course.taskdict[taskname]
         ra_string = (i.ACCEPT_SYMBOL + " ") if task.accepted else ""
         if task.rejections > 0:
-            ra_string += f"{i.REJECT_SYMBOL}*{task.rejections}"
-            (open_rejections, blocked) = task.open_rejections()
-            ra_string += "" if open_rejections < 0 else f"/{open_rejections+task.rejections}"
-            if blocked:
-                ra_string = r.REJECT_MARK
+            ra_string += f"{i.REJECT_SYMBOL*task.rejections}"
+            remaining = task.remaining_attempts
+            allowed = task.allowed_attempts
+            ra_string += f" ({remaining} of {allowed} remain)" if not task.accepted else ""
+            if not remaining:
+                ra_string = f"{r.REJECT_MARK} (after {allowed} attempt{b.plural_s(allowed)})"
         table.add_row(taskname, "%4.2f" % workhours, "%4.2f" % timevalue, ra_string)
         if out is not None:
             out.append((taskname, "%4.2f" % workhours, "%4.2f" % timevalue, ra_string))
     # table.add_section()
-    table.add_row("[b]=TOTAL[/b]", "[b]%5.2f[/b]" % workhours_total, "[b]%5.2f[/b]" % timevalue_total, "")
+    table.add_row("[b]=TOTAL[/b]", "[b]%6.2f[/b]" % workhours_total, "[b]%6.2f[/b]" % timevalue_total, "")
     b.info(table)
 
 
