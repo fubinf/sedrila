@@ -76,10 +76,7 @@ class Task(part.Structurepart):
                      (self.timevalue, self.timevalue))
         refs = (self._taskrefs('assumed_by') + self._taskrefs('required_by') +
                 self._taskrefs('assumes') + self._taskrefs('requires'))
-        profiles = ""
-        if self.profiles:
-            profiles = f"<span class='profiles-decoration'>{', '.join(self.profiles)}</span>"
-        return f"<a {href} {titleattr}>{self.slug}</a> {diffsymbol} {timevalue}{refs}{profiles}"
+        return f"<a {href} {titleattr}>{self.slug}</a> {diffsymbol} {timevalue}{refs}"
 
     def as_json(self) -> b.StrAnyDict:
         return dict(slug=self.slug,
