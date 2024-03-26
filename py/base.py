@@ -175,6 +175,10 @@ def exit_if_errors(msg: str = ""):
             critical(f"==== {num_errors} error{'s' if num_errors != 1 else ''}. Exiting. ====")
 
 
+def plural_s(number, value="s") -> str:
+    return value if number != 1 else ""
+
+
 def Table() -> rich.table.Table:
     """An empty Table in default sedrila style"""
     return rich.table.Table(show_header=True, header_style="bold yellow",
