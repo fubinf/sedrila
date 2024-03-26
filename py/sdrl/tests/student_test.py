@@ -24,7 +24,7 @@ def test_student_work_so_far():
         grade({"A": r.ACCEPT_MARK})
 
     def coursemodifications(course_json):
-        course_json["rejection_allowance"] = "1+1/h"
+        course_json["allowed_attempts"] = "1 + 1.0/h"
 
     def assertions(course):
         # ----- report workhours and timevalue per task:

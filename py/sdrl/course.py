@@ -205,7 +205,6 @@ class Course(part.Partscontainer):
     init_data: b.StrAnyDict = {}
     targetdir_s: str  # where to render student output files
     targetdir_i: str  # where to render instructor output files
-    rejection_allowance: str = None  # nothing, plain number, infinite or something like 1+2/h
     allowed_attempts: str  # "2 + 0.5/h" or so, int+decimal, the hours are the task timevalue
     allowed_attempts_base: int  # the int part of allowed_attempts
     allowed_attempts_hourly: float  # the decimal part of allowed_attempts
@@ -219,7 +218,7 @@ class Course(part.Partscontainer):
                     configdict, self,
                     mustcopy_attrs='title, breadcrumb_title, instructors, profiles, stages, allowed_attempts',
                     cancopy_attrs=('baseresourcedir, chapterdir, templatedir, '
-                                   'blockmacro_topmatter, htaccess_template, init_data, rejection_allowance'),
+                                   'blockmacro_topmatter, htaccess_template, init_data'),
                     mustexist_attrs='chapters')
         self.allowed_attempts_base, self.allowed_attempts_hourly = self._parse_allowed_attempts()
         self.slug = self.breadcrumb_title
@@ -278,7 +277,6 @@ class Course(part.Partscontainer):
                       instructors=self.instructors,
                       profiles=self.profiles,
                       init_data=self.init_data,
-                      rejection_allowance=self.rejection_allowance,
                       allowed_attempts=self.allowed_attempts,
                       chapters=[chapter.as_json() for chapter in self.chapters])
         result.update(super().as_json())
