@@ -442,7 +442,7 @@ class Course(part.Partscontainer):
 
 class Chapter(part.Partscontainer):
     course: Course
-    taskgroups: tg.Sequence['Taskgroup']
+    taskgroups: list['Taskgroup']
     
     def __init__(self, course: Course, chapter: b.StrAnyDict, read_contentfiles: bool):
         self.course = course

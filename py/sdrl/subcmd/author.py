@@ -83,6 +83,7 @@ def generate(course: sdrl.course.Course):
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(course.templatedir), autoescape=False)
     prepare_directories(course)
     copy_baseresources(course)
+    remove_empty_partscontainers(course)
     add_tocs_to_upper_parts(course)
     register_macros(course)
     generate_upper_parts_files(course, env)
@@ -96,15 +97,34 @@ def generate(course: sdrl.course.Course):
         print(f"wrote instructor files to  '{targetdir_i}'")
 
 
+def remove_empty_partscontainers(course: sdrl.course.Course):
+    b.info("removing empty partscontainers")
+    chapters_new = list(course.chapters)  # copy
+    for chapter in course.chapters:  # iterate original
+        taskgroups_new = list(chapter.taskgroups)  # copy
+        for taskgroup in chapter.taskgroups:  # iterate original
+            size = sum(1 for t in taskgroup.tasks if not t.to_be_skipped)
+            if size == 0:  # taskgroup is empty
+                b.info(f"    removing taskgroup '{taskgroup.slug}'\tfrom chapter '{chapter.slug}'")
+                taskgroups_new.remove(taskgroup)
+        chapter.taskgroups = taskgroups_new
+        if len(chapter.taskgroups) == 0:  # chapter is empty
+            b.info(f"  removing chapter '{chapter.slug}'")
+            chapters_new.remove(chapter)
+    course.chapters = chapters_new
+
+
 def generate_htaccess(course: sdrl.course.Course):
     if not course.htaccess_template:
         return  # nothing to do
+    targetfile = f"{course.targetdir_i}/.htaccess"
+    b.info(f"generating htaccess file '{targetfile}'")
     userlist = [u['webaccount'] for u in course.instructors]
     htaccess_txt = (course.htaccess_template.format( 
                        userlist_commas=",".join(userlist), 
                        userlist_spaces=" ".join(userlist),
                        userlist_quotes_spaces=" ".join((f'"{u}"' for u in userlist))))
-    b.spit(f"{course.targetdir_i}/.htaccess", htaccess_txt)
+    b.spit(f"{targetfile}", htaccess_txt)
 
 
 def generate_metadata_and_glossary(course: sdrl.course.Course, env):
@@ -124,8 +144,10 @@ def generate_task_files(course: sdrl.course.Course, env):
     for taskname, task in course.taskdict.items():
         if task.to_be_skipped or task.taskgroup.to_be_skipped or task.taskgroup.chapter.to_be_skipped \
                 or (using_cache and task_is_unchanged(task)):
+            b.debug(f"  task '{task.slug}' skipped: "
+                    f"{task.to_be_skipped}, {task.taskgroup.to_be_skipped}, {task.taskgroup.chapter.to_be_skipped}")
             continue  # ignore the incomplete task
-        b.debug(f"  task '{task.slug}'")
+        b.debug(f"  task '{task.slug}' (in {task.taskgroup.chapter.slug}/{task.taskgroup.slug})")
         if using_cache:
             print(f"re-rendering task '{task.slug}'")
             task.read_partsfile(task.sourcefile)
