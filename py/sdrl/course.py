@@ -58,6 +58,12 @@ class Task(part.Structurepart):
         allowance += math.floor(self.timevalue) * sum([int(part.split("/")[0]) for part in parts if "/h" in part])
         return (max(0, allowance - self.rejections), self.rejections > allowance)
 
+
+    @property
+    def allowed_attempts(self) -> int:
+        course = self.taskgroup.course
+        return int(course.allowed_attempts_base + course.allowed_attempts_hourly*self.timevalue)
+
     @property
     def breadcrumb_item(self) -> str:
         return f"<a href='{self.outputfile}'>{self.slug}</a>"
@@ -208,18 +214,23 @@ class Course(part.Partscontainer):
     init_data: b.StrAnyDict = {}
     targetdir_s: str  # where to render student output files
     targetdir_i: str  # where to render instructor output files
-    rejection_allowance: str = None # nothing, plain number, infinite or something like 1+2/h
+    rejection_allowance: str = None  # nothing, plain number, infinite or something like 1+2/h
+    allowed_attempts: str  # "2 + 0.5/h" or so, int+decimal, the hours are the task timevalue
+    allowed_attempts_base: int  # the int part of allowed_attempts
+    allowed_attempts_hourly: float  # the decimal part of allowed_attempts
+
     glossary: glossary.Glossary
 
     def __init__(self, configfile: str, read_contentfiles: bool, include_stage: str):
-        self.configfile = configfile
+        self.configfile = self.sourcefile = configfile
         configdict = b.slurp_yaml(configfile)
         b.copyattrs(configfile, 
                     configdict, self,
-                    mustcopy_attrs='title, breadcrumb_title, instructors, profiles, stages',
+                    mustcopy_attrs='title, breadcrumb_title, instructors, profiles, stages, allowed_attempts',
                     cancopy_attrs=('baseresourcedir, chapterdir, templatedir, '
                                    'blockmacro_topmatter, htaccess_template, init_data, rejection_allowance'),
                     mustexist_attrs='chapters')
+        self.allowed_attempts_base, self.allowed_attempts_hourly = self._parse_allowed_attempts()
         self.slug = self.breadcrumb_title
         self.outputfile = "index.html"
         self.namespace = dict()
@@ -277,6 +288,7 @@ class Course(part.Partscontainer):
                       profiles=self.profiles,
                       init_data=self.init_data,
                       rejection_allowance=self.rejection_allowance,
+                      allowed_attempts=self.allowed_attempts,
                       chapters=[chapter.as_json() for chapter in self.chapters])
         result.update(super().as_json())
         return result
@@ -408,6 +420,14 @@ class Course(part.Partscontainer):
             graph[mytask] = dependencies
         # ----- compute taskorder (or report dependency cycle if one is found):
         self.taskorder = self._taskordering_for_toc(graph)
+
+    def _parse_allowed_attempts(self) -> tuple[int, float]:
+        mm = re.match(r"(\d+)\s?\+\s?(\d+\.\d+)\s?/\s?h", self.allowed_attempts)
+        if not mm:
+            msg1 = f"'allowed_attempts' must have a format exactly like '2 + 0.5/h'"
+            b.error(f"{self.sourcefile}: {msg1}, not '{self.allowed_attempts}'")
+            return 2, 0
+        return int(mm.group(1)), float(mm.group(2))
 
     @staticmethod
     def _slugfilename(p: part.Structurepart) -> str:

@@ -13,6 +13,7 @@
   ],
   "profiles": ["DBS", "DSCI", "OPS", "SYS", "TEST", "WEB"],
   "stages": ["draft", "alpha", "beta"],
+  "allowed_attempts":  "2 + 0.5/h",
   "chapters": [
     {
       "slug": "basis",
