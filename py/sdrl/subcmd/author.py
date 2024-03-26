@@ -501,7 +501,7 @@ def print_volume_report(course: sdrl.course.Course):
     print("")  # newline
     print(dt.date.today().strftime("%Y-%m-%d"), end="")
     for stage, numtasks, timevalue in volume_report_per_stage.rows:
-        print(f",{timevalue}", end="")
+        print(",%.2f" % timevalue, end="")
     print("")  # newline
 
     # ----- print all reports as rich tables:
