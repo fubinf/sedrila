@@ -1,5 +1,5 @@
 title: Task 1.2.1
-stage: draft
+stage: alpha
 timevalue: 2.5
 difficulty: 4
 ---

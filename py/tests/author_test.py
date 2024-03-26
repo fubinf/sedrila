@@ -28,7 +28,7 @@ expected_filelist = [
     'local.css',
     'myarchive.zip',
     'sedrila.css', 'sidebar.js',
-    'task111r+a.html', 'task112.html', 'task113.html', 'tg11.html', 'tg12.html', 
+    'task111r+a.html', 'task112.html', 'task113.html', 'task121.html', 'tg11.html', 'tg12.html', 
 ]
 
 expected_sidebar_task111 = """<div class="sidebar" id="sidebar">
@@ -38,6 +38,7 @@ expected_sidebar_task111 = """<div class="sidebar" id="sidebar">
     <div class='indent2 stage-alpha'><a href='task112.html' title="Task 1.1.2">task112</a> <span class='difficulty2' title='Difficulty: low'>&#x26ab;&#xfe0e;</span> <span class='timevalue-decoration' title='Timevalue: 1.5 hours'>1.5</span><span class='assumed-by-decoration' title='assumed by: task111r+a'></span></div>
     <div class='indent2 stage-alpha'><a href='task113.html' title="Task 1.1.3">task113</a> <span class='difficulty3' title='Difficulty: medium'>&#x26ab;&#xfe0e;</span> <span class='timevalue-decoration' title='Timevalue: 2.0 hours'>2.0</span><span class='required-by-decoration' title='required by: task111r+a'></span></div>
     <div class='indent2 stage-beta'><a href='task111r+a.html' title="Task 1.1.1 requires+assumes">task111r+a</a> <span class='difficulty1' title='Difficulty: verylow'>&#x26ab;&#xfe0e;</span> <span class='timevalue-decoration' title='Timevalue: 1.0 hours'>1.0</span><span class='assumes-decoration' title='assumes: task112'></span><span class='requires-decoration' title='requires: task113'></span><span class='profiles-decoration'>PROFILE1</span></div>
+  <div class='indent1 stage-alpha'><a href='tg12.html' title="Task group 1.2">tg12</a></div>
   <div class="indent0 no-stage"><a href="glossary.html" title="glossary">Glossary of terms</a></div>
 </div>
 """
@@ -144,7 +145,7 @@ def _call_sedrila_author():
     pargs.cache = False
     pargs.config = b.CONFIG_FILENAME
     pargs.include_stage = "alpha"
-    pargs.log = "WARNING"
+    pargs.log = "WARNING"  # WARNING; for debugging, use INFO or DEBUG here
     pargs.targetdir = "../output"
     # ----- do call akin to sdrl.subcmd.author.execute():
     b._testmode_reset()
@@ -175,10 +176,10 @@ def _check_toc():
     with open("task111r+a.html", encoding='utf8') as fp:
         actual_soup = bs4.BeautifulSoup(fp, features='html5lib', from_encoding='utf8')
         expected_soup = bs4.BeautifulSoup(expected_sidebar_task111, features='html5lib')
-    actual_sidebar = str(actual_soup.find(id='sidebar'))
-    expected_sidebar =  str(expected_soup.find(id='sidebar'))
+    actual_sidebar_task111_tag = str(actual_soup.find(id='sidebar'))
+    expected_sidebar_task111_tag =  str(expected_soup.find(id='sidebar'))
     # _compare_line_by_line(actual_sidebar, expected_sidebar, strip=True, force_doublequotes=True)
-    _compare_line_by_line(actual_sidebar, expected_sidebar, strip=True)
+    _compare_line_by_line(actual_sidebar_task111_tag, expected_sidebar_task111_tag, strip=True)
 
 
 def _check_task_html():
