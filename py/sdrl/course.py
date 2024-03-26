@@ -46,7 +46,7 @@ class Task(part.Structurepart):
 
     taskgroup: 'Taskgroup'  # where the task belongs
 
-    def open_rejections(self) -> (int, bool):
+    def open_rejections_based_on_rejection_allowance(self) -> (int, bool):
         rejection_allowance = self.taskgroup.chapter.course.rejection_allowance
         if not(rejection_allowance) or rejection_allowance.isnumeric():
             allowance = 0 if not(rejection_allowance) else int(rejection_allowance)
@@ -58,10 +58,13 @@ class Task(part.Structurepart):
         allowance += math.floor(self.timevalue) * sum([int(part.split("/")[0]) for part in parts if "/h" in part])
         return (max(0, allowance - self.rejections), self.rejections > allowance)
 
+    def open_rejections(self) -> (int, bool):
+        return (max(0, self.allowed_attempts - self.rejections), 
+                self.rejections > self.allowed_attempts)
 
     @property
     def allowed_attempts(self) -> int:
-        course = self.taskgroup.course
+        course = self.taskgroup.chapter.course
         return int(course.allowed_attempts_base + course.allowed_attempts_hourly*self.timevalue)
 
     @property
