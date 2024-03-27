@@ -203,13 +203,13 @@ def prepare_directories(course: sdrl.course.Course):
         b.info(f"cached mode: leaving directories as they are: '{course.targetdir_s}', '{course.targetdir_i}'")
     else:
         b.info(f"preparing directories '{course.targetdir_s}', '{course.targetdir_i}'")
-        backup_targetdir(course.targetdir_i, markerfile=f"_{b.CONFIG_FILENAME}")  # do _i first if it is a subdir of _s
-        backup_targetdir(course.targetdir_s, markerfile=f"_{b.CONFIG_FILENAME}")
+        backup_targetdir(course.targetdir_i, markerfile=b.CONFIG_FILENAME)  # do _i first if it is a subdir of _s
+        backup_targetdir(course.targetdir_s, markerfile=b.CONFIG_FILENAME)
         os.mkdir(course.targetdir_s)
         os.mkdir(course.targetdir_i)
         # mark dirs as SeDriLa instances:
-        shutil.copyfile(course.configfile, f"{course.targetdir_s}/_{b.CONFIG_FILENAME}")  
-        shutil.copyfile(course.configfile, f"{course.targetdir_i}/_{b.CONFIG_FILENAME}")
+        shutil.copyfile(course.configfile, f"{course.targetdir_s}/{b.CONFIG_FILENAME}")  
+        shutil.copyfile(course.configfile, f"{course.targetdir_i}/{b.CONFIG_FILENAME}")
     if course.cache_mode == sdrl.course.CacheMode.WRITE:
         with open(cache_filename(course), 'wb') as f:
             pickle.dump(course, f)
