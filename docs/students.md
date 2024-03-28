@@ -87,7 +87,7 @@ This entry means 2 hours and 45 minutes.
 When `sedrila` creates a work time report for you, it will use decimal hours.
 
 
-## 4. How to prepare a submission
+## 4. How to prepare a submission  TODO 2 hofmann
 
 When you show your work to an instructor, you will usually not show the results
 for only a single task, but several.
@@ -110,7 +110,9 @@ To create the draft version of `submission.yaml`, call
 The command output will explain the next steps.
 
 
-## 5. How to see what you have done so far (not yet implemented)  TODO 2
+## 5. How to see what you have done so far
 
-Call `sedrila student --list` in order to see a list of the tasks you have submitted so far,
+Call `sedrila student` in order to see a list of the tasks you have submitted so far,
 the associated timevalues, and possibly the sum of the associated actual work times.
+The work times are available only insofar as you have used the commit message format
+described in 3.2 above.
