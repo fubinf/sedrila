@@ -294,10 +294,7 @@ The `id` should start with the respective task, taskgroup, or chapter name.
 
 The meat of a SeDriLa course is in the individual task files.
 A task file is a Markdown file in a particular format.
-The basename of a task file determines the slug and shorttitle for that task.
-In contrast to chapter and taskgroup slugs, which are all lowercase,
-task slugs (aka tasknames) use CamelCase: A mix of uppercase and lowercase characters
-starting with uppercase. No underscores.
+The basename of a task file determines the canonical name ("slug") of a task.
 
 A task file starts with metadata in YAML format, followed by Markdown with some extensions.
 
@@ -638,6 +635,39 @@ This is useful for supplying learners with resources they can download easily
 if multiple files are involved, and still keep those files in an easily editable form.
 Use this for handsful of files. For large structures, apply separate repositories.
 
+
+### 1.13 Naming conventions
+
+From the point of view of the `[PARTREF]` macro, the names (slugs) of all parts
+are in one single namespace, so they must all be unique.
+These names are user-facing, so they should also be sort-of natural, not too ugly,
+and sufficiently self-explanatory.
+They must work nicely for URLs and as the names of files to be created
+by students as solutions for these tasks.
+The following rules are suggestions for how to achieve these properties.
+
+- Names consist of letters, digits, dashes, and underscores.
+  No other characters are allowed.
+- In particular, names cannot contain spaces. Take this one seriously.
+- Chapter names should be short: single nouns, capitalized.
+- Taskgroup names should be simple nouns or compound nouns.
+  Compound names can be written in one word (e.g. in German),
+  with dashes, or in CamelCase fashion.
+- Generic names such as "Basics" are hardly ever a good idea: Basics _of what_?
+- Task names are more flexible.
+  Prefer names that are all-lowercase, using dashes to separate words,
+  whereever this appears sufficiently natural, but capitalize if necessary.  
+  Use underscores where this is natural for technical reasons (e.g. because
+  there will be program source files of this name and dashes are not allowed for them).
+- Make sure tasknames are interpretable without seeing the name of the taskgroup
+  they belong to. This will often imply using a fixed prefix for all tasks in a group.
+- Consider using task names with different capizalization if that reflects the spelling 
+  of an existing thing discussed in that Task (e.g. SQL-WHERE, JavaScript)
+- If a task or taskgroup is split into a sequence of consecutive, strongly connected pieces,
+  prefer a single appended digit to make this visible.
+- Do not use number prefixes to enforce a certain task ordering:
+  Either the tasks have dependencies that create an ordering
+  or the default alphabetical ordering ought to be fine.
 
 ## 2. Calling `sedrila`
 
