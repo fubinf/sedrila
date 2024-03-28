@@ -13,7 +13,7 @@ def as_attribute(text: str) -> str:
 
 def breadcrumb(*args):
     """Renders breadcrumb HTML fragment from list of items with breadcrumb_item property."""
-    SEPARATOR = " > "
+    SEPARATOR = " &gt; "
     return '<div><span class="breadcrumbs">%s</span></div>' % SEPARATOR.join([arg.breadcrumb_item for arg in args])
 
 
