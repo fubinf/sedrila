@@ -155,7 +155,7 @@ def expand_macro(sourcefile: str, partname: str, mm: re.Match, is_early_phase=Fa
         pass  # ditto
     elif mode == MM.BLOCKSTART:
         if not ppre and not ppost:  # Layout 1
-            macrocall.warning("blockmacro blocks must be separated")
+            macrocall.warning("blockmacro blocks must be separated by empty lines _somewhere_")
         elif ppre == '<p>' and not ppost:  # Layout 2
             ppost = ppre  # shift <p> from front to back
             ppre = ""
