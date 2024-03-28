@@ -3,8 +3,10 @@
 ## 1. Preparations
 
 All commands assume a Bash shell.
+The sedrila tool assumes a Unix environment.
+Under Windows, use WSL.
 
-## Set up `gpg`
+### Set up `gpg`
 
 - Install `sedrila`
 - Install `gpg`:  
@@ -20,14 +22,16 @@ All commands assume a Bash shell.
 - Export public key:  `gpg --armor --export <keyfingerprint>`  
 
 
-## Make entry in `sedrila.yaml`
+### Make entry in `sedrila.yaml`
 
-- Enter email, key fingerprint, and public key in your `instructor` entry in the course's `sedrila.yaml`,
-  together with `gitaccount` (your username in the git service used in the course)
-  and `webaccount` (your username on the webserver serving the course content).
+- Send the course organizer your `instructor` entry for your course's `sedrila.yaml`.
+  Find a copy of `sedrila.yaml` at `https://courseserver.example.org/path/course/_sedrila.yaml`
+  to see what such an entry looks like.
+- In that entry, `gitaccount` is your username in the git service used in the course
+  and `webaccount` is your username on the webserver serving the course content.
 
 
-## Set up your workstation
+### Set up your workstation
 
 - During your work as instructor of a sedrila course, 
   you need a directory tree into which you will clone and checkout the git repositories
@@ -46,8 +50,12 @@ All commands assume a Bash shell.
 - set `SEDRILA_INSTRUCTOR_COMMAND` environment variable  TODO_2_hofmann needed? Then explain.
 
 
-## 2. Checking a submission  TODO 2: add details
+## 2. Checking a submission  TODO_2_hofmann: check and correct, add details if needed
 
-- receive command by email
-- execute command
-- follow instructions
+- Checking a submission is triggered by the email that the student sent you.
+  Copy the repository URL `repo_url`from that email.
+- Execute `sedrila instructor --get repo_url`
+  to pull the latest commits of that student (or clone the repo if there is no local copy yet)
+  and change the current directory into that student's working directory.
+- ...
+- Alternatively, ...
