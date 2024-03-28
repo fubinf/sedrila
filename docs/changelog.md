@@ -14,4 +14,5 @@ Version 0.6.0 alpha (2024-03-26)
 - `instructor`: interactive task accept/reject dialog
 
 Version 0.7.0 alpha (upcoming)
+- change from `_sedrila.yaml` to `sedrila.yaml` in the generated website
 - ...
