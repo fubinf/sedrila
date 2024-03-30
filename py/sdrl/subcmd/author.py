@@ -287,6 +287,8 @@ def register_macros(course):
     macros.register_macro('ENDINNERSECTION', 0, MM.BLOCKEND, expand_section)
     macros.register_macro('HINT', 1, MM.BLOCKSTART, expand_hint)
     macros.register_macro('ENDHINT', 0, MM.BLOCKEND, expand_hint)
+    macros.register_macro('FOLDOUT', 1, MM.BLOCKSTART, expand_foldout)
+    macros.register_macro('ENDFOLDOUT', 0, MM.BLOCKEND, expand_foldout)
     # ----- register generic block macros:
     generic_defs = {key: val for key, val in course.blockmacro_topmatter.items() if key.isupper()}
     for key, value in generic_defs.items():
@@ -350,6 +352,14 @@ def expand_hint(macrocall: macros.Macrocall) -> str:
         content = topmatter(macrocall, 'hint').format(arg1=macrocall.arg1)
         return f"<details class='blockmacro blockmacro-hint'><summary>\n{content}\n</summary>\n"
     elif macrocall.macroname == 'ENDHINT':
+        return "</details>"
+    assert False, macrocall  # impossible
+
+
+def expand_foldout(macrocall: macros.Macrocall) -> str:
+    if macrocall.macroname == 'FOLDOUT':
+        return f"<details class='blockmacro blockmacro-foldout'><summary>\n{macrocall.arg1}\n</summary>\n"
+    elif macrocall.macroname == 'ENDFOLDOUT':
         return "</details>"
     assert False, macrocall  # impossible
 
