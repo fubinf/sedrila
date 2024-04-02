@@ -13,7 +13,8 @@ instructors:
   - nameish: One Instructor
     email: o.instructor@inf.fu-berlin.de
     gitaccount: oinstr
-    keyfingerprint: .
+    webaccount: oinstr
+    keyfingerprint: ABCDEF0123
     pubkey: .
 allowed_attempts: "2 + 0.5/h"
 chapters:
