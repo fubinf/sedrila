@@ -108,8 +108,11 @@ def submission_checked_commit_hashes(course: sdrl.course.Course,
                                      commits: tg.Sequence[git.Commit]) -> tg.Sequence[tg.Sequence[str]]:
     """List of hashes of properly instructor-signed commits of finished submission checks.
     This will be grouped by consecutively done commits of instructors and student, starting with the grading request."""
-    allowed_signers = [b.as_fingerprint(instructor.get('keyfingerprint') or "")
-                       for instructor in course.instructors]
+    try:
+        allowed_signers = [b.as_fingerprint(instructor['keyfingerprint'])
+                           for instructor in course.instructors]
+    except KeyError:
+        b.critical("missing 'keyfingerprint' in configuration")
     group = []
     result = [group]
     student_commit = None
