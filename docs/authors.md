@@ -497,7 +497,7 @@ It works exactly like `[SECTION]` and the same types and subtypes apply.
   from the student version.
 
 
-### 1.8 Other block macros: `[NOTICE]`, `[WARNING]`, `[HINT]`
+### 1.8 Other block macros: `[NOTICE]`, `[WARNING]`, `[HINT]`, `[FOLDOUT]`
 
 - `[NOTICE]`/`[ENDNOTICE]`:    
   A semi-important note with potentially different formatting than normal text.
@@ -513,6 +513,10 @@ It works exactly like `[SECTION]` and the same types and subtypes apply.
   difficulty 3 does not end up being difficulty 4.
   Use it also to make it likely that a task at difficulty 2 is interesting enough for
   somebody who would rather do difficulty 3.
+- `[FOLDOUT::title text]`/`[ENDFOLDOUT]`:  
+  Just like `[HINT]`, but without the marker that it is a hint.
+  To be used for materials that is lengthy but not important for a first overview of the task,
+  often listings.
 
 
 ### 1.9 Other macros: `[INCLUDE]`, cross-references, counters, etc.
