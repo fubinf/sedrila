@@ -15,15 +15,15 @@ import sdrl.subcmd.author
 expected_output = """[TERM::Concept 3]: Term 'Concept 3' is already defined
 ch/glossary.md: These terms lack a definition: ['Concept 2 undefined', 'Concept 4 undefined']
 wrote student files to  '../output'
-wrote instructor files to  '../output/cino2r2s2tu'
+wrote instructor files to  '../output/instructor'
 ch/ch1/tg12/task113.duplicate: name collision: ch/ch1/tg11/task113.md and ch/ch1/tg12/task113.duplicate
 """
 
 expected_filelist = [
-    'chapter-ch1.html', 'cino2r2s2tu', 'course.json',
+    'chapter-ch1.html', 'course.json',
     'favicon-32x32.png',
     'glossary.html',
-    'index.html',
+    'index.html', 'instructor',
     'local.css',
     'myarchive.zip',
     'sedrila.css', 'sedrila.yaml', 'sidebar.js',

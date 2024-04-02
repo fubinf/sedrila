@@ -23,7 +23,7 @@ meaning = """Creates and renders an instance of a SeDriLa course.
 Checks consistency of the course description beforehands.
 """
 
-OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR = "cino2r2s2tu"  # alphabetically sorted count-anagram of "instructors"
+OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR = "instructor"
 
 
 def add_arguments(subparser: argparse.ArgumentParser):
