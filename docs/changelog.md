@@ -13,6 +13,12 @@ Version 0.6.0 alpha (2024-03-26)
 - `student --submission`: interactive task selection dialog 
 - `instructor`: interactive task accept/reject dialog
 
-Version 0.7.0 alpha (upcoming)
+Version 0.7.0 alpha (2024-04-02)
+- `author`: add [FOLDOUT] macro
+- `instructor`: improvements of interactive mode
+- `instructor`: instructor subdirectory now simply named "instructor"
 - change from `_sedrila.yaml` to `sedrila.yaml` in the generated website
+- introduce naming conventions for chapters, taskgroups, tasks
+
+Version 0.8.0 alpha (upcoming) 
 - ...
