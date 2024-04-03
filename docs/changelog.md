@@ -21,4 +21,5 @@ Version 0.7.0 alpha (2024-04-02)
 - introduce naming conventions for chapters, taskgroups, tasks
 
 Version 0.8.0 alpha (upcoming) 
+- `author`: ZIP files no longer contain inner path parts chapter/taskgroup/task/ 
 - ...

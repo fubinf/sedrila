@@ -633,7 +633,7 @@ The directory structure within that zipfile will reflect the directory structure
 both above and below the zipdirectory, so if you have a file, say,
 `chapterdir/mychapter/mytaskgroup/myarchive.zip/mysubdir/myfile.txt`,
 the generated zipfile `myarchive.zip` will contain an entry
-`mychapter/mytaskgroup/myarchive/mysubdir/myfile.txt`.
+`myarchive/mysubdir/myfile.txt`.
 
 This is useful for supplying learners with resources they can download easily
 if multiple files are involved, and still keep those files in an easily editable form.

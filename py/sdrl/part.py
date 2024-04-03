@@ -99,7 +99,7 @@ class Zipdir(Structurepart):
     Turn directories named ch/mychapter/mytaskgroup/myzipdir.zip 
     containing a tree of files, say, myfile.txt
     into an output file myzipdir.zip
-    that contains mychapter/mytaskgroup/myzipdir/myfile.txt.  
+    that contains myzipdir/myfile.txt.  
     """
     innerpath: str  # relative pathname of the zipdir, to be re-created in the ZIP archive
 
@@ -108,9 +108,7 @@ class Zipdir(Structurepart):
         assert dirname[-1] != '/'  # dirprefix must not end with a slash, else our logic would break
         self.sourcefile = dirname
         self.slug = self.title = self.outputfile = os.path.basename(dirname)  # e.g. myfile.zip
-        bareslug = self.slug[:-4]  # e.g. myfile
-        innerpath1 = os.path.dirname(dirname).replace(dirprefix+'/', '', 1)
-        self.innerpath = f"{innerpath1}/{bareslug}"
+        self.innerpath = self.slug[:-len(".zip")]  # e.g. myfile
 
     def render(self, targetdir: str):
         with zipfile.ZipFile(f"{targetdir}/{self.outputfile}", mode='w') as archive:
