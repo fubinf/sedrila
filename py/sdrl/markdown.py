@@ -19,7 +19,6 @@ import sdrl.replacements as replacements
 class SedrilaExtension(mde.Extension):
     def extendMarkdown(self, md):
         md.preprocessors.register(SedrilaPreprocessor(md), 'sedrila_preprocessor', 50)
-        md.treeprocessors.register(AdmonitionFilter(md), "admonition_filter", 100)
         md.postprocessors.register(SedrilaPostprocessor(md), 'sedrila_postprocessor', 10)
 
 
@@ -53,16 +52,6 @@ class SedrilaPostprocessor(mdpost.Postprocessor):
         return text
 
 
-class AdmonitionFilter(mdt.Treeprocessor):
-    def run(self, root):
-        """Removes admonition div blocks not to be shown in current self.mode."""
-        for divparent in root.findall('.//div/..'):  # sadly, etree does not support contains()
-            for div in divparent.findall('div'):
-                classes = div.attrib.get('class', '')
-                if 'admonition' in classes and 'instructor' in classes and self.md.mode != b.Mode.INSTRUCTOR:
-                    divparent.remove(div)  # show  !!! instructor  blocks only in instructor mode
-
-
 class SedrilaMarkdown(markdown.Markdown):
     mode: macros.MM
     context_sourcefile: str
@@ -86,10 +75,9 @@ def render_markdown(context_sourcefile: str, partname: str, markdown_markup: str
 # ######### initialization:
 
 extensions = [SedrilaExtension(), 
-              'admonition', 'attr_list', 'codehilite', 'fenced_code',
+              'attr_list', 'codehilite', 'fenced_code',
               'sane_lists', 'toc', 'smarty',
              ]
-# https://python-markdown.github.io/extensions/admonition/
 # https://python-markdown.github.io/extensions/attr_list/
 # https://python-markdown.github.io/extensions/code_hilite/
 # https://python-markdown.github.io/extensions/fenced_code_blocks/
