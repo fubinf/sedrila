@@ -207,7 +207,7 @@ def _check_glossary():
 
 def _check_zipfile():
     with zipfile.ZipFile("myarchive.zip") as zip:
-        assert zip.namelist() == ["ch1/myarchive/zipped.txt"]
+        assert zip.namelist() == ["myarchive/zipped.txt"]
 
 def _check_reporting(actual_output: str):
     """Check actual_output line-for-line to be like expected_output."""
