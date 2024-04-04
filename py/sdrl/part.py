@@ -39,6 +39,10 @@ class Structurepart:
         return "(undefined)"
 
     @property
+    def to_be_skipped(self) -> bool:
+        return ...  # defined in concrete part classes
+
+    @property
     def toc_entry(self) -> str:
         classes = f"stage-{self.stage}" if self.stage else "no-stage"
         return h.indented_block(self.toc_link_text, self.TOC_LEVEL, classes)
@@ -109,6 +113,10 @@ class Zipdir(Structurepart):
         self.sourcefile = dirname
         self.slug = self.title = self.outputfile = os.path.basename(dirname)  # e.g. myfile.zip
         self.innerpath = self.slug[:-len(".zip")]  # e.g. myfile
+
+    @property
+    def to_be_skipped(self) -> bool:
+        return False  # TODO 3: should be skipped if no [PARTREF] to it exists anywhere
 
     def render(self, targetdir: str):
         with zipfile.ZipFile(f"{targetdir}/{self.outputfile}", mode='w') as archive:
