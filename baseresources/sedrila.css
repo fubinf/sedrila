@@ -249,19 +249,6 @@ summary {}
     content: " r";
 }
 
-.profiles-decoration {
-    font-size: 90%;
-    font-style: oblique;
-}
-
-.profiles-decoration::before {
-    content: " (";
-}
-
-.profiles-decoration::after {
-    content: ")";
-}
-
 .nostage {}
 
 .stage-draft {

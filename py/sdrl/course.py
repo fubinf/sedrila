@@ -39,7 +39,6 @@ class Task(part.Structurepart):
     requires: list[str] = []  # tasknames: These specific results will be reused here
     assumed_by: list[str] = []  # tasknames: inverse of assumes
     required_by: list[str] = []  # tasknames: inverse of requires
-    profiles: list[str] = []  # profile shortnames: specialty areas task pertains to
     workhours: float = 0.0  # time student has worked on this according to commit msgs
     accepted: bool = False  # whether instructor has ever marked it 'accept'
     rejections: int = 0  # how often instructor has marked it 'reject'
@@ -78,7 +77,7 @@ class Task(part.Structurepart):
     def as_json(self) -> b.StrAnyDict:
         return dict(slug=self.slug,
                     title=self.title, timevalue=self.timevalue, difficulty=self.difficulty,
-                    assumes=self.assumes, requires=self.requires, profiles=self.profiles)
+                    assumes=self.assumes, requires=self.requires)
 
     def from_file(self, file: str, taskgroup: 'Taskgroup') -> 'Task':
         """Initializer used in author mode"""
@@ -91,13 +90,13 @@ class Task(part.Structurepart):
         b.copyattrs(file,
                     self.metadata, self,
                     mustcopy_attrs='title, timevalue, difficulty',
-                    cancopy_attrs='stage, explains, assumes, requires, profiles',  # TODO 2: check profiles against sedrila.yaml
+                    cancopy_attrs='stage, explains, assumes, requires',
                     mustexist_attrs='',
                     typecheck=dict(timevalue=numbers.Number, difficulty=int))
         self.evaluate_stage(file, taskgroup.chapter.course)
         taskgroup.chapter.course.namespace_add(self.sourcefile, self)
 
-        # ----- ensure assumes/requires/profiles are lists:
+        # ----- ensure explains/assumes/requires are lists:
         def _handle_strlist(attrname: str):
             attrvalue = getattr(self, attrname)
             if isinstance(attrvalue, str):
@@ -109,10 +108,9 @@ class Task(part.Structurepart):
                 b.error(msg % attrname)
                 setattr(self, attrname, [])
 
-        _handle_strlist('assumes')
         _handle_strlist('explains')
+        _handle_strlist('assumes')
         _handle_strlist('requires')
-        _handle_strlist('profiles')
 
         # ----- add to glossary:
         if self.explains:
@@ -131,7 +129,6 @@ class Task(part.Structurepart):
         self.difficulty = task['difficulty']
         self.assumes = task['assumes']
         self.requires = task['requires']
-        self.profiles = task['profiles']
         return self
 
     def _taskrefs(self, attr_name: str) -> str:
@@ -191,7 +188,6 @@ class Course(part.Partscontainer):
     blockmacro_topmatter: dict[str, str]
     instructors: list[b.StrAnyDict]
     htaccess_template: str = None  # structure of .htaccess file generated in instructor website
-    profiles: list[str]  # list of all allowed profile shortnames
     chapters: list['Chapter']
     stages: list[str]  # list of allowed values of stage in parts 
 
@@ -216,7 +212,7 @@ class Course(part.Partscontainer):
         configdict = b.slurp_yaml(configfile)
         b.copyattrs(configfile, 
                     configdict, self,
-                    mustcopy_attrs='title, breadcrumb_title, instructors, profiles, stages, allowed_attempts',
+                    mustcopy_attrs='title, breadcrumb_title, instructors, stages, allowed_attempts',
                     cancopy_attrs=('baseresourcedir, chapterdir, templatedir, '
                                    'blockmacro_topmatter, htaccess_template, init_data'),
                     mustexist_attrs='chapters')
@@ -275,7 +271,6 @@ class Course(part.Partscontainer):
                       chapterdir=self.chapterdir,
                       templatedir=self.templatedir,
                       instructors=self.instructors,
-                      profiles=self.profiles,
                       init_data=self.init_data,
                       allowed_attempts=self.allowed_attempts,
                       chapters=[chapter.as_json() for chapter in self.chapters])
@@ -386,9 +381,6 @@ class Course(part.Partscontainer):
             for required in task.requires:
                 if not self._task_or_taskgroup_exists(required):
                     b.error(f"{task.slug}:\t required task or taskgroup '{required}' does not exist")
-            for profile in task.profiles:
-                if profile not in self.profiles:
-                    b.error(f"{task.slug}:\t profile '{profile}' does not exist")
 
     def _compute_taskorder(self):
         """

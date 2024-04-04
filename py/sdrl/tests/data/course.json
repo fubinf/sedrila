@@ -11,7 +11,6 @@
       "pubkey": "--"
     }
   ],
-  "profiles": ["DBS", "DSCI", "OPS", "SYS", "TEST", "WEB"],
   "stages": ["draft", "alpha", "beta"],
   "allowed_attempts":  "2 + 0.5/h",
   "chapters": [
@@ -28,8 +27,7 @@
               "timevalue": 1.0,
               "difficulty": 2,
               "assumes": [],
-              "requires": [],
-              "profiles": []
+              "requires": []
             },
             {
               "slug": "B",
@@ -37,15 +35,14 @@
               "timevalue": 2.5,
               "difficulty": 3,
               "assumes": [],
-              "requires": [],
-              "profiles": []
+              "requires": []
             },
             { "slug": "Task1", "title": "Task1", "timevalue": 1.0, "difficulty": 1,
-              "assumes": [], "requires": [], "profiles": []  },
+              "assumes": [], "requires": [] },
             { "slug": "Task2", "title": "Task2", "timevalue": 2.0, "difficulty": 2,
-              "assumes": [], "requires": [], "profiles": []  },
+              "assumes": [], "requires": [] },
             { "slug": "Task3", "title": "Task3", "timevalue": 3.0, "difficulty": 3,
-              "assumes": [], "requires": [], "profiles": []  }
+              "assumes": [], "requires": [] }
           ],
           "title": "Linux-Umgebung schaffen"
         }

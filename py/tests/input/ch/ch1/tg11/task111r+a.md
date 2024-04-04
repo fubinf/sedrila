@@ -3,7 +3,6 @@ explains: Concept 1, Concept 2 undefined
 stage: beta
 timevalue: 1.0
 difficulty: 1
-profiles: PROFILE1
 assumes: task112
 requires: task113
 ---

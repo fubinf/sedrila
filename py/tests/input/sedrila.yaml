@@ -1,6 +1,5 @@
 title: SeDriLa test
 breadcrumb_title: SeDriLa
-profiles: ['PROFILE1', 'PROFILE2']
 stages: ['draft', 'alpha', 'beta']
 blockmacro_topmatter:
   section_background: "<h2>Section_Background</h2>"

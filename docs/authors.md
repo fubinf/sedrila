@@ -69,9 +69,6 @@ About the entries:
 - `templatedir` is also optional and states where the Jinja2 templates for the overall page structures live. 
   Not defining a `templatedir` means to use the built-in default files,  
   which is probably sufficient for most cases.
-- `profiles`: The list of allowed entries in the `profiles:` metadata list of a part.
-  A profile describes an area of interest, such as a topic area or professional specialty.
-  This is meant to add a second grouping to the tasks besides that provided by chapters and taskgroups.
 - `stages`: ordered list of allowed values for the 'stage:' metadata entry for tasks, taskgroups, and chapters.
   Meant to represent the development stage of a part, from a draft entry to a finished one.
   For instance, if stages are `['draft', 'alpha', 'beta']` (the recommended set) and sedrila is called with
