@@ -81,6 +81,11 @@ def push():
     os.system("git push")
 
 
+def remote_url():
+    result = sp.run(["git", "config", "--get", "remote.origin.url"], stdout=sp.PIPE)
+    return result.stdout.decode("utf-8").strip()
+
+    
 def username_from_repo_url(repo_url: str) -> str:
     # a repo_url is git@server:useraccount/reponame.git or git@server:useraccount/subset/reponame.git
     repo_url_regexp = r":([\w_\.-]+)/"

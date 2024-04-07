@@ -43,8 +43,8 @@ def execute(pargs: argparse.Namespace):
             b.warning("It looks like you are already inside a student dir. Assuming parent directory instead.")
             home_fallback = ".."
     home = os.environ.get(REPOS_HOME_VAR) or home_fallback
-    checkout_student_repo(pargs.repo_url, home, pargs.get)
-    if not(pargs.put) and not(pargs.check):
+    checkout_success = checkout_student_repo(pargs.repo_url, home, pargs.get)
+    if not(pargs.put) and not(pargs.check) or not(checkout_success):
         os.chdir("..")
         return
     student = sdrl.participant.Student()
@@ -86,6 +86,13 @@ def checkout_student_repo(repo_url, home, pull = True):
             os.chdir(username)
         b.info(f"**** pulling repo in existing directory '{os.getcwd()}'")
         if pull:
+            if repo_url:
+                existing = git.remote_url()
+                if repo_url != existing:
+                    print(repo_url)
+                    print(existing)
+                    b.error("user repo with other url already present. please resolve manually. aborting")
+                    return False
             git.pull()
         else:
             b.warning("not pulling user repo, relying on existing state")
@@ -96,6 +103,7 @@ def checkout_student_repo(repo_url, home, pull = True):
         git.clone(repo_url, username)
         os.chdir(username)
         b.info(f"**** cloned repo into new directory '{os.getcwd()}'")
+    return True
 
 
 def rewrite_submission_file(course: sdrl.course.Course, filename: str):
