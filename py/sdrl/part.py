@@ -34,6 +34,9 @@ class Structurepart:
     skipthis: bool  # do not include this chapter/taskgroup/task in generated site
     toc: str  # table of contents
 
+    def __repr__(self):
+        return self.slug
+
     @property
     def breadcrumb_item(self) -> str:
         return "(undefined)"
