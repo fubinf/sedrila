@@ -675,7 +675,7 @@ The following rules are suggestions for how to achieve these properties.
 The standard call for generating the HTML website from a sedrila course is
 `sedrila author outputdir`.
 This will create the student version of the website at location `outputdir`
-and the instructor version at `outputdir/cino2r2s2tu`.
+and the instructor version at `outputdir/instructor`.
 Both versions will exclude all tasks, taskgroups, and chapters that have a
 `stage:` entry in their metadata.
 
