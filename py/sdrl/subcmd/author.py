@@ -7,6 +7,7 @@ import json
 import os
 import os.path
 import pickle
+import re
 import shutil
 import typing as tg
 
@@ -24,7 +25,7 @@ Checks consistency of the course description beforehands.
 """
 
 OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR = "instructor"
-
+ALTDIR_KEYWORD = "ALT:"
 
 def add_arguments(subparser: argparse.ArgumentParser):
     subparser.add_argument('--config', metavar="configfile", default=b.CONFIG_FILENAME,
@@ -263,7 +264,7 @@ def register_macros(course):
         course.glossary._register_macros_phase1()  # modifies state in module 'mocros'! 
     # ----- register EARLY-mode macros:
     macros.register_macro('INCLUDE', 1, MM.EARLY,
-                          expand_include)
+                          functools.partial(expand_include, course))
     # ----- register INNER-mode macros:
     macros.register_macro('HREF', 1, MM.INNER,
                           functools.partial(expand_href, course))  # show and link a URL
@@ -394,25 +395,55 @@ def expand_enumerationref(macrocall: macros.Macrocall) -> str:
     return f"<span class='{classname}'>{value}</span>"
 
 
-def expand_include(macrocall: macros.Macrocall) -> str:
+def expand_include(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
     """
     [INCLUDE::filename] inserts file contents into the Markdown text.
-    If the file has suffix *.md or *.md.inc, it is macro-expanded beforehands,
+    If the file has suffix *.md, it is macro-expanded beforehands,
     contents of all other files are inserted verbatim.
-    The filename is relative to the location of the file containing the macro call.
+    A relative filename is relative to the location of the file containing the macro call.
+    An absolute filename is relative to course.chapterdir.
+    The format [INCLUDE::ALT:filename] refers to files in course.altdir,
+    for relative names, the path from chapterdir to filename's dir is used below altdir.
+    In the special case [INCLUDE::ALT:] with no filename at all, the filename is reused as well.
     """
-    filename = macrocall.arg1
-    path = os.path.dirname(macrocall.filename)
-    fullfilename = os.path.join(path, filename)
+    fullfilename = includefile_path(course, macrocall)
+    # print(f"## fullfilename: {fullfilename} ({macrocall.filename})")
     if not os.path.exists(fullfilename):
-        macrocall.error(f"file '{fullfilename}' does not exist")
+        msgfunc = macrocall.warning if macrocall.arg1.startswith(ALTDIR_KEYWORD) else macrocall.error
+        msgfunc(f"file '{fullfilename}' does not exist")
         return ""
     with open(fullfilename, "rt", encoding='utf8') as f:
         rawcontent = f.read()
-    if filename.endswith('.md') or filename.endswith('.md.inc'):
+    if fullfilename.endswith('.md'):
         return macros.expand_macros(md.md.context_sourcefile, md.md.partname, rawcontent)
     else:
         return rawcontent
+
+
+def includefile_path(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
+    arg_re = r"(?P<alt>" + ALTDIR_KEYWORD + r")?(?P<slash>/)?(?P<incfile>.*)"
+    mm = re.fullmatch(arg_re, macrocall.arg1)
+    is_alt = mm.group("alt") is not None
+    is_abs = mm.group("slash") is not None
+    inc_filepath = mm.group("incfile")
+    ctx_filepath = macrocall.filename  # e.g. ch/chapter/group/task.md
+    ctx_dirpath = os.path.dirname(ctx_filepath)  # e.g. ch/chapter/group
+    ctx_basename = os.path.basename(ctx_filepath)  # e.g. task.md
+    # print(f"## {macrocall.arg1} -> alt:{is_alt}, abs:{is_abs}, inc:{inc_filepath}, ctx:{ctx_dirpath}, {course.altdir}")
+    if is_alt:  # construct path in altdir tree:
+        abs_filepath = macrocall.filename.replace(course.chapterdir, course.altdir, 1)
+        abs_dirpath = os.path.dirname(abs_filepath)
+        # print(f"### is_alt: {abs_dirpath}")
+        if is_abs:
+            fullfilename = os.path.join(course.altdir, inc_filepath)
+        else:
+            fullfilename = os.path.join(abs_dirpath, inc_filepath or ctx_basename)
+    else:  # in chapterdir tree:
+        if is_abs:
+            fullfilename = os.path.join(course.chapterdir, inc_filepath)
+        else:
+            fullfilename = os.path.join(ctx_dirpath, inc_filepath)
+    return fullfilename
 
 
 def render_homepage(course: sdrl.course.Course, env, targetdir: str, mode: b.Mode):

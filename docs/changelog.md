@@ -23,4 +23,5 @@ Version 0.7.0 alpha (2024-04-02)
 Version 0.8.0 alpha (upcoming) 
 - removed support for 'profiles' metadatum in tasks; it is superfluous
 - `author`: ZIP files no longer contain inner path parts chapter/taskgroup/task/ 
+- `author`: Introduced `altdir`, `[INCLUDE::ALT:...]`, and  `[INCLUDE::/...]`
 - ...
