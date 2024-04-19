@@ -572,15 +572,32 @@ because of the strong within-task locality that the cross-references will usuall
 which makes manual cross-referencing the simpler approach.
 
 
-#### 1.9.3 `[INCLUDE]`, `[TOC]`, `[DIFF]`
+#### 1.9.3 `[INCLUDE]`
 
-- `[INCLUDE::filename]`: inserts the entire contents of file `filename` verbatim
-  into the Markdown input stream at this point.
-  Useful for having small Python programs (etc.) as separate files during development,
+`[INCLUDE::filename]`: inserts the entire contents of file `filename` verbatim
+into the Markdown input stream at this point.
+
+- `filename` is a path relative to the directory of the file containing the `INCLUDE` call.
+- Useful for having small Python programs (etc.) as separate files during development,
   so they can be executed and tested.
-  The students copy/paste the file from within the page in the web browser.
-  Also perhaps useful for inserting identical blocks of text needed in several places;
-  use filesuffix `.inc` in those cases to avoid confusion with task files.
+  The students copy/paste the file from within the page in the web browser.  
+  We recommend to put include files relevant for a single task or task group into the task group directory.
+- You can also use absolute paths: `[INCLUDE::/_include/some-blurb.md]` will include a blurb used in
+  many places that lives in a directory (in this case called `_include`) directly below the 
+  configuration setting `chapterdir`.
+- `altdir` points to a separate directory tree that can live in a git submodule,
+  using a non-public repo to keep those files confidential in order to provide
+  detailed instructor information. Include such files with `[INCLUDE::ALT:filename_confid]`.
+  If this macro call lives in a file `<chapterdir>/chapter/group/task.md`,
+  it will refer to `altdir/chapter/group/filename_confid`.
+- A particularly useful idiom is `[INCLUDE::ALT:]` without any filename, which will include
+  `<altdir>/chapter/group/task.md` without the need to specify the task name redundantly.
+- We recommend to keep the `altdir` tree sparse and create only those files and directories 
+  that are actually needed.
+
+
+#### 1.9.4 `[TOC]`, `[DIFF]`
+
 - `[TOC]`: Generates a table of contents from the Markdown headings present in the file
 - `[DIFF::level]` generates the task difficulty mark for the given level, from 1 (very simple) to 4 (difficult).
 
