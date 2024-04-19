@@ -1,8 +1,9 @@
 {
-  "breadcrumb_title": "SedrilaTest1",
-  "baseresourcedir": "baseresources",
-  "chapterdir": "ch",
-  "templatedir": "templates",
+  "title": "Dummy SeDriLa for testing",
+  "breadcrumb_title": "DummySedrila",
+  "chapterdir": "",
+  "altdir": "",
+  "stages": [],
   "instructors": [
     {
       "nameish": "Dummy Instructor",
@@ -11,7 +12,6 @@
       "pubkey": "--"
     }
   ],
-  "stages": ["draft", "alpha", "beta"],
   "allowed_attempts":  "2 + 0.5/h",
   "chapters": [
     {
@@ -48,6 +48,5 @@
         }
       ]
     }
-  ],
-  "title": "Dummy SeDriLa for testing"
+  ]
 }

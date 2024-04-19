@@ -9,7 +9,6 @@ import enum
 import functools
 import glob
 import graphlib
-import math
 import numbers
 import os
 import re
@@ -267,11 +266,9 @@ class Course(part.Partscontainer):
         return result
 
     def as_json(self) -> b.StrAnyDict:
-        result = dict(baseresourcedir=self.baseresourcedir, 
+        result = dict(title=self.title,
                       breadcrumb_title=self.breadcrumb_title,
-                      stages=self.stages,
-                      chapterdir=self.chapterdir,
-                      templatedir=self.templatedir,
+                      chapterdir="", altdir="",  stages=[],  # are mustcopy_attrs but are not needed
                       instructors=self.instructors,
                       init_data=self.init_data,
                       allowed_attempts=self.allowed_attempts,

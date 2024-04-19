@@ -40,12 +40,15 @@ is based on the following ideas:
 - The instructor checks those tasks, adds checking results into that file,
   and commits it. This commmit is cryptographcally signed.
 - `course.json` is published along with the webpages.
-  It lists all tasks with their dependencies and timevalues
-  and all instructors and their public key fingerprints.
-- The script that computes the "value earned" effort hours uses `course.json` to
-  - find all `submission.yaml checked` commits that were made by an instructor
-  - extract the list of accepted tasks from them, and
-  - tabulate those tasks and compute the sum of their timevalues.
+  It provides course metadata that is needed for operations in the
+  "student" and "instructor" parts of sedrila, such as
+  the list of all tasks with their dependencies and timevalues,
+  the list of all instructors and their public key fingerprints,
+  and a few others.
+- The script that computes the "value earned" effort hours 
+    - finds all `submission.yaml checked` commits that were made by an instructor
+    - extract the list of accepted tasks from them, and
+    - tabulate those tasks and compute the sum of their timevalues (taken from `course.json`).
 - That script can also tabulate what the instructor did not accept, which makes practical
   a rule that says a task will only count if it gets accepted no later than upon second (or third?) try.
   No such mechanism is implemented so far, though.
