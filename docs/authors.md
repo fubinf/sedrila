@@ -801,3 +801,12 @@ If initially you do not have access to that repository that is not a big problem
 because `[INCLUDE::ALT:file]` on a non-existing `file` will only result in a warning,
 not an error, and will simply include nothing.
 Set `--log-level ERROR` if you do not want to see the warnings.
+
+If you do have access to the private repo: That repo is used as a submodule in the
+top-level course repo. Be sure to initialize that submodule initially and
+update it regularly. 
+Use git's `--recurse-submodules` option or `submodule.recurse=true` config setting as appropriate.
+Working with submodules is generally not fun, so use it only to the degree necessary
+and be prepared for the dreaded error message 
+_"fatal: cannot rebase with locally recorded submodule modifications"_
+by reading https://stackoverflow.com/questions/54215983.
