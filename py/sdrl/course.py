@@ -183,7 +183,8 @@ class Course(part.Partscontainer):
     configfile: str
     breadcrumb_title: str
     baseresourcedir: str = f"{sedrila_libdir}/baseresources"
-    chapterdir: str = 'ch'
+    chapterdir: str
+    altdir: str
     templatedir: str = f"{sedrila_libdir}/templates"
     blockmacro_topmatter: dict[str, str]
     instructors: list[b.StrAnyDict]
@@ -212,8 +213,9 @@ class Course(part.Partscontainer):
         configdict = b.slurp_yaml(configfile)
         b.copyattrs(configfile, 
                     configdict, self,
-                    mustcopy_attrs='title, breadcrumb_title, instructors, stages, allowed_attempts',
-                    cancopy_attrs=('baseresourcedir, chapterdir, templatedir, '
+                    mustcopy_attrs=('title, breadcrumb_title, chapterdir, altdir, '
+                                    'instructors, stages, allowed_attempts'),
+                    cancopy_attrs=('baseresourcedir, templatedir, '
                                    'blockmacro_topmatter, htaccess_template, init_data'),
                     mustexist_attrs='chapters')
         self.allowed_attempts_base, self.allowed_attempts_hourly = self._parse_allowed_attempts()

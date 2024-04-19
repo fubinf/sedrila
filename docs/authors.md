@@ -59,13 +59,22 @@ About the entries:
 - `breadcrumb_title`: Short title of the course to be used in the breadcrumb navigation.
 - `baseresourcedir` is optional and states where the few CSS and JavaScript files live. 
   Not defining a `baseresourcedir` means to use the built-in default files.  
-- `chapterdir`: Where the course content lives.  
+- `chapterdir`: Relative path of directory in which the course content lives.  
   The names of directories below `chapterdir` are the slugs of chapters (level 1)
   and the slugs of taskgroups (level 2).  
   Slugs are used for two purposes: as short names for identifying a part and
   for the filenames in the generated HTML directory.  
   There are five part types: course, chapter, taskgroup, task, and glossary.
   For a task defined by file `abc.md`, the slug (and hence taskname) is `abc`.
+- `altdir`: Relative path of the alternate chapterdir.
+  The tree below `altdir` parallels that of `chapterdir`, but contains files
+  only where needed.  
+  The purpose is to create the ability to have parts of the content
+  (typically targeted at instructors) in a non-public repository although the course
+  overall lives in a public repository.
+  That non-public repository would then be included in the overall course's working directory
+  by means of a git submodule and `altdir` would point there.  
+  See the `[INCLUDE]` macro for an explanation of how to use `altdir` content.
 - `templatedir` is also optional and states where the Jinja2 templates for the overall page structures live. 
   Not defining a `templatedir` means to use the built-in default files,  
   which is probably sufficient for most cases.
