@@ -120,6 +120,32 @@ Here, we mention
 """
 
 
+def test_includefile_path():
+    with contextlib.chdir("py/tests/input"):
+        # ----- prepare call:
+        pargs = argparse.Namespace()
+        pargs.cache = False
+        pargs.config = b.CONFIG_FILENAME
+        pargs.include_stage = "alpha"
+        pargs.log = "WARNING"  # WARNING; for debugging, use INFO or DEBUG here
+        pargs.targetdir = "../output"
+        # ----- do call akin to start of sdrl.subcmd.author.execute():
+        b._testmode_reset()
+        macros._testmode_reset()
+        b.set_loglevel(pargs.log)
+        course = sdrl.subcmd.author.get_course(pargs)
+        # ----- perform tests:
+        def func(arg: str) -> str:
+            call = macros.Macrocall(None, "ch/chapter/group/task.md", "task", 
+                                    f"[INCLUDE::{arg}]", "INCLUDE", arg, None)
+            return sdrl.subcmd.author.includefile_path(course, call)
+        assert func("other") == "ch/chapter/group/other"
+        assert func("/other2") == "ch/other2"
+        assert func("ALT:other") == "altdir/chapter/group/other"
+        assert func("ALT:/other2") == "altdir/other2"
+        assert func("ALT:") == "altdir/chapter/group/task.md"
+
+
 def test_sedrila_author(capfd):
     """System test. Lots of hardcoded knowledge about the output of sedrila author."""
     # ----- prepare:
