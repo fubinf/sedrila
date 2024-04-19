@@ -792,3 +792,12 @@ As a result, the locale-specific information from the original course will
 be replaced by appropriate alternative content when rendering the fork.
 As the original course's authors never touch `replacements.md`, 
 the fork authors can modify it freely without conflict.
+
+### 3.5 `altdir` and private repos
+
+The `altdir` and `[INCLUDE::ALT:file]` mechanisms are meant for keeping parts of the
+instructor information in a non-public repository.
+If initially you do not have access to that repository that is not a big problem,
+because `[INCLUDE::ALT:file]` on a non-existing `file` will only result in a warning,
+not an error, and will simply include nothing.
+Set `--log-level ERROR` if you do not want to see the warnings.
