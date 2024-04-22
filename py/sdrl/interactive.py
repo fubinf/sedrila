@@ -19,7 +19,7 @@ def prefix(entry: r.ReportEntry, selected: dict[str, bool], rejected: dict[str, 
 def redraw_filter_selection(term: Terminal, entries: tg.Sequence[r.ReportEntry], rowindex: int, selected: dict[str, bool], rejected: dict[str, bool], course_url: str):
     print(term.home + term.clear, end="")
     lines = term.height - 1
-    print("Move with arrow keys, select/deselect with space/enter, exit with escape")
+    print("Move with arrow keys, select/deselect with space/enter, exit with 'Q''")
     if not(course_url is None):
         print("Press 'o' to open task in browser")
         lines = lines - 1
@@ -40,7 +40,7 @@ def filter_entries(entries: tg.Sequence[r.ReportEntry], selected: dict[str, bool
     rowindex = 0
     with term.cbreak(), term.hidden_cursor():
         inp = None
-        while not(inp) or not(str(inp) == "q" or str(inp.name) == "KEY_ESCAPE"):
+        while not(inp) or not(str(inp) in "Qq" or str(inp.name) == "KEY_ESCAPE"):
             redraw_filter_selection(term, entries, rowindex, selected, rejected, course_url)
             inp = term.inkey()
             if str(inp) == " " or str(inp.name) == "KEY_ENTER":
