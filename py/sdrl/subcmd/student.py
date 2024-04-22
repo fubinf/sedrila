@@ -67,7 +67,8 @@ def init():
     prompts = sdrl.participant.Student.prompts(init_data.get('studentprompts') or {})
     for value in prompts:
         data[value] = input(prompts[value] + ": ")
-    b.spit_yaml("student.yaml", data)
+    b.spit_yaml(sdrl.participant.PARTICIPANT_FILE, data)
+    b.info(f"wrote '{sdrl.participant.PARTICIPANT_FILE}'. Now commit and push it.")
     if not(coursedata.get('instructors')):
         b.warning("No information about instructors present. Skipping key import.")
         return
