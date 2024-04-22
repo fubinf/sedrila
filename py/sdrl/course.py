@@ -237,10 +237,11 @@ class Course(part.Partscontainer):
             self.include_stage_index = len(self.stages)
         self.chapters = [Chapter(self, ch, read_contentfiles) 
                          for ch in configdict['chapters']]
-        self._collect_zipdirs()
-        self._check_links()
-        self._add_inverse_links()
-        self._compute_taskorder()
+        if read_contentfiles:
+            self._collect_zipdirs()
+            self._check_links()
+            self._add_inverse_links()
+            self._compute_taskorder()
 
     @property
     def breadcrumb_item(self) -> str:
