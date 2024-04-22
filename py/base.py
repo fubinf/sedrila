@@ -144,7 +144,7 @@ def debug(msg: str):
 
 def info(msg: str):
     if loglevel <= logging.INFO:
-        rich_print(msg)
+        rich_print(msg, "green")
 
 
 def warning(msg: str):
