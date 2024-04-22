@@ -25,19 +25,24 @@ Under Windows, use WSL.
 ### Make entry in `sedrila.yaml`
 
 - Send the course organizer your `instructor` entry for your course's `sedrila.yaml`.
-  Find a copy of `sedrila.yaml` at `https://courseserver.example.org/path/course/_sedrila.yaml`
+  Find a copy of `sedrila.yaml` at `https://courseserver.example.org/path/course/sedrila.yaml`
   to see what such an entry looks like.
 - In that entry, `gitaccount` is your username in the git service used in the course
   and `webaccount` is your username on the webserver serving the course content.
+  The beginning and end line markers for the pubkey are optional.
 
 
 ### Set up your workstation
+
+Those steps are quality of life aspects only. You can use sedrila without having done this if you
+are in an environment where they might cause any issues, even though there shouldn't be any.
 
 - During your work as instructor of a sedrila course, 
   you need a directory tree into which you will clone and checkout the git repositories
   of all participating students.
   You can give it any name you want. 
   Here, we refer to it as `SEDRILA_INSTRUCTOR_REPOS_HOME`.
+  If you don't have this set, sedrila will assume you are inside of that directory while working.
 - Create that top-level directory now.
 - Extend your `.bashrc` (or rather `.bash_profile`, if you have one) to include
   `export SEDRILA_INSTRUCTOR_REPOS_HOME=/path/to/repos_home`
@@ -47,15 +52,39 @@ Under Windows, use WSL.
   To do that, extend your `.bashrc` (or rather `.bash_profile`, if you have one) to include
   a space-separated list of possible URLs, like this:
   `export SEDRILA_INSTRUCTOR_COURSE_URLS="https://our.server/course/semester1 https://our.server/course/semester2"`
-- set `SEDRILA_INSTRUCTOR_COMMAND` environment variable  TODO_2_hofmann needed? Then explain.
+- By default, sedrila will spawn a subshell for you to work in during grading. If you want to use
+  another command than that, set `SEDRILA_INSTRUCTOR_COMMAND` environment variable accordingly.
 
 
-## 2. Checking a submission  TODO_2_hofmann: check and correct, add details if needed
+## 2. Checking a submission  
 
+- Generally speaking, checking a submission is conceptually split into three parts, each of which
+  can be skipped via corresponding arguments to `sedrila instructor`.
+  Those parts are "get", "check" and "put".
 - Checking a submission is triggered by the email that the student sent you.
-  Copy the repository URL `repo_url`from that email.
-- Execute `sedrila instructor --get repo_url`
-  to pull the latest commits of that student (or clone the repo if there is no local copy yet)
-  and change the current directory into that student's working directory.
-- ...
-- Alternatively, ...
+  This email will contain a command of the form `sedrila instructor repo_url`.
+  If you enter this command, sedrila will change into the folder of that student and will make
+  sure to pull or clone if necessary. This pulling or cloning is the "get" part and can be
+  skipped if you don't have access to the internet or the repository.  
+  It will then spawn a subshell.
+- In this subshell, you are free to do whatever you need in order to assess whether the given
+  tasks from the student in `submission.yaml` are to be accepted or rejected.
+  If you open `sedrila` without any arguments in this subshell, it will provide an interactive
+  menu to accept or deny certain tasks, but you can also modify the file by hand.  
+  This is equivalent to the command `sedrila instructor --interactive --no-get --no-put`.  
+  This is the "check" part.
+- If you exit the subshell, sedrila will automatically create a signed commit for you, containing
+  the current state of the `submission.yaml` file and push that.
+  You are free to do multiple commits for a single submission mail by the student.  
+  This is the "put" part.
+
+If you prefer not to use the subshell, you can just directly provide the `--interactive` flag.
+
+An alternative flow might be the following:
+
+- `sedrila instructor repo_url --no-check --no-put` to fetch the repo.
+- `sedrila instructor repo_url --interactive --no-get --no-put` to actually do grading.
+- `sedrila instructor repo_url --no-get --no-check` to create the commit and push it.
+
+Also note that providing the repo_url is optional if you are already in the directory of the repo.
+However, this might lead to confusing situations if the student has multiple repositories.
