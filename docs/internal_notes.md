@@ -10,15 +10,15 @@
   to obtain locality and to make it easier to randomize task selection when
   creating a course instance.
 - We use a various custom Markdown extensions ("macros") for
-  - file-local table of contents;
-  - value-added integrity-checked links to tasks, taskgroups, chapters,
-    and glossary entries;
-  - embedding instructor-only content to be used for the instructor version of the webpages;
-  - embedding highlighted optional hints (with fold/unfold functionality);
-  - other preconfigured formatting, in particular for structuring the content of task descriptions
-    into background, goal, instruction, and deliverables ("submission") parts.
+    - file-local table of contents;
+    - value-added integrity-checked links to tasks, taskgroups, chapters,
+      and glossary entries;
+    - embedding instructor-only content to be used for the instructor version of the webpages;
+    - embedding highlighted optional hints (with fold/unfold functionality);
+    - other preconfigured formatting, in particular for structuring the content of task descriptions
+      into background, goal, instruction, and deliverables ("submission") parts.
 - We use plain, mostly passive HTML for the generated course webpage, 
-  with only very little JavaScript.
+  with almost no JavaScript.
 - We support localizing a fork of a sedrila course in a manner that can avoid most
   merge conflicts with later improvements of the original course.
 - We use a student git repository for all solution transportation and bookkeeping.
