@@ -101,7 +101,10 @@ def checkout_student_repo(repo_url, home, pull = True):
             b.warning("attempted to grade non-existing user without pulling.")
             b.warning("ignore and clone regardless.")
         git.clone(repo_url, username)
-        os.chdir(username)
+        if os.path.exists(username):
+            os.chdir(username)
+        else:
+            b.critical(f"directory '{username}' not found")
         b.info(f"**** cloned repo into new directory '{os.getcwd()}'")
     return True
 
