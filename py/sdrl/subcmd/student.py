@@ -47,22 +47,17 @@ def execute(pargs: argparse.Namespace):
 
 def init():
     data = {}
-    while True:
-        data['course_url'] = os.path.dirname(input("Course URL: "))
-        metadatafile = f"{data['course_url']}/{b.METADATA_FILE}"
-        try:
-            if metadatafile.startswith("file:///"):
-                data['course_url'] = data['course_url'][7:]
-                coursedata = b.slurp_json(metadatafile[7:])
-            else:
-                resp = requests.get(url=metadatafile)
-                coursedata = resp.json()
-        except:
-            accept = input("Error fetching URL. Continue anyways? [yN] ")
-            if not(accept.startswith("y") or accept.startswith("Y")):
-                coursedata = {}
-                continue
-        break
+    data['course_url'] = os.path.dirname(input("Course URL: "))
+    metadatafile = f"{data['course_url']}/{b.METADATA_FILE}"
+    try:
+        if metadatafile.startswith("file:///"):
+            data['course_url'] = data['course_url'][7:]
+            coursedata = b.slurp_json(metadatafile[7:])
+        else:
+            resp = requests.get(url=metadatafile)
+            coursedata = resp.json()
+    except:
+        b.critical(f"Error fetching URL '{metadatafile}'.")
     init_data = coursedata.get('init_data') or {}
     prompts = sdrl.participant.Student.prompts(init_data.get('studentprompts') or {})
     for value in prompts:
