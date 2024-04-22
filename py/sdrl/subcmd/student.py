@@ -70,9 +70,10 @@ def init():
     gpgimportwarning = init_data.get('gpgimportwarning') or """
         Next step is the import of the public keys from the instructors of the course.
         This is necessary to correctly show your progress.
-        If you want to abort this, you can Ctrl+C now.
-        Press enter to continue."""
-    input(gpgimportwarning)
+        Press <Enter> to continue or Q <Enter> to abort:  """
+    response = input(gpgimportwarning)
+    if response and response in "Qq":
+        b.critical("Abort.")
     r.import_gpg_keys(coursedata['instructors'])
 
 
