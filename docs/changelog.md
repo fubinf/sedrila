@@ -35,5 +35,6 @@ Version 1.0.0 beta (2024-04-21)
 
 
 Version 1.1.0 (upcoming) 
-
+- `student`/`instructor`: remove lots of spurious error messages
+- `student`/`instructor`: improved several prompts and messages
 - ...
