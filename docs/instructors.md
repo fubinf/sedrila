@@ -60,26 +60,27 @@ are in an environment where they might cause any issues, even though there shoul
 
 ## 2. Checking a submission  
 
-- Generally speaking, checking a submission is conceptually split into three parts, each of which
-  can be skipped via corresponding arguments to `sedrila instructor`.
-  Those parts are "get", "check" and "put".
-- Checking a submission is triggered by the email that the student sent you.
-  This email will contain a command of the form `sedrila instructor repo_url`.
-  If you enter this command, sedrila will change into the folder of that student and will make
-  sure to pull or clone if necessary. This pulling or cloning is the "get" part and can be
-  skipped if you don't have access to the internet or the repository.  
-  It will then spawn a subshell.
-- In this subshell, you are free to do whatever you need in order to assess whether the given
-  tasks from the student in `submission.yaml` are to be accepted or rejected.
-  If you open `sedrila` without any arguments in this subshell, it will provide an interactive
-  menu to accept or deny certain tasks, but you can also modify the file by hand.  
-  This is equivalent to the command `sedrila instructor --interactive --no-get --no-put`.  
-  This is the "check" part.
-- If you exit the subshell, sedrila will automatically create a signed commit for you, containing
-  the current state of the `submission.yaml` file and push that.
-  You are free to do multiple commits for a single submission mail by the student.  
-  This is the "put" part.
+1. Generally speaking, checking a submission is conceptually split into three steps, each of which 
+can be skipped via corresponding arguments to `sedrila instructor`.
+Those steps are "get", "check" and "put".
 
+2. Checking a submission is triggered by the email that the student sent you.
+This email will contain a command of the form `sedrila instructor repo_url`.
+If you enter this command, sedrila will change into the folder of that student and will make
+sure to pull or clone if necessary; the "get" step. It and can be
+skipped if you don't have access to the repository.
+It will then spawn a subshell.
+
+3. In this subshell, you are free to do whatever you need in order to assess whether the given
+tasks from the student in `submission.yaml` are to be accepted or rejected.
+If you open `sedrila` (without any arguments) in this subshell, it will provide an interactive
+menu to accept or deny certain tasks, but you can also modify the file by hand.
+This is the "check" step and is equivalent to the command `sedrila instructor --interactive --no-get --no-put`.  
+
+4. If you exit the subshell, sedrila will automatically create a signed commit for you, containing
+the current state of the `submission.yaml` file and push that.
+You are free to do multiple commits for a single submission mail by the student.
+This is the "put" part.
 If you prefer not to use the subshell, you can just directly provide the `--interactive` flag.
 
 An alternative flow might be the following:
@@ -88,5 +89,5 @@ An alternative flow might be the following:
 - `sedrila instructor repo_url --interactive --no-get --no-put` to actually do grading.
 - `sedrila instructor repo_url --no-get --no-check` to create the commit and push it.
 
-Also note that providing the repo_url is optional if you are already in the directory of the repo.
-However, this might lead to confusing situations if the student has multiple repositories.
+Providing `repo_url` is optional if you are already in the directory of the repo.
+For reducing the confusion in case of mistakes, we recommend to always provide `repo_url`.
