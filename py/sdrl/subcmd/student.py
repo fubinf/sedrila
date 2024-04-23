@@ -87,7 +87,7 @@ def prepare_submission_file(course: sdrl.course.Course, root: str, entries: tg.S
     b.spit_yaml(os.path.join(root, r.SUBMISSION_FILE), r.submission_file_entries(course, entries))
     b.info(f"Wrote file '{r.SUBMISSION_FILE}'.")
     # ----- give instructions for next steps:
-    b.info(f"1. Commit it with commit message '{r.SUBMISSION_COMMIT_MSG}'.")
+    b.info(f"1. Commit it with commit message '{r.SUBMISSION_COMMIT_MSG}'. Push it.")
     b.info(f"2. Then send the following to your instructor by email:")
     b.info(f"  Subject: Please check submission")
     b.info(f"  sedrila instructor {git.origin_remote_of_local_repo()}")
