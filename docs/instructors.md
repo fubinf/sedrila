@@ -20,7 +20,9 @@ Under Windows, use WSL.
   Note down the key fingerprint of your public key.
   This is the 40-digit hex string shown next to your email address. 
 - Export public key:  `gpg --armor --export <keyfingerprint>`  
-
+- Set a useful timeout (e.g. 4 hours) how long `gpg-agent` should keep the passphrase before
+  you need to enter it again.  
+  [HREF::https://superuser.com/questions/624343/keep-gnupg-credentials-cached-for-entire-user-session]
 
 ### Make entry in `sedrila.yaml`
 
