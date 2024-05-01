@@ -15,6 +15,7 @@ import jinja2
 
 import base as b
 import sdrl.course
+import sdrl.glossary
 import sdrl.html as h
 import sdrl.macros as macros
 import sdrl.markdown as md
@@ -186,6 +187,7 @@ def add_tocs_to_upper_parts(course: sdrl.course.Course):
         chapter.toc = toc(chapter)
         for taskgroup in chapter.taskgroups:
             taskgroup.toc = toc(taskgroup)
+    course.glossary.toc = toc_for_glossary(course)
 
 
 def copy_baseresources(course: sdrl.course.Course):
@@ -254,6 +256,16 @@ def toc(structure: sdrl.part.Structurepart) -> str:
             for task in effective_tasklist:
                 result.append(task.toc_entry)
     result.append(course.glossary.toc_entry)
+    return "\n".join(result)
+
+
+def toc_for_glossary(course: sdrl.course.Course) -> str:
+    """Return a chapters-only table of contents for the glossary."""
+    result = ['']  # start with a newline
+    for chapter in course.chapters:  # noqa
+        if chapter.to_be_skipped:
+            continue
+        result.append(chapter.toc_entry)
     return "\n".join(result)
 
 
@@ -505,7 +517,7 @@ def render_glossary(course: sdrl.course.Course, env, targetdir: str, mode: b.Mod
                              breadcrumb=h.breadcrumb(course, glossary),
                              title=glossary.title,
                              part=glossary,
-                             toc=course.toc, fulltoc=course.toc,
+                             toc=glossary.toc, fulltoc=course.toc,
                              content=glossary_html)
     b.spit(f"{targetdir}/{glossary.outputfile}", output)
 

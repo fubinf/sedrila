@@ -41,5 +41,5 @@
 
 
 ## Version 1.2.0 (upcoming)
-
+- `author`: table of contents for glossary now is chapters-only
 - ...
