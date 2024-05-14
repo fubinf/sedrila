@@ -23,8 +23,8 @@ def redraw_filter_selection(term: Terminal, entries: tg.Sequence[r.ReportEntry],
     if not(course_url is None):
         print("Press 'o' to open task in browser")
         lines = lines - 1
-    rangestart = max(0, rowindex - lines / 2)
-    rangeend = min(len(entries), rowindex + lines / 2)
+    rangestart = max(0, rowindex - lines // 2)
+    rangeend = min(len(entries), rowindex + lines // 2)
     for i in range(rangestart, rangeend):
         if i == rowindex:
             print(term.reverse, end="")
