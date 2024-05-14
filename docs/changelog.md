@@ -42,4 +42,6 @@
 
 ## Version 1.2.0 (upcoming)
 - `author`: table of contents for glossary now is chapters-only
+- `author`: warn about unterminated INSTRUCTOR blocks (that would show up in student version)
+- `author`: warn about macro calls with empty arg1
 - ...

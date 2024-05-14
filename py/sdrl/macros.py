@@ -107,7 +107,7 @@ macrodefs_late: dict[str, Macrodef] = dict()  # macroname -> macrodef
 macrostate: dict[str, tg.Any] = dict()  # namespace -> state_object
 
 macro_regexp = (r"(?P<ppre></?p>)?"
-                r"(?P<macrocall>\[(?P<name>[A-Z][A-Z0-9_]+)(::(?P<arg1>.+?))?(::(?P<arg2>.+?))?\])"
+                r"(?P<macrocall>\[(?P<name>[A-Z][A-Z0-9_]+)(::(?P<arg1>.*?))?(::(?P<arg2>.*?))?\])"
                 r"(?=[^(]|$)(?P<ppost></?p>)?")  
 # bracketed all-caps: [ALL2_CAPS] with zero to two arguments: [NAME::arg] or [NAME::arg1::arg2]
 # suppress matches on normal links: [TEXT](url)
@@ -143,6 +143,8 @@ def expand_macro(sourcefile: str, partname: str, mm: re.Match, is_early_phase=Fa
             macrocall.error("Macro '%s' called with %d args, expects %d" %
                             (macroname, my_numargs, numargs))
         return call  # unexpanded version helps the user most
+    if my_numargs > 0 and arg1 == "":
+        macrocall.warning("Macro '%s' called with empty argument 1" % macroname)
     # ----- expand:
     b.debug(f"expanding {macrocall.macrocall_text}")
     expansion = expander(macrocall)
