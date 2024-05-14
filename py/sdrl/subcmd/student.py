@@ -117,7 +117,7 @@ def report_student_work_so_far(course: sdrl.course.Course, entries: tg.Sequence[
             out.append((taskname, "%4.2f" % workhours, "%4.2f" % timevalue, ra_string))
     # table.add_section()
     table.add_row("[b]=TOTAL[/b]", "[b]%6.2f[/b]" % workhours_total, "[b]%6.2f[/b]" % timevalue_total, "")
-    b.info(table)
+    b.rich_print(table)
 
 
 def show_instructors(course, with_gitaccount=False):
