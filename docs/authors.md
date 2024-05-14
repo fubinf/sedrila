@@ -524,6 +524,11 @@ It works exactly like `[SECTION]` and the same types and subtypes apply.
   To be used for materials that is lengthy but not important for a first overview of the task,
   often listings.
 
+Of these, only `HINT` and `FOLDOUT` are built into sedrila, 
+whereas `NOTICE` and `WARNING` (as well as `INSTRUCTOR` above) are in fact
+defined by `sedrila.yaml` and `sedrila.css` only 
+and you can define further macros like them if needed.
+
 
 ### 1.9 Other macros: `[INCLUDE]`, cross-references, counters, etc.
 
