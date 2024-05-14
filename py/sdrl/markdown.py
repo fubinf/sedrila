@@ -38,6 +38,10 @@ class SedrilaPreprocessor(mdpre.Preprocessor):
         else:               # remove instructorinfo in student mode
             block_re = r"\[INSTRUCTOR::.+?ENDINSTRUCTOR\]"  # non-greedy middle part, just in case
             newcontent = re.sub(block_re, "", content, flags=re.DOTALL)
+            nonblock_re = r"\[INSTRUCTOR::.+\]"  # find incomplete blocks that were not removed
+            mm = re.search(nonblock_re, newcontent)
+            if mm:
+                b.error(f"'{md.context_sourcefile}': call '{mm.group(0)}' lacks [ENDINSTRUCTOR]")
             return newcontent
 
     def make_replacements(self, content: str) -> str:
