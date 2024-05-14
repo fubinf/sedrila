@@ -44,4 +44,5 @@
 - `author`: table of contents for glossary now is chapters-only
 - `author`: warn about unterminated INSTRUCTOR blocks (that would show up in student version)
 - `author`: warn about macro calls with empty arg1
+- `student --submission`: fix terminal-size-dependent crash
 - ...
