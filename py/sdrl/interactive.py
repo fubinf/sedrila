@@ -60,7 +60,8 @@ def filter_entries(entries: tg.Sequence[r.ReportEntry], selected: dict[str, bool
                 if rowindex > 0:
                     rowindex -= 1
             elif not(course_url is None) and (str(inp) == "o" or str(inp) == "O"):
-                webbrowser.open(f"{course_url}/{entries[rowindex][0]}.html")
+                webbrowser.open(f"{course_url}/{entries[rowindex][0]}.html")  # TODO 2 on WSL, see 
+                # https://github.com/python/cpython/issues/89752
 
 
 def select_entries(entries: tg.Sequence[r.ReportEntry]):
