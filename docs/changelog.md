@@ -6,6 +6,10 @@
 - ...
 
 
+## Version 1.2.1 (2024-05-31) 
+- `author`: allow task names containing a dot
+
+
 ## Version 1.2.0 (2024-05-17)
 - `author`: table of contents for glossary now is chapters-only
 - `author`: warn about unterminated INSTRUCTOR blocks (that would show up in student version)

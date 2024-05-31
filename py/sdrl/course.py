@@ -82,9 +82,10 @@ class Task(part.Structurepart):
         """Initializer used in author mode"""
         self.read_partsfile(file)
         # ----- get taskdata from file:
-        nameparts = os.path.basename(self.sourcefile).split('.')
-        assert len(nameparts) == 2  # taskname, suffix 'md'
-        self.slug = nameparts[0]  # must be globally unique
+        filename = os.path.basename(self.sourcefile)
+        mm = re.fullmatch(r"(.+)\.md", filename)
+        assert mm, filename  # we only get handed .md files here 
+        self.slug = mm.group(1)  # must be globally unique
         self.outputfile = f"{self.slug}.html"
         b.copyattrs(file,
                     self.metadata, self,

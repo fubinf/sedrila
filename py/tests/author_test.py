@@ -12,11 +12,12 @@ import sdrl.course
 import sdrl.macros as macros
 import sdrl.subcmd.author
 
-expected_output = """[TERM::Concept 3]: Term 'Concept 3' is already defined
+expected_output = """ch/ch1/tg12/task113.md: name collision: ch/ch1/tg11/task113.md and ch/ch1/tg12/task113.md
+duplicate task: 'ch/ch1/tg12/task113.md'        'ch/ch1/tg11/task113.md'
+[TERM::Concept 3]: Term 'Concept 3' is already defined
 ch/glossary.md: These terms lack a definition: ['Concept 2 undefined', 'Concept 4 undefined']
 wrote student files to  '../output'
 wrote instructor files to  '../output/instructor'
-ch/ch1/tg12/task113.duplicate: name collision: ch/ch1/tg11/task113.md and ch/ch1/tg12/task113.duplicate
 """
 
 expected_filelist = [
@@ -178,11 +179,8 @@ def _call_sedrila_author():
     b.set_loglevel(pargs.log)
     course = sdrl.subcmd.author.get_course(pargs)
     sdrl.subcmd.author.generate(course)
-    # ----- now force additional errors beyond what the test input produces:
-    tg12 = course.taskgroup("tg12")
-    task113duplicate = tg12._add_task(sdrl.course.Task().from_file("ch/ch1/tg12/task113.duplicate", taskgroup=tg12))
     # ----- check number of errors produced:
-    assert b.num_errors == 2 + 1  # 2 from generate(), 1 additional
+    assert b.num_errors == 4  # see expected_output
 
 
 def _get_output(capfd) -> str:
