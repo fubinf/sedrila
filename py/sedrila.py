@@ -29,6 +29,6 @@ if __name__ == "__main__":
     print_profile = False
     if print_profile:
         import cProfile
-        cProfile.run('main()')
+        cProfile.run('main()', sort='cumulative')
     else:
         main()  # normal life
