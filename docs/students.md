@@ -87,7 +87,7 @@ This entry means 2 hours and 45 minutes.
 When `sedrila` creates a work time report for you, it will use decimal hours.
 
 
-## 4. How to prepare a submission  TODO 2 hofmann
+## 4. How to prepare a submission
 
 When you show your work to an instructor, you will usually not show the results
 for only a single task, but several.
@@ -97,7 +97,9 @@ task separately would be too inefficient.
 In order to describe which tasks the instructor should check, you need to prepare
 a file, called `submission.yaml` containing the list of tasks to be checked.
 In fact, if you obeyed the commit convention described above, `sedrila` is going
-to prepare that file for you and all you need to do is kick out entries that
+to prepare that file for you by collecting the names of all tasks you have 
+recorded times for (and that are not yet accepted).
+All you need to do then is kick out entries that
 are not yet submission-ready.
 
 The instructor will use that same file to record which of your submitted tasks
