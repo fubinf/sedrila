@@ -47,7 +47,6 @@ def add_arguments(subparser: argparse.ArgumentParser):
 def execute(pargs: argparse.Namespace):
     b.set_loglevel(pargs.log)
     course = get_course(pargs)
-    b.info(f"## chapter {course.chapters[-1].slug} status: {getattr(course.chapters[-1], 'status', '-')}")
     generate(course)
     if pargs.sums:
         print_volume_report(course)
@@ -91,6 +90,7 @@ def generate(course: sdrl.course.Course):
     generate_upper_parts_files(course, env)
     generate_task_files(course, env)
     generate_metadata_and_glossary(course, env)
+    generate_itree_zipfile(course)
     generate_htaccess(course)
     if course.cache_mode == sdrl.course.CacheMode.READ:
         os.utime(cache_filename(course))  # update mtime of cache file to now
@@ -127,6 +127,17 @@ def generate_htaccess(course: sdrl.course.Course):
                        userlist_spaces=" ".join(userlist),
                        userlist_quotes_spaces=" ".join((f'"{u}"' for u in userlist))))
     b.spit(f"{targetfile}", htaccess_txt)
+
+
+def generate_itree_zipfile(course: sdrl.course.Course):
+    if not course.itreedir or course.cache_mode == sdrl.course.CacheMode.READ:
+        return  # nothing to do
+    b.info(f"generating itreedir ZIP file to '{course.targetdir_i}/{course.itreedir}'")
+    if not course.itreedir.endswith(".zip"):
+        b.critical(f"itreedir = '{course.itreedir}'; must end with '.zip'")
+    itreedir = sdrl.part.Partscontainer()
+    itreedir.zipdirs = [sdrl.part.Zipdir(course.itreedir)]
+    itreedir.render_zipdirs(course.targetdir_i)
 
 
 def generate_metadata_and_glossary(course: sdrl.course.Course, env):
@@ -286,6 +297,8 @@ def register_macros(course):
                           functools.partial(expand_partref, course))  # title as linktext
     macros.register_macro('PARTREFMANUAL', 2, MM.INNER, 
                           functools.partial(expand_partref, course))  # explicit linktext
+    macros.register_macro('TREEREF', 1, MM.INNER, 
+                          functools.partial(expand_treeref, course))  # show full path in itree
     macros.register_macro('EC', 0, MM.INNER, expand_enumeration, partswitch_enumeration)
     macros.register_macro('EQ', 0, MM.INNER, expand_enumeration, partswitch_enumeration)
     macros.register_macro('ER', 0, MM.INNER, expand_enumeration, partswitch_enumeration)
@@ -325,6 +338,18 @@ def expand_partref(course: sdrl.course.Course, macrocall: macros.Macrocall) -> s
                     PARTREFTITLE=part.title, 
                     PARTREFMANUAL=macrocall.arg2)[macrocall.macroname]
     return f"<a href='{part.outputfile}' class='partref-link'>{html.escape(linktext)}</a>"
+
+
+def expand_treeref(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
+    actualpath = includefile_path(course, macrocall, itree_mode=True)
+    showpath = actualpath[len(course.itreedir)+1:]  # skip itreedir part of path
+    if not os.path.exists(actualpath):
+        b.warning(f"{macrocall.macrocall_text}: itreedir file '{actualpath}' not found")
+        showpath = "???"
+    prefix = "<span class='treeref-prefix'></span>"
+    mainpart = f"<span class='treeref'>{html.escape(showpath, quote=False)}</span>"
+    suffix = "<span class='treeref-suffix'></span>"
+    return f"{prefix}{mainpart}{suffix}"
 
 
 def expand_section(macrocall: macros.Macrocall) -> str:
@@ -432,30 +457,28 @@ def expand_include(course: sdrl.course.Course, macrocall: macros.Macrocall) -> s
         return rawcontent
 
 
-def includefile_path(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
+def includefile_path(course: sdrl.course.Course, macrocall: macros.Macrocall, itree_mode=False) -> str:
+    """
+    Normal mode constructs normal paths in chapterdir and those with prefix 'ALT:' in altdir.
+    itree mode constructs normal paths in itreedir and warns about 'ALT:' prefix if present.
+    """
     arg_re = r"(?P<alt>" + ALTDIR_KEYWORD + r")?(?P<slash>/)?(?P<incfile>.*)"
     mm = re.fullmatch(arg_re, macrocall.arg1)
     is_alt = mm.group("alt") is not None
+    if is_alt and itree_mode:
+        b.warning(f"{macrocall.macrocall_text}: '{ALTDIR_KEYWORD}' prefix makes no sense here")
+        is_alt = False  # ignore the prefix
     is_abs = mm.group("slash") is not None
-    inc_filepath = mm.group("incfile")
+    inc_filepath = mm.group("incfile")  # e.g. ../chapterlevel_includefile
     ctx_filepath = macrocall.filename  # e.g. ch/chapter/group/task.md
     ctx_dirpath = os.path.dirname(ctx_filepath)  # e.g. ch/chapter/group
     ctx_basename = os.path.basename(ctx_filepath)  # e.g. task.md
-    # print(f"## {macrocall.arg1} -> alt:{is_alt}, abs:{is_abs}, inc:{inc_filepath}, ctx:{ctx_dirpath}, {course.altdir}")
-    if is_alt:  # construct path in altdir tree:
-        abs_filepath = macrocall.filename.replace(course.chapterdir, course.altdir, 1)
-        abs_dirpath = os.path.dirname(abs_filepath)
-        # print(f"### is_alt: {abs_dirpath}")
-        if is_abs:
-            fullfilename = os.path.join(course.altdir, inc_filepath)
-        else:
-            fullfilename = os.path.join(abs_dirpath, inc_filepath or ctx_basename)
-    else:  # in chapterdir tree:
-        if is_abs:
-            fullfilename = os.path.join(course.chapterdir, inc_filepath)
-        else:
-            fullfilename = os.path.join(ctx_dirpath, inc_filepath)
-    return fullfilename
+    abs_topdir = (is_alt and course.altdir) or (itree_mode and course.itreedir) or course.chapterdir
+    rel_dirpath = ctx_dirpath.replace(course.chapterdir, abs_topdir, 1)
+    # print(f"## {macrocall.arg1} -> alt:{is_alt}, abs:{is_abs}, inc:{inc_filepath}, ctx:{ctx_dirpath}, "
+    #       f"abs_topdir:{abs_topdir}, rel_dirpath:{rel_dirpath}")
+    fullpath = os.path.join(abs_topdir if is_abs else rel_dirpath, inc_filepath or ctx_basename)
+    return fullpath
 
 
 def render_homepage(course: sdrl.course.Course, env, targetdir: str, mode: b.Mode):

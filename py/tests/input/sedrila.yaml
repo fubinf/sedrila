@@ -2,6 +2,7 @@ title: SeDriLa test
 breadcrumb_title: SeDriLa
 chapterdir: ch
 altdir: altdir
+itreedir: itree.zip
 stages: ['draft', 'alpha', 'beta']
 blockmacro_topmatter:
   section_background: "<h2>Section_Background</h2>"

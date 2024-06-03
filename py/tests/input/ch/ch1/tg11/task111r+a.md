@@ -21,7 +21,8 @@ Enumeration: [EC], [EC].
 [ENDNOTICE]
 
 [HINT::My Hint]
-Body of My Hint
+[TREEREF::/dummy.txt]
+[TREEREF::nonexisting]
 [ENDHINT]
 
 [ENDSECTION]

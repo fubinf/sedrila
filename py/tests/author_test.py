@@ -2,6 +2,7 @@
 import argparse
 import contextlib
 import glob
+import os.path
 import shutil
 import zipfile
 
@@ -14,6 +15,7 @@ import sdrl.subcmd.author
 
 expected_output = """ch/ch1/tg12/task113.md: name collision: ch/ch1/tg11/task113.md and ch/ch1/tg12/task113.md
 duplicate task: 'ch/ch1/tg12/task113.md'        'ch/ch1/tg11/task113.md'
+[TREEREF::nonexisting]: itreedir file 'itree.zip/ch1/tg11/nonexisting' not found
 [TERM::Concept 3]: Term 'Concept 3' is already defined
 ch/glossary.md: These terms lack a definition: ['Concept 2 undefined', 'Concept 4 undefined']
 wrote student files to  '../output'
@@ -112,7 +114,20 @@ Here, we mention
     </strong>
    </summary>
    <p>
-    Body of My Hint
+    <span class="treeref-prefix">
+    </span>
+    <span class="treeref">
+     dummy.txt
+    </span>
+    <span class="treeref-suffix">
+    </span>
+    <span class="treeref-prefix">
+    </span>
+    <span class="treeref">
+     ???
+    </span>
+    <span class="treeref-suffix">
+    </span>
    </p>
   </details>
  </div>
@@ -136,15 +151,17 @@ def test_includefile_path():
         b.set_loglevel(pargs.log)
         course = sdrl.subcmd.author.get_course(pargs)
         # ----- perform tests:
-        def func(arg: str) -> str:
+        def func(arg: str, itree_mode=False) -> str:
             call = macros.Macrocall(None, "ch/chapter/group/task.md", "task", 
                                     f"[INCLUDE::{arg}]", "INCLUDE", arg, None)
-            return sdrl.subcmd.author.includefile_path(course, call)
+            return sdrl.subcmd.author.includefile_path(course, call, itree_mode)
         assert func("other") == "ch/chapter/group/other"
         assert func("/other2") == "ch/other2"
         assert func("ALT:other") == "altdir/chapter/group/other"
         assert func("ALT:/other2") == "altdir/other2"
         assert func("ALT:") == "altdir/chapter/group/task.md"
+        assert func("other", itree_mode=True) == "itree.zip/chapter/group/other"
+        assert func("/other2", itree_mode=True) == "itree.zip/other2"
 
 
 def test_sedrila_author(capfd):
@@ -194,6 +211,7 @@ def _get_output(capfd) -> str:
 def _check_filelist():
     actual_filelist = sorted(glob.glob('*'))
     assert actual_filelist == expected_filelist
+    assert os.path.exists('instructor/itree.zip')
     
 def _check_toc():
     with open("task111r+a.html", encoding='utf8') as fp:
