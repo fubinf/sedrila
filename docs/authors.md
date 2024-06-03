@@ -68,13 +68,19 @@ About the entries:
   For a task defined by file `abc.md`, the slug (and hence taskname) is `abc`.
 - `altdir`: Relative path of the alternate chapterdir.
   The tree below `altdir` parallels that of `chapterdir`, but contains files
-  only where needed.  
+  only where needed.
   The purpose is to create the ability to have parts of the content
   (typically targeted at instructors) in a non-public repository although the course
   overall lives in a public repository.
   That non-public repository would then be included in the overall course's working directory
   by means of a git submodule and `altdir` would point there.  
+  Set it to same value as `chapterdir` if you do not (yet) need this functionality.  
   See the `[INCLUDE]` macro for an explanation of how to use `altdir` content.
+- `itreedir`: Optional. Relative path of the instructor tree directory.
+  This must be a directory with a name ending in `.zip`, say, `itree.zip`. 
+  Its contents will be packaged into a ZIP file, which will be placed in the
+  instructor subdirectory of the generated website.
+  See section "Confidential contents" below for details.
 - `templatedir` is also optional and states where the Jinja2 templates for the overall page structures live. 
   Not defining a `templatedir` means to use the built-in default files,  
   which is probably sufficient for most cases.
@@ -668,7 +674,50 @@ if multiple files are involved, and still keep those files in an easily editable
 Use this for handsful of files. For large structures, apply separate repositories.
 
 
-### 1.13 Naming conventions
+### 1.13 Confidential contents: `altdir`, `itreedir`, `[TREEREF]`
+
+The course for which sedrila was developed is an Open Educational Resource,
+i.e., its sources are public.
+This includes parts of the information targeted at instructors to be used for
+checking student's submissions.
+Some of that information, however, should still be treated as confidential
+in order not to tempt students too much to simply look it up.
+
+Two entries in the `sedrila.yaml` file support this:
+First, `altdir` ("alternative directory") points to a directory tree of chapters and taskgroups 
+similar to `chapterdir` where files can be placed that contain information to be 
+made part of the `[INSTRUCTOR]` sections of tasks by means of `[INCLUDE]`.
+For instance task `<chapterdir>/mychapter/mygroup/mytask.md` may have 
+`[INCLUDE::ALT:mytask.md]` as the body of its `[INSTRUCTOR]` block and that
+file would then contain the confidential instructor information.
+
+The confidentiality can be provided by making the `altdir` a git submodule of the
+overall SeDriLa git repository and making the submodule repository non-public.
+
+Second, `itreedir` ("instructor tree directory") is to be used where including 
+the instructor information on the website is inconvenient, 
+e.g. because the information is not readily renderable in HTML
+or because the instructor needs to process it as a standalone file (e.g. run it as a program).
+The `itreedir` entry must point to a directory with a name ending with `.zip`
+which would typically be held in the same submodule together with `altdir`.
+
+In the generated website, the entire directory tree below `itreedir`
+becomes a single, same-named ZIP file
+which can be downloaded and unpacked by instructors in order to make use of the files
+as needed.
+`[INSTRUCTOR]` blocks in tasks can refer to those files by mentioning their path
+in a call to macro `[TREEREF]`.
+
+`[TREEREF::mytaskhints.md]`, when called in `<chapterdir>/mychapter/mygroup/mytask.md`,
+refers to the file `<itreedir>/mychapter/mygroup/mytaskhints.md` and will render as
+`<span class="treeref-prefix"></span><span class="treeref">mychapter/mygroup/mytaskhints.md</span><span class="treeref-suffix"></span>`
+which can be formatted with appropriate CSS.  
+Just like with `[INCLUDE]`, pathnames can be relative or absolute, so 
+`[TREEREF::/mychapter/mygroup/mytaskhints.md]` is equivalent to the above,
+which is useful for trees that pertain to several tasks.
+
+
+### 1.14 Naming conventions
 
 From the point of view of the `[PARTREF]` macro, the names (slugs) of all parts
 are in one single namespace, so they must all be unique.
@@ -815,3 +864,13 @@ Working with submodules is generally not fun, so use it only to the degree neces
 and be prepared for the dreaded error message 
 _"fatal: cannot rebase with locally recorded submodule modifications"_
 by reading https://stackoverflow.com/questions/54215983.
+
+Besides the second repo for `altdir`, SeDriLa courses will often have third,
+stand-alone repo (called the "instructor repo") 
+for instructor information that is too bulky to be used via the [INCLUDE] mechamism.
+
+A typical example would be larger programs that consist of multiple files 
+and are less convenient for instructors to look at in the browser
+(they would rather use an IDE), let alone to execute.
+Instructors should simply have a copy of the instructor repo (if it exists)
+at standby and [INSTRUCTOR] blocks in tasks will then mention the respective filenames.
