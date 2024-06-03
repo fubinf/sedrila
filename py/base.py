@@ -75,19 +75,21 @@ def copyattrs(context: str, source: StrAnyDict, target: tg.Any,
     if not source:
         source = dict()
     source_names = set(source.keys())
-    for m in mustcopy_names:  # transport these
-        value = source.get(m, ValueError)
+    for mname in mustcopy_names:  # transport these
+        value = source.get(mname, ValueError)
         if value is ValueError:
-            error(f"{context}: required attribute is missing: {m}")
+            error(f"{context}: required attribute is missing: {mname}")
             exit_if_errors()
         else:
-            mysetattr(target, m, value)
-    for o in cancopy_names:  # transport these if present
-        if o in source:
-            if hasattr(target, o) and not overwrite:
+            mysetattr(target, mname, value)
+    for cname in cancopy_names:  # transport these if present, set them to None if not
+        if cname in source:
+            if hasattr(target, cname) and not overwrite:
                 warning("%s: %soverwriting '%s': old value '%s', new value '%s'" %
-                        (context, "" if overwrite else "not ", o, getattr(target, o), source[o]))
-            mysetattr(target, o, source[o])
+                        (context, "" if overwrite else "not ", cname, getattr(target, cname), source[cname]))
+            mysetattr(target, cname, source[cname])
+        elif cname not in source and not hasattr(target, cname):
+            setattr(target, cname, None)
     extra_attrs = source_names - set(mustcopy_names) - set(cancopy_names) - set(mustexist_names)
     if extra_attrs:
         error(f"{context}: unexpected extra attributes found: {extra_attrs}")
