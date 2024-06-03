@@ -185,6 +185,7 @@ class Course(part.Partscontainer):
     baseresourcedir: str = f"{sedrila_libdir}/baseresources"
     chapterdir: str
     altdir: str
+    itreedir: str|None
     templatedir: str = f"{sedrila_libdir}/templates"
     blockmacro_topmatter: dict[str, str]
     instructors: list[b.StrAnyDict]
@@ -215,7 +216,7 @@ class Course(part.Partscontainer):
                     configdict, self,
                     mustcopy_attrs=('title, breadcrumb_title, chapterdir, altdir, '
                                     'instructors, stages, allowed_attempts'),
-                    cancopy_attrs=('baseresourcedir, templatedir, '
+                    cancopy_attrs=('baseresourcedir, itreedir, templatedir, '
                                    'blockmacro_topmatter, htaccess_template, init_data'),
                     mustexist_attrs='chapters')
         self.allowed_attempts_base, self.allowed_attempts_hourly = self._parse_allowed_attempts()
@@ -227,7 +228,7 @@ class Course(part.Partscontainer):
             self.read_partsfile(f"{self.chapterdir}/index.md")
             self.glossary = glossary.Glossary(self.chapterdir)
             self.namespace_add("", self.glossary)
-            self.find_zipdirs(self.chapterdir)
+            self.find_zipdirs()
         if include_stage in self.stages:
             self.include_stage = include_stage
             self.include_stage_index = self.stages.index(include_stage)
@@ -270,7 +271,7 @@ class Course(part.Partscontainer):
     def as_json(self) -> b.StrAnyDict:
         result = dict(title=self.title,
                       breadcrumb_title=self.breadcrumb_title,
-                      chapterdir="", altdir="",  stages=[],  # are mustcopy_attrs but are not needed
+                      chapterdir="", stages=[],  # are mustcopy_attrs but are not needed
                       instructors=self.instructors,
                       init_data=self.init_data,
                       allowed_attempts=self.allowed_attempts,
@@ -458,7 +459,7 @@ class Chapter(part.Partscontainer):
                         mustcopy_attrs='title',
                         cancopy_attrs='stage, todo',
                         mustexist_attrs='', overwrite=True)
-            self.find_zipdirs(self.course.chapterdir)
+            self.find_zipdirs()
         self.evaluate_stage(context, course)
         course.namespace_add(self.sourcefile, self)
         self.taskgroups = [Taskgroup(self, taskgroup, read_contentfiles) 
@@ -506,7 +507,7 @@ class Taskgroup(part.Partscontainer):
                         mustcopy_attrs='title',
                         cancopy_attrs='minimum, stage, todo',
                         mustexist_attrs='', overwrite=True)
-            self.find_zipdirs(self.chapter.course.chapterdir)
+            self.find_zipdirs()
         self.evaluate_stage(context, chapter.course)
         chapter.course.namespace_add(self.sourcefile, self)
         if read_contentfiles:

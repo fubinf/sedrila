@@ -106,26 +106,27 @@ class Zipdir(Structurepart):
     Turn directories named ch/mychapter/mytaskgroup/myzipdir.zip 
     containing a tree of files, say, myfile.txt
     into an output file myzipdir.zip
-    that contains myzipdir/myfile.txt.  
+    that contains paths like myzipdir/myfile.txt.  
     """
     innerpath: str  # relative pathname of the zipdir, to be re-created in the ZIP archive
 
-    def __init__(self, dirprefix: str, dirname: str, outputdir: str):
-        assert dirname.startswith(dirprefix)
-        assert dirname[-1] != '/'  # dirprefix must not end with a slash, else our logic would break
-        self.sourcefile = dirname
-        self.slug = self.title = self.outputfile = os.path.basename(dirname)  # e.g. myfile.zip
-        self.innerpath = self.slug[:-len(".zip")]  # e.g. myfile
+    def __init__(self, zipdirpath: str):
+        assert zipdirpath[-1] != '/'  # dirprefix must not end with a slash, else our logic would break
+        self.sourcefile = zipdirpath  # e.g. ch/mychapter/mytaskgroup/myzipdir.zip 
+        self.slug = self.title = self.outputfile = os.path.basename(zipdirpath)  # e.g. myzipdir.zip
+        self.innerpath = self.slug[:-len(".zip")]  # e.g. myzipdir
 
     @property
     def to_be_skipped(self) -> bool:
-        return False  # TODO 3: should be skipped if no [PARTREF] to it exists anywhere
+        return False  # TODO 3: within course(!) could be skipped if no [PARTREF] to it exists anywhere
 
     def render(self, targetdir: str):
-        with zipfile.ZipFile(f"{targetdir}/{self.outputfile}", mode='w') as archive:
+        with zipfile.ZipFile(f"{targetdir}/{self.outputfile}", mode='w', 
+                             compression=zipfile.ZIP_DEFLATED) as archive:  # prefer deflate for build speed
             self._zip_the_files(archive)
 
     def _zip_the_files(self, archive: zipfile.ZipFile):
+        assert os.path.exists(self.sourcefile), f"'{self.sourcefile}' is missing!"
         for dirpath, dirnames, filenames in os.walk(self.sourcefile):
             for filename in sorted(filenames):
                 sourcename = f"{dirpath}/{filename}"
@@ -145,17 +146,16 @@ class Partscontainer(Structurepart):
     """A Structurepart that can contain other Structureparts."""
     zipdirs: list[Zipdir] = []
     
-    def find_zipdirs(self, dirprefix: str):
-        """find all dirs (not files!) *.zip in inputdir (not below!), warns about *.zip files"""
+    def find_zipdirs(self):
+        """find all dirs (not files!) *.zip in self.sourcefile dir (not below!), warns about *.zip files"""
         self.zipdirs = []
         inputdir = os.path.dirname(self.sourcefile)
-        outputdir = os.path.dirname(self.outputfile)
         zipdirs = glob.glob(f"{inputdir}/*.zip")
-        for dirname in zipdirs:
-            if os.path.isdir(dirname):
-                self.zipdirs.append(Zipdir(dirprefix, dirname, outputdir))
+        for zipdirname in zipdirs:
+            if os.path.isdir(zipdirname):
+                self.zipdirs.append(Zipdir(zipdirname))
             else:
-                b.warning(f"'{dirname}' is a file, not a dir, and will be ignored.")
+                b.warning(f"'{zipdirname}' is a file, not a dir, and will be ignored.")
 
     def render_zipdirs(self, targetdir):
         for zipdir in self.zipdirs:
