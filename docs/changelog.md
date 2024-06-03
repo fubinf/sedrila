@@ -1,9 +1,13 @@
 # sedrila CHANGELOG
 
 
- 
-## Version 1.3.0 (upcoming) 
+
+## Version 1.4.0 (upcoming) 
 - ...
+
+
+## Version 1.3.0 (2024-06-03) 
+- `author`: introduce `itreedir` and `[TREEREF]` for stand-alone instructor support files
 
 
 ## Version 1.2.1 (2024-05-31) 
