@@ -68,14 +68,13 @@ import itertools
 import re
 import typing as tg
 
-import markdown
-
 import base as b
+
 
 @dataclasses.dataclass
 class Macrocall:
     """Represent where and how a macro was called, allow producing errors/warnings for it."""
-    md: 'SedrilaMarkdown'
+    md: 'SedrilaMarkdown'  # noqa
     filename: str
     partname: str
     macrocall_text: str
@@ -126,7 +125,7 @@ def expand_macro(sourcefile: str, partname: str, mm: re.Match, is_early_phase=Fa
     import sdrl.markdown
     macrodefs = (macrodefs_early if is_early_phase else macrodefs_late)
     ppre, call, ppost = mm.group('ppre'), mm.group('macrocall'), mm.group('ppost')
-    macroname, arg1, arg2 =  mm.group('name'), mm.group('arg1'), mm.group('arg2')
+    macroname, arg1, arg2 = mm.group('name'), mm.group('arg1'), mm.group('arg2')
     macrocall = Macrocall(md=sdrl.markdown.md, filename=sourcefile, partname=partname,
                           macrocall_text=call,
                           macroname=macroname, arg1=arg1, arg2=arg2)
@@ -161,7 +160,7 @@ def expand_macro(sourcefile: str, partname: str, mm: re.Match, is_early_phase=Fa
         elif ppre == '<p>' and not ppost:  # Layout 2
             ppost = ppre  # shift <p> from front to back
             ppre = ""
-        elif not ppre and ppost  == '</p>':  # Layout 3
+        elif not ppre and ppost == '</p>':  # Layout 3
             ppost = ""  # remove
         elif ppre == '<p>' and ppost == '</p>':  # Layout 4
             ppre = ""  # remove
@@ -204,7 +203,7 @@ def switch_part(newpartname: str):
 
 
 def register_macro(name: str, numargs: int, mode: MM, expander: Macroexpander, 
-                   switcher: Partswitcher = lambda mn,pn: None, 
+                   switcher: Partswitcher = lambda mn, pn: None, 
                    redefine=False):
     global macrodefs_early, macrodefs_late
     macrodefs = (macrodefs_early if mode == MM.EARLY else macrodefs_late)

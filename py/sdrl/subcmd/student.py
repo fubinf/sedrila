@@ -11,7 +11,10 @@ import sdrl.interactive as i
 import sdrl.participant
 import sdrl.repo as r
 
+FILE_URL_PREFIX = "file://"
+
 meaning = """Reports on course execution so far or prepares submission to instructor."""
+
 
 def add_arguments(subparser):
     subparser.add_argument('--init', action='store_true',
@@ -46,19 +49,19 @@ def execute(pargs: argparse.Namespace):
 
 
 def init():
-    data = {}
-    data['course_url'] = os.path.dirname(input("Course URL: "))
+    data = dict(course_url=os.path.dirname(input("Course URL: ")))
     metadatafile = f"{data['course_url']}/{b.METADATA_FILE}"
     try:
-        if metadatafile.startswith("file:///"):
-            data['course_url'] = data['course_url'][7:]
-            coursedata = b.slurp_json(metadatafile[7:])
+        if metadatafile.startswith(FILE_URL_PREFIX + "/"):
+            offset = len(FILE_URL_PREFIX)
+            data['course_url'] = data['course_url'][offset:]
+            coursedata = b.slurp_json(metadatafile[offset:])
         else:
             resp = requests.get(url=metadatafile)
             coursedata = resp.json()
-    except:
+    except:  # noqa
         b.critical(f"Error fetching URL '{metadatafile}'.")
-    init_data = coursedata.get('init_data') or {}
+    init_data = coursedata.get('init_data') or {}  # noqa
     prompts = sdrl.participant.Student.prompts(init_data.get('studentprompts') or {})
     for value in prompts:
         data[value] = input(prompts[value] + ": ")
@@ -77,14 +80,15 @@ def init():
     r.import_gpg_keys(coursedata['instructors'])
 
 
-def prepare_submission_file(course: sdrl.course.Course, root: str, entries: tg.Sequence[r.ReportEntry], interactive: bool = False):
+def prepare_submission_file(course: sdrl.course.Course, root: str, 
+                            entries: tg.Sequence[r.ReportEntry], interactive: bool = False):
     if interactive:
         entries = i.select_entries(entries)
-    if not(entries):
+    if not entries:
         b.info("No entries to submit.")
         return
     # ----- write file:
-    b.spit_yaml(os.path.join(root, r.SUBMISSION_FILE), r.submission_file_entries(course, entries))
+    b.spit_yaml(os.path.join(root, r.SUBMISSION_FILE), r.submission_file_entries(entries))
     b.info(f"Wrote file '{r.SUBMISSION_FILE}'.")
     # ----- give instructions for next steps:
     b.info(f"1. Commit it with commit message '{r.SUBMISSION_COMMIT_MSG}'. Push it.")
@@ -95,7 +99,7 @@ def prepare_submission_file(course: sdrl.course.Course, root: str, entries: tg.S
 
 
 def report_student_work_so_far(course: sdrl.course.Course, entries: tg.Sequence[r.ReportEntry],
-                               workhours_total: float, timevalue_total: float, out = None):
+                               workhours_total: float, timevalue_total: float, out=None):
     b.info("Your work so far:")
     table = b.Table()
     table.add_column("Taskname")

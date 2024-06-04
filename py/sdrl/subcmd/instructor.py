@@ -38,13 +38,14 @@ def execute(pargs: argparse.Namespace):
     b.set_loglevel(pargs.log)
     home_fallback = "."
     if os.environ.get(REPOS_HOME_VAR) is None:
-        b.warning(f"Environment variable {REPOS_HOME_VAR} is not set. Assume current directory as student workdirs directory")
+        b.warning(f"Environment variable {REPOS_HOME_VAR} is not set. "
+                  "Assume current directory as student workdirs directory")
         if pargs.repo_url and os.path.isfile(sdrl.participant.PARTICIPANT_FILE):
             b.warning("It looks like you are already inside a student dir. Assuming parent directory instead.")
             home_fallback = ".."
     home = os.environ.get(REPOS_HOME_VAR) or home_fallback
     checkout_success = checkout_student_repo(pargs.repo_url, home, pargs.get)
-    if not(pargs.put) and not(pargs.check) or not(checkout_success):
+    if not pargs.put and not pargs.check or not checkout_success:
         os.chdir("..")
         return
     student = sdrl.participant.Student()
@@ -53,17 +54,18 @@ def execute(pargs: argparse.Namespace):
     r.compute_student_work_so_far(course)
     entries, workhours_total, timevalue_total = r.student_work_so_far(course)
     opentasks = rewrite_submission_file(course, r.SUBMISSION_FILE)
-    entries = list(filter(lambda entry: entry[0] in opentasks and course.task(entry[0]).remaining_attempts > 0, entries))
-    if not(pargs.check):
+    entries = [entry for entry in entries
+               if entry[0] in opentasks and course.task(entry[0]).remaining_attempts > 0]
+    if not pargs.check:
         b.info("Don't run check, just prepare commit")
-    elif not(entries):
+    elif not entries:
         b.info("No tasks to check found. Assuming check already done. Preparing commit.")
     elif pargs.interactive:
         rejections = i.grade_entries(entries, student.course_url)
         if rejections is None:
             b.info("Nothing selected, nothing to do")
             return
-        b.spit_yaml(r.SUBMISSION_FILE, r.submission_file_entries(course, entries, rejections))
+        b.spit_yaml(r.SUBMISSION_FILE, r.submission_file_entries(entries, rejections))
         subshell_exit_info(reminder=True)
     else:
         call_instructor_cmd(course, instructor_cmd(), pargs, iteration=0)
@@ -73,7 +75,7 @@ def execute(pargs: argparse.Namespace):
     os.chdir("..")
 
 
-def checkout_student_repo(repo_url, home, pull = True):
+def checkout_student_repo(repo_url, home, pull=True):
     """Pulls or clones student repo and changes into its directory."""
     inrepo = os.path.isdir(".git") and os.path.isfile("student.yaml")
     if inrepo:
@@ -82,7 +84,7 @@ def checkout_student_repo(repo_url, home, pull = True):
         username = git.username_from_repo_url(repo_url)
         os.chdir(home)
     if os.path.exists(username) or inrepo:
-        if not(inrepo):
+        if not inrepo:
             os.chdir(username)
         b.info(f"**** pulling repo in existing directory '{os.getcwd()}'")
         if pull:
@@ -97,7 +99,7 @@ def checkout_student_repo(repo_url, home, pull = True):
         else:
             b.warning("not pulling user repo, relying on existing state")
     else:
-        if not(pull):
+        if not pull:
             b.warning("attempted to grade non-existing user without pulling.")
             b.warning("ignore and clone regardless.")
         git.clone(repo_url, username)
@@ -131,21 +133,23 @@ def rewrite_submission_entries(course: sdrl.course.Course, entries: b.StrAnyDict
 
 def subshell_exit_info(reminder: bool = False):
     if reminder and not(os.environ.get(b.SEDRILA_COMMAND_ENV)):
-        return #explicit call, no subshell. no need to provide that info
+        return  # explicit call, no subshell. no need to provide that info
     if reminder:
         b.info("You are still inside a subshell command!")
     b.info("Exit that command (e.g. the shell) to trigger automatic commit+push")
     b.info(f"of the modified {r.SUBMISSION_FILE}.")
 
 
-def call_instructor_cmd(course: sdrl.course.Course, cmd: str, pargs: argparse.Namespace = None, iteration: int = 0):
+def call_instructor_cmd(course: sdrl.course.Course, cmd: str,  # noqa
+                        pargs: argparse.Namespace = None, iteration: int = 0):
     """Calls user-set command as indicated by environment variables"""
     if iteration == 0:
         b.info(f"Will now call the command given in the {USER_CMD_VAR} environment variable or else")
         b.info(f"the command given in the SHELL environment variable or else '{USER_CMD_DEFAULT}'.")
         b.info(f"The resulting command in your case will be:\n  '{cmd}'")
         subshell_exit_info()
-        b.info(f"Please change status of tasks in {r.SUBMISSION_FILE} to either {r.ACCEPT_MARK}\nor {r.REJECT_MARK} accordingly.")
+        b.info(f"Please change status of tasks in {r.SUBMISSION_FILE} to either {r.ACCEPT_MARK}\n"
+               f"or {r.REJECT_MARK} accordingly.")
         b.info("You can also just run `sedrila` to get an interactive list.")
         b.info("Feel free to add remarks at the end of the accept/reject lines.")
     else:
@@ -169,6 +173,7 @@ def validate_submission_file(course: sdrl.course.Course, filename: str) -> bool:
     has_reject = any((mark.startswith(r.REJECT_MARK) for taskname, mark in entries.items()))
     allowable_marks = f"{r.ACCEPT_MARK}|{r.REJECT_MARK}|{r.CHECK_MARK}"
     is_valid = True
+    
     def error(msg: str) -> bool:
         b.error(msg)
         return False
@@ -188,9 +193,8 @@ def commit_and_push(filename: str):
     git.push()
 
 
-#allow repo_url to be optional without --
-class RepoUrlAction(argparse.Action):
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+class RepoUrlAction(argparse.Action):  # allow repo_url to be optional without --
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):  # noqa
         kwargs['required'] = not(os.path.isfile(sdrl.participant.PARTICIPANT_FILE))
         super().__init__(option_strings, dest, **kwargs)
 

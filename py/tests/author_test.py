@@ -43,7 +43,7 @@ expected_sidebar_task111 = """<div class="sidebar" id="sidebar">
   <div class='indent1 stage-alpha'><a href='tg12.html' title="Task group 1.2">tg12</a></div>
   <div class="indent0 no-stage"><a href="glossary.html" title="glossary">Glossary of terms</a></div>
 </div>
-"""
+"""  # noqa
 
 expected_body_task111 = """
 <div class="pagetype-task pagetype-task-difficulty1" id="taskbody">
@@ -138,19 +138,9 @@ Here, we mention
 
 def test_includefile_path():
     with contextlib.chdir("py/tests/input"):
-        # ----- prepare call:
-        pargs = argparse.Namespace()
-        pargs.cache = False
-        pargs.config = b.CONFIG_FILENAME
-        pargs.include_stage = "alpha"
-        pargs.log = "WARNING"  # WARNING; for debugging, use INFO or DEBUG here
-        pargs.targetdir = "../output"
-        # ----- do call akin to start of sdrl.subcmd.author.execute():
-        b._testmode_reset()
-        macros._testmode_reset()
-        b.set_loglevel(pargs.log)
-        course = sdrl.subcmd.author.get_course(pargs)
+        course = _author_executoid()
         # ----- perform tests:
+        
         def func(arg: str, itree_mode=False) -> str:
             call = macros.Macrocall(None, "ch/chapter/group/task.md", "task", 
                                     f"[INCLUDE::{arg}]", "INCLUDE", arg, None)
@@ -183,6 +173,13 @@ def test_sedrila_author(capfd):
 
 
 def _call_sedrila_author():
+    course = _author_executoid()
+    sdrl.subcmd.author.generate(course)
+    # ----- check number of errors produced:
+    assert b.num_errors == 4  # see expected_output
+
+
+def _author_executoid():
     # ----- prepare call:
     pargs = argparse.Namespace()
     pargs.cache = False
@@ -191,13 +188,11 @@ def _call_sedrila_author():
     pargs.log = "WARNING"  # WARNING; for debugging, use INFO or DEBUG here
     pargs.targetdir = "../output"
     # ----- do call akin to sdrl.subcmd.author.execute():
-    b._testmode_reset()
-    macros._testmode_reset()
+    b._testmode_reset()  # noqa
+    macros._testmode_reset()  # noqa
     b.set_loglevel(pargs.log)
     course = sdrl.subcmd.author.get_course(pargs)
-    sdrl.subcmd.author.generate(course)
-    # ----- check number of errors produced:
-    assert b.num_errors == 4  # see expected_output
+    return course
 
 
 def _get_output(capfd) -> str:
@@ -212,13 +207,14 @@ def _check_filelist():
     actual_filelist = sorted(glob.glob('*'))
     assert actual_filelist == expected_filelist
     assert os.path.exists('instructor/itree.zip')
-    
+
+
 def _check_toc():
     with open("task111r+a.html", encoding='utf8') as fp:
         actual_soup = bs4.BeautifulSoup(fp, features='html5lib', from_encoding='utf8')
         expected_soup = bs4.BeautifulSoup(expected_sidebar_task111, features='html5lib')
     actual_sidebar_task111_tag = str(actual_soup.find(id='sidebar'))
-    expected_sidebar_task111_tag =  str(expected_soup.find(id='sidebar'))
+    expected_sidebar_task111_tag = str(expected_soup.find(id='sidebar'))
     # _compare_line_by_line(actual_sidebar, expected_sidebar, strip=True, force_doublequotes=True)
     _compare_line_by_line(actual_sidebar_task111_tag, expected_sidebar_task111_tag, strip=True)
 
@@ -238,7 +234,7 @@ def _check_task_html():
     with open("task112.html", encoding='utf8') as fp:
         content = fp.read()
     expected = "<span class='enumeration-ec'>1</span>"
-    if not expected in content:
+    if expected not in content:
         print(content)
         assert expected in content
 
@@ -248,8 +244,9 @@ def _check_glossary():
 
 
 def _check_zipfile():
-    with zipfile.ZipFile("myarchive.zip") as zip:
-        assert zip.namelist() == ["myarchive/zipped.txt"]
+    with zipfile.ZipFile("myarchive.zip") as zipf:
+        assert zipf.namelist() == ["myarchive/zipped.txt"]
+
 
 def _check_reporting(actual_output: str):
     """Check actual_output line-for-line to be like expected_output."""

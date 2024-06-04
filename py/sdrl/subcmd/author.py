@@ -28,6 +28,7 @@ Checks consistency of the course description beforehands.
 OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR = "instructor"
 ALTDIR_KEYWORD = "ALT:"
 
+
 def add_arguments(subparser: argparse.ArgumentParser):
     subparser.add_argument('--config', metavar="configfile", default=b.CONFIG_FILENAME,
                            help="SeDriLa configuration description YAML file")
@@ -328,7 +329,7 @@ def register_macros(course):
         macros.register_macro(f'END{key}', 0, MM.BLOCKEND, expand_block)
 
 
-def expand_href(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
+def expand_href(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:  # noqa
     return f"<a href='{macrocall.arg1}'>{macrocall.arg1}</a>"
 
 
@@ -447,7 +448,7 @@ def expand_include(course: sdrl.course.Course, macrocall: macros.Macrocall) -> s
     # print(f"## fullfilename: {fullfilename} ({macrocall.filename})")
     if not os.path.exists(fullfilename):
         msgfunc = macrocall.warning if macrocall.arg1.startswith(ALTDIR_KEYWORD) else macrocall.error
-        msgfunc(f"file '{fullfilename}' does not exist")
+        msgfunc(f"file '{fullfilename}' does not exist")  # noqa
         return ""
     with open(fullfilename, "rt", encoding='utf8') as f:
         rawcontent = f.read()

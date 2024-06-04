@@ -53,18 +53,19 @@ def accumulate_workhours_per_task(workentries: tg.Sequence[WorkEntry], course: s
             pass  # ignore non-existing tasknames quietly
 
 
-def checked_tuples_from_commits(hasheslist: tg.Sequence[tg.Sequence[str]]) -> tg.Sequence[CheckedTuple]:
+def checked_tuples_from_commits(hasheslist: list[list[str]]) -> tg.Sequence[CheckedTuple]:
     """Collect the individual checks across all 'submission.yaml checked' commits.
     This will only allow grades for tasks that were actually requested to grade.
     The state of a task should always be the last one in a given group."""
     result = []
     for hashes in hasheslist:
-        if not(hashes):
+        if not hashes:
             continue
         try:
-            requested = list(yaml.safe_load(git.contents_of_file_version(hashes.pop(0), SUBMISSION_FILE, encoding='utf8')).keys())
-        except Exception:
-            continue #no submission file yet, grading isn't allowed
+            gitfile = git.contents_of_file_version(hashes.pop(0), SUBMISSION_FILE, encoding='utf8')
+            requested = list(yaml.safe_load(gitfile).keys())
+        except Exception:  # noqa
+            continue  # no submission file yet, grading isn't possible
         groupdict: dict[str, CheckedTuple] = {}
         for refid in hashes:
             submission = yaml.safe_load(git.contents_of_file_version(refid, SUBMISSION_FILE, encoding='utf8'))
@@ -85,8 +86,10 @@ def import_gpg_keys(instructors: tg.Sequence[b.StrAnyDict]):
         b.info("Importing key for " + instructor.get('nameish'))
         if type(instructor['pubkey']) is list:
             instructor['pubkey'] = "\n".join(instructor['pubkey'])
-        if not(instructor['pubkey'].startswith("-----")):
-            instructor['pubkey'] = "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\n" + instructor['pubkey'] + "\n-----END PGP PUBLIC KEY BLOCK-----"
+        if not instructor['pubkey'].startswith("-----"):
+            instructor['pubkey'] = ("-----BEGIN PGP PUBLIC KEY BLOCK-----\n"
+                                    f"\n{instructor['pubkey']}\n"
+                                    "-----END PGP PUBLIC KEY BLOCK-----")
         sp.run(["gpg", "--import"], input=instructor['pubkey'], encoding='ascii')
 
 
@@ -105,7 +108,7 @@ def compute_student_work_so_far(course: sdrl.course.Course):
 
 
 def submission_checked_commit_hashes(course: sdrl.course.Course,
-                                     commits: tg.Sequence[git.Commit]) -> tg.Sequence[tg.Sequence[str]]:
+                                     commits: tg.Sequence[git.Commit]) -> list[list[str]]:
     """List of hashes of properly instructor-signed commits of finished submission checks.
     This will be grouped by consecutively done commits of instructors and student, starting with the grading request."""
     try:
@@ -119,20 +122,20 @@ def submission_checked_commit_hashes(course: sdrl.course.Course,
     for commit in commits:
         b.debug(f"commit.subject, fpr: {commit.subject}, {commit.key_fingerprint}")
         right_subject = re.match(SUBMISSION_CHECKED_COMMIT_MSG, commit.subject) is not None
-        right_signer = commit.key_fingerprint and b.as_fingerprint(commit.key_fingerprint) in allowed_signers
-        if not(right_signer):
+        right_signer = commit.key_fingerprint and b.as_fingerprint(commit.key_fingerprint) in allowed_signers  # noqa
+        if not right_signer:
             student_commit = commit
             if group:
                 group = []
                 result.append(group)
         if right_subject and right_signer and student_commit:
-            if not(group):
+            if not group:
                 group.append(student_commit.hash)
             group.append(commit.hash)
     return result
 
 
-def workhours_of_commits(commits: tg.Sequence[git.Commit]) -> tg.Sequence[WorkEntry]:
+def workhours_of_commits(commits: tg.Sequence[git.Commit]) -> list[WorkEntry]:
     """Extract all pairs of (taskname, workhours) from commit list."""
     result = []
     for commit in commits:
@@ -142,7 +145,7 @@ def workhours_of_commits(commits: tg.Sequence[git.Commit]) -> tg.Sequence[WorkEn
     return result
 
 
-def student_work_so_far(course) -> tg.Tuple[tg.Sequence[ReportEntry], float, float]:
+def student_work_so_far(course) -> tg.Tuple[list[ReportEntry], float, float]:
     """Data for work report: per-task entries (worktime, attempts) and totals."""
     workhours_total = 0.0
     timevalue_total = 0.0
@@ -158,8 +161,7 @@ def student_work_so_far(course) -> tg.Tuple[tg.Sequence[ReportEntry], float, flo
     return result, workhours_total, timevalue_total  # overall result triple
 
 
-def submission_file_entries(course: sdrl.course.Course, entries: tg.Sequence[ReportEntry], rejected: tg.Sequence[str] = None
-                            ) -> dict[str, str]:
+def submission_file_entries(entries: list[ReportEntry], rejected: list[str] = None) -> dict[str, str]:
     """taskname -> CHECK_MARK  for each yet-to-be-accepted task with effort in any commit."""
     candidates = dict()
     for taskname, workhoursum, timevalue, rejections, accepted in entries:
@@ -180,7 +182,7 @@ def _parse_taskname_workhours(commit_msg: str) -> tg.Optional[WorkEntry]:
     """Return pair of (taskname, workhours) from commit message if present, or None otherwise."""
     worktime_regexp = (r"\s*[#%](?P<name>[\w.-]+?)\s+"
                        r"(?:(?P<dectime>-?\d+(\.\d+)?)|"
-                          r"(?P<hh>-?\d+):(?P<mm>\d\d)) ?h\b")  # %MyTask117 3.5h  or  %Some-Stuff 3:45h
+                       r"(?P<hh>-?\d+):(?P<mm>\d\d)) ?h\b")  # %MyTask117 3.5h   %Some-Stuff 3:45h
     mm = re.match(worktime_regexp, commit_msg)
     if not mm:
         return None  # not the format we're looking for

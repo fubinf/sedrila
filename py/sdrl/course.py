@@ -185,7 +185,7 @@ class Course(part.Partscontainer):
     baseresourcedir: str = f"{sedrila_libdir}/baseresources"
     chapterdir: str
     altdir: str
-    itreedir: str|None
+    itreedir: str | None
     templatedir: str = f"{sedrila_libdir}/templates"
     blockmacro_topmatter: dict[str, str]
     instructors: list[b.StrAnyDict]
@@ -370,8 +370,8 @@ class Course(part.Partscontainer):
         for ch in self.chapters:
             for zd in ch.zipdirs:
                 self.namespace_add(zd.sourcefile, zd)
-            for tg in ch.taskgroups:
-                for zd in tg.zipdirs:
+            for tgr in ch.taskgroups:
+                for zd in tgr.zipdirs:
                     self.namespace_add(zd.sourcefile, zd)
 
     def _check_links(self):
@@ -422,8 +422,9 @@ class Course(part.Partscontainer):
         else:
             return fullpath
 
-    def _taskordering_for_toc(self, graph) -> list[Task]:
-        sorter =  graphlib.TopologicalSorter(graph)
+    @staticmethod
+    def _taskordering_for_toc(graph) -> list[Task]:
+        sorter = graphlib.TopologicalSorter(graph)
         sorter.prepare()
         result = []
         try:

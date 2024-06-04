@@ -51,7 +51,7 @@ def as_fingerprint(raw: str) -> str:
 
 def copyattrs(context: str, source: StrAnyDict, target: tg.Any, 
               mustcopy_attrs: str, cancopy_attrs: str, mustexist_attrs: str, 
-              typecheck: dict[str, type]=dict(), overwrite=True):
+              typecheck: dict[str, type]=dict(), overwrite=True):  # noqa
     """
     Copies data from YAML or JSON mapping 'source' to class object 'target' and checks attribute set of d.
     mustcopy_attrs, cancopy_attrs, and mustexist_attrs are comma-separated attribute name lists.
@@ -65,6 +65,7 @@ def copyattrs(context: str, source: StrAnyDict, target: tg.Any,
     def mysetattr(obj, name, newvalue):
         if overwrite or not hasattr(target, name):
             setattr(obj, name, newvalue)
+    
     def names_in(attrlist: str) -> list[str]:
         if not attrlist:
             return []
@@ -108,8 +109,9 @@ def slurp(resource: str) -> str:
         else:
             with open(resource, 'rt', encoding='utf8') as f:
                 return f.read()
-    except:
+    except FileNotFoundError:
         critical(f"'{resource}' does not exist")
+
 
 def slurp_json(resource: str) -> StrAnyDict:
     return json.loads(slurp(resource))
@@ -195,6 +197,7 @@ def rich_print(msg: str, enclose_in_tag: tg.Optional[str] = None):
         if enclose_in_tag:
             msg = f"[{enclose_in_tag}]{msg}[/{enclose_in_tag}]"            
         rich.print(msg)
+
 
 def _testmode_reset():
     """reset error counter; avoid text wrapping of b.error() etc."""

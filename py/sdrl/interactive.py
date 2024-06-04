@@ -8,6 +8,7 @@ import sdrl.repo as r
 ACCEPT_SYMBOL = "✓"
 REJECT_SYMBOL = "X"
 
+
 def prefix(entry: r.ReportEntry, selected: dict[str, bool], rejected: dict[str, bool]):
     if selected[entry[0]]:
         return ACCEPT_SYMBOL
@@ -16,7 +17,8 @@ def prefix(entry: r.ReportEntry, selected: dict[str, bool], rejected: dict[str, 
     return " "
 
 
-def redraw_filter_selection(term: Terminal, entries: tg.Sequence[r.ReportEntry], rowindex: int, selected: dict[str, bool], rejected: dict[str, bool], course_url: str):
+def redraw_filter_selection(term: Terminal, entries: tg.Sequence[r.ReportEntry], rowindex: int, 
+                            selected: dict[str, bool], rejected: dict[str, bool], course_url: str):
     print(term.home + term.clear, end="")
     lines = term.height - 1
     print("Move with arrow keys, select/deselect with space/enter, exit with 'Q''")
@@ -31,16 +33,17 @@ def redraw_filter_selection(term: Terminal, entries: tg.Sequence[r.ReportEntry],
         else:
             print(term.normal, end="")
         print(prefix(entries[i], selected, rejected) + " %4.2fh " % entries[i][1] + entries[i][0], end="")
-        print(" " * (term.width - 9 - len(entries[i][0]))) #padding to end of line
-    print(term.normal, end="") #if we end on the selection
+        print(" " * (term.width - 9 - len(entries[i][0])))  # padding to end of line
+    print(term.normal, end="")  # if we end on the selection
 
 
-def filter_entries(entries: tg.Sequence[r.ReportEntry], selected: dict[str, bool], rejected: dict[str, bool], course_url: str):
+def filter_entries(entries: tg.Sequence[r.ReportEntry], selected: dict[str, bool], 
+                   rejected: dict[str, bool] | None, course_url: str | None):
     term = Terminal()
     rowindex = 0
     with term.cbreak(), term.hidden_cursor():
         inp = None
-        while not(inp) or not(str(inp) in "Qq" or str(inp.name) == "KEY_ESCAPE"):
+        while not inp or not (str(inp) in "Qq" or str(inp.name) == "KEY_ESCAPE"):
             redraw_filter_selection(term, entries, rowindex, selected, rejected, course_url)
             inp = term.inkey()
             if str(inp) == " " or str(inp.name) == "KEY_ENTER":
@@ -70,19 +73,26 @@ def select_entries(entries: tg.Sequence[r.ReportEntry]):
     return list(filter(lambda entry: selected[entry[0]], entries))
 
 
-#marks entries as accepted if they are, returns rejections as the count might not be enough to know whether they were rejected in current run
-def grade_entries(entries: tg.Sequence[r.ReportEntry], course_url: str):
+def grade_entries(entries: list[r.ReportEntry], course_url: str) -> list[str] | None:
+    """
+    Mark entries in list as accepted if they are and count rejection if not.
+    Returns list of new rejections because the count is not enough to know whether they were rejected in current run
+    """
     submission = b.slurp_yaml(r.SUBMISSION_FILE)
     selected = {entry[0]: (submission.get(entry[0]) or "").startswith(r.ACCEPT_MARK) for entry in entries}
     rejected = {entry[0]: (submission.get(entry[0]) or "").startswith(r.REJECT_MARK) for entry in entries}
     filter_entries(entries, selected, rejected, course_url)
-    if not(any(selected.values())) and not(any(rejected.values())):
-        return None
+    if not any(selected.values()) and not any(rejected.values()):
+        return None  # nothing to do
+
+    def processed(entry: r.ReportEntry) -> r.ReportEntry:
+        taskname, workhoursum, timevalue, rejections, accepted = entry
+        if selected[taskname]:
+            accepted = True
+        if rejected[taskname]:
+            rejections += 1
+        return taskname, workhoursum, timevalue, rejections, accepted
+
     for i in range(len(entries)):
-        entry = list(entries[i])
-        if selected[entry[0]]:
-            entry[4] = True
-        if rejected[entry[0]]:
-            entry[3] += 1
-        entries[i] = tuple(entry)
+        entries[i] = processed(entries[i])
     return [key for key, value in rejected.items() if value]

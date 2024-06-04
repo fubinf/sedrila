@@ -7,7 +7,6 @@ import markdown
 import markdown.extensions as mde
 import markdown.preprocessors as mdpre
 import markdown.postprocessors as mdpost
-import markdown.treeprocessors as mdt
 
 import base as b
 import sdrl.macros as macros
@@ -81,7 +80,7 @@ def render_markdown(context_sourcefile: str, partname: str, markdown_markup: str
 extensions = [SedrilaExtension(), 
               'attr_list', 'codehilite', 'fenced_code',
               'sane_lists', 'toc', 'smarty',
-             ]
+              ]
 # https://python-markdown.github.io/extensions/attr_list/
 # https://python-markdown.github.io/extensions/code_hilite/
 # https://python-markdown.github.io/extensions/fenced_code_blocks/

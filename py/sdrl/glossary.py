@@ -58,13 +58,13 @@ class Glossary(part.Structurepart):
         """We render only once, because the glossary will not contain [INSTRUCTOR] calls."""
         if not self.rendered_content:
             self._register_macros_phase2()
-            self.rendered_content= md.render_markdown(self.sourcefile, self.slug, self.content, mode, dict())
+            self.rendered_content = md.render_markdown(self.sourcefile, self.slug, self.content, mode, dict())
         return self.rendered_content
     
     def report_issues(self):
         terms_explained = set(self.explainedby.keys())
         terms_mentioned = set(self.mentionedby.keys())
-        undefined_terms = (terms_explained|terms_mentioned) - self.termdefs
+        undefined_terms = (terms_explained | terms_mentioned) - self.termdefs
         if undefined_terms:
             what = "This term lacks" if len(undefined_terms) == 1 else "These terms lack"
             b.error(f"{self.sourcefile}: {what} a definition: {sorted(undefined_terms)}")
@@ -93,7 +93,8 @@ class Glossary(part.Structurepart):
             label = term + label[1:]
         target = "%s.html#%s" % (b.GLOSSARY_BASENAME, b.slugify(term))
         self._mentions(macrocall.partname, term)
-        return f"<a href='{target}' class='glossary-termref-term'>{label}<span class='glossary-termref-suffix'></span></a>"
+        return (f"<a href='{target}' class='glossary-termref-term'>"
+                f"{label}<span class='glossary-termref-suffix'></span></a>")
 
     def _complain_term(self, mc: macros.Macrocall) -> str:  # noqa
         b.error(f"'{mc.filename}: {mc.macrocall_text}': [{mc.macroname}] can only be used in the glossary")
@@ -153,7 +154,7 @@ class Glossary(part.Structurepart):
     def _expand_any_termdef(self, macrocall: macros.Macrocall) -> list[str]:  # [TERM0], [TERM]
         """Sets self.term_linkslist as a side effect."""
         separator = '|'
-        file, part = macrocall.filename, macrocall.partname
+        myfile, mypart = macrocall.filename, macrocall.partname
         terms = macrocall.arg1
         termslist = terms.split(separator)
         headingtext = " | ".join(termslist)  # we keep the original order
@@ -174,18 +175,18 @@ class Glossary(part.Structurepart):
         links = []
         explainedby_names = self._collect_parts(self.explainedby, termslist)
         mentionedby_names = self._collect_parts(self.mentionedby, termslist)
-        explainedby_links = sorted((f"[PARTREF::{part}]" for part in explainedby_names))
-        mentionedby_links = sorted((f"[PARTREF::{part}]" for part in mentionedby_names))
+        explainedby_links = sorted((f"[PARTREF::{p}]" for p in explainedby_names))
+        mentionedby_links = sorted((f"[PARTREF::{p}]" for p in mentionedby_names))
         any_links = explainedby_links or mentionedby_links
         if any_links:
             links.append("\n<div class='glossary-term-linkblock'>\n")
         if explainedby_links:
             links.append(" <div class='glossary-term-links-explainedby'>\n   ")
-            links.append(macros.expand_macros(file, part,  ", ".join(explainedby_links)))
+            links.append(macros.expand_macros(myfile, mypart,  ", ".join(explainedby_links)))
             links.append("\n </div>\n")
         if mentionedby_links:
             links.append(" <div class='glossary-term-links-mentionedby'>\n")
-            links.append("  " + macros.expand_macros(file, part, ", ".join(mentionedby_links)))
+            links.append("  " + macros.expand_macros(myfile, mypart, ", ".join(mentionedby_links)))
             links.append("\n </div>\n")
         if any_links:
             links.append("</div>\n")
@@ -199,7 +200,7 @@ class Glossary(part.Structurepart):
         return result
 
     def _mentions(self, partname: str, term: str):  # called by phase 1 TERMREF macro expansion
-        if partname and partname != b.GLOSSARY_BASENAME: #avoid links from glossary to itself
+        if partname and partname != b.GLOSSARY_BASENAME:  # avoid links from glossary to itself
             if term not in self.mentionedby:
                 self.mentionedby[term] = set()
             self.mentionedby[term].add(partname)
