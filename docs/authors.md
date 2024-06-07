@@ -784,6 +784,7 @@ but still be able to receive (and integrate automatically, simply by a git merge
 of the later changes those other authors may be making.
 
 The support for this has the following components:
+
 - Modifying the overall layout of the overall course website by modifying HTML templates
 - Modifying appearance by modifying CSS styles
 - Patching parts of task files that talk about university-specific things by
@@ -873,4 +874,4 @@ A typical example would be larger programs that consist of multiple files
 and are less convenient for instructors to look at in the browser
 (they would rather use an IDE), let alone to execute.
 Instructors should simply have a copy of the instructor repo (if it exists)
-at standby and [INSTRUCTOR] blocks in tasks will then mention the respective filenames.
+at standby and `[INSTRUCTOR]` blocks in tasks will then mention the respective filenames.
