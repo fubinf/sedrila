@@ -6,6 +6,10 @@
 - ...
 
 
+## Version 1.3.1 (2024-06-07) 
+- `author`: FIX: generated `course.json` now includes the required attribute `altdir`
+
+
 ## Version 1.3.0 (2024-06-03) 
 - `author`: introduce `itreedir` and `[TREEREF]` for stand-alone instructor support files
 
