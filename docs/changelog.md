@@ -3,6 +3,7 @@
 
 
 ## Version 1.4.0 (upcoming) 
+- `author`: documentation describes how to get an English translation using ChatGPT.
 - ...
 
 

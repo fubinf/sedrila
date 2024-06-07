@@ -875,3 +875,23 @@ and are less convenient for instructors to look at in the browser
 (they would rather use an IDE), let alone to execute.
 Instructors should simply have a copy of the instructor repo (if it exists)
 at standby and `[INSTRUCTOR]` blocks in tasks will then mention the respective filenames.
+
+### 3.6 Translating into English
+
+If you want an English version of a German-language SeDriLa course,
+the following approach works fairly well: Use ChatGPT 3.5, use the prompt given below.
+After the prompt, paste one complete Markdown file at a time.
+
+The prompt:
+
+_Please translate the following text from German to English. 
+It starts with YAML front matter, which should be kept as is. 
+It uses Markdown markup, which should be kept as is. 
+It also uses additional markup of the form [SECTION::some::stuff] or [ENDSECTION] or [HINT::some stuff] etc. 
+This should also be kept as is. Here is the text:_
+
+In a first try in 2024-06, this attempted to translate the task names mentioned
+(which are technical identifiers), even in the case `[PARTREF::Pythonpraxis]`,
+which should rather be done by hand. 
+But other than that, the translation looked technically usable.
+In terms of language, it was reasonable, often even good, but not very good.
