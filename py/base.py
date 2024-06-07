@@ -109,7 +109,7 @@ def slurp(resource: str) -> str:
         else:
             with open(resource, 'rt', encoding='utf8') as f:
                 return f.read()
-    except FileNotFoundError:
+    except:  # noqa
         critical(f"'{resource}' does not exist")
 
 
