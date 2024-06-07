@@ -121,7 +121,7 @@ class Task(part.Structurepart):
         return self
 
     def from_json(self, task: b.StrAnyDict, taskgroup: 'Taskgroup') -> 'Task':
-        """Initializer used in student and instructor mode"""
+        """Initializer used in student and instructor mode. Ignores all additional attributes."""
         self.taskgroup = taskgroup
         self.slug = task['slug']
         self.title = task['title']
@@ -271,7 +271,7 @@ class Course(part.Partscontainer):
     def as_json(self) -> b.StrAnyDict:
         result = dict(title=self.title,
                       breadcrumb_title=self.breadcrumb_title,
-                      chapterdir="", stages=[],  # are mustcopy_attrs but are not needed
+                      chapterdir="", altdir="", stages=[],  # are mustcopy_attrs but are not needed
                       instructors=self.instructors,
                       init_data=self.init_data,
                       allowed_attempts=self.allowed_attempts,
