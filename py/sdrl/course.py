@@ -1,8 +1,8 @@
 """
 Represent and handle the contents of SeDriLa: Course, Chapter, Taskgroup, Task.
 There are two ways how these objects can be instantiated:
-In 'author' mode, 'read_contentfiles' is true and metadata comes from sedrila.yaml and the partfiles.
-Otherwise, 'read_contentfiles' is false and metadata comes from METADATA_FILE. 
+In 'author' mode, metadata comes from sedrila.yaml and the partfiles.
+Otherwise, metadata comes from METADATA_FILE. 
 """
 import dataclasses
 import enum
@@ -175,9 +175,9 @@ class Course(part.Partscontainer):
     """
     The master data object for this run.
     Can be initialized in two different ways: 
-    - From a handwritten YAML file (read_contentfiles=True). 
+    - From a handwritten YAML file (if is_authormode). 
       Will then read all content for a build.
-    - From a metadata file generated during build (read_contentfiles=False)
+    - If not is_authormode: From a metadata file generated during build
       for bookkeeping/reporting.
     """
     configfile: str
@@ -209,10 +209,10 @@ class Course(part.Partscontainer):
 
     glossary: glossary.Glossary
 
-    def __init__(self, configfile: str, read_contentfiles: bool, include_stage: str):
+    def __init__(self, configfile: str, is_authormode: bool, include_stage: str):
         self.configfile = self.sourcefile = configfile
         configdict = b.slurp_yaml(configfile)
-        if read_contentfiles:  # author mode (vs. student, instructor)
+        if is_authormode:  # author mode (vs. student, instructor)
             authormode_attrs = ', chapterdir, altdir, stages'
         else:
             authormode_attrs = ""  # the above will be missing in course.json
@@ -228,7 +228,7 @@ class Course(part.Partscontainer):
         self.outputfile = "index.html"
         self.namespace = dict()
         self.namespace_add(configfile, self)
-        if read_contentfiles:
+        if is_authormode:
             self.read_partsfile(f"{self.chapterdir}/index.md")
             self.glossary = glossary.Glossary(self.chapterdir)
             self.namespace_add("", self.glossary)
@@ -241,9 +241,9 @@ class Course(part.Partscontainer):
                     b.error(f"'--include_stage {include_stage}' not allowed, must be one of {self.stages}")
                 self.include_stage = ''  # include only parts with no stage
                 self.include_stage_index = len(self.stages)
-        self.chapters = [Chapter(self, ch, read_contentfiles) 
+        self.chapters = [Chapter(self, ch, is_authormode) 
                          for ch in configdict['chapters']]
-        if read_contentfiles:
+        if is_authormode:
             self._collect_zipdirs()
             self._check_links()
             self._add_inverse_links()
@@ -448,7 +448,7 @@ class Chapter(part.Partscontainer):
     course: Course
     taskgroups: list['Taskgroup']
     
-    def __init__(self, course: Course, chapter: b.StrAnyDict, read_contentfiles: bool):
+    def __init__(self, course: Course, chapter: b.StrAnyDict, is_authormode: bool):
         self.course = course
         context = f"chapter in {course.configfile}"
         b.copyattrs(context, 
@@ -456,7 +456,7 @@ class Chapter(part.Partscontainer):
                     mustcopy_attrs='slug',
                     mustexist_attrs='taskgroups',
                     cancopy_attrs='title')
-        if read_contentfiles:
+        if is_authormode:
             self.read_partsfile(f"{self.course.chapterdir}/{self.slug}/index.md")
             b.copyattrs(context, 
                         self.metadata, self,
@@ -466,7 +466,7 @@ class Chapter(part.Partscontainer):
             self.find_zipdirs()
         self.evaluate_stage(context, course)
         course.namespace_add(self.sourcefile, self)
-        self.taskgroups = [Taskgroup(self, taskgroup, read_contentfiles) 
+        self.taskgroups = [Taskgroup(self, taskgroup, is_authormode) 
                            for taskgroup in (chapter.get('taskgroups') or [])]
 
     @property
@@ -494,7 +494,7 @@ class Taskgroup(part.Partscontainer):
     chapter: Chapter
     tasks: list['Task']
 
-    def __init__(self, chapter: Chapter, taskgroupdict: b.StrAnyDict, read_contentfiles: bool):
+    def __init__(self, chapter: Chapter, taskgroupdict: b.StrAnyDict, is_authormode: bool):
         self.chapter = chapter
         context = f"taskgroup in chapter '{chapter.slug}'"
         b.copyattrs(context,
@@ -504,7 +504,7 @@ class Taskgroup(part.Partscontainer):
                     mustexist_attrs='taskgroups')
         context = f"taskgroup '{self.slug}' in chapter '{chapter.slug}'"
         self.outputfile = f"{self.slug}.html"
-        if read_contentfiles:
+        if is_authormode:
             self.read_partsfile(f"{self.chapter.course.chapterdir}/{self.chapter.slug}/{self.slug}/index.md")
             b.copyattrs(context,
                         self.metadata, self,
@@ -514,7 +514,7 @@ class Taskgroup(part.Partscontainer):
             self.find_zipdirs()
         self.evaluate_stage(context, chapter.course)
         chapter.course.namespace_add(self.sourcefile, self)
-        if read_contentfiles:
+        if is_authormode:
             self._create_tasks()
         else:
             self.tasks = [Task().from_json(taskdict, taskgroup=self)
