@@ -3,8 +3,12 @@
 
 
 ## Version 1.4.0 (upcoming) 
-- `author`: documentation describes how to get an English translation using ChatGPT.
 - ...
+
+
+## Version 1.3.2 (2024-06-13) 
+- increase inter-version compatibility between authors and recipients (students/instructors)
+- `author`: documentation describes how to get an English translation using ChatGPT.
 
 
 ## Version 1.3.1 (2024-06-07) 
