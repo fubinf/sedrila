@@ -212,10 +212,14 @@ class Course(part.Partscontainer):
     def __init__(self, configfile: str, read_contentfiles: bool, include_stage: str):
         self.configfile = self.sourcefile = configfile
         configdict = b.slurp_yaml(configfile)
+        if read_contentfiles:  # author mode (vs. student, instructor)
+            authormode_attrs = ', chapterdir, altdir, stages'
+        else:
+            authormode_attrs = ""  # the above will be missing in course.json
         b.copyattrs(configfile, 
                     configdict, self,
-                    mustcopy_attrs=('title, breadcrumb_title, chapterdir, altdir, '
-                                    'instructors, stages, allowed_attempts'),
+                    mustcopy_attrs=('title, breadcrumb_title, instructors, allowed_attempts' +
+                                    authormode_attrs),
                     cancopy_attrs=('baseresourcedir, itreedir, templatedir, '
                                    'blockmacro_topmatter, htaccess_template, init_data'),
                     mustexist_attrs='chapters')
@@ -229,14 +233,14 @@ class Course(part.Partscontainer):
             self.glossary = glossary.Glossary(self.chapterdir)
             self.namespace_add("", self.glossary)
             self.find_zipdirs()
-        if include_stage in self.stages:
-            self.include_stage = include_stage
-            self.include_stage_index = self.stages.index(include_stage)
-        else:
-            if include_stage != '':  # empty is allowed
-                b.error(f"'--include_stage {include_stage}' not allowed, must be one of {self.stages}")
-            self.include_stage = ''  # include only parts with no stage
-            self.include_stage_index = len(self.stages)
+            if include_stage in self.stages:
+                self.include_stage = include_stage
+                self.include_stage_index = self.stages.index(include_stage)
+            else:
+                if include_stage != '':  # empty is allowed
+                    b.error(f"'--include_stage {include_stage}' not allowed, must be one of {self.stages}")
+                self.include_stage = ''  # include only parts with no stage
+                self.include_stage_index = len(self.stages)
         self.chapters = [Chapter(self, ch, read_contentfiles) 
                          for ch in configdict['chapters']]
         if read_contentfiles:
@@ -271,7 +275,6 @@ class Course(part.Partscontainer):
     def as_json(self) -> b.StrAnyDict:
         result = dict(title=self.title,
                       breadcrumb_title=self.breadcrumb_title,
-                      chapterdir="", altdir="", stages=[],  # are mustcopy_attrs but are not needed
                       instructors=self.instructors,
                       init_data=self.init_data,
                       allowed_attempts=self.allowed_attempts,
