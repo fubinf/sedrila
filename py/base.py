@@ -51,7 +51,7 @@ def as_fingerprint(raw: str) -> str:
 
 def copyattrs(context: str, source: StrAnyDict, target: tg.Any, 
               mustcopy_attrs: str, cancopy_attrs: str, mustexist_attrs: str, 
-              typecheck: dict[str, type]=dict(), overwrite=True):  # noqa
+              typecheck: dict[str, type]=dict(), overwrite=True, report_extra=True):  # noqa
     """
     Copies data from YAML or JSON mapping 'source' to class object 'target' and checks attribute set of d.
     mustcopy_attrs, cancopy_attrs, and mustexist_attrs are comma-separated attribute name lists.
@@ -92,8 +92,8 @@ def copyattrs(context: str, source: StrAnyDict, target: tg.Any,
         elif cname not in source and not hasattr(target, cname):
             setattr(target, cname, None)
     extra_attrs = source_names - set(mustcopy_names) - set(cancopy_names) - set(mustexist_names)
-    if extra_attrs:
-        error(f"{context}: unexpected extra attributes found: {extra_attrs}")
+    if report_extra and extra_attrs:
+        warning(f"{context}: unexpected extra attributes found: {extra_attrs}")
     for attrname, its_type in typecheck.items():
         value = getattr(target, attrname, None)
         if value and not isinstance(value, its_type):

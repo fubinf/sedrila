@@ -216,13 +216,14 @@ class Course(part.Partscontainer):
             authormode_attrs = ', chapterdir, altdir, stages'
         else:
             authormode_attrs = ""  # the above will be missing in course.json
-        b.copyattrs(configfile, 
+        b.copyattrs(configfile,
                     configdict, self,
                     mustcopy_attrs=('title, breadcrumb_title, instructors, allowed_attempts' +
                                     authormode_attrs),
                     cancopy_attrs=('baseresourcedir, itreedir, templatedir, '
                                    'blockmacro_topmatter, htaccess_template, init_data'),
-                    mustexist_attrs='chapters')
+                    mustexist_attrs='chapters',
+                    report_extra=is_authormode)
         self.allowed_attempts_base, self.allowed_attempts_hourly = self._parse_allowed_attempts()
         self.slug = self.breadcrumb_title
         self.outputfile = "index.html"
@@ -462,7 +463,8 @@ class Chapter(part.Partscontainer):
                         self.metadata, self,
                         mustcopy_attrs='title',
                         cancopy_attrs='stage, todo',
-                        mustexist_attrs='', overwrite=True)
+                        mustexist_attrs='', 
+                        overwrite=True)
             self.find_zipdirs()
         self.evaluate_stage(context, course)
         course.namespace_add(self.sourcefile, self)
@@ -510,7 +512,8 @@ class Taskgroup(part.Partscontainer):
                         self.metadata, self,
                         mustcopy_attrs='title',
                         cancopy_attrs='minimum, stage, todo',
-                        mustexist_attrs='', overwrite=True)
+                        mustexist_attrs='', 
+                        overwrite=True)
             self.find_zipdirs()
         self.evaluate_stage(context, chapter.course)
         chapter.course.namespace_add(self.sourcefile, self)
