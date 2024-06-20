@@ -23,7 +23,7 @@ class Glossary(part.Structurepart):
     mentionedby: dict[str, set[str]]  # mentionedby[term] == partnames_with_termref
     termdefs: set[str]  # what has a [TERMx] in glossary.md
     term_linkslist: tg.Optional[list[str]]  # the lines of the linksblock
-    rendered_content: str = ''  # cached results of render() to avoid reporting duplicate definitions
+    rendered_content: str = ''  # results of render(); re-render would report duplicate definitions
     
     def __init__(self, chapterdir: str):
         self.chapterdir = chapterdir

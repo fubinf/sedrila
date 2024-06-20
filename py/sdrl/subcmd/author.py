@@ -58,16 +58,16 @@ def get_course(pargs):
     CacheMode = sdrl.course.CacheMode
     targetdir_s = pargs.targetdir  # for students
     targetdir_i = f"{targetdir_s}/{OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR}"  # for instructors
-    cache_file = cache_filename(targetdir_i)
-    if not pargs.cache or not os.path.exists(cache_file):  # no cache present
+    cache1_file = cache_filename(targetdir_i)
+    if not pargs.cache or not os.path.exists(cache1_file):  # no cache present
         course = sdrl.course.Course(pargs.config, is_authormode=True, include_stage=pargs.include_stage)
-        course.cache_mode = CacheMode.WRITE if pargs.cache else CacheMode.UNCACHED
+        course.cache1_mode = CacheMode.WRITE if pargs.cache else CacheMode.UNCACHED
     else:  # we have a filled cache
-        print(f"using cache file '{cache_file}'")
-        with open(cache_file, 'rb') as f:
+        print(f"using cache1 file '{cache1_file}'")
+        with open(cache1_file, 'rb') as f:
             course = pickle.load(f)
-        course.cache_mode = sdrl.course.CacheMode.READ
-        course.mtime = os.stat(cache_file).st_mtime  # reference timestamp for tasks to have changed
+        course.cache1_mode = sdrl.course.CacheMode.READ
+        course.mtime = os.stat(cache1_file).st_mtime  # reference timestamp for tasks to have changed
     course.targetdir_s = targetdir_s
     course.targetdir_i = targetdir_i
     return course
@@ -93,7 +93,7 @@ def generate(course: sdrl.course.Course):
     generate_metadata_and_glossary(course, env)
     generate_itree_zipfile(course)
     generate_htaccess(course)
-    if course.cache_mode == sdrl.course.CacheMode.READ:
+    if course.cache1_mode == sdrl.course.CacheMode.READ:
         os.utime(cache_filename(course))  # update mtime of cache file to now
     else:
         print(f"wrote student files to  '{targetdir_s}'")
@@ -131,7 +131,7 @@ def generate_htaccess(course: sdrl.course.Course):
 
 
 def generate_itree_zipfile(course: sdrl.course.Course):
-    if not course.itreedir or course.cache_mode == sdrl.course.CacheMode.READ:
+    if not course.itreedir or course.cache1_mode == sdrl.course.CacheMode.READ:
         return  # nothing to do
     b.info(f"generating itreedir ZIP file to '{course.targetdir_i}/{course.itreedir}'")
     if not course.itreedir.endswith(".zip"):
@@ -142,7 +142,7 @@ def generate_itree_zipfile(course: sdrl.course.Course):
 
 
 def generate_metadata_and_glossary(course: sdrl.course.Course, env):
-    if course.cache_mode == sdrl.course.CacheMode.READ:
+    if course.cache1_mode == sdrl.course.CacheMode.READ:
         return  # nothing to do
     b.info(f"generating metadata file '{course.targetdir_s}/{b.METADATA_FILE}'")
     write_metadata(course, f"{course.targetdir_s}/{b.METADATA_FILE}")
@@ -152,17 +152,17 @@ def generate_metadata_and_glossary(course: sdrl.course.Course, env):
 
 
 def generate_task_files(course: sdrl.course.Course, env):
-    using_cache = course.cache_mode == sdrl.course.CacheMode.READ
-    which = " for modified tasks" if using_cache else ""
+    using_cache1 = course.cache1_mode == sdrl.course.CacheMode.READ
+    which = " for modified tasks" if using_cache1 else ""
     b.info(f"generating task files{which}")
     for taskname, task in course.taskdict.items():
         if task.to_be_skipped or task.taskgroup.to_be_skipped or task.taskgroup.chapter.to_be_skipped \
-                or (using_cache and task_is_unchanged(task)):
+                or (using_cache1 and task_is_unchanged(task)):
             b.debug(f"  task '{task.slug}' skipped: "
                     f"{task.to_be_skipped}, {task.taskgroup.to_be_skipped}, {task.taskgroup.chapter.to_be_skipped}")
             continue  # ignore the incomplete task
         b.debug(f"  task '{task.slug}' (in {task.taskgroup.chapter.slug}/{task.taskgroup.slug})")
-        if using_cache:
+        if using_cache1:
             print(f"re-rendering task '{task.slug}'")
             task.read_partsfile(task.sourcefile)
         render_task(task, env, course.targetdir_s, b.Mode.STUDENT)
@@ -170,7 +170,7 @@ def generate_task_files(course: sdrl.course.Course, env):
 
 
 def generate_upper_parts_files(course: sdrl.course.Course, env):
-    if course.cache_mode == sdrl.course.CacheMode.READ:
+    if course.cache1_mode == sdrl.course.CacheMode.READ:
         return  # nothing to do
     # ----- generate top-level file:
     b.info(f"generating top-level index files")
@@ -203,7 +203,7 @@ def add_tocs_to_upper_parts(course: sdrl.course.Course):
 
 
 def copy_baseresources(course: sdrl.course.Course):
-    if course.cache_mode == sdrl.course.CacheMode.READ:
+    if course.cache1_mode == sdrl.course.CacheMode.READ:
         return  # nothing to do
     b.info(f"copying '{course.baseresourcedir}'")
     for filename in glob.glob(f"{course.baseresourcedir}/*"):
@@ -214,8 +214,8 @@ def copy_baseresources(course: sdrl.course.Course):
 
 
 def prepare_directories(course: sdrl.course.Course):
-    if course.cache_mode == sdrl.course.CacheMode.READ:
-        b.info(f"cached mode: leaving directories as they are: '{course.targetdir_s}', '{course.targetdir_i}'")
+    if course.cache1_mode == sdrl.course.CacheMode.READ:
+        b.info(f"cached1 mode: leaving directories as they are: '{course.targetdir_s}', '{course.targetdir_i}'")
     else:
         b.info(f"preparing directories '{course.targetdir_s}', '{course.targetdir_i}'")
         backup_targetdir(course.targetdir_i, markerfile=b.CONFIG_FILENAME)  # do _i first if it is a subdir of _s
@@ -225,10 +225,10 @@ def prepare_directories(course: sdrl.course.Course):
         # mark dirs as SeDriLa instances:
         shutil.copyfile(course.configfile, f"{course.targetdir_s}/{b.CONFIG_FILENAME}")  
         shutil.copyfile(course.configfile, f"{course.targetdir_i}/{b.CONFIG_FILENAME}")
-    if course.cache_mode == sdrl.course.CacheMode.WRITE:
+    if course.cache1_mode == sdrl.course.CacheMode.WRITE:
         with open(cache_filename(course), 'wb') as f:
             pickle.dump(course, f)
-        print(f"wrote cache file '{cache_filename(course)}'")
+        print(f"wrote cache1 file '{cache_filename(course)}'")
 
 
 def backup_targetdir(targetdir: str, markerfile: str):
@@ -284,7 +284,7 @@ def toc_for_glossary(course: sdrl.course.Course) -> str:
 def register_macros(course):
     MM = macros.MM
     b.info("registering macros")
-    if course.cache_mode == sdrl.course.CacheMode.READ:
+    if course.cache1_mode == sdrl.course.CacheMode.READ:
         course.glossary._register_macros_phase1()  # modifies state in module 'mocros'! 
     # ----- register EARLY-mode macros:
     macros.register_macro('INCLUDE', 1, MM.EARLY,
@@ -602,10 +602,10 @@ def print_volume_report(course: sdrl.course.Course):
 
 def cache_filename(context: tg.Union[sdrl.course.Course, str]) -> str:
     if isinstance(context, sdrl.course.Course):
-        return f"{context.targetdir_i}/{b.CACHE_FILE}"
+        return f"{context.targetdir_i}/{b.CACHE1_FILE}"
     else:
         # the context _is_ the targetdir_i:
-        return f"{context}/{b.CACHE_FILE}"
+        return f"{context}/{b.CACHE1_FILE}"
 
 
 def structure_path(structure: sdrl.part.Structurepart) -> list[sdrl.part.Structurepart]:

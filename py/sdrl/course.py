@@ -196,7 +196,7 @@ class Course(part.Partscontainer):
     namespace: dict[str, part.Structurepart]  # the parts known so far
     include_stage: str  # lowest stage that parts must have to be included in output
     include_stage_index: int  # index in stages list, or len(stages) if include_stage is ""
-    cache_mode: CacheMode
+    cache1_mode: CacheMode
     mtime: float  # in READ cache mode: tasks have changed if they are younger than this
 
     taskorder: list[Task]  # If task B assumes or requires A, A will be before B in this list.
