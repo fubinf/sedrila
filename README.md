@@ -73,28 +73,36 @@ How to implement a complete build process that caches all previous results:
 
 - We modify the output directory instead of re-creating it completely.
   `out.bak` no longer exists.
-- We need to keep cached the parts that go into each template and render a target file again
-  (only) if any of those parts has changed according to a single 'previous rendering time'.
-- These are: {homepage,chapter,taskgroup}-content and *-toc, glossary-content,
-  task-{linkslist-top,linkslist-bottom,content}.
-  They could all be stored in a dbm file.
-- Beyond the tocs, we need the list of include files for each part to re-render them
-  if an include changed (which will happen for altdir).
-- Moving (without renaming) a task or taskgroup still impacts the tocs.
-  Moving and renaming is best handled as delete+insert.
-- We must delete superfluous files in the output at the end.
-- sedrila could then run through the file tree (chapterdir, altdir, itreedir), 
-  collecting the files that are newer than the previous rendering time
-  or entirely new or deleted
-  and rebuild the files suggested by that list plus the known dependencies.
-- Dependencies are:
-    - All tocs depend on chapter names
-    - Chapter tocs depend on taskgroup names
-    - Taskgroup tocs depend on task names, assumes, requires, assumed-by, required-by, timevalue, difficulty.
-    - Home, chapter, taskgroup, task, glossary contents depend on the respective md file, template, includes.
-    - ZIP files depend on all files in their tree
-- Should we rebuild zip files from scratch or replace modified files in them?
-  Will mostly be relevant for itree.zip only, the others are small and hardly problematic.
+- Fundamental concepts: Sourcefiles, Products, Parts, Pieces, Outputfiles, Dependencies, Builders.
+- Sourcefiles are source files edited by authors. Their state is either has_changed or as_before,
+  determined by comparing their mtime to a single last_build_time (_start_ of last build).  
+  Products are the things created by the build process.  
+  Their state is either nonexisting or has_changed or as_before.  
+  Outputfiles are the only Products directly seen by users in the output directory. 
+- Parts are Products in the SeDriLa domain: Course, Chapters, Taskgroups, Tasks, Glossary, Zipdirs.  
+  Each Part leads to exactly one Outputfile, depends on at least one Sourcefile, and often
+  depends on many other Sourcefiles as well.  
+  TODO 1: Glossary is not yet considered in what follows.
+- Pieces are internal intermediate Products, created during the build process and kept in a cache
+  for speeding up subsequent builds: Markdown, Requireslist, Assumeslist, Requiredbylist, Assumedbylist,
+  Includeslist, Tocline, Toc.
+- Each Part or Piece has a canonical name and is stored and found via that name in the cache.
+- Builders are the functions that turn Sourcefiles into Outputfiles or other Products.
+- Dependencies describe what a Builder uses as input in order to produce which Product.
+  A Depedency is an abstract "impacts" edge from a Sourcefile or Product instance to a Product instance.
+  Some Dependencies are created by the position of files in the tree, others are induced by 
+  metadata or the use of INCLUDE.
+- A Builder can run only once all its inputs are available,
+  it needs only run if some of its inputs have state has_changed.
+- Builders can be grouped in layers with a fixed execution order:
+    - Sourcefile into Markdown, Requireslist, Assumeslist.  
+      Sourcefiles into Zipfile.
+    - Requireslist and Assumeslist into Requiredbylist and Assumedbylist.
+    - All of these into Tocline.
+    - Tocline into Toc.
+    - Markdown and Toc into Outputfile.
+- For ensemble situations (Zipdir, Chapter, Taskgroup), we need a signature that reflects
+  all membership changes for checking constancy via the cache.
 
 
 ## 2. Development process: TODO-handling during development
