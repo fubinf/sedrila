@@ -11,6 +11,7 @@ import bs4
 import base as b
 import sdrl.course
 import sdrl.macros as macros
+import sdrl.macroexpanders as macroexpanders
 import sdrl.subcmd.author
 
 expected_output = """ch/ch1/tg12/task113.md: name collision: ch/ch1/tg11/task113.md and ch/ch1/tg12/task113.md
@@ -144,7 +145,7 @@ def test_includefile_path():
         def func(arg: str, itree_mode=False) -> str:
             call = macros.Macrocall(None, "ch/chapter/group/task.md", "task", 
                                     f"[INCLUDE::{arg}]", "INCLUDE", arg, None)
-            return sdrl.subcmd.author.includefile_path(course, call, itree_mode)
+            return macroexpanders.includefile_path(course, call, itree_mode)
         assert func("other") == "ch/chapter/group/other"
         assert func("/other2") == "ch/other2"
         assert func("ALT:other") == "altdir/chapter/group/other"
