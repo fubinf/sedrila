@@ -349,8 +349,10 @@ def render_structure(course: sdrl.course.Coursebuilder, template, structure: sdr
                      targetdir: str, mode: b.Mode):
     macros.switch_part(structure.slug)
     toc = (structure.taskgroup if isinstance(structure, sdrl.course.Taskbuilder) else structure).toc
-    html = md.render_markdown(structure.sourcefile, structure.slug, structure.content, mode, 
-                              course.blockmacro_topmatter)
+    html, includes = md.render_markdown(structure.sourcefile, structure.slug, structure.content, mode, 
+                                        course.blockmacro_topmatter)
+    if includes:
+        b.debug(f"{structure.slug} INCLUDEs {includes}")
     output = template.render(sitetitle=course.title,
                              index=course.chapters[0].slug, index_title=course.chapters[0].title,
                              breadcrumb=h.breadcrumb(*structure_path(structure)[::-1]),

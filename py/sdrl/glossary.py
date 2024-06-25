@@ -24,6 +24,7 @@ class Glossary(part.Structurepart, part.StructurepartbuilderMixin):
     termdefs: set[str]  # what has a [TERMx] in glossary.md
     term_linkslist: tg.Optional[list[str]]  # the lines of the linksblock
     rendered_content: str = ''  # results of render(); re-render would report duplicate definitions
+    includefiles: list[str]  # files INCLUDEd while rendering the glossary
     
     def __init__(self, chapterdir: str):
         self.chapterdir = chapterdir
@@ -58,7 +59,8 @@ class Glossary(part.Structurepart, part.StructurepartbuilderMixin):
         """We render only once, because the glossary will not contain [INSTRUCTOR] calls."""
         if not self.rendered_content:
             self._register_macros_phase2()
-            self.rendered_content = md.render_markdown(self.sourcefile, self.slug, self.content, mode, dict())
+            self.rendered_content, self.includefiles = md.render_markdown(self.sourcefile, self.slug, 
+                                                                          self.content, mode, dict())
         return self.rendered_content
     
     def report_issues(self):

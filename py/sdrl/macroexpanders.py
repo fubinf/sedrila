@@ -182,6 +182,7 @@ def expand_include(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocal
         return ""
     with open(fullfilename, "rt", encoding='utf8') as f:
         rawcontent = f.read()
+    macrocall.md.includefiles.add(fullfilename)  # record that we have included this file
     if fullfilename.endswith('.md'):
         return macros.expand_macros(md.md.context_sourcefile, md.md.partname, rawcontent)
     else:
