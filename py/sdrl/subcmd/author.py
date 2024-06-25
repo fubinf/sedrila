@@ -73,7 +73,7 @@ def get_course(pargs):
     return course
 
 
-def generate(course: sdrl.course.Course):
+def generate(course: sdrl.course.Coursebuilder):
     """
     Render the tasks, intros and navigation stuff to output directories (student version, instructor version).
     For each, tenders all HTML into a single flat directory because this greatly simplifies
@@ -100,7 +100,7 @@ def generate(course: sdrl.course.Course):
         print(f"wrote instructor files to  '{targetdir_i}'")
 
 
-def remove_empty_partscontainers(course: sdrl.course.Course):
+def remove_empty_partscontainers(course: sdrl.course.Coursebuilder):
     b.info("removing empty partscontainers")
     chapters_new = list(course.chapters)  # copy
     for chapter in course.chapters:  # iterate original
@@ -117,7 +117,7 @@ def remove_empty_partscontainers(course: sdrl.course.Course):
     course.chapters = chapters_new
 
 
-def generate_htaccess(course: sdrl.course.Course):
+def generate_htaccess(course: sdrl.course.Coursebuilder):
     if not course.htaccess_template:
         return  # nothing to do
     targetfile = f"{course.targetdir_i}/.htaccess"
@@ -130,7 +130,7 @@ def generate_htaccess(course: sdrl.course.Course):
     b.spit(f"{targetfile}", htaccess_txt)
 
 
-def generate_itree_zipfile(course: sdrl.course.Course):
+def generate_itree_zipfile(course: sdrl.course.Coursebuilder):
     if not course.itreedir or course.cache1_mode == sdrl.course.CacheMode.READ:
         return  # nothing to do
     b.info(f"generating itreedir ZIP file to '{course.targetdir_i}/{course.itreedir}'")
@@ -141,7 +141,7 @@ def generate_itree_zipfile(course: sdrl.course.Course):
     itreedir.render_zipdirs(course.targetdir_i)
 
 
-def generate_metadata_and_glossary(course: sdrl.course.Course, env):
+def generate_metadata_and_glossary(course: sdrl.course.Coursebuilder, env):
     if course.cache1_mode == sdrl.course.CacheMode.READ:
         return  # nothing to do
     b.info(f"generating metadata file '{course.targetdir_s}/{b.METADATA_FILE}'")
@@ -151,7 +151,7 @@ def generate_metadata_and_glossary(course: sdrl.course.Course, env):
     course.glossary.report_issues()
 
 
-def generate_task_files(course: sdrl.course.Course, env):
+def generate_task_files(course: sdrl.course.Coursebuilder, env):
     using_cache1 = course.cache1_mode == sdrl.course.CacheMode.READ
     which = " for modified tasks" if using_cache1 else ""
     b.info(f"generating task files{which}")
@@ -169,7 +169,7 @@ def generate_task_files(course: sdrl.course.Course, env):
         render_task(task, env, course.targetdir_i, b.Mode.INSTRUCTOR)
 
 
-def generate_upper_parts_files(course: sdrl.course.Course, env):
+def generate_upper_parts_files(course: sdrl.course.Coursebuilder, env):
     if course.cache1_mode == sdrl.course.CacheMode.READ:
         return  # nothing to do
     # ----- generate top-level file:
@@ -192,7 +192,7 @@ def generate_upper_parts_files(course: sdrl.course.Course, env):
             render_taskgroup(taskgroup, env, course.targetdir_i, b.Mode.INSTRUCTOR)
 
 
-def add_tocs_to_upper_parts(course: sdrl.course.Course):
+def add_tocs_to_upper_parts(course: sdrl.course.Coursebuilder):
     b.info(f"building tables-of-content (TOCs)")
     course.toc = toc(course)
     for chapter in course.chapters:
@@ -202,7 +202,7 @@ def add_tocs_to_upper_parts(course: sdrl.course.Course):
     course.glossary.toc = toc_for_glossary(course)
 
 
-def copy_baseresources(course: sdrl.course.Course):
+def copy_baseresources(course: sdrl.course.Coursebuilder):
     if course.cache1_mode == sdrl.course.CacheMode.READ:
         return  # nothing to do
     b.info(f"copying '{course.baseresourcedir}'")
@@ -213,7 +213,7 @@ def copy_baseresources(course: sdrl.course.Course):
         shutil.copy(filename, course.targetdir_i)
 
 
-def prepare_directories(course: sdrl.course.Course):
+def prepare_directories(course: sdrl.course.Coursebuilder):
     if course.cache1_mode == sdrl.course.CacheMode.READ:
         b.info(f"cached1 mode: leaving directories as they are: '{course.targetdir_s}', '{course.targetdir_i}'")
     else:
@@ -248,8 +248,8 @@ def toc(structure: sdrl.part.Structurepart) -> str:
     """Return a table-of-contents HTML fragment for the given structure via structural recursion."""
     parts = structure_path(structure)
     fulltoc = len(parts) == 1  # path only contains course
-    assert isinstance(parts[-1], sdrl.course.Course)
-    course = tg.cast(sdrl.course.Course, parts[-1])
+    assert isinstance(parts[-1], sdrl.course.Coursebuilder)
+    course = tg.cast(sdrl.course.Coursebuilder, parts[-1])
     result = ['']  # start with a newline
     for chapter in course.chapters:  # noqa
         if chapter.to_be_skipped:
@@ -271,7 +271,7 @@ def toc(structure: sdrl.part.Structurepart) -> str:
     return "\n".join(result)
 
 
-def toc_for_glossary(course: sdrl.course.Course) -> str:
+def toc_for_glossary(course: sdrl.course.Coursebuilder) -> str:
     """Return a chapters-only table of contents for the glossary."""
     result = ['']  # start with a newline
     for chapter in course.chapters:  # noqa
@@ -306,7 +306,7 @@ def register_macros(course):
     macros.register_macro('EREFC', 1, MM.INNER, expand_enumerationref)
     macros.register_macro('EREFQ', 1, MM.INNER, expand_enumerationref)
     macros.register_macro('EREFR', 1, MM.INNER, expand_enumerationref)
-    macros.register_macro('DIFF', 1, MM.INNER, sdrl.course.Task.expand_diff)
+    macros.register_macro('DIFF', 1, MM.INNER, sdrl.course.Taskbuilder.expand_diff)
     # ----- register hard-coded block macros:
     macros.register_macro('SECTION', 2, MM.BLOCKSTART, expand_section)
     macros.register_macro('ENDSECTION', 0, MM.BLOCKEND, expand_section)
@@ -329,11 +329,11 @@ def register_macros(course):
         macros.register_macro(f'END{key}', 0, MM.BLOCKEND, expand_block)
 
 
-def expand_href(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:  # noqa
+def expand_href(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocall) -> str:  # noqa
     return f"<a href='{macrocall.arg1}'>{macrocall.arg1}</a>"
 
 
-def expand_partref(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
+def expand_partref(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocall) -> str:
     part = course.get_part(macrocall.filename, macrocall.arg1)
     linktext = dict(PARTREF=part.slug, 
                     PARTREFTITLE=part.title, 
@@ -341,7 +341,7 @@ def expand_partref(course: sdrl.course.Course, macrocall: macros.Macrocall) -> s
     return f"<a href='{part.outputfile}' class='partref-link'>{html.escape(linktext)}</a>"
 
 
-def expand_treeref(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
+def expand_treeref(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocall) -> str:
     actualpath = includefile_path(course, macrocall, itree_mode=True)
     showpath = actualpath[len(course.itreedir)+1:]  # skip itreedir part of path
     if not os.path.exists(actualpath):
@@ -433,7 +433,7 @@ def expand_enumerationref(macrocall: macros.Macrocall) -> str:
     return f"<span class='{classname}'>{value}</span>"
 
 
-def expand_include(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
+def expand_include(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocall) -> str:
     """
     [INCLUDE::filename] inserts file contents into the Markdown text.
     If the file has suffix *.md, it is macro-expanded beforehands,
@@ -458,7 +458,7 @@ def expand_include(course: sdrl.course.Course, macrocall: macros.Macrocall) -> s
         return rawcontent
 
 
-def includefile_path(course: sdrl.course.Course, macrocall: macros.Macrocall, itree_mode=False) -> str:
+def includefile_path(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocall, itree_mode=False) -> str:
     """
     Normal mode constructs normal paths in chapterdir and those with prefix 'ALT:' in altdir.
     itree mode constructs normal paths in itreedir and warns about 'ALT:' prefix if present.
@@ -482,25 +482,25 @@ def includefile_path(course: sdrl.course.Course, macrocall: macros.Macrocall, it
     return fullpath
 
 
-def render_homepage(course: sdrl.course.Course, env, targetdir: str, mode: b.Mode):
+def render_homepage(course: sdrl.course.Coursebuilder, env, targetdir: str, mode: b.Mode):
     template = env.get_template("homepage.html")
     render_structure(course, template, course, targetdir, mode)
     course.render_zipdirs(targetdir)
 
 
-def render_chapter(chapter: sdrl.course.Chapter, env, targetdir: str, mode: b.Mode):
+def render_chapter(chapter: sdrl.course.Chapterbuilder, env, targetdir: str, mode: b.Mode):
     template = env.get_template("chapter.html")
     render_structure(chapter.course, template, chapter, targetdir, mode)
     chapter.render_zipdirs(targetdir)
 
 
-def render_taskgroup(taskgroup: sdrl.course.Taskgroup, env, targetdir: str, mode: b.Mode):
+def render_taskgroup(taskgroup: sdrl.course.Taskgroupbuilder, env, targetdir: str, mode: b.Mode):
     template = env.get_template("taskgroup.html")
     render_structure(taskgroup.chapter.course, template, taskgroup, targetdir, mode)
     taskgroup.render_zipdirs(targetdir)
 
 
-def render_task(task: sdrl.course.Task, env, targetdir: str, mode: b.Mode):
+def render_task(task: sdrl.course.Taskbuilder, env, targetdir: str, mode: b.Mode):
     template = env.get_template("task.html")
     course = task.taskgroup.chapter.course
     task.linkslist_top = render_task_linkslist(task, 'assumes', 'requires')
@@ -508,7 +508,7 @@ def render_task(task: sdrl.course.Task, env, targetdir: str, mode: b.Mode):
     render_structure(course, template, task, targetdir, mode)
 
 
-def render_task_linkslist(task: sdrl.course.Task, a_attr: str, r_attr: str) -> str:
+def render_task_linkslist(task: sdrl.course.Taskbuilder, a_attr: str, r_attr: str) -> str:
     """HTML for the links to assumes/requires (or assumed_by/required_by) related tasks on a task page."""
     links = []
     a_links = sorted((f"[PARTREF::{part}]" for part in getattr(task, a_attr)))
@@ -531,7 +531,7 @@ def render_task_linkslist(task: sdrl.course.Task, a_attr: str, r_attr: str) -> s
     return "".join(links)
 
 
-def render_glossary(course: sdrl.course.Course, env, targetdir: str, mode: b.Mode):
+def render_glossary(course: sdrl.course.Coursebuilder, env, targetdir: str, mode: b.Mode):
     glossary = course.glossary
     b.info(f"generating glossary '{glossary.outputfile}'")
     glossary_html = course.glossary.render(mode)
@@ -546,10 +546,10 @@ def render_glossary(course: sdrl.course.Course, env, targetdir: str, mode: b.Mod
     b.spit(f"{targetdir}/{glossary.outputfile}", output)
 
 
-def render_structure(course: sdrl.course.Course, template, structure: sdrl.part.Structurepart, 
+def render_structure(course: sdrl.course.Coursebuilder, template, structure: sdrl.part.Structurepart, 
                      targetdir: str, mode: b.Mode):
     macros.switch_part(structure.slug)
-    toc = (structure.taskgroup if isinstance(structure, sdrl.course.Task) else structure).toc
+    toc = (structure.taskgroup if isinstance(structure, sdrl.course.Taskbuilder) else structure).toc
     html = md.render_markdown(structure.sourcefile, structure.slug, structure.content, mode, 
                               course.blockmacro_topmatter)
     output = template.render(sitetitle=course.title,
@@ -564,11 +564,11 @@ def render_structure(course: sdrl.course.Course, template, structure: sdrl.part.
     b.spit(f"{targetdir}/{structure.outputfile}", output)
 
 
-def write_metadata(course: sdrl.course.Course, filename: str):
+def write_metadata(course: sdrl.course.Coursebuilder, filename: str):
     b.spit(filename, json.dumps(course.as_json(), ensure_ascii=False, indent=2))
 
 
-def print_volume_report(course: sdrl.course.Course):
+def print_volume_report(course: sdrl.course.Coursebuilder):
     """Show total timevalues per stage, difficulty, and chapter."""
     # ----- print cumulative timevalues per stage as comma-separated values (CSV):
     volume_report_per_stage = course.volume_report_per_stage()
@@ -600,8 +600,8 @@ def print_volume_report(course: sdrl.course.Course):
         b.rich_print(table)  # noqa
 
 
-def cache_filename(context: tg.Union[sdrl.course.Course, str]) -> str:
-    if isinstance(context, sdrl.course.Course):
+def cache_filename(context: tg.Union[sdrl.course.Coursebuilder, str]) -> str:
+    if isinstance(context, sdrl.course.Coursebuilder):
         return f"{context.targetdir_i}/{b.CACHE1_FILE}"
     else:
         # the context _is_ the targetdir_i:
