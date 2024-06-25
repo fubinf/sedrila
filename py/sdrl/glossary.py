@@ -9,7 +9,7 @@ import sdrl.markdown as md
 import sdrl.part as part
 
 
-class Glossary(part.Structurepart):
+class Glossary(part.Structurepart, part.StructurepartbuilderMixin):
     """
     Processed in two phases: in phase 1, term references and term definitions are collected.
     Links to term definitions can already be generated because they have a canonical form:
@@ -204,3 +204,7 @@ class Glossary(part.Structurepart):
             if term not in self.mentionedby:
                 self.mentionedby[term] = set()
             self.mentionedby[term].add(partname)
+
+
+class Glossarybuilder(Glossary):
+    pass  # TODO 2: pull apart Glossarybuilder from Glossary

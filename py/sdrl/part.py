@@ -1,10 +1,8 @@
 """
-Common superclass for
-a) Course, Chapter, Taskgroup (all via Partscontainer), and Task, all defined in course.py 
+Common superclasses for
+a) Course, Chapter, Taskgroup, Task, and their builders all defined in course.py 
 b) Glossary, defined in glossary.py
-c) ZipDir
-Not all attributes are needed for all parts; 
-the design is a bit scruffy, which saves various intermediate superclasses.
+Not all attributes are needed for all parts.
 """
 
 import glob
@@ -19,23 +17,25 @@ import sdrl.html as h
 
 
 class Structurepart:
-    """Common superclass"""
     TOC_LEVEL = 0  # indent level in table of contents
     sourcefile: str = "???"  # the originating pathname
     outputfile: str  # the target pathname
+    slug: str  # the file/dir basename by which we refer to the part
+    title: str  # title: value
+
+    def __repr__(self):
+        return self.slug
+
+
+class StructurepartbuilderMixin:  # to be mixed into a Structurepart class
     metadata_text: str  # the YAML front matter character stream
     metadata: b.StrAnyDict  # the YAML front matter
     content: str  # the markdown block
-    slug: str  # the file/dir basename by which we refer to the part
-    title: str  # title: value
     linkslist_top: str = ''  # generated HTML of cross reference links
     linkslist_bottom: str = ''  # generated HTML of cross reference links
     stage: str = ''  # stage: value
     skipthis: bool  # do not include this chapter/taskgroup/task in generated site
     toc: str  # table of contents
-
-    def __repr__(self):
-        return self.slug
 
     @property
     def breadcrumb_item(self) -> str:
