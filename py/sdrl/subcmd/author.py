@@ -60,7 +60,7 @@ def get_course(pargs):
     targetdir_i = f"{targetdir_s}/{OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR}"  # for instructors
     cache1_file = cache_filename(targetdir_i)
     if not pargs.cache or not os.path.exists(cache1_file):  # no cache present
-        course = sdrl.course.Course(pargs.config, is_authormode=True, include_stage=pargs.include_stage)
+        course = sdrl.course.Coursebuilder(pargs.config, include_stage=pargs.include_stage)
         course.cache1_mode = CacheMode.WRITE if pargs.cache else CacheMode.UNCACHED
     else:  # we have a filled cache
         print(f"using cache1 file '{cache1_file}'")

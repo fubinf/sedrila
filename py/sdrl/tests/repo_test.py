@@ -98,7 +98,7 @@ def run_inside_repo(preparations, assertions, coursemodifications = None):
         os.system(f"git config user.signingkey {fingerprint}")
         preparations()
         #----- initialize application environment:
-        course = sdrl.course.Course(b.METADATA_FILE, is_authormode=False, include_stage="")
+        course = sdrl.course.Course(b.METADATA_FILE, include_stage="")
         commits = git.commits_of_local_repo(reverse=True)
         workhours = r.workhours_of_commits(commits)
         r.accumulate_workhours_per_task(workhours, course)

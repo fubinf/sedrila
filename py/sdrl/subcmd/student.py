@@ -36,7 +36,7 @@ def execute(pargs: argparse.Namespace):
         return
     student = sdrl.participant.Student()
     metadatafile = f"{student.course_url}/{b.METADATA_FILE}"
-    course = sdrl.course.Course(metadatafile, is_authormode=False, include_stage="")
+    course = sdrl.course.Course(metadatafile, include_stage="")
     r.compute_student_work_so_far(course)
     entries, workhours_total, timevalue_total = r.student_work_so_far(course)
     if pargs.submission:

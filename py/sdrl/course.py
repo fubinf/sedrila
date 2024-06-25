@@ -79,7 +79,6 @@ class Task(part.Structurepart):
                     assumes=self.assumes, requires=self.requires)
 
     def from_file(self, file: str, taskgroup: 'Taskgroup') -> 'Task':
-        """Initializer used in author mode"""
         self.read_partsfile(file)
         # ----- get taskdata from file:
         filename = os.path.basename(self.sourcefile)
@@ -111,12 +110,10 @@ class Task(part.Structurepart):
         _handle_strlist('explains')
         _handle_strlist('assumes')
         _handle_strlist('requires')
-
         # ----- add to glossary:
         if self.explains:
             for term in self.explains:
                 taskgroup.chapter.course.glossary.explains(self.slug, term)
-                
         # ----- done:
         return self
 
@@ -175,81 +172,44 @@ class Course(part.Partscontainer):
     """
     The master data object for this run.
     Can be initialized in two different ways: 
-    - From a handwritten YAML file (if is_authormode). 
+    - as Coursebuilder: From a handwritten YAML file. 
       Will then read all content for a build.
-    - If not is_authormode: From a metadata file generated during build
+    - as Course: From a metadata file generated during build
       for bookkeeping/reporting.
     """
+    AUTHORMODE_ATTRS = ''
+
     configfile: str
     breadcrumb_title: str
-    baseresourcedir: str = f"{sedrila_libdir}/baseresources"
-    chapterdir: str
-    altdir: str
-    itreedir: str | None
-    templatedir: str = f"{sedrila_libdir}/templates"
-    blockmacro_topmatter: dict[str, str]
     instructors: list[b.StrAnyDict]
-    htaccess_template: str = None  # structure of .htaccess file generated in instructor website
     chapters: list['Chapter']
-    stages: list[str]  # list of allowed values of stage in parts 
-
     namespace: dict[str, part.Structurepart]  # the parts known so far
-    include_stage: str  # lowest stage that parts must have to be included in output
-    include_stage_index: int  # index in stages list, or len(stages) if include_stage is ""
-    cache1_mode: CacheMode
-    mtime: float  # in READ cache mode: tasks have changed if they are younger than this
-
-    taskorder: list[Task]  # If task B assumes or requires A, A will be before B in this list.
     init_data: b.StrAnyDict = {}
-    targetdir_s: str  # where to render student output files
-    targetdir_i: str  # where to render instructor output files
-    allowed_attempts: str  # "2 + 0.5/h" or so, int+decimal, the hours are the task timevalue
+    allowed_attempts: str  # "2 + 0.5/h" or so, int+decimal, h is the task timevalue multiplier
     allowed_attempts_base: int  # the int part of allowed_attempts
     allowed_attempts_hourly: float  # the decimal part of allowed_attempts
-
+    # Coursebuilder attrs put here because Chapter,Taskgroup,Task have no separate builders:
+    chapterdir: str
     glossary: glossary.Glossary
 
-    def __init__(self, configfile: str, is_authormode: bool, include_stage: str):
+    def __init__(self, configfile: str, include_stage: str):
         self.configfile = self.sourcefile = configfile
         configdict = b.slurp_yaml(configfile)
-        if is_authormode:  # author mode (vs. student, instructor)
-            authormode_attrs = ', chapterdir, altdir, stages'
-        else:
-            authormode_attrs = ""  # the above will be missing in course.json
         b.copyattrs(configfile,
                     configdict, self,
                     mustcopy_attrs=('title, breadcrumb_title, instructors, allowed_attempts' +
-                                    authormode_attrs),
+                                    self.AUTHORMODE_ATTRS),
                     cancopy_attrs=('baseresourcedir, itreedir, templatedir, '
                                    'blockmacro_topmatter, htaccess_template, init_data'),
                     mustexist_attrs='chapters',
-                    report_extra=is_authormode)
+                    report_extra=bool(self.AUTHORMODE_ATTRS))
         self.allowed_attempts_base, self.allowed_attempts_hourly = self._parse_allowed_attempts()
         self.slug = self.breadcrumb_title
         self.outputfile = "index.html"
         self.namespace = dict()
         self.namespace_add(configfile, self)
-        if is_authormode:
-            self.read_partsfile(f"{self.chapterdir}/index.md")
-            self.glossary = glossary.Glossary(self.chapterdir)
-            self.namespace_add("", self.glossary)
-            self.find_zipdirs()
-            if include_stage in self.stages:
-                self.include_stage = include_stage
-                self.include_stage_index = self.stages.index(include_stage)
-            else:
-                if include_stage != '':  # empty is allowed
-                    b.error(f"'--include_stage {include_stage}' not allowed, must be one of {self.stages}")
-                self.include_stage = ''  # include only parts with no stage
-                self.include_stage_index = len(self.stages)
-        self.chapters = [Chapter(self, ch, is_authormode) 
-                         for ch in configdict['chapters']]
-        if is_authormode:
-            self._collect_zipdirs()
-            self._check_links()
-            self._add_inverse_links()
-            self._compute_taskorder()
-
+        self._init_parts(configdict, include_stage)
+        
     @property
     def breadcrumb_item(self) -> str:
         titleattr = f"title=\"{h.as_attribute(self.title)}\""
@@ -271,16 +231,6 @@ class Course(part.Partscontainer):
                 b.error(f"duplicate task: '{t.sourcefile}'\t'{result[t.slug].sourcefile}'")
             else:
                 result[t.slug] = t
-        return result
-
-    def as_json(self) -> b.StrAnyDict:
-        result = dict(title=self.title,
-                      breadcrumb_title=self.breadcrumb_title,
-                      instructors=self.instructors,
-                      init_data=self.init_data,
-                      allowed_attempts=self.allowed_attempts,
-                      chapters=[chapter.as_json() for chapter in self.chapters])
-        result.update(super().as_json())
         return result
 
     def chapter(self, slug: str) -> tg.Optional['Chapter']:
@@ -310,10 +260,170 @@ class Course(part.Partscontainer):
         else:
             self.namespace[name] = newpart
 
+    def _all_taskgroups(self) -> tg.Generator['Taskgroup', None, None]:
+        """To be used only for initializing taskgroupdict, so we can assume all taskgroups to be known"""
+        for chapter in self.chapters:
+            for taskgroup in chapter.taskgroups:
+                yield taskgroup
+
+    def _all_tasks(self) -> tg.Generator[Task, None, None]:
+        """To be used only for initializing taskdict, so we can assume all tasks to be known"""
+        for chapter in self.chapters:
+            for taskgroup in chapter.taskgroups:
+                for task in taskgroup.tasks:
+                    yield task
+
+    def _init_parts(self, configdict: dict, include_stage: str):
+        self.chapters = [Chapter(self, ch, is_authormode=False) 
+                         for ch in configdict['chapters']]
+
+    def _parse_allowed_attempts(self) -> tuple[int, float]:
+        mm = re.match(r"(\d+)\s?\+\s?(\d+\.\d+)\s?/\s?h", self.allowed_attempts)
+        if not mm:
+            msg1 = f"'allowed_attempts' must have a format exactly like '2 + 0.5/h'"
+            b.error(f"{self.sourcefile}: {msg1}, not '{self.allowed_attempts}'")
+            return 2, 0
+        return int(mm.group(1)), float(mm.group(2))
+
+    @staticmethod
+    def _slugfilename(p: part.Structurepart) -> str:
+        fullpath = p.sourcefile
+        basename = os.path.basename(fullpath)
+        dirname = os.path.dirname(fullpath)
+        if basename == "index.md":
+            return dirname
+        else:
+            return fullpath
+
+
+class Coursebuilder(Course):
+    """Course with the additions required for author mode. (Chapter, Taskgroup, Task have both in one.)"""
+    AUTHORMODE_ATTRS = ', chapterdir, altdir, stages'
+
+    baseresourcedir: str = f"{sedrila_libdir}/baseresources"
+    altdir: str
+    itreedir: str | None
+    templatedir: str = f"{sedrila_libdir}/templates"
+    blockmacro_topmatter: dict[str, str]
+    htaccess_template: str = None  # structure of .htaccess file generated in instructor website
+    stages: list[str]  # list of allowed values of stage in parts 
+
+    include_stage: str  # lowest stage that parts must have to be included in output
+    include_stage_index: int  # index in stages list, or len(stages) if include_stage is ""
+    cache1_mode: CacheMode
+    mtime: float  # in READ cache mode: tasks have changed if they are younger than this
+
+    taskorder: list[Task]  # If task B assumes or requires A, A will be before B in this list.
+    targetdir_s: str  # where to render student output files
+    targetdir_i: str  # where to render instructor output files
+    
     @dataclasses.dataclass
     class Volumereport:
         rows: tg.Sequence[tg.Tuple[str, int, float]]
         columnheads: tg.Sequence[str]
+    
+    def as_json(self) -> b.StrAnyDict:
+        result = dict(title=self.title,
+                      breadcrumb_title=self.breadcrumb_title,
+                      instructors=self.instructors,
+                      init_data=self.init_data,
+                      allowed_attempts=self.allowed_attempts,
+                      chapters=[chapter.as_json() for chapter in self.chapters])
+        result.update(super().as_json())
+        return result
+
+    def _add_inverse_links(self):
+        """add Task.required_by/Task.assumed_by lists."""
+        for taskname, task in self.taskdict.items():
+            task.assumed_by = []  # so we do not append to the class attribute
+            task.required_by = []
+        for taskname, task in self.taskdict.items():
+            for assumed_taskname in task.assumes:
+                assumed_task = self.task(assumed_taskname)
+                if assumed_task:
+                    assumed_task.assumed_by.append(taskname)
+            for required_taskname in task.requires:
+                required_task = self.task(required_taskname)
+                if required_task:
+                    required_task.required_by.append(taskname)
+
+    def _check_links(self):
+        for task in self.taskdict.values():
+            b.debug(f"Task '{task.slug}'\tassumes {task.assumes},\trequires {task.requires}")
+            for assumed in task.assumes:
+                if not self._task_or_taskgroup_exists(assumed):
+                    b.error(f"{task.slug}:\t assumed task or taskgroup '{assumed}' does not exist")
+            for required in task.requires:
+                if not self._task_or_taskgroup_exists(required):
+                    b.error(f"{task.slug}:\t required task or taskgroup '{required}' does not exist")
+
+    def _collect_zipdirs(self):
+        for zd in self.zipdirs:
+            self.namespace_add(zd.sourcefile, zd)
+        for ch in self.chapters:
+            for zd in ch.zipdirs:
+                self.namespace_add(zd.sourcefile, zd)
+            for tgr in ch.taskgroups:
+                for zd in tgr.zipdirs:
+                    self.namespace_add(zd.sourcefile, zd)
+
+    def _compute_taskorder(self):
+        """
+        Set self.taskorder such that it respects the 'assumes' and 'requires'
+        dependencies globally (across all taskgroups and chapters).
+        The attribute will be used for ordering the tasks when rendering a taskgroup.
+        """
+        # ----- prepare dependency graph for topological sorting:
+        graph = dict()  # maps a task to a set of tasks it depends on.
+        for mytaskname, mytask in self.taskdict.items():
+            dependencies = set()  # collection of all tasks required or assumed by mytask
+            for assumedtask in mytask.assumes:
+                if assumedtask in self.taskdict:
+                    dependencies.add(self.taskdict[assumedtask])
+            for requiredtask in mytask.requires:
+                if requiredtask in self.taskdict:
+                    dependencies.add(self.taskdict[requiredtask])
+            graph[mytask] = dependencies
+        # ----- compute taskorder (or report dependency cycle if one is found):
+        self.taskorder = self._taskordering_for_toc(graph)
+
+    def _init_parts(self, configdict: dict, include_stage: str):
+        self.read_partsfile(f"{self.chapterdir}/index.md")
+        self.glossary = glossary.Glossary(self.chapterdir)
+        self.namespace_add("", self.glossary)
+        self.find_zipdirs()
+        if include_stage in self.stages:
+            self.include_stage = include_stage
+            self.include_stage_index = self.stages.index(include_stage)
+        else:
+            if include_stage != '':  # empty is allowed
+                b.error(f"'--include_stage {include_stage}' not allowed, must be one of {self.stages}")
+            self.include_stage = ''  # include only parts with no stage
+            self.include_stage_index = len(self.stages)
+        self.chapters = [Chapter(self, ch, is_authormode=True) 
+                         for ch in configdict['chapters']]
+        self._collect_zipdirs()
+        self._check_links()
+        self._add_inverse_links()
+        self._compute_taskorder()
+
+    def _task_or_taskgroup_exists(self, name: str) -> bool:
+        return name in self.taskdict or name in self.taskgroupdict
+
+    @staticmethod
+    def _taskordering_for_toc(graph) -> list[Task]:
+        sorter = graphlib.TopologicalSorter(graph)
+        sorter.prepare()
+        result = []
+        try:
+            while sorter.is_active():
+                node_group = sorted(sorter.get_ready())
+                result.extend(node_group)
+                sorter.done(*node_group)        
+        except graphlib.CycleError as exc:
+            msg = "Some tasks' 'assumes' or 'requires' dependencies form a cycle:\n"
+            b.critical(msg + exc.args[1])
+        return result
 
     def _volume_report(self, rowitems: tg.Iterable, column1head: str,
                        select: tg.Callable[[Task, tg.Any], bool],
@@ -339,110 +449,6 @@ class Course(part.Partscontainer):
     def volume_report_per_stage(self) -> Volumereport:
         return self._volume_report(self.stages + [None], "Stage",
                                    lambda t, s: t.stage == s, lambda s: s or "done", include_all=True)
-
-    def _add_inverse_links(self):
-        """add Task.required_by/Task.assumed_by lists."""
-        for taskname, task in self.taskdict.items():
-            task.assumed_by = []  # so we do not append to the class attribute
-            task.required_by = []
-        for taskname, task in self.taskdict.items():
-            for assumed_taskname in task.assumes:
-                assumed_task = self.task(assumed_taskname)
-                if assumed_task:
-                    assumed_task.assumed_by.append(taskname)
-            for required_taskname in task.requires:
-                required_task = self.task(required_taskname)
-                if required_task:
-                    required_task.required_by.append(taskname)
-
-    def _all_taskgroups(self) -> tg.Generator['Taskgroup', None, None]:
-        """To be used only for initializing taskgroupdict, so we can assume all taskgroups to be known"""
-        for chapter in self.chapters:
-            for taskgroup in chapter.taskgroups:
-                yield taskgroup
-
-    def _all_tasks(self) -> tg.Generator[Task, None, None]:
-        """To be used only for initializing taskdict, so we can assume all tasks to be known"""
-        for chapter in self.chapters:
-            for taskgroup in chapter.taskgroups:
-                for task in taskgroup.tasks:
-                    yield task
-
-    def _collect_zipdirs(self):
-        for zd in self.zipdirs:
-            self.namespace_add(zd.sourcefile, zd)
-        for ch in self.chapters:
-            for zd in ch.zipdirs:
-                self.namespace_add(zd.sourcefile, zd)
-            for tgr in ch.taskgroups:
-                for zd in tgr.zipdirs:
-                    self.namespace_add(zd.sourcefile, zd)
-
-    def _check_links(self):
-        for task in self.taskdict.values():
-            b.debug(f"Task '{task.slug}'\tassumes {task.assumes},\trequires {task.requires}")
-            for assumed in task.assumes:
-                if not self._task_or_taskgroup_exists(assumed):
-                    b.error(f"{task.slug}:\t assumed task or taskgroup '{assumed}' does not exist")
-            for required in task.requires:
-                if not self._task_or_taskgroup_exists(required):
-                    b.error(f"{task.slug}:\t required task or taskgroup '{required}' does not exist")
-
-    def _compute_taskorder(self):
-        """
-        Set self.taskorder such that it respects the 'assumes' and 'requires'
-        dependencies globally (across all taskgroups and chapters).
-        The attribute will be used for ordering the tasks when rendering a taskgroup.
-        """
-        # ----- prepare dependency graph for topological sorting:
-        graph = dict()  # maps a task to a set of tasks it depends on.
-        for mytaskname, mytask in self.taskdict.items():
-            dependencies = set()  # collection of all tasks required or assumed by mytask
-            for assumedtask in mytask.assumes:
-                if assumedtask in self.taskdict:
-                    dependencies.add(self.taskdict[assumedtask])
-            for requiredtask in mytask.requires:
-                if requiredtask in self.taskdict:
-                    dependencies.add(self.taskdict[requiredtask])
-            graph[mytask] = dependencies
-        # ----- compute taskorder (or report dependency cycle if one is found):
-        self.taskorder = self._taskordering_for_toc(graph)
-
-    def _parse_allowed_attempts(self) -> tuple[int, float]:
-        mm = re.match(r"(\d+)\s?\+\s?(\d+\.\d+)\s?/\s?h", self.allowed_attempts)
-        if not mm:
-            msg1 = f"'allowed_attempts' must have a format exactly like '2 + 0.5/h'"
-            b.error(f"{self.sourcefile}: {msg1}, not '{self.allowed_attempts}'")
-            return 2, 0
-        return int(mm.group(1)), float(mm.group(2))
-
-    @staticmethod
-    def _slugfilename(p: part.Structurepart) -> str:
-        fullpath = p.sourcefile
-        basename = os.path.basename(fullpath)
-        dirname = os.path.dirname(fullpath)
-        if basename == "index.md":
-            return dirname
-        else:
-            return fullpath
-
-    @staticmethod
-    def _taskordering_for_toc(graph) -> list[Task]:
-        sorter = graphlib.TopologicalSorter(graph)
-        sorter.prepare()
-        result = []
-        try:
-            while sorter.is_active():
-                node_group = sorted(sorter.get_ready())
-                result.extend(node_group)
-                sorter.done(*node_group)        
-        except graphlib.CycleError as exc:
-            msg = "Some tasks' 'assumes' or 'requires' dependencies form a cycle:\n"
-            b.critical(msg + exc.args[1])
-        return result
-
-    def _task_or_taskgroup_exists(self, name: str) -> bool:
-        return name in self.taskdict or name in self.taskgroupdict
 
 
 class Chapter(part.Partscontainer):
