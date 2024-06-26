@@ -69,40 +69,94 @@ The files lists in `pyproject.toml` must be corrected.
 
 ### 1.3 `author`: Architecture for a fully caching build
 
-How to implement a complete build process that caches all previous results:
+How to implement an incremental build process based on caching previous intermediate results.  
 
-- We modify the output directory instead of re-creating it completely.
-  `out.bak` no longer exists.
-- Fundamental concepts: Sourcefiles, Products, Parts, Pieces, Outputfiles, Dependencies, Builders.
-- Sourcefiles are source files edited by authors. Their state is either has_changed or as_before,
+TODO 1: Glossary and the fulltoc are not yet fully considered in what follows.
+
+
+#### 1.3.1 Elements class hierarchy
+
+The items involved in the build process as inputs or outputs are called Element.
+
+```
+Element
+  Product
+    Piece
+      Body
+      Itemlist
+      Toc
+      Tocline
+      Topmatter
+    Part
+      Partscontainer
+        Course
+        Chapter
+        Taskgroup
+      Task
+      Glossary
+      Zipfile
+    Plainfile
+  Source
+    Configelement
+    Sourcefile
+    ZipDir      
+```
+
+#### 1.3.2 Overall procedure
+
+We modify the output directory instead of re-creating it completely.
+The cache file lives in the output directory.
+`out.bak` no longer exists.
+
+In order to limit the number of dependency edges, we clean out the output directory
+and perform a full (pseudo-incremental) build in the following cases:
+
+- sedrila software version changed
+- sedrila call parameters configfile or include_stage changed
+- config parameters breadcrumb_title, stages, or blockmacro_topmatter changed
+
+
+The incremental build has the following major steps:
+
+- Constructing the dependency graph: Element objects and their dependency lists
+- Building what needs to be rebuilt, in phases as follows:
+    - Sourcefile into Plainfile for baseresources 
+    - Sourcefile into Body, Topmatter, includefile-Itemlist for Course, Chapter, Taskgroup, Task  
+    - ZipDir into Zipfile.
+    - Topmatter into Tocline (after computing xx_by lists).
+    - Tocline into Toc.
+    - Body, Toc into Outputfile.
+
+All Elements have a state. 
+For Sources, it is set upon object creation; 
+for Products, it is set in the respective build phase.
+If A depends on B and B has_changed, A will be re-built.
+
+Tasks and Partscontainers are created in the graph-construction step
+and enriched during later build steps.
+
+
+#### 1.3.3 Discussion of Elements
+
+- Sources are edited by authors. Their state is either has_changed or as_before,
   determined by comparing their mtime to a single last_build_time (_start_ of last build).  
-  Products are the things created by the build process.  
-  Their state is either nonexisting or has_changed or as_before.  
-  Outputfiles are the only Products directly seen by users in the output directory. 
-- Parts are Products in the SeDriLa domain: Course, Chapters, Taskgroups, Tasks, Glossary, Zipdirs.  
+  Newly appearing files count as has_changed.
+- Products are the things created by the build process.  
+  Their state is either undetermined or nonexisting or has_changed or as_before.  
+- Pieces are internal Products and live in the cache.  
+  In contrast, Parts and Plainfiles produce output files.
+  Another output file is `course.json`; it is re-created whenever any other output file has been built.
+- Parts are Products in the SeDriLa domain.  
   Each Part leads to exactly one Outputfile, depends on at least one Sourcefile, and often
   depends on many other Sourcefiles as well.  
-  TODO 1: Glossary is not yet considered in what follows.
-- Pieces are internal intermediate Products, created during the build process and kept in a cache
-  for speeding up subsequent builds: Markdown, Requireslist, Assumeslist, Requiredbylist, Assumedbylist,
-  Includeslist, Tocline, Toc.
-- Each Part or Piece has a canonical name and is stored and found via that name in the cache.
-- Builders are the functions that turn Sourcefiles into Outputfiles or other Products.
-- Dependencies describe what a Builder uses as input in order to produce which Product.
-  A Depedency is an abstract "impacts" edge from a Sourcefile or Product instance to a Product instance.
-  Some Dependencies are created by the position of files in the tree, others are induced by 
-  metadata or the use of INCLUDE.
-- A Builder can run only once all its inputs are available,
-  it needs only run if some of its inputs have state has_changed.
-- Builders can be grouped in layers with a fixed execution order:
-    - Sourcefile into Markdown, Requireslist, Assumeslist.  
-      Sourcefiles into Zipfile.
-    - Requireslist and Assumeslist into Requiredbylist and Assumedbylist.
-    - All of these into Tocline.
-    - Tocline into Toc.
-    - Markdown and Toc into Outputfile.
-- For ensemble situations (Zipdir, Chapter, Taskgroup), we need a signature that reflects
-  all membership changes for checking constancy via the cache.
+
+
+#### 1.3.4 The cache
+
+- Each Part or Piece has a canonical name and is stored or referenced via that name in the cache.  
+- Sourcefiles use their pathname in the cache for detecting new files and moves.
+- For ensemble situations (Zipdir, Chapter, Taskgroup), we need a signature in the cache that reflects
+  all membership changes or else we would miss when a member is removed.
 
 
 ## 2. Development process: TODO-handling during development
