@@ -9,7 +9,7 @@ import sdrl.markdown as md
 import sdrl.elements as el
 
 
-class Glossary(el.Structurepart, el.StructurepartbuilderMixin):
+class Glossary(el.Part, el.PartbuilderMixin):
     """
     Processed in two phases: in phase 1, term references and term definitions are collected.
     Links to term definitions can already be generated because they have a canonical form:

@@ -244,7 +244,7 @@ def backup_targetdir(targetdir: str, markerfile: str):
     os.rename(targetdir, targetdir_bak)
 
 
-def toc(structure: sdrl.elements.Structurepart) -> str:
+def toc(structure: sdrl.elements.Part) -> str:
     """Return a table-of-contents HTML fragment for the given structure via structural recursion."""
     parts = structure_path(structure)
     fulltoc = len(parts) == 1  # path only contains course
@@ -345,7 +345,7 @@ def render_glossary(course: sdrl.course.Coursebuilder, env, targetdir: str, mode
     b.spit(f"{targetdir}/{glossary.outputfile}", output)
 
 
-def render_structure(course: sdrl.course.Coursebuilder, template, structure: sdrl.elements.Structurepart, 
+def render_structure(course: sdrl.course.Coursebuilder, template, structure: sdrl.elements.Part, 
                      targetdir: str, mode: b.Mode):
     macros.switch_part(structure.slug)
     toc = (structure.taskgroup if isinstance(structure, sdrl.course.Taskbuilder) else structure).toc
@@ -409,7 +409,7 @@ def cache_filename(context: tg.Union[sdrl.course.Coursebuilder, str]) -> str:
         return f"{context}/{b.CACHE1_FILE}"
 
 
-def structure_path(structure: sdrl.elements.Structurepart) -> list[sdrl.elements.Structurepart]:
+def structure_path(structure: sdrl.elements.Part) -> list[sdrl.elements.Part]:
     """List of nested parts, from a given part up to the course."""
     path = []
     if isinstance(structure, sdrl.course.Task):

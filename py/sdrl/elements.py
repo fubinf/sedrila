@@ -16,7 +16,7 @@ import base as b
 import sdrl.html as h
 
 
-class Structurepart:
+class Part:
     TOC_LEVEL = 0  # indent level in table of contents
     sourcefile: str = "???"  # the originating pathname
     outputfile: str  # the target pathname
@@ -27,7 +27,7 @@ class Structurepart:
         return self.slug
 
 
-class StructurepartbuilderMixin:  # to be mixed into a Structurepart class
+class PartbuilderMixin:  # to be mixed into a Part class
     metadata_text: str  # the YAML front matter character stream
     metadata: b.StrAnyDict  # the YAML front matter
     content: str  # the markdown block
@@ -101,7 +101,7 @@ class StructurepartbuilderMixin:  # to be mixed into a Structurepart class
             self.metadata = dict()  # use empty metadata as a weak replacement
 
 
-class Zipdir(Structurepart):
+class Zipdir(Part):
     """
     Turn directories named ch/mychapter/mytaskgroup/myzipdir.zip 
     containing a tree of files, say, myfile.txt
@@ -142,8 +142,8 @@ class Zipdir(Structurepart):
         return f"{self.innerpath}/{remainder}"
 
 
-class Partscontainer(Structurepart):
-    """A Structurepart that can contain other Structureparts."""
+class Partscontainer(Part):
+    """A Part that can contain other Parts."""
     zipdirs: list[Zipdir] = []
     
     def find_zipdirs(self):

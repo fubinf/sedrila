@@ -26,7 +26,7 @@ if sedrila_libdir.endswith('py'):  # we are a dev install and must go one more l
     sedrila_libdir = os.path.dirname(sedrila_libdir)
 
 
-class Task(el.Structurepart):
+class Task(el.Part):
     DIFFICULTY_RANGE = range(1, len(h.difficulty_levels) + 1)
     TOC_LEVEL = 2  # indent level in table of contents
 
@@ -65,7 +65,7 @@ class Task(el.Structurepart):
 
 
 @functools.total_ordering
-class Taskbuilder(Task, el.StructurepartbuilderMixin):
+class Taskbuilder(Task, el.PartbuilderMixin):
     explains: list[str] = []  # terms (for backlinks in glossary)
     assumed_by: list[str] = []  # tasknames: inverse of assumes
     required_by: list[str] = []  # tasknames: inverse of requires
@@ -200,7 +200,7 @@ class Course(el.Partscontainer):
     breadcrumb_title: str
     instructors: list[b.StrAnyDict]
     chapters: list['Chapter']
-    namespace: dict[str, el.Structurepart]  # the parts known so far
+    namespace: dict[str, el.Part]  # the parts known so far
     init_data: b.StrAnyDict = {}
     allowed_attempts: str  # "2 + 0.5/h" or so, int+decimal, h is the task timevalue multiplier
     allowed_attempts_base: int  # the int part of allowed_attempts
@@ -247,14 +247,14 @@ class Course(el.Partscontainer):
         """Return Task for given taskname or None if no such task exists."""
         return self.taskdict.get(taskname)
 
-    def get_part(self, context: str, partname: str) -> el.Structurepart:
+    def get_part(self, context: str, partname: str) -> el.Part:
         """Return part for given partname or self (and create an error) if no such part exists."""
         if partname in self.namespace:
             return self.namespace[partname]
         b.error(f"{context}: part '{partname}' does not exist")
         return self
 
-    def namespace_add(self, context: str, newpart: el.Structurepart):
+    def namespace_add(self, context: str, newpart: el.Part):
         name = newpart.slug
         if name in self.namespace:
             b.error("%s: name collision: %s and %s" %
@@ -288,7 +288,7 @@ class Course(el.Partscontainer):
         return int(mm.group(1)), float(mm.group(2))
 
     @staticmethod
-    def _slugfilename(p: el.Structurepart) -> str:
+    def _slugfilename(p: el.Part) -> str:
         fullpath = p.sourcefile
         basename = os.path.basename(fullpath)
         dirname = os.path.dirname(fullpath)
@@ -298,7 +298,7 @@ class Course(el.Partscontainer):
             return fullpath
 
 
-class Coursebuilder(Course, el.StructurepartbuilderMixin):
+class Coursebuilder(Course, el.PartbuilderMixin):
     """Course with the additions required for author mode. (Chapter, Taskgroup, Task have both in one.)"""
     AUTHORMODE_ATTRS = ', chapterdir, altdir, stages'
 
@@ -475,7 +475,7 @@ class Chapter(el.Partscontainer):
                     cancopy_attrs='title')
 
 
-class Chapterbuilder(Chapter, el.StructurepartbuilderMixin):
+class Chapterbuilder(Chapter, el.PartbuilderMixin):
     course: Coursebuilder
     taskgroups: list['Taskgroupbuilder']
 
@@ -540,7 +540,7 @@ class Taskgroup(el.Partscontainer):
                     mustexist_attrs='taskgroups')
 
 
-class Taskgroupbuilder(Taskgroup, el.StructurepartbuilderMixin):
+class Taskgroupbuilder(Taskgroup, el.PartbuilderMixin):
     chapter: Chapterbuilder
     tasks: list['Taskbuilder']
 
