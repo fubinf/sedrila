@@ -20,7 +20,7 @@ import sdrl.html as h
 import sdrl.macros as macros
 import sdrl.macroexpanders as macroexpanders
 import sdrl.markdown as md
-import sdrl.part
+import sdrl.elements
 
 meaning = """Creates and renders an instance of a SeDriLa course.
 Checks consistency of the course description beforehands.
@@ -136,8 +136,8 @@ def generate_itree_zipfile(course: sdrl.course.Coursebuilder):
     b.info(f"generating itreedir ZIP file to '{course.targetdir_i}/{course.itreedir}'")
     if not course.itreedir.endswith(".zip"):
         b.critical(f"itreedir = '{course.itreedir}'; must end with '.zip'")
-    itreedir = sdrl.part.Partscontainer()
-    itreedir.zipdirs = [sdrl.part.Zipdir(course.itreedir)]
+    itreedir = sdrl.elements.Partscontainer()
+    itreedir.zipdirs = [sdrl.elements.Zipdir(course.itreedir)]
     itreedir.render_zipdirs(course.targetdir_i)
 
 
@@ -244,7 +244,7 @@ def backup_targetdir(targetdir: str, markerfile: str):
     os.rename(targetdir, targetdir_bak)
 
 
-def toc(structure: sdrl.part.Structurepart) -> str:
+def toc(structure: sdrl.elements.Structurepart) -> str:
     """Return a table-of-contents HTML fragment for the given structure via structural recursion."""
     parts = structure_path(structure)
     fulltoc = len(parts) == 1  # path only contains course
@@ -345,7 +345,7 @@ def render_glossary(course: sdrl.course.Coursebuilder, env, targetdir: str, mode
     b.spit(f"{targetdir}/{glossary.outputfile}", output)
 
 
-def render_structure(course: sdrl.course.Coursebuilder, template, structure: sdrl.part.Structurepart, 
+def render_structure(course: sdrl.course.Coursebuilder, template, structure: sdrl.elements.Structurepart, 
                      targetdir: str, mode: b.Mode):
     macros.switch_part(structure.slug)
     toc = (structure.taskgroup if isinstance(structure, sdrl.course.Taskbuilder) else structure).toc
@@ -409,7 +409,7 @@ def cache_filename(context: tg.Union[sdrl.course.Coursebuilder, str]) -> str:
         return f"{context}/{b.CACHE1_FILE}"
 
 
-def structure_path(structure: sdrl.part.Structurepart) -> list[sdrl.part.Structurepart]:
+def structure_path(structure: sdrl.elements.Structurepart) -> list[sdrl.elements.Structurepart]:
     """List of nested parts, from a given part up to the course."""
     path = []
     if isinstance(structure, sdrl.course.Task):

@@ -6,10 +6,10 @@ import base as b
 import sdrl.html as h
 import sdrl.macros as macros
 import sdrl.markdown as md
-import sdrl.part as part
+import sdrl.elements as el
 
 
-class Glossary(part.Structurepart, part.StructurepartbuilderMixin):
+class Glossary(el.Structurepart, el.StructurepartbuilderMixin):
     """
     Processed in two phases: in phase 1, term references and term definitions are collected.
     Links to term definitions can already be generated because they have a canonical form:

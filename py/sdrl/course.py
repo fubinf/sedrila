@@ -18,7 +18,7 @@ import base as b
 import sdrl.glossary as glossary
 import sdrl.html as h
 import sdrl.macros as macros
-import sdrl.part as part
+import sdrl.elements as el
 
 
 sedrila_libdir = os.path.dirname(os.path.dirname(__file__))  # either 'py' (for dev install) or top-level
@@ -26,7 +26,7 @@ if sedrila_libdir.endswith('py'):  # we are a dev install and must go one more l
     sedrila_libdir = os.path.dirname(sedrila_libdir)
 
 
-class Task(part.Structurepart):
+class Task(el.Structurepart):
     DIFFICULTY_RANGE = range(1, len(h.difficulty_levels) + 1)
     TOC_LEVEL = 2  # indent level in table of contents
 
@@ -65,7 +65,7 @@ class Task(part.Structurepart):
 
 
 @functools.total_ordering
-class Taskbuilder(Task, part.StructurepartbuilderMixin):
+class Taskbuilder(Task, el.StructurepartbuilderMixin):
     explains: list[str] = []  # terms (for backlinks in glossary)
     assumed_by: list[str] = []  # tasknames: inverse of assumes
     required_by: list[str] = []  # tasknames: inverse of requires
@@ -185,7 +185,7 @@ class CacheMode(enum.Enum):
     READ = 3  # read metadata from cache, reuse rendered files
 
 
-class Course(part.Partscontainer):
+class Course(el.Partscontainer):
     """
     The master data object for this run.
     Can be initialized in two different ways: 
@@ -200,7 +200,7 @@ class Course(part.Partscontainer):
     breadcrumb_title: str
     instructors: list[b.StrAnyDict]
     chapters: list['Chapter']
-    namespace: dict[str, part.Structurepart]  # the parts known so far
+    namespace: dict[str, el.Structurepart]  # the parts known so far
     init_data: b.StrAnyDict = {}
     allowed_attempts: str  # "2 + 0.5/h" or so, int+decimal, h is the task timevalue multiplier
     allowed_attempts_base: int  # the int part of allowed_attempts
@@ -247,14 +247,14 @@ class Course(part.Partscontainer):
         """Return Task for given taskname or None if no such task exists."""
         return self.taskdict.get(taskname)
 
-    def get_part(self, context: str, partname: str) -> part.Structurepart:
+    def get_part(self, context: str, partname: str) -> el.Structurepart:
         """Return part for given partname or self (and create an error) if no such part exists."""
         if partname in self.namespace:
             return self.namespace[partname]
         b.error(f"{context}: part '{partname}' does not exist")
         return self
 
-    def namespace_add(self, context: str, newpart: part.Structurepart):
+    def namespace_add(self, context: str, newpart: el.Structurepart):
         name = newpart.slug
         if name in self.namespace:
             b.error("%s: name collision: %s and %s" %
@@ -288,7 +288,7 @@ class Course(part.Partscontainer):
         return int(mm.group(1)), float(mm.group(2))
 
     @staticmethod
-    def _slugfilename(p: part.Structurepart) -> str:
+    def _slugfilename(p: el.Structurepart) -> str:
         fullpath = p.sourcefile
         basename = os.path.basename(fullpath)
         dirname = os.path.dirname(fullpath)
@@ -298,7 +298,7 @@ class Course(part.Partscontainer):
             return fullpath
 
 
-class Coursebuilder(Course, part.StructurepartbuilderMixin):
+class Coursebuilder(Course, el.StructurepartbuilderMixin):
     """Course with the additions required for author mode. (Chapter, Taskgroup, Task have both in one.)"""
     AUTHORMODE_ATTRS = ', chapterdir, altdir, stages'
 
@@ -455,7 +455,7 @@ class Coursebuilder(Course, part.StructurepartbuilderMixin):
                                    lambda t, s: t.stage == s, lambda s: s or "done", include_all=True)
 
 
-class Chapter(part.Partscontainer):
+class Chapter(el.Partscontainer):
     course: Course
     taskgroups: list['Taskgroup']
 
@@ -475,7 +475,7 @@ class Chapter(part.Partscontainer):
                     cancopy_attrs='title')
 
 
-class Chapterbuilder(Chapter, part.StructurepartbuilderMixin):
+class Chapterbuilder(Chapter, el.StructurepartbuilderMixin):
     course: Coursebuilder
     taskgroups: list['Taskgroupbuilder']
 
@@ -519,7 +519,7 @@ class Chapterbuilder(Chapter, part.StructurepartbuilderMixin):
         return result
 
 
-class Taskgroup(part.Partscontainer):
+class Taskgroup(el.Partscontainer):
     TOC_LEVEL = 1  # indent level in table of contents
     chapter: Chapter
     tasks: list['Task']
@@ -540,7 +540,7 @@ class Taskgroup(part.Partscontainer):
                     mustexist_attrs='taskgroups')
 
 
-class Taskgroupbuilder(Taskgroup, part.StructurepartbuilderMixin):
+class Taskgroupbuilder(Taskgroup, el.StructurepartbuilderMixin):
     chapter: Chapterbuilder
     tasks: list['Taskbuilder']
 
