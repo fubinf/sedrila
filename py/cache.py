@@ -15,6 +15,7 @@ How it works:
 """
 
 import dbm
+import enum
 import itertools
 import os
 import time
@@ -23,12 +24,11 @@ import typing as tg
 import base as b
 
 # states of Elements wrt a Product or wrt the cache
-class State(str):
-    pass  # a trivial type
-
-NONEXISTING = 'nonexisting'
-HAS_CHANGED = 'has_changed'
-AS_BEFORE = 'as_before'
+class State(enum.StrEnum):
+    UNDETERMINED = 'undetermined'
+    NONEXISTING = 'nonexisting'
+    HAS_CHANGED = 'has_changed'
+    AS_BEFORE = 'as_before'
 
 LIST_SEPARATOR = '|'  # separates entries in list-valued dbm entries. Symbol is forbidden in all names.
 USE_CACHE_FLAG_KEY = 'SEDRILA_USE_CACHE'  # name of environment var for activating cache (temporary until completion)
@@ -84,19 +84,19 @@ class SedrilaCache:
 
     def item(self, key: str) -> tuple[tg.Any, State]:
         if key in self.written:
-            return (self.written[key], HAS_CHANGED)
+            return (self.written[key], State.HAS_CHANGED)
         elif key in self.db:
-            return (self.db[key], AS_BEFORE)
+            return (self.db[key], State.AS_BEFORE)
         else:
-            return (None, NONEXISTING)
+            return (None, State.NONEXISTING)
 
     def state(self, key: str) -> State:
         if key in self.written:
-            return HAS_CHANGED
+            return State.HAS_CHANGED
         elif key in self.db:
-            return AS_BEFORE
+            return State.AS_BEFORE
         else:
-            return NONEXISTING
+            return State.NONEXISTING
 
     def _scandir(self, dirname: str, cached_filelist: str) -> tuple[list[str], list[str]]:
         """Lists of all (samefiles, newfiles) below dirname according to cached_filelist and timestamp_cached."""
