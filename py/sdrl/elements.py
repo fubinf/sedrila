@@ -1,25 +1,100 @@
 """
-Common superclasses for
-a) Course, Chapter, Taskgroup, Task, and their builders all defined in course.py 
-b) Glossary, defined in glossary.py
-Not all attributes are needed for all parts.
+Class model for the stuff taking part in the incremental build.
+See the architecture description in README.md.
 """
 
 import glob
 import os.path
-import re
 import zipfile
 
-import yaml
-
 import base as b
-import sdrl.html as h
+import cache as c
 
 
-class Part:
+class Element:
+    """Common superclass of the stuff taking part in incremental build: Sources and Products."""
+    impacts_set: set['Element']  # the inverse of Product.depends_on_set
+    state: c.State = c.State.UNDETERMINED
+
+
+class Product(Element):
+    """Abstract superclass for any kind of thing that gets built."""
+    depends_on_set: set[Element]
+
+    def depend_on(self, elem: Element):
+        self.depends_on_set.add(elem)
+        elem.impacts_set.add(self)
+
+
+class Piece(Product):
+    """Abstract superclass for an internal outcome of build, managed in the cache or with help of the cache."""
+    cache_key: str
+
+
+class Body_s(Piece):
+    """Student HTML page text content."""
+    pass
+
+
+class Body_i(Body_s):
+    """Just like Body_s, but for instructor HTML."""
+    pass
+
+
+class Content(Piece):
+    """Markdown part of a Part sourcefile."""
+    pass
+
+
+class ItemList(Piece):
+    """Abstract superclass for lists of names of dependencies."""
+    pass
+
+
+class AssumedByList(ItemList):
+    """List of names of Parts that assume this Part."""
+    pass
+
+
+class IncludeList(ItemList):
+    """List of names of files INCLUDEd by a Part."""
+    pass
+
+
+class PartrefList(ItemList):
+    """List of names of Parts PARTREF'd by a Part."""
+    pass
+
+
+class RequiredByList(ItemList):
+    """List of names of Parts that require this Part."""
+    pass
+
+
+class Toc(Piece):
+    """HTML for the toc of a Part."""
+    pass
+
+
+class Tocline(Piece):
+    """HTML for the toc entry of one Part."""
+    pass
+
+
+class Topmatter(Piece):
+    """Metadata from a Part file."""
+    pass
+
+
+class Outputfile(Product):
+    """Superclass for Products ending up in a file (or two). Also used directly, for baseresources."""
+    outputfile: str  # the target pathname within the target directory
+
+
+class Part(Outputfile):
+    """Outputs identified by a slug, possible targets of PARTREF."""
     TOC_LEVEL = 0  # indent level in table of contents
     sourcefile: str = "???"  # the originating pathname
-    outputfile: str  # the target pathname
     slug: str  # the file/dir basename by which we refer to the part
     title: str  # title: value
 
@@ -27,83 +102,49 @@ class Part:
         return self.slug
 
 
-class PartbuilderMixin:  # to be mixed into a Part class
-    metadata_text: str  # the YAML front matter character stream
-    metadata: b.StrAnyDict  # the YAML front matter
-    content: str  # the markdown block
-    linkslist_top: str = ''  # generated HTML of cross reference links
-    linkslist_bottom: str = ''  # generated HTML of cross reference links
-    stage: str = ''  # stage: value
-    skipthis: bool  # do not include this chapter/taskgroup/task in generated site
-    toc: str  # table of contents
+class Partscontainer(Part):  # for Course, Chapter, Taskgroup, Task and their Builders, see course.py
+    """A Part that can contain other Parts."""
+    zipdirs: list['Zipdir'] = []
+    
+    def find_zipdirs(self):
+        """find all dirs (not files!) *.zip in self.sourcefile dir (not below!), warns about *.zip files"""
+        self.zipdirs = []
+        inputdir = os.path.dirname(self.sourcefile)
+        zipdirs = glob.glob(f"{inputdir}/*.zip")
+        for zipdirname in zipdirs:
+            if os.path.isdir(zipdirname):
+                self.zipdirs.append(Zipdir(zipdirname))
+            else:
+                b.warning(f"'{zipdirname}' is a file, not a dir, and will be ignored.")
 
-    @property
-    def breadcrumb_item(self) -> str:
-        return "(undefined)"
-
-    @property
-    def to_be_skipped(self) -> bool:
-        return ...  # defined in concrete part classes
-
-    @property
-    def toc_entry(self) -> str:
-        classes = f"stage-{self.stage}" if self.stage else "no-stage"
-        return h.indented_block(self.toc_link_text, self.TOC_LEVEL, classes)
-
-    @property
-    def toc_link_text(self) -> str:
-        titleattr = f"title=\"{self.title}\""
-        return f"<a href='{self.outputfile}' {titleattr}>{self.slug}</a>"
-
-    def as_json(self) -> b.StrAnyDict:
-        return dict(title=self.title)
-
-    def evaluate_stage(self, context: str, course) -> None:
-        """
-        Cut the 'stage' attribute down to its first word, check it against course.stages, report violations.
-        Set self.skipthis according to course.include_stage.
-        """
-        self.skipthis = False  # default case
-        # ----- handle parts with no 'stage:' given:
-        if not getattr(self, 'stage', ''):
-            return
-        # ----- extract first word from stage:
-        mm = re.match(r'\w+', self.stage)  # match first word
-        stageword = mm.group(0) if mm else ''
-        # ----- handle parts with unknown stage (error):
-        try:
-            stage_index = course.stages.index(stageword)
-        except ValueError:
-            b.error(f"{context}: Illegal value of 'stage': '{stageword}'")
-            return
-        # ----- handle parts with known stage:
-        self.skipthis = course.include_stage_index > stage_index
-
-    def read_partsfile(self, file: str):
-        """
-        Reads files consisting of YAML metadata, then Markdown text, separated by a tiple-dash line.
-        Stores metadata into self.metadata, rest into self.content.
-        """
-        SEPARATOR = "---\n"
-        # ----- obtain file contents:
-        self.sourcefile = file
-        text = b.slurp(file)
-        if SEPARATOR not in text:
-            b.error(f"{self.sourcefile}: triple-dash separator is missing")
-            return
-        self.metadata_text, self.content = text.split(SEPARATOR, 1)
-        # ----- parse metadata
-        try:
-            # ----- parse YAML data:
-            self.metadata = yaml.safe_load(self.metadata_text)
-        except yaml.YAMLError as exc:
-            b.error(f"{self.sourcefile}: metadata YAML is malformed: {str(exc)}")
-            self.metadata = dict()  # use empty metadata as a weak replacement
+    def render_zipdirs(self, targetdir):
+        for zipdir in self.zipdirs:
+            zipdir.render(targetdir)
 
 
-class Zipdir(Part):
+class Zipfile(Part):
+    """xy.zip Outputfiles that are named Parts, plus the exceptional case itree.zip."""
+    pass
+
+
+class RenderedOutput(Outputfile):
+    """xy.html Outputfiles that stem from Parts."""
+    pass
+
+
+class Source(Element):
+    """Abstract superclass for an input for the build."""
+    pass
+
+
+class Sourcefile(Source):
+    """A Source that consists of a single file."""
+    sourcefile: str  # full pathname
+
+
+class Zipdir(Source):
     """
-    Turn directories named ch/mychapter/mytaskgroup/myzipdir.zip 
+    OLD: Turn directories named ch/mychapter/mytaskgroup/myzipdir.zip 
     containing a tree of files, say, myfile.txt
     into an output file myzipdir.zip
     that contains paths like myzipdir/myfile.txt.  
@@ -142,21 +183,3 @@ class Zipdir(Part):
         return f"{self.innerpath}/{remainder}"
 
 
-class Partscontainer(Part):
-    """A Part that can contain other Parts."""
-    zipdirs: list[Zipdir] = []
-    
-    def find_zipdirs(self):
-        """find all dirs (not files!) *.zip in self.sourcefile dir (not below!), warns about *.zip files"""
-        self.zipdirs = []
-        inputdir = os.path.dirname(self.sourcefile)
-        zipdirs = glob.glob(f"{inputdir}/*.zip")
-        for zipdirname in zipdirs:
-            if os.path.isdir(zipdirname):
-                self.zipdirs.append(Zipdir(zipdirname))
-            else:
-                b.warning(f"'{zipdirname}' is a file, not a dir, and will be ignored.")
-
-    def render_zipdirs(self, targetdir):
-        for zipdir in self.zipdirs:
-            zipdir.render(targetdir)
