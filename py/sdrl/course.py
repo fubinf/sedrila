@@ -14,12 +14,14 @@ import os
 import re
 import typing as tg
 
+import yaml
+
 import base as b
+import sdrl.elements as el
 import sdrl.glossary as glossary
 import sdrl.html as h
 import sdrl.macros as macros
-import sdrl.elements as el
-
+import sdrl.partbuilder
 
 sedrila_libdir = os.path.dirname(os.path.dirname(__file__))  # either 'py' (for dev install) or top-level
 if sedrila_libdir.endswith('py'):  # we are a dev install and must go one more level up:
@@ -65,7 +67,7 @@ class Task(el.Part):
 
 
 @functools.total_ordering
-class Taskbuilder(Task, el.PartbuilderMixin):
+class Taskbuilder(Task, sdrl.partbuilder.PartbuilderMixin):
     explains: list[str] = []  # terms (for backlinks in glossary)
     assumed_by: list[str] = []  # tasknames: inverse of assumes
     required_by: list[str] = []  # tasknames: inverse of requires
@@ -298,7 +300,7 @@ class Course(el.Partscontainer):
             return fullpath
 
 
-class Coursebuilder(Course, el.PartbuilderMixin):
+class Coursebuilder(Course, sdrl.partbuilder.PartbuilderMixin):
     """Course with the additions required for author mode. (Chapter, Taskgroup, Task have both in one.)"""
     AUTHORMODE_ATTRS = ', chapterdir, altdir, stages'
 
@@ -320,6 +322,11 @@ class Coursebuilder(Course, el.PartbuilderMixin):
     targetdir_s: str  # where to render student output files
     targetdir_i: str  # where to render instructor output files
     glossary: glossary.Glossarybuilder
+
+    def __init__(self, configfile: str, include_stage: str, targetdir: str, instructor_subdir: str):
+        super().__init__(configfile, include_stage)
+        self.targetdir_s = targetdir
+        self.targetdir_i = f"{targetdir}/{instructor_subdir}"  # for instructors
 
     @dataclasses.dataclass
     class Volumereport:
@@ -475,7 +482,7 @@ class Chapter(el.Partscontainer):
                     cancopy_attrs='title')
 
 
-class Chapterbuilder(Chapter, el.PartbuilderMixin):
+class Chapterbuilder(Chapter, sdrl.partbuilder.PartbuilderMixin):
     course: Coursebuilder
     taskgroups: list['Taskgroupbuilder']
 
@@ -540,7 +547,7 @@ class Taskgroup(el.Partscontainer):
                     mustexist_attrs='taskgroups')
 
 
-class Taskgroupbuilder(Taskgroup, el.PartbuilderMixin):
+class Taskgroupbuilder(Taskgroup, sdrl.partbuilder.PartbuilderMixin):
     chapter: Chapterbuilder
     tasks: list['Taskbuilder']
 

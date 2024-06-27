@@ -3,13 +3,13 @@
 import typing as tg
 
 import base as b
+import sdrl.elements as el
 import sdrl.html as h
 import sdrl.macros as macros
 import sdrl.markdown as md
-import sdrl.elements as el
+import sdrl.partbuilder
 
-
-class Glossary(el.Part, el.PartbuilderMixin):
+class Glossary(el.Part, sdrl.partbuilder.PartbuilderMixin):
     """
     Processed in two phases: in phase 1, term references and term definitions are collected.
     Links to term definitions can already be generated because they have a canonical form:
