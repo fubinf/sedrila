@@ -82,24 +82,31 @@ The items involved in the build process as inputs or outputs are called Element.
 Element
   Product
     Piece
-      Body
-      Itemlist
+      Body_s
+        Body_i
+      Content
+      ItemList
+        AssumedByList
+        IncludeList
+        PartrefList
+        RequiredByList
       Toc
       Tocline
       Topmatter
-    Part
-      Partscontainer
-        Course
-        Chapter
-        Taskgroup
-      Task
-      Glossary
-      Zipfile
-    Plainfile
+    Outputfile
+      Part
+        Partscontainer
+          Course
+          Chapter
+          Taskgroup
+        Task
+        Glossary
+        Zipfile
+      RenderedOutput
   Source
     Configelement
     Sourcefile
-    ZipDir      
+    Zipdir      
 ```
 
 #### 1.3.2 Overall procedure
@@ -114,18 +121,20 @@ and perform a full (pseudo-incremental) build in the following cases:
 - sedrila software version changed
 - sedrila call parameters configfile or include_stage changed
 - config parameters breadcrumb_title, stages, or blockmacro_topmatter changed
+- a template changed
 
 
 The incremental build has the following major steps:
 
 - Constructing the dependency graph: Element objects and their dependency lists
 - Building what needs to be rebuilt, in phases as follows:
-    - Sourcefile into Plainfile for baseresources 
-    - Sourcefile into Body, Topmatter, includefile-Itemlist for Course, Chapter, Taskgroup, Task  
+    - Sourcefile into Outputfile for baseresources 
+    - Sourcefile into Content, Topmatter for Course, Chapter, Taskgroup, Task  
+    - Content into Body, IncludeList, PartrefList for Course, Chapter, Taskgroup, Task  
     - ZipDir into Zipfile.
-    - Topmatter into Tocline (after computing xx_by lists).
+    - Topmatter, AssumedByList, RequiredByList into Tocline.
     - Tocline into Toc.
-    - Body, Toc into Outputfile.
+    - Body, Toc, AssumedByList, RequiredByList into RenderedOutput.
 
 All Elements have a state. 
 For Sources, it is set upon object creation; 
