@@ -31,16 +31,9 @@ class State(enum.StrEnum):
     AS_BEFORE = 'as_before'
 
 LIST_SEPARATOR = '|'  # separates entries in list-valued dbm entries. Symbol is forbidden in all names.
-USE_CACHE_FLAG_KEY = 'SEDRILA_USE_CACHE'  # name of environment var for activating cache (temporary until completion)
-CACHE_FILENAME = '.course.dbm'  # in instructor output directory
-LAST_BUILD_TIMESTAMP_KEY = '__last_build_timestamp__'  # Unix timestamp (seconds since epoch)
-SEDRILA_VERSION_KEY = '__sedrila_version__'  # base.SEDRILA_VERSION
-CHAPTERDIR_FILELIST_KEY = '__chapterdir_files__'  # complete filesnames in chapterdir tree
-ALTDIR_FILELIST_KEY = '__altdir_files__'  # complete filesnames in altdir tree
-ITREEDIR_FILELIST_KEY = '__itreedir_files__'  # complete filesnames in itreedir tree
 
 class SedrilaCache:
-    db: object  # a dbm._Database
+    db: dict  # in fact a dbm._Database
     written: b.StrAnyDict  # what was written into cache since start
     timestamp_start: int
     timestamp_cached: int
