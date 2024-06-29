@@ -25,28 +25,37 @@ import base as b
 
 # states of Elements wrt a Product or wrt the cache
 class State(enum.StrEnum):
-    UNDETERMINED = 'undetermined'
-    NONEXISTING = 'nonexisting'
-    HAS_CHANGED = 'has_changed'
-    AS_BEFORE = 'as_before'
+    """
+    nonexisting is a non-file/non-cacheentry: must build.
+    has_changed is a younger file or freshly written cache entry: must build or have built.
+    as_before is an old file or not-overwritten cache entry: need not build or have not built.
+    """
+    UNDETERMINED = 'undetermined'  # before do_evalute_state
+    NONEXISTING = 'nonexisting'  # for Source or before build: must build; impossible after build
+    HAS_CHANGED = 'has_changed'  # for Source or before build: must build; after build: have built
+    AS_BEFORE = 'as_before'  # for Source or before build: need not build; after build: have not built
 
 LIST_SEPARATOR = '|'  # separates entries in list-valued dbm entries. Symbol is forbidden in all names.
+TIMESTAMP_KEY = '__mtime__'  # unix timestamp: seconds since epoch
 
 class SedrilaCache:
+    """
+    All intermediate products and some config values are stored in the cache,
+    files (source or target) are reflected as a cache key with empty value.
+    The has_changed reference time for files is stored in a single entry TIMESTAMP_KEY.
+    """
     db: dict  # in fact a dbm._Database
     written: b.StrAnyDict  # what was written into cache since start
-    timestamp_start: int
-    timestamp_cached: int
+    timestamp_start: int  # when did the current build process begin -> the future reference time
+    timestamp_cached: int  # when did the previous build process begin -> the current reference time
     chapterdir_samefiles: list[str]
     chapterdir_newfiles: list[str]
 
     def __init__(self, cache_filename: str, chapterdir: str, altdir: str, itreedir: str):
         self.timestamp_start = int(time.time())
-        self.timestamp_cached = int(self.db.get(LAST_BUILD_TIMESTAMP_KEY, "0"))  # default to "everything is old"
+        self.timestamp_cached = int(self.db.get(TIMESTAMP_KEY, "0"))  # default to "everything is old"
         self.db = dbm.open(cache_filename, flag='c')  # open or create dbm file
         self.written = dict()
-        self.chapterdir_samefiles, self.chapterdir_newfiles = (
-                self._scandir(chapterdir, self.db.get(CHAPTERDIR_FILELIST_KEY, "")))  # TODO 2: altdir, itreedir
 
     def __contains__(self, key: str) -> bool:
         return key in self.written or key in self.db
@@ -67,13 +76,32 @@ class SedrilaCache:
     def __setstate__(self, state):  # for unpickle
         pass  # no useful state is restored upon unpickle; one must create a new instance
     
-    def finish(self):
+    @property
+    def mtime(self) -> int:
+        return self.timestamp_cached
+
+    def filestate(self, pathname: str) -> State:
+        """
+        Non-existing file: nonexisting.
+        Before-unseen file or file with new time: has_changed (and now the file has been seen).
+        File with old time: as_before.
+        New time means the existing file has mtime later than start of previous build.
+        """
+        if not os.path.exists(pathname):
+            return State.NONEXISTING
+        cache_state = self.state(pathname)
+        if cache_state == State.NONEXISTING:
+            return State.HAS_CHANGED
+        filetime = os.stat(pathname).st_mtime
+        if filetime > self.mtime:
+            return State.HAS_CHANGED
+        else:
+            return State.AS_BEFORE
+
         """Finalize the cache: Bring it up-to-date for the next run."""
-        self.db[LAST_BUILD_TIMESTAMP_KEY] = str(self.timestamp_start)
+        self.db[TIMESTAMP_KEY] = str(self.timestamp_start)  # update mtime
         for key, value in self.written.items():
             self.db[key] = value
-        self._storefilelist(CHAPTERDIR_FILELIST_KEY, self.chapterdir_samefiles, self.chapterdir_newfiles)
-        # TODO 2: _storefilelist for altdir, itreedir
 
     def item(self, key: str) -> tuple[tg.Any, State]:
         if key in self.written:
