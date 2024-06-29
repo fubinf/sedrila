@@ -5,30 +5,53 @@ See the architecture description in README.md.
 
 import glob
 import os.path
+import shutil
 import zipfile
 
 import base as b
 import cache as c
+import directory as d
 
 
 class Element:
     """Common superclass of the stuff taking part in incremental build: Sources and Products."""
-    impacts_set: set['Element']  # the inverse of Product.depends_on_set
+    name: str  # path, filename, or partname
     state: c.State = c.State.UNDETERMINED
+    cache: c.SedrilaCache | None
+    directory: d.Directory | None
+
+    def __init__(self, name: str, *args, **kwargs):
+        self.name = name
+        self.cache = self.directory = None
+        for key, val in kwargs.items():
+            setattr(self, key, val)  # store all keyword args in same-named attr
+
+    def build(self):
+        """Generic framework operation."""
+        self.do_evaluate_state()
+        if self.state != c.State.AS_BEFORE:
+            self.do_build()
+            self.state = c.State.HAS_CHANGED
+
+    def do_evaluate_state(self):
+        """Class-specific: Look at dependencies and perhaps cache or file to set state."""
+        assert False, f"{type(self)}.do_evaluate_state() not defined"
+
+    def do_build(self):
+        """Class-specific: perform actual build work."""
+        assert False, f"{type(self)}.do_build() not defined"
 
 
 class Product(Element):
     """Abstract superclass for any kind of thing that gets built."""
-    depends_on_set: set[Element]
-
-    def depend_on(self, elem: Element):
-        self.depends_on_set.add(elem)
-        elem.impacts_set.add(self)
+    pass
 
 
 class Piece(Product):
     """Abstract superclass for an internal outcome of build, managed in the cache or with help of the cache."""
-    cache_key: str
+    @property
+    def cache_key(self) -> str:
+        return f"{self.name}__{str(type(self)).lower()}__"
 
 
 class Body_s(Piece):
@@ -89,6 +112,18 @@ class Topmatter(Piece):
 class Outputfile(Product):
     """Superclass for Products ending up in a file (or two). Also used directly, for baseresources."""
     outputfile: str  # the target pathname within the target directory
+    targetdir_s: str
+    targetdir_i: str
+    sourcefile: 'Sourcefile' | None  # if given, build is a copy operation
+    
+    def do_build(self):
+        b.debug(f"copying '{filename}'\t-> '{course.targetdir_s}'")
+        shutil.copy(filename, course.targetdir_s)
+        b.debug(f"copying '{filename}'\t-> '{course.targetdir_i}'")
+        shutil.copy(filename, course.targetdir_i)
+
+    def do_evaluate_state(self):
+        ...
 
 
 class Part(Outputfile):
@@ -134,12 +169,19 @@ class RenderedOutput(Outputfile):
 
 class Source(Element):
     """Abstract superclass for an input for the build."""
-    pass
+    def do_build(self):
+        pass  # a Source only provides a state, not a Product, hence there is no build action.
 
 
 class Sourcefile(Source):
     """A Source that consists of a single file."""
     sourcefile: str  # full pathname
+
+    def do_evaluate_state(self):
+        self.state = self.cache.filestate(self.sourcefile)
+
+    def do_build(self):
+        pass  # we are not a Product
 
 
 class Zipdir(Source):
