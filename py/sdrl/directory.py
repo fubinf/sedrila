@@ -44,6 +44,12 @@ class Directory:
         instance = self.get_the(mytype, name)
         return instance if instance else self.make_the(mytype, name, *args, **kwargs)
 
+    def build(self):
+        alldicts = (self._getdict(mytype) for mytype in self.managed_types)
+        for thisdict in alldicts:
+            for elem in thisdict.values():
+                elem.build()
+
     def _getdict(self, thetype: type):
         dictname = str(thetype).lower()
         return getattr(self, dictname)
