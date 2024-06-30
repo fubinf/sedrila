@@ -91,3 +91,13 @@ An alternative flow might be the following:
 
 Providing `repo_url` is optional if you are already in the directory of the repo.
 For reducing the confusion in case of mistakes, we recommend to always provide `repo_url`.
+
+In case you mis-graded something and the student has already worked on top of that,
+you can make overrides by prefixing the marks with OVERRIDE_, i.e. OVERRIDE_ACCEPT
+or OVERRIDE_REJECT. This will replace a previous wrong grade with an ACCEPT or
+REJECT respectively. An entry with OVERRIDE_ACCEPT will make a previous REJECT
+count as ACCEPT instead.
+
+There is an `--override` argument that will make the interactive mode only show
+previous tasks and will automatically add the required prefix. This will also
+work as an argument in the subshell, i.e. `sedrila --override` will work.

@@ -37,6 +37,12 @@
               "assumes": [],
               "requires": []
             },
+            { "slug": "requiresA", "title": "Task requiring A", "timevalue": 1.0,
+              "difficulty": 1, "assumes": [], "requires": ["A"] },
+            { "slug": "requiresRequiresA", "title": "Task requiring requiresA", "timevalue": 1.0,
+              "difficulty": 1, "assumes": [], "requires": ["requiresA"] },
+            { "slug": "requiresB", "title": "Task requiring B", "timevalue": 1.0,
+              "difficulty": 1, "assumes": [], "requires": ["B"] },
             { "slug": "Task1", "title": "Task1", "timevalue": 1.0, "difficulty": 1,
               "assumes": [], "requires": [] },
             { "slug": "Task2", "title": "Task2", "timevalue": 2.0, "difficulty": 2,

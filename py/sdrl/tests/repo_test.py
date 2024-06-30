@@ -104,7 +104,7 @@ def run_inside_repo(preparations, assertions, coursemodifications = None):
         r.accumulate_workhours_per_task(workhours, course)
         hashes = r.submission_checked_commit_hashes(course, commits)
         print("hashes:", hashes)
-        checked_tuples = r.checked_tuples_from_commits(hashes)
+        checked_tuples = r.checked_tuples_from_commits(hashes, course)
         print("checked_tuples:", checked_tuples)
         r.accumulate_timevalues_and_attempts(checked_tuples, course)
         assertions(course)
