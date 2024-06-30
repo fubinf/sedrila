@@ -3,11 +3,15 @@ import re
 import yaml
 
 import base as b
+import cache
+import sdrl.directory as dir
 import sdrl.html as h
 
 
 
 class PartbuilderMixin:  # to be mixed into a Part class
+    cache: cache.SedrilaCache
+    directory: dir.Directory
     metadata_text: str  # the YAML front matter character stream
     metadata: b.StrAnyDict  # the YAML front matter
     content: str  # the markdown block
