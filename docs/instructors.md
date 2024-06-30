@@ -81,8 +81,7 @@ This is the "check" step and is equivalent to the command `sedrila instructor --
 the current state of the `submission.yaml` file and push that.
 You are free to do multiple commits for a single submission mail by the student.
 This is the "put" part.
-If you prefer not to use the subshell, you can just directly provide the `--interactive` flag, 
-which is likely the prefered mode for most people most of the time.
+If you prefer not to use the subshell, you can just directly provide the `--interactive` flag.
 
 An alternative flow might be the following:
 
@@ -93,7 +92,12 @@ An alternative flow might be the following:
 Providing `repo_url` is optional if you are already in the directory of the repo.
 For reducing the confusion in case of mistakes, we recommend to always provide `repo_url`.
 
-If you need to override previous `ACCEPT`/`REJECT` decisions, you can either put 
-entries with marks `OVERRIDE_ACCEPT`/`OVERRIDE_REJECT` into `submission.yaml` manually
-or call `sedrila instructor repo_url --interactive --override` to be presented with
-a list of all _previous_ tasks instead of the current ones.
+In case you mis-graded something and the student has already worked on top of that,
+you can make overrides by prefixing the marks with OVERRIDE_, i.e. OVERRIDE_ACCEPT
+or OVERRIDE_REJECT. This will replace a previous wrong grade with an ACCEPT or
+REJECT respectively. An entry with OVERRIDE_ACCEPT will make a previous REJECT
+count as ACCEPT instead.
+
+There is an `--override` argument that will make the interactive mode only show
+previous tasks and will automatically add the required prefix. This will also
+work as an argument in the subshell, i.e. `sedrila --override` will work.

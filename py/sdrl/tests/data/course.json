@@ -34,6 +34,12 @@
               "assumes": [],
               "requires": []
             },
+            { "name": "requiresA", "title": "Task requiring A", "timevalue": 1.0,
+              "difficulty": 1, "assumes": [], "requires": ["A"] },
+            { "name": "requiresRequiresA", "title": "Task requiring requiresA", "timevalue": 1.0,
+              "difficulty": 1, "assumes": [], "requires": ["requiresA"] },
+            { "name": "requiresB", "title": "Task requiring B", "timevalue": 1.0,
+              "difficulty": 1, "assumes": [], "requires": ["B"] },
             { "name": "Task1", "title": "Task1", "timevalue": 1.0, "difficulty": 1,
               "assumes": [], "requires": [] },
             { "name": "Task2", "title": "Task2", "timevalue": 2.0, "difficulty": 2,
