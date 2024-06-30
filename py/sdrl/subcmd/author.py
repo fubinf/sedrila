@@ -14,7 +14,9 @@ import typing as tg
 import jinja2
 
 import base as b
+import cache
 import sdrl.course
+import sdrl.directory as dir
 import sdrl.glossary
 import sdrl.html as h
 import sdrl.macros as macros
@@ -29,7 +31,7 @@ Checks consistency of the course description beforehands.
 OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR = "instructor"
 
 
-def add_arguments(subparser: argparse.ArgumentParser):
+def _add_arguments(subparser: argparse.ArgumentParser):
     subparser.add_argument('--config', metavar="configfile", default=b.CONFIG_FILENAME,
                            help="SeDriLa configuration description YAML file")
     subparser.add_argument('--include_stage', metavar="stage", default='',
@@ -45,22 +47,25 @@ def add_arguments(subparser: argparse.ArgumentParser):
                            help=f"Directory to which output will be written.")
 
 
-def execute(pargs: argparse.Namespace):
+def _execute(pargs: argparse.Namespace):
     b.set_loglevel(pargs.log)
-    course = get_course(pargs)
+    the_cache = cache.SedrilaCache(f"{pargs.targetdir}/{b.CACHE_FILENAME}")
+    directory = dir.Directory()
+    course = get_course(pargs, the_cache, directory)
     generate(course)
     if pargs.sums:
         print_volume_report(course)
     b.exit_if_errors()
 
 
-def get_course(pargs):
+def get_course(pargs: argparse.Namespace, the_cache: cache.SedrilaCache, directory: dir.Directory):
     CacheMode = sdrl.course.CacheMode
-    targetdir_s = pargs.targetdir  # for students
-    targetdir_i = f"{targetdir_s}/{OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR}"  # for instructors
-    cache1_file = cache_filename(targetdir_i)
+    cache1_file = cache1_filename(pargs.targetdir)
     if not pargs.cache or not os.path.exists(cache1_file):  # no cache present
-        course = sdrl.course.Coursebuilder(pargs.config, include_stage=pargs.include_stage)
+        course = sdrl.course.Coursebuilder(pargs.config, include_stage=pargs.include_stage,
+                                           targetdir_i=pargs.targetdir, 
+                                           instructor_subdir=OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR,
+                                           cache=the_cache, directory=directory)
         course.cache1_mode = CacheMode.WRITE if pargs.cache else CacheMode.UNCACHED
     else:  # we have a filled cache
         print(f"using cache1 file '{cache1_file}'")
@@ -68,8 +73,6 @@ def get_course(pargs):
             course = pickle.load(f)
         course.cache1_mode = sdrl.course.CacheMode.READ
         course.mtime = os.stat(cache1_file).st_mtime  # reference timestamp for tasks to have changed
-    course.targetdir_s = targetdir_s
-    course.targetdir_i = targetdir_i
     return course
 
 
@@ -94,7 +97,7 @@ def generate(course: sdrl.course.Coursebuilder):
     generate_itree_zipfile(course)
     generate_htaccess(course)
     if course.cache1_mode == sdrl.course.CacheMode.READ:
-        os.utime(cache_filename(course))  # update mtime of cache file to now
+        os.utime(cache1_filename(course))  # update mtime of cache file to now
     else:
         print(f"wrote student files to  '{targetdir_s}'")
         print(f"wrote instructor files to  '{targetdir_i}'")
@@ -226,9 +229,9 @@ def prepare_directories(course: sdrl.course.Coursebuilder):
         shutil.copyfile(course.configfile, f"{course.targetdir_s}/{b.CONFIG_FILENAME}")  
         shutil.copyfile(course.configfile, f"{course.targetdir_i}/{b.CONFIG_FILENAME}")
     if course.cache1_mode == sdrl.course.CacheMode.WRITE:
-        with open(cache_filename(course), 'wb') as f:
+        with open(cache1_filename(course), 'wb') as f:
             pickle.dump(course, f)
-        print(f"wrote cache1 file '{cache_filename(course)}'")
+        print(f"wrote cache1 file '{cache1_filename(course)}'")
 
 
 def backup_targetdir(targetdir: str, markerfile: str):
@@ -401,7 +404,7 @@ def print_volume_report(course: sdrl.course.Coursebuilder):
         b.rich_print(table)  # noqa
 
 
-def cache_filename(context: tg.Union[sdrl.course.Coursebuilder, str]) -> str:
+def cache1_filename(context: tg.Union[sdrl.course.Coursebuilder, str]) -> str:
     if isinstance(context, sdrl.course.Coursebuilder):
         return f"{context.targetdir_i}/{b.CACHE1_FILE}"
     else:

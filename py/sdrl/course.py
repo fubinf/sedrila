@@ -14,9 +14,9 @@ import os
 import re
 import typing as tg
 
-import yaml
-
 import base as b
+import cache
+import sdrl.directory as dir
 import sdrl.elements as el
 import sdrl.glossary as glossary
 import sdrl.html as h
@@ -208,10 +208,12 @@ class Course(el.Partscontainer):
     allowed_attempts_base: int  # the int part of allowed_attempts
     allowed_attempts_hourly: float  # the decimal part of allowed_attempts
 
-    def __init__(self, configfile: str, include_stage: str):
-        self.configfile = self.sourcefile = configfile
-        configdict = b.slurp_yaml(configfile)
-        b.copyattrs(configfile,
+    def __init__(self, name, *args, **kwargs):
+        print(f"Course:{type(self).__name__}.__init__({kwargs})")
+        super().__init__(name, *args, **kwargs)
+        self.sourcefile = self.configfile
+        configdict = b.slurp_yaml(self.configfile)
+        b.copyattrs(self.configfile,
                     configdict, self,
                     mustcopy_attrs=('title, breadcrumb_title, instructors, allowed_attempts' +
                                     self.AUTHORMODE_ATTRS),
@@ -223,8 +225,8 @@ class Course(el.Partscontainer):
         self.slug = self.breadcrumb_title
         self.outputfile = "index.html"
         self.namespace = dict()
-        self.namespace_add(configfile, self)
-        self._init_parts(configdict, include_stage)
+        self.namespace_add(self.configfile, self)
+        self._init_parts(configdict, self.include_stage)
         
     @property
     def breadcrumb_item(self) -> str:
@@ -316,17 +318,11 @@ class Coursebuilder(Course, sdrl.partbuilder.PartbuilderMixin):
     chapters: list['Chapterbuilder']
     include_stage: str  # lowest stage that parts must have to be included in output
     include_stage_index: int  # index in stages list, or len(stages) if include_stage is ""
-    cache1_mode: CacheMode
     mtime: float  # in READ cache mode: tasks have changed if they are younger than this
     taskorder: list[Taskbuilder]  # If task B assumes or requires A, A will be before B in this list.
     targetdir_s: str  # where to render student output files
     targetdir_i: str  # where to render instructor output files
     glossary: glossary.Glossarybuilder
-
-    def __init__(self, configfile: str, include_stage: str, targetdir: str, instructor_subdir: str):
-        super().__init__(configfile, include_stage)
-        self.targetdir_s = targetdir
-        self.targetdir_i = f"{targetdir}/{instructor_subdir}"  # for instructors
 
     @dataclasses.dataclass
     class Volumereport:
@@ -342,6 +338,13 @@ class Coursebuilder(Course, sdrl.partbuilder.PartbuilderMixin):
                       chapters=[chapter.as_json() for chapter in self.chapters])
         result.update(super().as_json())
         return result
+
+    def _add_baseresources(self):
+        for direntry in os.scandir(self.baseresourcedir):
+            # TODO 2: skip and report (jointly) non-file entries
+            assert direntry.is_file()
+            self.directory.make_the(el.Sourcefile, direntry.path)
+            self.directory.make_the(el.Outputfile, direntry.name)
 
     def _add_inverse_links(self):
         """add Task.required_by/Task.assumed_by lists."""
@@ -413,6 +416,7 @@ class Coursebuilder(Course, sdrl.partbuilder.PartbuilderMixin):
             self.include_stage_index = len(self.stages)
         self.chapters = [Chapterbuilder(self, ch) 
                          for ch in configdict['chapters']]
+        self._add_baseresources()
         self._collect_zipdirs()
         self._check_links()
         self._add_inverse_links()
@@ -536,7 +540,7 @@ class Taskgroup(el.Partscontainer):
         context = f"taskgroup in chapter '{chapter.slug}'"
         self._init_from_dict(context, taskgroupdict)
         chapter.course.namespace_add(self.sourcefile, self)
-        self.tasks = [Task().from_json(taskdict, taskgroup=self)
+        self.tasks = [Task(taskdict['slug']).from_json(taskdict, taskgroup=self)
                       for taskdict in taskgroupdict['tasks']]
 
     def _init_from_dict(self, context: str, taskgroupdict: b.StrAnyDict):
