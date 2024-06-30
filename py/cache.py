@@ -1,31 +1,21 @@
-"""
-Build cache to be used by author mode.
-So far incomplete and not active by default.
-Can be activated by setting the SEDRILA_USE_CACHE environment variable to any value.
-There is currently a simplistic cache mode (using b.CACHE_FILE) controlled by the --cache option.
-The present mechanism will eventually replace it. Both cannot be used at the same time.
-
-How it works:
-- When initialized, will scan dir trees for unchanged files (_samefiles) and
-  new or modified files (_newfiles) relative to last_build_timestamp
-- When closed, will store the union of these lists and new last_build_timestamp
-- Records and returns dependency lists
-- Records and returns tocs and contents
-- Answers rendering need questions
-"""
-
+"""Element cache for incremental build."""
 import dbm
 import enum
 import itertools
+import json
 import os
 import time
 import typing as tg
 
 import base as b
 
-# states of Elements wrt a Product or wrt the cache
+
+CacheEntryType = None | str | list[str] | b.StrAnyDict
+
+
 class State(enum.StrEnum):
     """
+    State of an Element wrt a Product or as a cache entry.
     nonexisting is a non-file/non-cacheentry: must build.
     has_changed is a younger file or freshly written cache entry: must build or have built.
     as_before is an old file or not-overwritten cache entry: need not build or have not built.
@@ -40,21 +30,24 @@ TIMESTAMP_KEY = '__mtime__'  # unix timestamp: seconds since epoch
 
 class SedrilaCache:
     """
-    All intermediate products and some config values are stored in the cache,
-    files (source or target) are reflected as a cache key with empty value.
-    The has_changed reference time for files is stored in a single entry TIMESTAMP_KEY.
+    All intermediate products and some config values are stored in the cache.
+    There are four entry types:
+    - files (source or target) are reflected as a cache key with empty value.
+      The has_changed reference time for files is stored in a single entry TIMESTAMP_KEY.
+    - str are just that.
+    - list[str] are stored as a string using LIST_SEPARATOR.
+    - dict[Any] are stored as json.
+    Several helper entries use __dunder__ names.
     """
     db: dict  # in fact a dbm._Database
     written: b.StrAnyDict  # what was written into cache since start
     timestamp_start: int  # when did the current build process begin -> the future reference time
     timestamp_cached: int  # when did the previous build process begin -> the current reference time
-    chapterdir_samefiles: list[str]
-    chapterdir_newfiles: list[str]
 
-    def __init__(self, cache_filename: str, chapterdir: str, altdir: str, itreedir: str):
+    def __init__(self, cache_filename: str):
         self.timestamp_start = int(time.time())
-        self.timestamp_cached = int(self.db.get(TIMESTAMP_KEY, "0"))  # default to "everything is old"
         self.db = dbm.open(cache_filename, flag='c')  # open or create dbm file
+        self.timestamp_cached = int(self.db.get(TIMESTAMP_KEY, "0"))  # default to "everything is old"
         self.written = dict()
 
     def __contains__(self, key: str) -> bool:
@@ -80,6 +73,15 @@ class SedrilaCache:
     def mtime(self) -> int:
         return self.timestamp_cached
 
+    def cached_str(self, key: str) -> tuple[str, State]:
+        return self._entry(key, self._as_is)
+
+    def cached_list(self, key: str) -> tuple[list[str], State]:
+        return self._entry(key, self._as_list)
+
+    def cached_dict(self, key: str) -> tuple[b.StrAnyDict, State]:
+        return self._entry(key, self._as_dict)
+
     def filestate(self, pathname: str) -> State:
         """
         Non-existing file: nonexisting.
@@ -98,18 +100,27 @@ class SedrilaCache:
         else:
             return State.AS_BEFORE
 
-        """Finalize the cache: Bring it up-to-date for the next run."""
+    def write_str(self, key: str, value: str):
+        self.written[key] = value
+
+    def write_list(self, key: str, value: list[str]):
+        self.written[key] = value
+
+    def write_dict(self, key: str, value: b.StrAnyDict):
+        self.written[key] = value
+
+    def record_file(self, path: str):
+        self.written[path] = ""  # file entries are empty because the file itself holds the data
+    
+    def close(self):
+        """Bring the persistent cache file up-to-date and close dbm."""
+        converters = { str: self._as_is, list: self._from_list, dict: self._from_dict }
         self.db[TIMESTAMP_KEY] = str(self.timestamp_start)  # update mtime
         for key, value in self.written.items():
-            self.db[key] = value
-
-    def item(self, key: str) -> tuple[tg.Any, State]:
-        if key in self.written:
-            return (self.written[key], State.HAS_CHANGED)
-        elif key in self.db:
-            return (self.db[key], State.AS_BEFORE)
-        else:
-            return (None, State.NONEXISTING)
+            converter = converters[type(value)]
+            data = converter(value)
+            self.db[key] = data  # implicitly further converts str to bytes
+        self.db.__exit__()  # dbm file context manager operation 
 
     def state(self, key: str) -> State:
         if key in self.written:
@@ -118,6 +129,35 @@ class SedrilaCache:
             return State.AS_BEFORE
         else:
             return State.NONEXISTING
+
+    @staticmethod
+    def _as_is(e: str) -> str:
+        return e
+
+    @staticmethod
+    def _as_list(e: str) -> list[str]:
+        return e.split(LIST_SEPARATOR)
+
+    @staticmethod
+    def _as_dict(e: str) -> b.StrAnyDict:
+        return json.loads(e)
+
+    @staticmethod
+    def _from_list(e: list[str]) -> str:
+        return LIST_SEPARATOR.join(e)
+
+    @staticmethod
+    def _from_dict(e: b.StrAnyDict) -> str:
+        return json.dumps(e, indent=2, check_circular=False)
+
+    def _entry(self, key: str, converter: tg.Callable[[str], CacheEntryType]) -> tuple[CacheEntryType, State]:
+        """The only internal cache accessor function"""
+        if key in self.written:
+            return (self.written[key], State.HAS_CHANGED)
+        elif key in self.db:
+            return (converter(self.db[key].decode()), State.AS_BEFORE)
+        else:
+            return (None, State.NONEXISTING)
 
     def _scandir(self, dirname: str, cached_filelist: str) -> tuple[list[str], list[str]]:
         """Lists of all (samefiles, newfiles) below dirname according to cached_filelist and timestamp_cached."""
