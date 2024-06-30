@@ -6,23 +6,31 @@ See the architecture description in README.md.
 import glob
 import os.path
 import shutil
+import typing as tg
 import zipfile
 
 import base as b
 import cache as c
-import directory as d
+import sdrl.directory as dir
 
 
-class Element:
+class Top:
+    """This class' only purpose is terminating the super().__init__() call chain."""
+    def __init__(self, *args, **kwargs):
+        pass  # because object() does not support the (self, *args, **kwargs) signature
+
+
+class Element(Top):
     """Common superclass of the stuff taking part in incremental build: Sources and Products."""
     name: str  # path, filename, or partname
     state: c.State = c.State.UNDETERMINED
     cache: c.SedrilaCache | None
-    directory: d.Directory | None
+    directory: dir.Directory | None
 
     def __init__(self, name: str, *args, **kwargs):
+        print(f"Element:{type(self).__name__}.__init__({kwargs})")
         self.name = name
-        self.cache = self.directory = None
+        super().__init__(name, *args, **kwargs)  # many classes inherit this constructor!
         for key, val in kwargs.items():
             setattr(self, key, val)  # store all keyword args in same-named attr
 
@@ -114,13 +122,13 @@ class Outputfile(Product):
     outputfile: str  # the target pathname within the target directory
     targetdir_s: str
     targetdir_i: str
-    sourcefile: 'Sourcefile' | None  # if given, build is a copy operation
+    sourcefile: tg.Optional['Sourcefile']  # if given, build is a copy operation
     
     def do_build(self):
-        b.debug(f"copying '{filename}'\t-> '{course.targetdir_s}'")
-        shutil.copy(filename, course.targetdir_s)
-        b.debug(f"copying '{filename}'\t-> '{course.targetdir_i}'")
-        shutil.copy(filename, course.targetdir_i)
+        b.debug(f"copying '{self.sourcefile}'\t-> '{self.targetdir_s}'")
+        shutil.copy(self.sourcefile, self.targetdir_s)
+        b.debug(f"copying '{self.sourcefile}'\t-> '{self.targetdir_i}'")
+        shutil.copy(self.sourcefile, self.targetdir_i)
 
     def do_evaluate_state(self):
         ...
