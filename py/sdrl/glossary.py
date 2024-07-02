@@ -33,7 +33,6 @@ class Glossary(el.Part, sdrl.partbuilder.PartbuilderMixin):
                     mustcopy_attrs='title',
                     cancopy_attrs='stage',
                     mustexist_attrs='')
-        self.outputfile = f"{b.GLOSSARY_BASENAME}.html"
         self.slug = b.GLOSSARY_BASENAME
         self.explainedby = dict()
         self.mentionedby = dict()
@@ -45,6 +44,10 @@ class Glossary(el.Part, sdrl.partbuilder.PartbuilderMixin):
     def breadcrumb_item(self) -> str:
         titleattr = f"title=\"{h.as_attribute(self.slug)}\""
         return f"<a href='{self.outputfile}' {titleattr}>{self.title}</a>"
+
+    @property
+    def outputfile_s(self) -> str:
+        return f"{b.GLOSSARY_BASENAME}.html"
 
     @property
     def toc_link_text(self) -> str:

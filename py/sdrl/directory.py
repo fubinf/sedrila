@@ -23,11 +23,9 @@ class Directory:
             el.Tocline, el.Toc,
             course.Course, course.Chapter, course.Taskgroup, course.Task, glossary.Glossary,
         ]
-
         for thistype in self.managed_types:
-            dictname = str(thistype).lower()
+            dictname = thistype.__name__.lower()
             self.__setattr__(dictname, dict())
-        self.sourcefile = dict()
 
     def get_the(self, mytype: type, name: str) -> 'sdrl.elements.Element':
         the_dict = self._getdict(mytype)
@@ -36,7 +34,7 @@ class Directory:
     def make_the(self, mytype: type, name: str, *args, **kwargs) -> 'sdrl.elements.Element':
         the_dict = self._getdict(mytype)
         assert name not in the_dict  # if we re-make the same object, the logic is broken
-        instance = mytype(*args, **kwargs)
+        instance = mytype(name, *args, directory=self, **kwargs)
         the_dict[name] = instance
         return instance
 
@@ -51,5 +49,5 @@ class Directory:
                 elem.build()
 
     def _getdict(self, thetype: type):
-        dictname = str(thetype).lower()
+        dictname = thetype.__name__.lower()
         return getattr(self, dictname)

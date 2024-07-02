@@ -10,6 +10,7 @@ import typing as tg
 import zipfile
 
 import base as b
+import cache
 import cache as c
 import sdrl.directory as dir
 
@@ -28,7 +29,6 @@ class Element(Top):
     directory: dir.Directory | None
 
     def __init__(self, name: str, *args, **kwargs):
-        print(f"Element:{type(self).__name__}.__init__({kwargs})")
         self.name = name
         super().__init__(name, *args, **kwargs)  # many classes inherit this constructor!
         for key, val in kwargs.items():
@@ -42,7 +42,7 @@ class Element(Top):
             self.state = c.State.HAS_CHANGED
 
     def do_evaluate_state(self):
-        """Class-specific: Look at dependencies and perhaps cache or file to set state."""
+        """Class-specific: Look at dependencies and perhaps cache or file; set state."""
         assert False, f"{type(self)}.do_evaluate_state() not defined"
 
     def do_build(self):
@@ -118,34 +118,66 @@ class Topmatter(Piece):
 
 
 class Outputfile(Product):
-    """Superclass for Products ending up in a file (or two). Also used directly, for baseresources."""
-    outputfile: str  # the target pathname within the target directory
-    targetdir_s: str
-    targetdir_i: str
-    sourcefile: tg.Optional['Sourcefile']  # if given, build is a copy operation
+    """Superclass for Products ending up in one file per targetdir. Also used directly for baseresources."""
+    outputfile: str  # the target filename within each target directory, if any
+    targetdir_s: str  # student dir, if any
+    targetdir_i: str  # instructor dir, if any
+    sourcefile: str  # the originating pathname, so we can find the Sourcefile object, if any
     
+    @property
+    def outputfile(self) -> str:  # but different for Parts
+        return self.name
+
+    @property
+    def outputfile_s(self) -> str:
+        return os.path.join(self.targetdir_s, self.outputfile)
+
+    @property
+    def outputfile_i(self) -> str:
+        return os.path.join(self.targetdir_i, self.outputfile)
+
     def do_build(self):
         b.debug(f"copying '{self.sourcefile}'\t-> '{self.targetdir_s}'")
-        shutil.copy(self.sourcefile, self.targetdir_s)
+        shutil.copy(self.sourcefile, os.path.join(self.targetdir_s, self.outputfile))
         b.debug(f"copying '{self.sourcefile}'\t-> '{self.targetdir_i}'")
-        shutil.copy(self.sourcefile, self.targetdir_i)
+        shutil.copy(self.sourcefile, os.path.join(self.targetdir_i, self.outputfile))
 
     def do_evaluate_state(self):
-        ...
+        if not os.path.exists(self.outputfile_s) or not os.path.exists(self.outputfile_i):
+            self.state = cache.State.NONEXISTING
+        elif self.directory.get_the(Sourcefile, self.sourcefile).state == cache.State.AS_BEFORE:
+            self.state = cache.State.AS_BEFORE
+        else:
+            self.state = cache.State.HAS_CHANGED
 
 
-class Part(Outputfile):
+class Part(Outputfile):  # for Course, Chapter, Taskgroup, Task and their Builders, see course.py
     """Outputs identified by a slug, possible targets of PARTREF."""
     TOC_LEVEL = 0  # indent level in table of contents
-    sourcefile: str = "???"  # the originating pathname
     slug: str  # the file/dir basename by which we refer to the part
     title: str  # title: value
+    parent: 'Part'  # does not exist for Course
+    parttype: dict[str, type['Part']]
+
+    def __init__(self, name: str, *args, **kwargs):
+        super().__init__(name, *args, **kwargs)
+        self.slug = self.name
+        if getattr(self, 'parent', None):  # inherit parent attrs, to make X and XBuilder simpler:
+            self.cache = self.parent.cache
+            self.directory = self.parent.directory
+            self.parttype = self.parent.parttype
+            self.targetdir_s = self.parent.targetdir_s
+            self.targetdir_i = self.parent.targetdir_i
 
     def __repr__(self):
-        return self.slug
+        return self.name
+
+    @property
+    def outputfile_s(self) -> str:
+        return f"{self.name}.html"
 
 
-class Partscontainer(Part):  # for Course, Chapter, Taskgroup, Task and their Builders, see course.py
+class Partscontainer(Part):
     """A Part that can contain other Parts."""
     zipdirs: list['Zipdir'] = []
     
@@ -182,11 +214,9 @@ class Source(Element):
 
 
 class Sourcefile(Source):
-    """A Source that consists of a single file."""
-    sourcefile: str  # full pathname
-
+    """A Source that consists of a single file. Its name is the sourcefile's full path."""
     def do_evaluate_state(self):
-        self.state = self.cache.filestate(self.sourcefile)
+        self.state = self.cache.filestate(self.name)
 
     def do_build(self):
         pass  # we are not a Product
