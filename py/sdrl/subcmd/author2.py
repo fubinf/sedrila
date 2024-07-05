@@ -14,8 +14,10 @@ import os.path
 
 import base as b
 import cache
+import sdrl.course
 import sdrl.course as course
 import sdrl.directory as dir
+import sdrl.macroexpanders as macroexpanders
 
 
 meaning = """Creates and renders an instance of a SeDriLa course with incremental build.
@@ -53,6 +55,8 @@ def execute(pargs: argparse.Namespace):
             configfile=pargs.config, include_stage=pargs.include_stage,
             targetdir_s=pargs.targetdir, targetdir_i=targetdir_i(pargs.targetdir),
             cache=the_cache, directory=directory)
+    the_course.cache1_mode = sdrl.course.CacheMode.UNCACHED  # TODO 2: remove
+    macroexpanders.register_macros(the_course)
     directory.build()
     if pargs.sums:
         print_volume_report(the_course)

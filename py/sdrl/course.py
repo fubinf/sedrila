@@ -14,6 +14,8 @@ import os
 import re
 import typing as tg
 
+import jinja2
+
 import base as b
 import sdrl.elements as el
 import sdrl.glossary as glossary
@@ -206,6 +208,7 @@ class Course(el.Partscontainer):
 
     def __init__(self, name, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
+        self.directory.record_the(Course, self.name, self)
         self.sourcefile = self.configfile
         configdict = b.slurp_yaml(self.configfile)
         b.copyattrs(self.configfile,
@@ -325,6 +328,18 @@ class Coursebuilder(Course, sdrl.partbuilder.PartbuilderMixin):
                       chapters=[chapter.as_json() for chapter in self.chapters])
         result.update(super().as_json())
         return result
+    
+    def do_build(self):
+        body_s = self.directory.get_the(el.Body_s, self.name).value
+        body_i = self.directory.get_the(el.Body_i, self.name).value
+        self.render_structure("homepage.html", "TODO 2: sitetitle", "toc!!!",
+                              body_s, "linkslist_top!!!", "linkslist_bottom!!!", self.targetdir_s)
+        self.render_structure("homepage.html", "sitetitle!!!", "toc!!!",
+                              body_i, "linkslist_top!!!", "linkslist_bottom!!!", self.targetdir_i)
+
+    def get_template(self, name: str):
+        env = jinja2.Environment(loader=jinja2.FileSystemLoader(self.templatedir), autoescape=False)
+        return env.get_template(name)
 
     @dataclasses.dataclass
     class Volumereport:
@@ -348,7 +363,7 @@ class Coursebuilder(Course, sdrl.partbuilder.PartbuilderMixin):
             # TODO 2: skip and report (jointly) non-file entries
             assert direntry.is_file()
             self.directory.make_the(el.Sourcefile, direntry.path, cache=self.cache)
-            self.directory.make_the(el.Outputfile, direntry.name, sourcefile=direntry.path,
+            self.directory.make_the(el.CopiedFile, direntry.name, sourcefile=direntry.path,
                                     targetdir_s=self.targetdir_s, targetdir_i=self.targetdir_i,
                                     cache=self.cache)
 
@@ -422,11 +437,23 @@ class Coursebuilder(Course, sdrl.partbuilder.PartbuilderMixin):
             self.include_stage_index = len(self.stages)
         self.chapters = [self.parttype['Chapter'](ch['slug'], parent=self, course=self, chapterdict=ch) 
                          for ch in configdict['chapters']]
+        self._make_dependencies()
         self._add_baseresources()
-        self._collect_zipdirs()
-        self._check_links()
-        self._add_inverse_links()
-        self._compute_taskorder()
+        self._collect_zipdirs()  # TODO 2 collect only what gets referenced
+        self._check_links()  # TODO 2 move into build
+        self._add_inverse_links()  # TODO 2 move into build
+        self._compute_taskorder()  # TODO 2 move into build
+
+    def _make(self, mytype, **kwargs):  # abbrev
+        self.directory.make_the(mytype, self.name, cache=self.cache, **kwargs)
+
+    def _make_dependencies(self):
+        self.directory.make_the(el.Sourcefile, self.sourcefile, cache=self.cache)
+        self._make(el.Topmatter, sourcefile=self.sourcefile)
+        self._make(el.Content)
+        self._make(el.Body_s, sourcefile=self.sourcefile)
+        self._make(el.Body_i, sourcefile=self.sourcefile)
+        # self._make(el.!!!)  # TODO 1: TOCs!
 
     def _task_or_taskgroup_exists(self, name: str) -> bool:
         return name in self.taskdict or name in self.taskgroupdict
