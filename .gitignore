@@ -142,3 +142,6 @@ settings.json
 
 #macos
 .DS_Store
+
+#poetry
+poetry.lock
