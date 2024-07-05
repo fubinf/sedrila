@@ -10,18 +10,18 @@ import typing as tg
 import base as b
 
 
-CacheEntryType = None | str | list[str] | b.StrAnyDict
+Cacheable = str | list[str] | b.StrAnyDict  # what can be put in the cache
+CacheEntryType = None | Cacheable  # what cache queries can return
 
 
 class State(enum.StrEnum):
     """
     State of an Element wrt a Product or as a cache entry.
-    nonexisting is a non-file/non-cacheentry: must build.
+    missing is a non-file/non-cacheentry: must build.
     has_changed is a younger file or freshly written cache entry: must build or have built.
-    as_before is an old file or not-overwritten cache entry: need not build or have not built.
+    as_before is an old file or not-overwritten cache entry or outputfile: need not build or have not built.
     """
-    UNDETERMINED = 'undetermined'  # before do_evalute_state
-    NONEXISTING = 'nonexisting'  # for Source or before build: must build; impossible after build
+    MISSING = 'missing'  # for Source or before build: must build; impossible after build
     HAS_CHANGED = 'has_changed'  # for Source or before build: must build; after build: have built
     AS_BEFORE = 'as_before'  # for Source or before build: need not build; after build: have not built
 
@@ -90,9 +90,9 @@ class SedrilaCache:
         New time means the existing file has mtime later than start of previous build.
         """
         if not os.path.exists(pathname):
-            return State.NONEXISTING
+            return State.MISSING
         cache_state = self.state(pathname)
-        if cache_state == State.NONEXISTING:
+        if cache_state == State.MISSING:
             return State.HAS_CHANGED
         filetime = os.stat(pathname).st_mtime
         if filetime > self.mtime:
@@ -101,15 +101,19 @@ class SedrilaCache:
             return State.AS_BEFORE
 
     def write_str(self, key: str, value: str):
+        assert key not in self.written  # we should write everything only once
         self.written[key] = value
 
     def write_list(self, key: str, value: list[str]):
+        assert key not in self.written  # we should write everything only once
         self.written[key] = value
 
     def write_dict(self, key: str, value: b.StrAnyDict):
+        assert key not in self.written  # we should write everything only once
         self.written[key] = value
 
     def record_file(self, path: str):
+        assert path not in self.written  # we should write everything only once
         self.written[path] = ""  # file entries are empty because the file itself holds the data
     
     def close(self):
@@ -117,6 +121,9 @@ class SedrilaCache:
         converters = { str: self._as_is, list: self._from_list, dict: self._from_dict }
         self.db[TIMESTAMP_KEY] = str(self.timestamp_start)  # update mtime
         for key, value in self.written.items():
+            if value is None:  # should not happen
+                b.debug(f"cache['{key}'] is None")
+                continue
             converter = converters[type(value)]
             data = converter(value)
             self.db[key] = data  # implicitly further converts str to bytes
@@ -128,7 +135,7 @@ class SedrilaCache:
         elif key in self.db:
             return State.AS_BEFORE
         else:
-            return State.NONEXISTING
+            return State.MISSING
 
     @staticmethod
     def _as_is(e: str) -> str:
@@ -157,7 +164,7 @@ class SedrilaCache:
         elif key in self.db:
             return (converter(self.db[key].decode()), State.AS_BEFORE)
         else:
-            return (None, State.NONEXISTING)
+            return (None, State.MISSING)
 
     def _scandir(self, dirname: str, cached_filelist: str) -> tuple[list[str], list[str]]:
         """Lists of all (samefiles, newfiles) below dirname according to cached_filelist and timestamp_cached."""

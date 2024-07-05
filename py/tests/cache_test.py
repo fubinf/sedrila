@@ -16,10 +16,10 @@ def test_sedrilacache():
         f_new = os.path.join(tmpdir, "f_new")
         f_old = os.path.join(tmpdir, "f_old")
         # ----- Phase 1: Read from empty cache
-        assert c.cached_str("s") == (None, S.NONEXISTING)
-        assert c.cached_list("l") == (None, S.NONEXISTING)
-        assert c.cached_dict("d") == (None, S.NONEXISTING)
-        assert c.filestate("f") == S.NONEXISTING
+        assert c.cached_str("s") == (None, S.MISSING)
+        assert c.cached_list("l") == (None, S.MISSING)
+        assert c.cached_dict("d") == (None, S.MISSING)
+        assert c.filestate("f") == S.MISSING
         # ----- Phase 2: Write
         c.write_str("s", mystr)
         c.write_list("l", mylist)
@@ -31,7 +31,7 @@ def test_sedrilacache():
         assert c.cached_list("l") == (mylist, S.HAS_CHANGED)
         assert c.cached_dict("d") == (mydict, S.HAS_CHANGED)
         assert c.filestate(f_new) == S.HAS_CHANGED
-        assert c.cached_str("non-s") == (None, S.NONEXISTING)
+        assert c.cached_str("non-s") == (None, S.MISSING)
         # ----- Phase 4: commit() and start afresh
         c.close()
         c = cache.SedrilaCache(tmpdir)  # simulate a next run of sedrila
