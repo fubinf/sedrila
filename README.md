@@ -71,7 +71,8 @@ The files lists in `pyproject.toml` must be corrected.
 
 How to implement an incremental build process based on caching previous intermediate results.  
 
-TODO 1: Glossary and the fulltoc are not yet fully considered in what follows.
+TODO 2: Glossary and the fulltoc are not yet fully considered in what follows.
+Much of it is not yet implemented.
 
 
 #### 1.3.1 Elements class hierarchy
@@ -83,17 +84,19 @@ Element
   Product
     Piece
       Body_s
-        Body_i
-      Content
-      ItemList
-        AssumedByList
-        IncludeList
-        PartrefList
-        RequiredByList
+      Byproduct
+        Body_i(Body_s)
+        Content
+        ItemList
+          AssumedByList
+          IncludeList
+          PartrefList
+          RequiredByList
       Toc
       Tocline
       Topmatter
     Outputfile
+      CopiedFile
       Part
         Partscontainer
           Course
@@ -102,7 +105,6 @@ Element
         Task
         Glossary
         Zipfile
-      RenderedOutput
   Source
     Configelement
     Sourcefile

@@ -15,9 +15,9 @@ class Directory:
         self.managed_types = [
             # Each has a downcased dict attribute use by get_the()/make_the().
             # The ordering is the build ordering:
-            el.Sourcefile, el.Outputfile,
+            el.Sourcefile, el.CopiedFile,
             el.Zipdir, el.Zipfile,
-            el.Content, el.Topmatter,
+            el.Topmatter, el.Content, 
             el.Body_s, el.Body_i, el.IncludeList, el.PartrefList,
             el.AssumedByList, el.RequiredByList,
             el.Tocline, el.Toc,
@@ -28,10 +28,12 @@ class Directory:
             self.__setattr__(dictname, dict())
 
     def get_the(self, mytype: type, name: str) -> 'sdrl.elements.Element':
+        """Retrieve existing object from the directory."""
         the_dict = self._getdict(mytype)
         return the_dict.get(name, None)
 
     def make_the(self, mytype: type, name: str, *args, **kwargs) -> 'sdrl.elements.Element':
+        """Instantiate object and store it in the directory. Must be a new entry."""
         the_dict = self._getdict(mytype)
         assert name not in the_dict  # if we re-make the same object, the logic is broken
         instance = mytype(name, *args, directory=self, **kwargs)
@@ -41,6 +43,12 @@ class Directory:
     def make_or_get_the(self, mytype: type, name: str, *args, **kwargs) -> 'sdrl.elements.Element':
         instance = self.get_the(mytype, name)
         return instance if instance else self.make_the(mytype, name, *args, **kwargs)
+
+    def record_the(self, mytype: type, name, instance):
+        """Store existing object into the directory."""
+        the_dict = self._getdict(mytype)
+        assert name not in the_dict or the_dict[name] is instance  # if we change an entry, the logic is broken
+        the_dict[name] = instance
 
     def build(self):
         alldicts = (self._getdict(mytype) for mytype in self.managed_types)
