@@ -145,7 +145,7 @@ def expand_macro(sourcefile: str, partname: str, mm: re.Match, is_early_phase=Fa
     if my_numargs > 0 and arg1 == "":
         macrocall.warning("Macro '%s' called with empty argument 1" % macroname)
     # ----- expand:
-    b.debug(f"expanding {macrocall.macrocall_text}")
+    # b.debug(f"expanding {macrocall.macrocall_text}")
     expansion = expander(macrocall)
     # ----- handle ppre and ppost:
     ppre = ppre if ppre else ""  # fill in "" for None

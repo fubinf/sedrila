@@ -50,6 +50,10 @@ class Element(Top):  # abstract class
         return f"{self.name}__{self.__class__.__name__.lower()}__"  # e.g. MyPart__body_i__
 
     @property
+    def statelabel(self) -> str:
+        f"{self.state}{'*' if isinstance(self, Byproduct) else ''}"
+
+    @property
     def my_course(self):
         import sdrl.course
         return self.directory.get_the(sdrl.course.Course, 'Course')
@@ -58,14 +62,14 @@ class Element(Top):  # abstract class
         """Generic framework operation."""
         self.check_existing_resource()
         if self.state != c.State.AS_BEFORE:
-            b.debug(f"{self.__class__.__name__}.build({self.name}) local state:\t{self.state} ")
+            b.debug(f"{self.__class__.__name__}.build({self.name}) local state:\t{self.statelabel} ")
             self.do_build()
             self.state = c.State.HAS_CHANGED
             return
         for dep in self.my_dependencies():
             if dep.state != c.State.AS_BEFORE:
                 which = f"{dep.__class__.__name__}({dep.name})"
-                b.debug(f"{self.__class__.__name__}.build({self.name}) dependency {which} state:\t{dep.state}")
+                b.debug(f"{self.__class__.__name__}.build({self.name}) dependency {which} state:\t{dep.statelabel}")
                 self.do_build()
                 self.state = c.State.HAS_CHANGED
                 return
@@ -232,7 +236,6 @@ class IncludeList_s(ItemList):
         if state == c.State.MISSING:
             return
         self.dependencies = []
-        b.debug(f"{self.__class__.__name__}({name}) = {includelist}")
         for includefile in includelist:
             self.dependencies.append(self.directory.make_or_get_the(Sourcefile, includefile, cache=self.cache))
 

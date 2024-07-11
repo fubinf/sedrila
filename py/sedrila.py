@@ -26,9 +26,15 @@ def main():  # uses sys.argv
 
 
 if __name__ == "__main__":
-    print_profile = False
-    if print_profile:
+    mode = '!pdb'  # profile, pdb, normal
+    if mode == 'profile':
         import cProfile
         cProfile.run('main()', sort='cumulative')
+    elif mode == 'pdb':
+        try:
+            main()
+        except:
+            import pdb
+            pdb.post_mortem()
     else:
         main()  # normal life

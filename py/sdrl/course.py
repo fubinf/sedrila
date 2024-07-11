@@ -319,6 +319,21 @@ class Coursebuilder(Course, sdrl.partbuilder.PartbuilderMixin):
     def outputfile(self) -> str:
         return "index.html"
 
+    def do_build(self):
+        body_s = self.directory.get_the(el.Body_s, self.name).value
+        body_i = self.directory.get_the(el.Body_i, self.name).value
+        self.render_structure("homepage.html", "TODO 2: sitetitle", "toc!!!",
+                              body_s, "linkslist_top!!!", "linkslist_bottom!!!", self.targetdir_s)
+        self.render_structure("homepage.html", "sitetitle!!!", "toc!!!",
+                              body_i, "linkslist_top!!!", "linkslist_bottom!!!", self.targetdir_i)
+
+    def my_dependencies(self) -> tg.Iterable['Element']:
+        return [
+            self.directory.get_the(el.Body_s, self.name),
+            self.directory.get_the(el.Body_i, self.name),
+            # self.directory.get_the(el.Toc, self.name),  # TODO 1: add
+        ]
+
     def as_json(self) -> b.StrAnyDict:
         result = dict(title=self.title,
                       breadcrumb_title=self.breadcrumb_title,
@@ -328,14 +343,6 @@ class Coursebuilder(Course, sdrl.partbuilder.PartbuilderMixin):
                       chapters=[chapter.as_json() for chapter in self.chapters])
         result.update(super().as_json())
         return result
-    
-    def do_build(self):
-        body_s = self.directory.get_the(el.Body_s, self.name).value
-        body_i = self.directory.get_the(el.Body_i, self.name).value
-        self.render_structure("homepage.html", "TODO 2: sitetitle", "toc!!!",
-                              body_s, "linkslist_top!!!", "linkslist_bottom!!!", self.targetdir_s)
-        self.render_structure("homepage.html", "sitetitle!!!", "toc!!!",
-                              body_i, "linkslist_top!!!", "linkslist_bottom!!!", self.targetdir_i)
 
     def get_template(self, name: str):
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(self.templatedir), autoescape=False)
@@ -451,6 +458,8 @@ class Coursebuilder(Course, sdrl.partbuilder.PartbuilderMixin):
         self.directory.make_the(el.Sourcefile, self.sourcefile, cache=self.cache)
         self._make(el.Topmatter, sourcefile=self.sourcefile)
         self._make(el.Content)
+        self._make(el.IncludeList_s)
+        self._make(el.IncludeList_i)
         self._make(el.Body_s, sourcefile=self.sourcefile)
         self._make(el.Body_i, sourcefile=self.sourcefile)
         # self._make(el.!!!)  # TODO 1: TOCs!
