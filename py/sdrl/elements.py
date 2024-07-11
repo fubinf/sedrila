@@ -20,16 +20,18 @@ import sdrl.macros as macros
 import sdrl.markdown as md
 
 
-class Top:
+class Top:  # abstract class
     """This class' only purpose is terminating the super().__init__() call chain."""
     def __init__(self, *args, **kwargs):
         pass  # because object() does not support the (self, *args, **kwargs) signature
 
 
-class Element(Top):
+class Element(Top):  # abstract class
     """
     Common superclass of the stuff taking part in incremental build: Sources and Products.
-    build() is generic and consists of calls to the class-specific framework filler methods
+    Directory defines an ordering of these classes A, B, C such that if any B has any A as a dependency,
+    A will be before B in the ordering. This allows building Elements simply in order A, B, C, ...
+    build() is mostly generic and consists of calls to the class-specific framework filler methods
     check_existing_resource(), my_dependencies() and do_build().
     """
     name: str  # path, filename, or partname
@@ -52,29 +54,22 @@ class Element(Top):
         import sdrl.course
         return self.directory.get_the(sdrl.course.Course, 'Course')
 
-    def cached_str(self) -> tuple[str, c.State]:
-        return self.cache.cached_str(self.cache_key)
-
-    def cached_list(self) -> tuple[list[str], c.State]:
-        return self.cache.cached_list(self.cache_key)
-
-    def cached_dict(self) -> tuple[b.StrAnyDict, c.State]:
-        return self.cache.cached_dict(self.cache_key)
-
-
     def build(self):
         """Generic framework operation."""
-        b.debug(f"{self.__class__.__name__}.build() for {self.name}")
         self.check_existing_resource()
         if self.state != c.State.AS_BEFORE:
+            b.debug(f"{self.__class__.__name__}.build({self.name}) local state:\t{self.state} ")
             self.do_build()
             self.state = c.State.HAS_CHANGED
             return
         for dep in self.my_dependencies():
             if dep.state != c.State.AS_BEFORE:
+                which = f"{dep.__class__.__name__}({dep.name})"
+                b.debug(f"{self.__class__.__name__}.build({self.name}) dependency {which} state:\t{dep.state}")
                 self.do_build()
                 self.state = c.State.HAS_CHANGED
                 return
+        b.debug(f"{self.__class__.__name__}.build({self.name}) state:\t{self.state}")
 
     def check_existing_resource(self):
         """
@@ -85,39 +80,45 @@ class Element(Top):
         """
         assert False, f"{self.__class__.__name__}.{self.name}.check_existing_resource() not defined"
 
-    def my_dependencies(self) -> list['Element']:
-        """Class-specific for each Element class with dependencies."""
+    def my_dependencies(self) -> tg.Iterable['Element']:
+        """Class-specific. Either fixed (and enumerated here) or stored in 'dependencies'."""
         return []  # default: no dependencies
 
     def do_build(self):
         """Class-specific: perform actual build work."""
         assert False, f"{self.__class__.__name__}.{self.name}.do_build() not defined"
 
+    def cached_str(self) -> tuple[str, c.State]:
+        return self.cache.cached_str(self.cache_key)
 
-class Product(Element):
+    def cached_list(self) -> tuple[list[str], c.State]:
+        return self.cache.cached_list(self.cache_key)
+
+    def cached_dict(self) -> tuple[b.StrAnyDict, c.State]:
+        return self.cache.cached_dict(self.cache_key)
+
+
+
+class Product(Element):  # abstract class
     """Abstract superclass for any kind of thing that gets built."""
     pass
 
 
-class Piece(Product):
+class Piece(Product):  # abstract class
     """
     Abstract superclass for an internal outcome of build, managed in the cache or with help of the cache.
-    Pieces have a value that is set exactly once, either by check_existing_resource() or by do_build().
+    Pieces have a value that is set by check_existing_resource() (if in the cache) or by do_build()
+    or both.
     """
     CACHED_TYPE = 'str'  # which kind of value is in the cache
     SC = c.SedrilaCache  # abbrev
     READFUNC = dict(str=SC.cached_str, list=SC.cached_list, dict=SC.cached_dict)
     WRITEFUNC = dict(str=SC.write_str, list=SC.write_list, dict=SC.write_dict)
-    value: c.Cacheable
+    value: c.Cacheable  # build result, from Cache or from do_build()
     
     @property
     def cache_key(self) -> str:
         return f"{self.name}__{self.__class__.__name__.lower()}__"
-
-    def build(self):
-        super().build()
-        if self.state == c.State.HAS_CHANGED:  # do_build() was called, value is set
-            self.WRITEFUNC[self.CACHED_TYPE](self.cache, self.cache_key, self.value)
 
     def check_existing_resource(self):
         value, self.state = self.READFUNC[self.CACHED_TYPE](self.cache, self.cache_key)
@@ -125,59 +126,96 @@ class Piece(Product):
             assert self.state == c.State.AS_BEFORE  # cache write happens only later
             self.value = value  # do not set it to None
 
+    def encache_built_value(self, value):
+        """
+        Where Outputfile elements directly produce an effect during do_build(),
+        Pieces only live in the cache. This method puts them there and sets value.
+        However, a freshly built value is still AS_BEFORE if it is the same as in the cache.
+        """
+        self.value = value
+        cache_value, cache_state = self.READFUNC[self.CACHED_TYPE](self.cache, self.cache_key)
+        if cache_state != c.State.MISSING and self.value == cache_value:
+            self.state = c.State.AS_BEFORE
+        else: 
+            self.state = c.State.HAS_CHANGED
+            self.WRITEFUNC[self.CACHED_TYPE](self.cache, self.cache_key, self.value)
+
     def has_value(self) -> bool:
         return hasattr(self, 'value')
 
 
-class Byproduct(Piece):
+class Byproduct(Piece):  # abstract class
     """
     A Byproduct gets built not by its own do_build() but by its main Product's,
-    which must be built first and will simply set the Byproduct's 'value' attr.
+    which must be built first and will set the Byproduct's 'value' attr and cache entry.
     Byproduct.do_build() only verifies that value is set.
     check_existing_resource() retrieves the cache entry iff value is not set (when the
     main Product did not need to be built).
-    Byproducts rely on their main Product's dependency checking instead of doing their own. 
+    Byproducts rely on their main Product's dependency checking; they have no dependenies of their own. 
     """
     def check_existing_resource(self):
-        if self.has_value():
-            self.state = c.State.HAS_CHANGED
-        else:
+        if self.has_value():  # if main product was built, all is done already
+            pass 
+        else:  # main product was not built, need to read cache
             super().check_existing_resource()
+            assert self.has_value() or self.state == c.State.MISSING
+
+    def my_dependencies(self) -> list[Element]:
+        return []
 
     def do_build(self):
-        assert self.has_value(), f"{self.__class__.__name__}.{self.name}: value must be set but is not"
+        pass  # Byproducts get built by their corresponding main product
 
 
 class Body_s(Piece):
-    """Student HTML page text content."""
+    """Student HTML page text content.  Byproducts: Body_i, IncludeList_s, IncludeList_i."""
     sourcefile: str
 
     def do_build(self):
         # --- prepare:
         macros.switch_part(self.name)
         content = self.directory.get_the(Content, self.name)
-        # --- build product:
-        self.value, includes_s = md.render_markdown(self.sourcefile, self.name, 
-                                                    content.value, b.Mode.STUDENT, 
-                                                    self.my_course.blockmacro_topmatter)
-        # --- build byproduct:
+        # --- build body_s and byproduct includeslist_s:
+        # includeslist_s gets filled when building self, but is a dependency of self!
+        # As a dependency, it gets built earlier, so the includes_s found here will come into effect
+        # only during the next run, via the cache.
+        includeslist_s = self.directory.get_the(IncludeList_s, self.name)
+        html, includes_s = md.render_markdown(self.sourcefile, self.name, 
+                                              content.value, b.Mode.STUDENT, 
+                                              self.my_course.blockmacro_topmatter)
+        self.encache_built_value(html)
+        includeslist_s.encache_built_value(includes_s)
+        # --- build byproducts body_i and includeslist_i:
         body_i = self.directory.get_the(Body_i, self.name)
-        body_i.value, includes_i = md.render_markdown(self.sourcefile, self.name, 
-                                                      content.value, b.Mode.INSTRUCTOR, 
-                                                      self.my_course.blockmacro_topmatter)
+        includeslist_i = self.directory.get_the(IncludeList_i, self.name)
+        html, includes_i = md.render_markdown(self.sourcefile, self.name, 
+                                              content.value, b.Mode.INSTRUCTOR, 
+                                              self.my_course.blockmacro_topmatter)
+        body_i.encache_built_value(html)
+        includeslist_i.encache_built_value(includes_i)
+
+    def my_dependencies(self) -> list[Element]:
+        return [
+            self.directory.get_the(Content, self.name),
+            self.directory.get_the(IncludeList_s, self.name),
+            self.directory.get_the(IncludeList_i, self.name),
+        ]
+
 
 class Body_i(Byproduct, Body_s):
-    """Just like Body_s, but for instructor HTML."""
+    """Just like Body_s, but for instructor HTML. Byproduct of Body_s."""
+    pass  # all functionality is generic, see Body_s.build()
 
 
 class Content(Byproduct):
-    """Markdown part of a Part sourcefile."""
+    """Markdown part of a Part sourcefile. Byproduct of Topmatter."""
     pass
 
 
-class ItemList(Byproduct):
+class ItemList(Byproduct):  # abstract class
     """Abstract superclass for lists of names of dependencies."""
     CACHED_TYPE = 'list'  # which kind of value is in the cache
+    dependencies: list['Element']
     pass
 
 
@@ -186,9 +224,25 @@ class AssumedByList(ItemList):
     pass
 
 
-class IncludeList(ItemList):
-    """List of names of files INCLUDEd by a Part."""
-    pass
+class IncludeList_s(ItemList):
+    """List of names of files INCLUDEd by a Part in its student version."""
+    def __init__(self, name: str, *args, **kwargs):
+        super().__init__(name, *args, **kwargs)
+        includelist, state = self.cached_list()
+        if state == c.State.MISSING:
+            return
+        self.dependencies = []
+        b.debug(f"{self.__class__.__name__}({name}) = {includelist}")
+        for includefile in includelist:
+            self.dependencies.append(self.directory.make_or_get_the(Sourcefile, includefile, cache=self.cache))
+
+    def my_dependencies(self) -> tg.Iterable['Element']:
+        return self.dependencies
+
+
+class IncludeList_i(IncludeList_s):
+    """List of names of files INCLUDEd by a Part in its instructor version."""
+    pass  # all functionality is generic
 
 
 class PartrefList(ItemList):
@@ -212,11 +266,7 @@ class Tocline(Piece):
 
 
 class Topmatter(Piece):
-    """
-    Metadata from a Part file.
-    Building a Topmatter means reading a partfile, which also involves reading the content part of it.
-    To save work, we update the corresponding Content object's value as a byproduct.
-    """
+    """Metadata from a Part file. Byproduct: Content."""
     CACHED_TYPE = 'dict'  # which kind of value is in the cache
     sourcefile: str
     
@@ -228,21 +278,23 @@ class Topmatter(Piece):
         if SEPARATOR not in text:
             b.error(f"{self.sourcefile}: triple-dash separator is missing")
             return
-        topmatter_text, content_elem.value = text.split(SEPARATOR, 1)
+        topmatter_text, content_text = text.split(SEPARATOR, 1)
         # ----- parse metadata
         try:
-            self.value = yaml.safe_load(topmatter_text) or dict()  # avoid None for empty topmatter
+            value = yaml.safe_load(topmatter_text) or dict()  # avoid None for empty topmatter
         except yaml.YAMLError as exc:
             b.error(f"{self.sourcefile}: metadata YAML is malformed: {str(exc)}")
-            self.value = dict()  # use empty metadata as a weak replacement
+            value = dict()  # use empty metadata as a weak replacement
+        # ----- use the pieces:
+        self.encache_built_value(value)
+        content_elem.encache_built_value(content_text)
 
     def my_dependencies(self) -> list['Element']:
         return [self.directory.get_the(Sourcefile, self.sourcefile)]
 
 
-class Outputfile(Product):
+class Outputfile(Product):  # abstract class
     """Superclass for Products ending up in one file per targetdir."""
-    outputfile: str  # the target filename within each target directory, if any
     targetdir_s: str  # student dir, if any
     targetdir_i: str  # instructor dir, if any
     sourcefile: str  # the originating pathname, so we can find the Sourcefile object, if any
@@ -259,13 +311,20 @@ class Outputfile(Product):
     def outputfile_i(self) -> str:
         return os.path.join(self.targetdir_i, self.outputfile)
 
+    def build(self):
+        super().build()
+        if self.state != c.State.AS_BEFORE:  # do_build() was called, file was written
+            self.cache.record_file(self.name)
+
     def check_existing_resource(self):
+        sourcefile_state = self.directory.get_the(Sourcefile, self.sourcefile).state
         if not os.path.exists(self.outputfile_s) or not os.path.exists(self.outputfile_i):
             self.state = c.State.MISSING
-        elif self.directory.get_the(Sourcefile, self.sourcefile).state == c.State.AS_BEFORE:
+        elif sourcefile_state == c.State.AS_BEFORE:
             self.state = c.State.AS_BEFORE
         else:
             self.state = c.State.HAS_CHANGED
+        # b.debug(f"Outputfile.check({self.outputfile}): {self.state}")
 
 
 class CopiedFile(Outputfile):
@@ -277,7 +336,7 @@ class CopiedFile(Outputfile):
         shutil.copy(self.sourcefile, os.path.join(self.targetdir_i, self.outputfile))
 
 
-class Part(Outputfile):  # for Course, Chapter, Taskgroup, Task and their Builders, see course.py
+class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task and their Builders, see course.py
     """Outputs identified by a slug, possible targets of PARTREF."""
     TOC_LEVEL = 0  # indent level in table of contents
     slug: str  # the file/dir basename by which we refer to the part
@@ -302,6 +361,8 @@ class Part(Outputfile):  # for Course, Chapter, Taskgroup, Task and their Builde
     def outputfile_s(self) -> str:
         return f"{self.name}.html"
 
+    def check_existing_resource(self):
+        self.state = c.State.AS_BEFORE  # Parts' state changes all come from dependencies
 
     def render_structure(self, templatename: str, sitetitle: str, 
                          toc: str, body: str, linkslist_top: str, linkslist_bottom: str, 
@@ -316,6 +377,7 @@ class Part(Outputfile):  # for Course, Chapter, Taskgroup, Task and their Builde
                                  toc=toc,
                                  content=body)
         b.spit(f"{targetdir}/{self.outputfile}", output)
+        b.info(f"{targetdir}/{self.outputfile}")
 
     def structure_path(self) -> list['Part']:
         """List of nested parts, from a given part up to the course."""
@@ -335,7 +397,7 @@ class Part(Outputfile):  # for Course, Chapter, Taskgroup, Task and their Builde
             path.append(structure)
         return path
 
-class Partscontainer(Part):
+class Partscontainer(Part):  # abstract class
     """A Part that can contain other Parts."""
     zipdirs: list['Zipdir'] = []
     
@@ -360,12 +422,7 @@ class Zipfile(Part):
     pass
 
 
-class RenderedOutput(Outputfile):
-    """xy.html Outputfiles that stem from Parts."""
-    pass
-
-
-class Source(Element):
+class Source(Element):  # abstract class
     """
     Abstract superclass for an input for the build.
     A Source only provides a state, not a Product, hence no build action and no value.
@@ -380,8 +437,16 @@ class Source(Element):
 
 class Sourcefile(Source):
     """A Source that consists of a single file. Its name is the sourcefile's full path."""
+    def __init__(self, name, *args, **kwargs):
+        super().__init__(name, *args, **kwargs)
+        assert name
+
     def check_existing_resource(self):
         self.state = self.cache.filestate(self.name)
+
+    def do_build(self):
+        if self.state != c.State.AS_BEFORE:
+            self.cache.record_file(self.name)
 
 
 class Zipdir(Source):
@@ -423,5 +488,3 @@ class Zipdir(Source):
         slugpos = sourcename.find(self.slug)  # will always exist
         remainder = sourcename[slugpos+len(self.slug)+1:]
         return f"{self.innerpath}/{remainder}"
-
-
