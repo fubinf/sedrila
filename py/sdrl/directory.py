@@ -1,4 +1,5 @@
 """Combined Elements registry/factory and build orchestrator."""
+import base as b
 
 
 class Directory:
@@ -18,7 +19,8 @@ class Directory:
             el.Sourcefile, el.CopiedFile,
             el.Zipdir, el.Zipfile,
             el.Topmatter, el.Content, 
-            el.Body_s, el.Body_i, el.IncludeList, el.PartrefList,
+            el.IncludeList_s, el.IncludeList_i, el.PartrefList,
+            el.Body_s, el.Body_i,
             el.AssumedByList, el.RequiredByList,
             el.Tocline, el.Toc,
             course.Course, course.Chapter, course.Taskgroup, course.Task, glossary.Glossary,
@@ -30,7 +32,7 @@ class Directory:
     def get_the(self, mytype: type, name: str) -> 'sdrl.elements.Element':
         """Retrieve existing object from the directory."""
         the_dict = self._getdict(mytype)
-        return the_dict.get(name, None)
+        return the_dict.get(name)
 
     def make_the(self, mytype: type, name: str, *args, **kwargs) -> 'sdrl.elements.Element':
         """Instantiate object and store it in the directory. Must be a new entry."""
@@ -39,6 +41,12 @@ class Directory:
         instance = mytype(name, *args, directory=self, **kwargs)
         the_dict[name] = instance
         return instance
+
+    def take_the(self, mytype: type, name: str, instance):
+        """Store the existing element in the directory. Must be a new entry."""
+        the_dict = self._getdict(mytype)
+        assert name not in the_dict  # if we enter the same object twice, the logic is broken
+        the_dict[name] = instance
 
     def make_or_get_the(self, mytype: type, name: str, *args, **kwargs) -> 'sdrl.elements.Element':
         instance = self.get_the(mytype, name)
@@ -51,8 +59,9 @@ class Directory:
         the_dict[name] = instance
 
     def build(self):
-        alldicts = (self._getdict(mytype) for mytype in self.managed_types)
-        for thisdict in alldicts:
+        alldicts = ((mytype, self._getdict(mytype)) for mytype in self.managed_types)
+        for thistype, thisdict in alldicts:
+            b.debug(f"building all Elements of type {thistype.__name__}")
             for elem in thisdict.values():
                 elem.build()
 
