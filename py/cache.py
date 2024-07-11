@@ -49,6 +49,7 @@ class SedrilaCache:
         self.db = dbm.open(cache_filename, flag='c')  # open or create dbm file
         self.timestamp_cached = int(self.db.get(TIMESTAMP_KEY, "0"))  # default to "everything is old"
         self.written = dict()
+        # self._dump(limit=256)  # debug, if needed
 
     def __contains__(self, key: str) -> bool:
         return key in self.written or key in self.db
@@ -145,7 +146,7 @@ class SedrilaCache:
 
     @staticmethod
     def _as_list(e: str) -> list[str]:
-        return e.split(LIST_SEPARATOR)
+        return e.split(LIST_SEPARATOR) if e else []
 
     @staticmethod
     def _as_dict(e: str) -> b.StrAnyDict:
@@ -167,6 +168,12 @@ class SedrilaCache:
             return (converter(self.db[key].decode()), State.AS_BEFORE)
         else:
             return (None, State.MISSING)
+
+    def _dump(self, limit: int):
+        keys = sorted(self.db.keys())
+        for key in keys:
+            value = self.db[key]
+            print(f"{key}:\t{value[:limit]}")
 
     def _scandir(self, dirname: str, cached_filelist: str) -> tuple[list[str], list[str]]:  #  TODO 2: remove
         """Lists of all (samefiles, newfiles) below dirname according to cached_filelist and timestamp_cached."""
