@@ -50,7 +50,7 @@ class Element(Top):  # abstract class
 
     @property
     def statelabel(self) -> str:
-        f"{self.state}{'*' if isinstance(self, Byproduct) else ''}"
+        return f"{self.state}{'*' if isinstance(self, Byproduct) else ''}"
 
     @property
     def my_course(self):
@@ -72,7 +72,7 @@ class Element(Top):  # abstract class
                 self.do_build()
                 self.state = c.State.HAS_CHANGED
                 return
-        b.debug(f"{self.__class__.__name__}.build({self.name}) state:\t{self.state}")
+        b.debug(f"{self.__class__.__name__}.build({self.name}) state:\t{self.statelabel}")
 
     def check_existing_resource(self):
         """
@@ -319,13 +319,10 @@ class Outputfile(Product):  # abstract class
             self.cache.record_file(self.name)
 
     def check_existing_resource(self):
-        sourcefile_state = self.directory.get_the(Sourcefile, self.sourcefile).state
         if not os.path.exists(self.outputfile_s) or not os.path.exists(self.outputfile_i):
             self.state = c.State.MISSING
-        elif sourcefile_state == c.State.AS_BEFORE:
-            self.state = c.State.AS_BEFORE
         else:
-            self.state = c.State.HAS_CHANGED
+            self.state = c.State.AS_BEFORE
         # b.debug(f"Outputfile.check({self.outputfile}): {self.state}")
 
 
@@ -401,27 +398,59 @@ class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task a
 
 class Partscontainer(Part):  # abstract class
     """A Part that can contain other Parts."""
-    zipdirs: list['Zipdir'] = []
-    
     def find_zipdirs(self):
         """find all dirs (not files!) *.zip in self.sourcefile dir (not below!), warns about *.zip files"""
-        self.zipdirs = []
         inputdir = os.path.dirname(self.sourcefile)
         zipdirs = glob.glob(f"{inputdir}/*.zip")
         for zipdirname in zipdirs:
             if os.path.isdir(zipdirname):
-                self.zipdirs.append(Zipdir(zipdirname))
+                self.directory.make_the(Zipdir, zipdirname, cache=self.cache)
+                self.directory.make_the(Zipfile, os.path.basename(zipdirname), sourcefile=zipdirname, cache=self.cache)
             else:
                 b.warning(f"'{zipdirname}' is a file, not a dir, and will be ignored.")
-
-    def render_zipdirs(self, targetdir):
-        for zipdir in self.zipdirs:
-            zipdir.render(targetdir)
 
 
 class Zipfile(Part):
     """xy.zip Outputfiles that are named Parts, plus the exceptional case itree.zip."""
-    pass
+    instructor_only: bool
+
+    @property
+    def innerpath(self) -> str:
+        return self.name[:-len(".zip")]  # e.g. myzipdir
+
+    @property
+    def to_be_skipped(self) -> bool:
+        return False  # TODO 3: within course(!) could be skipped if no [PARTREF] to it exists anywhere
+
+    def do_build(self):
+        target_i = f"{self.my_course.targetdir_i}/{self.outputfile}"
+        b.info(target_i)
+        with zipfile.ZipFile(target_i, mode='w', 
+                             compression=zipfile.ZIP_DEFLATED) as archive:  # prefer deflate for build speed
+            self._zip_the_files(archive)
+        target_s = f"{self.my_course.targetdir_s}/{self.outputfile}"
+        b.info(target_s)
+        shutil.copy(target_i, target_s)  # TODO 2: not for itree.zip
+    
+    def my_dependencies(self) -> tg.Iterable['Element']:
+        return [self.directory.get_the(Zipdir, self.sourcefile)]
+    
+    def _zip_the_files(self, archive: zipfile.ZipFile):
+        assert os.path.exists(self.sourcefile), f"'{self.sourcefile}' is missing!"
+        for dirpath, dirnames, filenames in os.walk(self.sourcefile):
+            for filename in sorted(filenames):
+                sourcename = f"{dirpath}/{filename}"
+                targetname = self._path_in_zip(sourcename)
+                archive.write(sourcename, targetname)
+
+    def _path_in_zip(self, sourcename: str) -> str:
+        """
+        Remove outside-of-zipdir prefix, then use innerpath plus inside-of-zipdir remainder.
+        """
+        slugpos = sourcename.find(self.slug)  # will always exist
+        remainder = sourcename[slugpos+len(self.slug)+1:]
+        return f"{self.innerpath}/{remainder}"
+
 
 
 class Source(Element):  # abstract class
@@ -431,10 +460,7 @@ class Source(Element):  # abstract class
     The data resides either in the file system or is supplied upon instantiation. 
     """
     def do_build(self):
-        pass  # 
-
-    def needs_value(self) -> bool:
-        return True  # value is always missing
+        pass  # Sources need no building, only checking
 
 
 class Sourcefile(Source):
@@ -445,43 +471,42 @@ class Sourcefile(Source):
 
     def check_existing_resource(self):
         self.state = self.cache.filestate(self.name)
-
-    def do_build(self):
         if self.state != c.State.AS_BEFORE:
             self.cache.record_file(self.name)
 
 
 class Zipdir(Source):
-    """
-    OLD: Turn directories named ch/mychapter/mytaskgroup/myzipdir.zip 
-    containing a tree of files, say, myfile.txt
-    into an output file myzipdir.zip
-    that contains paths like myzipdir/myfile.txt.  
-    """
-    innerpath: str  # relative pathname of the zipdir, to be re-created in the ZIP archive
+    """A directory tree *.zip/** to be turned into a same-named ZIP file."""
 
-    def __init__(self, zipdirpath: str):
+    def __init__(self, zipdirpath: str, *args, **kwargs):
+        super().__init__(zipdirpath, *args, **kwargs)
         assert zipdirpath[-1] != '/'  # dirprefix must not end with a slash, else our logic would break
         self.sourcefile = zipdirpath  # e.g. ch/mychapter/mytaskgroup/myzipdir.zip 
-        self.slug = self.title = self.outputfile = os.path.basename(zipdirpath)  # e.g. myzipdir.zip
-        self.innerpath = self.slug[:-len(".zip")]  # e.g. myzipdir
+        self.slug = self.title = os.path.basename(zipdirpath)  # e.g. myzipdir.zip
 
-    @property
-    def to_be_skipped(self) -> bool:
-        return False  # TODO 3: within course(!) could be skipped if no [PARTREF] to it exists anywhere
-
-    def render(self, targetdir: str):
-        with zipfile.ZipFile(f"{targetdir}/{self.outputfile}", mode='w', 
-                             compression=zipfile.ZIP_DEFLATED) as archive:  # prefer deflate for build speed
-            self._zip_the_files(archive)
-
-    def _zip_the_files(self, archive: zipfile.ZipFile):
-        assert os.path.exists(self.sourcefile), f"'{self.sourcefile}' is missing!"
+    def check_existing_resource(self):
+        """HAS_CHANGED if any file in the tree is new or the set of filenames differs from cache."""
+        # ----- analyze Zipdir tree:
+        current_filelist = []
+        new_file_found = False
         for dirpath, dirnames, filenames in os.walk(self.sourcefile):
             for filename in sorted(filenames):
                 sourcename = f"{dirpath}/{filename}"
-                targetname = self._path_in_zip(sourcename)
-                archive.write(sourcename, targetname)
+                if self.cache.is_recent(sourcename):
+                    new_file_found = True
+                current_filelist.append(sourcename)
+        current_fileset = set(current_filelist)
+        # ----- determine state according to changes and cache:
+        old_fileslist, cache_state = self.cache.cached_list(self.sourcefile)
+        old_fileset = set(old_fileslist or [])
+        filesets_differ = old_fileset != current_fileset
+        if cache_state == c.State.MISSING or new_file_found or filesets_differ:
+            # b.debug(f"Zipdir.check({self.name}): cache {cache_state}, new_file {new_file_found}, "
+            #         f"filesets differ {filesets_differ}")
+            self.cache.write_list(self.sourcefile, current_filelist)
+            self.state = c.State.HAS_CHANGED
+        else:
+            self.state = c.State.AS_BEFORE
 
 class Step(Element):
     """Pseudo-element that does not represent data, but computation."""

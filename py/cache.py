@@ -96,12 +96,16 @@ class SedrilaCache:
         if cache_state == State.MISSING:
             b.debug(f"{pathname} not in cache")
             return State.HAS_CHANGED
-        filetime = os.stat(pathname).st_mtime
-        if filetime > self.mtime:
+        if self.is_recent(pathname):
             b.debug(f"{pathname} has younger mtime")
             return State.HAS_CHANGED
         else:
             return State.AS_BEFORE
+
+    def is_recent(self, pathname: str) -> bool:
+        """Whether pathname's mtime is larger than the cache's global mtime."""
+        filetime = os.stat(pathname).st_mtime
+        return filetime > self.mtime
 
     def write_str(self, key: str, value: str):
         assert key not in self.written  # we should write everything only once

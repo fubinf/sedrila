@@ -400,14 +400,8 @@ class Coursebuilder(Course, sdrl.partbuilder.PartbuilderMixin):
                     b.error(f"{task.slug}:\t required task or taskgroup '{required}' does not exist")
 
     def _collect_zipdirs(self):
-        for zd in self.zipdirs:
+        for zd in self.directory.get_all(el.Zipdir):
             self.namespace_add(zd.sourcefile, zd)
-        for ch in self.chapters:
-            for zd in ch.zipdirs:
-                self.namespace_add(zd.sourcefile, zd)
-            for tgr in ch.taskgroups:
-                for zd in tgr.zipdirs:
-                    self.namespace_add(zd.sourcefile, zd)
 
     def _compute_taskorder(self):
         """
