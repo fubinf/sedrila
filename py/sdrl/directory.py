@@ -1,5 +1,6 @@
 """Combined Elements registry/factory and build orchestrator."""
 import base as b
+import typing as tg
 
 
 class Directory:
@@ -18,7 +19,7 @@ class Directory:
             # The ordering is the build ordering:
             el.Sourcefile, el.CopiedFile,
             el.Zipdir, el.Zipfile,
-            el.Topmatter, el.Content, 
+            el.Topmatter, el.Content, course.DerivedMetadata,
             el.IncludeList_s, el.IncludeList_i, el.PartrefList,
             el.Body_s, el.Body_i,
             el.AssumedByList, el.RequiredByList,
@@ -64,6 +65,9 @@ class Directory:
             b.debug(f"building all Elements of type {thistype.__name__}")
             for elem in thisdict.values():
                 elem.build()
+
+    def get_all(self, thetype: type) -> tg.Iterator:
+        return self._getdict(thetype).values()
 
     def _getdict(self, thetype: type):
         dictname = thetype.__name__.lower()

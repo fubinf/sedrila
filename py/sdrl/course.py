@@ -629,3 +629,9 @@ class Taskgroupbuilder(Taskgroup, sdrl.partbuilder.PartbuilderMixin):
                     overwrite=True)
         self.find_zipdirs()
         self.evaluate_stage(context, chapter.course)
+
+
+class DerivedMetadata(el.Step):
+    """Copy Topmatter into Parts' attributes, compute assumedby/requiredby."""
+    def do_build(self):
+        ...

@@ -3,7 +3,6 @@ Class model for the stuff taking part in the incremental build.
 See the architecture description in README.md.
 """
 
-import collections.abc
 import glob
 import os.path
 import shutil
@@ -484,10 +483,7 @@ class Zipdir(Source):
                 targetname = self._path_in_zip(sourcename)
                 archive.write(sourcename, targetname)
 
-    def _path_in_zip(self, sourcename: str) -> str:
-        """
-        Remove outside-of-zipdir prefix, then use innerpath plus inside-of-zipdir remainder.
-        """
-        slugpos = sourcename.find(self.slug)  # will always exist
-        remainder = sourcename[slugpos+len(self.slug)+1:]
-        return f"{self.innerpath}/{remainder}"
+class Step(Element):
+    """Pseudo-element that does not represent data, but computation."""
+    def check_existing_resource(self):
+        self.state = c.State.HAS_CHANGED  # do_build() must always be called.

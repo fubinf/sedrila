@@ -108,7 +108,9 @@ Element
   Source
     Configelement
     Sourcefile
-    Zipdir      
+    Zipdir
+  Step
+    DerivedMetadata
 ```
 
 #### 1.3.2 Overall procedure
