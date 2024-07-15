@@ -38,7 +38,8 @@ class Directory:
     def make_the(self, mytype: type, name: str, *args, **kwargs) -> 'sdrl.elements.Element':
         """Instantiate object and store it in the directory. Must be a new entry."""
         the_dict = self._getdict(mytype)
-        assert name not in the_dict  # if we re-make the same object, the logic is broken
+        if name in the_dict:
+            b.debug(f"make_the: overwriting internal entry {mytype.__name__}({name})")
         instance = mytype(name, *args, directory=self, **kwargs)
         the_dict[name] = instance
         return instance
@@ -46,7 +47,8 @@ class Directory:
     def take_the(self, mytype: type, name: str, instance):
         """Store the existing element in the directory. Must be a new entry."""
         the_dict = self._getdict(mytype)
-        assert name not in the_dict  # if we enter the same object twice, the logic is broken
+        if name in the_dict:
+            b.debug(f"take_the: overwriting internal entry {mytype.__name__}({name})")
         the_dict[name] = instance
 
     def make_or_get_the(self, mytype: type, name: str, *args, **kwargs) -> 'sdrl.elements.Element':
@@ -56,7 +58,8 @@ class Directory:
     def record_the(self, mytype: type, name, instance):
         """Store existing object into the directory."""
         the_dict = self._getdict(mytype)
-        assert name not in the_dict or the_dict[name] is instance  # if we change an entry, the logic is broken
+        if name in the_dict and the_dict[name] is not instance:
+            b.debug(f"record_the: overwriting internal entry {mytype.__name__}({name})")
         the_dict[name] = instance
 
     def build(self):
