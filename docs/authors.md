@@ -333,7 +333,7 @@ This may look as follows:
 
 The YAML attributes have the following meaning:
 - `title`: string, required.    
-  How this task will appear in the navigation menu.
+  How this task will appear in long form (e.g. navigation menu tooltip, page title).
 - `timevalue`: integer, required.  
   The number of work hours of credit a student will receive when this task is submitted
   and is accepted by the instructor.
