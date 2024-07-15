@@ -25,8 +25,10 @@ class State(enum.StrEnum):
     HAS_CHANGED = 'HAS_CHANGED'  # for Source or before build: must build; after build: have built
     AS_BEFORE = 'AS_BEFORE'  # for Source or before build: need not build; after build: have not built
 
+
 LIST_SEPARATOR = '|'  # separates entries in list-valued dbm entries. Symbol is forbidden in all names.
 TIMESTAMP_KEY = '__mtime__'  # unix timestamp: seconds since epoch
+
 
 class SedrilaCache:
     """
@@ -94,10 +96,10 @@ class SedrilaCache:
             return State.MISSING
         cache_state = self.state(pathname)
         if cache_state == State.MISSING:
-            b.debug(f"{pathname} not in cache")
+            # b.debug(f"{pathname} not in cache")
             return State.HAS_CHANGED
         if self.is_recent(pathname):
-            b.debug(f"{pathname} has younger mtime")
+            # b.debug(f"{pathname} has younger mtime")
             return State.HAS_CHANGED
         else:
             return State.AS_BEFORE
@@ -125,7 +127,7 @@ class SedrilaCache:
     
     def close(self):
         """Bring the persistent cache file up-to-date and close dbm."""
-        converters = { str: self._as_is, list: self._from_list, set: self._from_list, dict: self._from_dict }
+        converters = {str: self._as_is, list: self._from_list, set: self._from_list, dict: self._from_dict}
         self.db[TIMESTAMP_KEY] = str(self.timestamp_start)  # update mtime
         for key, value in self.written.items():
             if value is None:  # should not happen
@@ -179,7 +181,7 @@ class SedrilaCache:
             value = self.db[key]
             print(f"{key}:\t{value[:limit]}")
 
-    def _scandir(self, dirname: str, cached_filelist: str) -> tuple[list[str], list[str]]:  #  TODO 2: remove
+    def _scandir(self, dirname: str, cached_filelist: str) -> tuple[list[str], list[str]]:  # TODO 2: remove
         """Lists of all (samefiles, newfiles) below dirname according to cached_filelist and timestamp_cached."""
         reftime = self.timestamp_cached  # younger than this (or equal) means new
         knownfiles_set = set(cached_filelist.split(LIST_SEPARATOR))
