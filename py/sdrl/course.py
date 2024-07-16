@@ -9,12 +9,11 @@ import enum
 import functools
 import glob
 import graphlib
+import itertools
 import numbers
 import os
 import re
 import typing as tg
-
-import jinja2
 
 import base as b
 import sdrl.elements as el
@@ -31,7 +30,8 @@ if sedrila_libdir.endswith('py'):  # we are a dev install and must go one more l
 class Task(el.Part):
     DIFFICULTY_RANGE = range(1, len(h.difficulty_levels) + 1)
     TOC_LEVEL = 2  # indent level in table of contents
-
+    
+    course: 'Course'
     timevalue: tg.Union[int, float]  # task timevalue: (in hours)
     difficulty: int  # difficulty: int from DIFFICULTY_RANGE
     assumes: list[str] = []  # tasknames: This knowledge is assumed to be present
@@ -42,17 +42,26 @@ class Task(el.Part):
 
     taskgroup: 'Taskgroup'  # where the task belongs
 
+    def __init__(self, name: str, *args, **kwargs):
+        super().__init__(name, *args, **kwargs)
+        self.directory.record_the(Task, self.name, self)
+        self.course.namespace_add(self.sourcefile, self)
+
     def __hash__(self) -> int:
         return hash(self.slug)
+
+    @property
+    def allowed_attempts(self) -> int:
+        course = self.taskgroup.chapter.course
+        return int(course.allowed_attempts_base + course.allowed_attempts_hourly*self.timevalue)
 
     @property
     def remaining_attempts(self) -> int:
         return max(0, self.allowed_attempts - self.rejections)
 
     @property
-    def allowed_attempts(self) -> int:
-        course = self.taskgroup.chapter.course
-        return int(course.allowed_attempts_base + course.allowed_attempts_hourly*self.timevalue)
+    def sourcefile(self) -> str:
+        return f"{self.course.chapterdir}/{self.taskgroup.chapter.name}/{self.taskgroup.name}/{self.name}.md"
 
     def from_json(self, task: b.StrAnyDict) -> 'Task':
         """Initializer used in student and instructor mode. Ignores all additional attributes."""
@@ -66,12 +75,16 @@ class Task(el.Part):
 
 
 @functools.total_ordering
-class Taskbuilder(Task, sdrl.partbuilder.PartbuilderMixin):
+class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
+    TEMPLATENAME = "task.html"
     explains: list[str] = []  # terms (for backlinks in glossary)
     assumed_by: list[str] = []  # tasknames: inverse of assumes
     required_by: list[str] = []  # tasknames: inverse of requires
 
     taskgroup: 'Taskgroupbuilder'  # where the task belongs
+
+    def __init__(self, name: str, *args, **kwargs):
+        super().__init__(name, *args, **kwargs)
 
     @property
     def remaining_attempts(self) -> int:
@@ -102,26 +115,18 @@ class Taskbuilder(Task, sdrl.partbuilder.PartbuilderMixin):
                 self._taskrefs('assumes') + self._taskrefs('requires'))
         return f"<a {href} {titleattr}>{self.slug}</a> {diffsymbol} {timevalue}{refs}"
 
+    @functools.cached_property
+    def toc(self) -> str:
+        return self.taskgroup.toc
+
     def as_json(self) -> b.StrAnyDict:
         return dict(slug=self.slug,
                     title=self.title, timevalue=self.timevalue, difficulty=self.difficulty,
                     assumes=self.assumes, requires=self.requires)
 
-    def from_file(self, file: str, taskgroup: 'Taskgroupbuilder') -> 'Taskbuilder':
-        self.read_partsfile(file)
-        # ----- get taskdata from file:
-        filename = os.path.basename(self.sourcefile)
-        mm = re.fullmatch(r"(.+)\.md", filename)
-        assert mm, filename  # we only get handed .md files here 
-        self.slug = mm.group(1)  # must be globally unique
-        b.copyattrs(file,
-                    self.metadata, self,
-                    mustcopy_attrs='title, timevalue, difficulty',
-                    cancopy_attrs='stage, explains, assumes, requires',
-                    mustexist_attrs='',
-                    typecheck=dict(timevalue=numbers.Number, difficulty=int))
-        self.evaluate_stage(file, taskgroup.chapter.course)
-        taskgroup.chapter.course.namespace_add(self.sourcefile, self)
+    def from_file(self, file: str, taskgroup: 'Taskgroupbuilder'):
+        self.make_std_dependencies(toc=self.taskgroup)
+        self.dependencies.append(self.directory.make_or_get_the(el.Tocline, self.name, task=self, cache=self.cache))
 
         # ----- ensure explains/assumes/requires are lists:
         def _handle_strlist(attrname: str):
@@ -142,6 +147,37 @@ class Taskbuilder(Task, sdrl.partbuilder.PartbuilderMixin):
         if self.explains:
             for term in self.explains:
                 taskgroup.chapter.course.glossary.explains(self.slug, term)
+        # ----- done:
+        return self
+
+    def process_topmatter(self, sourcefile: str, topmatter: b.StrAnyDict, course: 'Coursebuilder'):
+        b.copyattrs(sourcefile,
+                    topmatter, self,
+                    mustcopy_attrs='title, timevalue, difficulty',
+                    cancopy_attrs='stage, explains, assumes, requires',
+                    mustexist_attrs='',
+                    typecheck=dict(timevalue=numbers.Number, difficulty=int))
+        self.evaluate_stage(sourcefile, course)
+
+        # ----- ensure explains/assumes/requires are lists:
+        def _handle_strlist(attrname: str):
+            attrvalue = getattr(self, attrname)
+            if isinstance(attrvalue, str):
+                setattr(self, attrname, re.split(r", *", attrvalue))
+            elif not attrvalue:
+                setattr(self, attrname, [])
+            else:
+                msg = f"'{sourcefile}': value of '%s:' must be a (non-empty) string"
+                b.error(msg % attrname)
+                setattr(self, attrname, [])
+
+        _handle_strlist('explains')
+        _handle_strlist('assumes')
+        _handle_strlist('requires')
+        # ----- add to glossary:
+        if self.explains:
+            for term in self.explains:
+                course.glossary.explains(self.slug, term)
         # ----- done:
         return self
 
@@ -198,6 +234,7 @@ class Course(el.Partscontainer):
 
     configfile: str
     breadcrumb_title: str
+    chapterdir: str
     instructors: list[b.StrAnyDict]
     chapters: list['Chapter']
     init_data: b.StrAnyDict = {}
@@ -209,20 +246,19 @@ class Course(el.Partscontainer):
     def __init__(self, name, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
         self.directory.record_the(Course, self.name, self)
-        self.sourcefile = self.configfile
+        self.namespace_add(self.configfile, self)
         configdict = b.slurp_yaml(self.configfile)
         b.copyattrs(self.configfile,
                     configdict, self,
-                    mustcopy_attrs=('title, breadcrumb_title, instructors, allowed_attempts' +
+                    mustcopy_attrs=('title, breadcrumb_title, chapterdir, instructors, allowed_attempts' +
                                     self.AUTHORMODE_ATTRS),
                     cancopy_attrs=('baseresourcedir, itreedir, templatedir, '
                                    'blockmacro_topmatter, htaccess_template, init_data'),
                     mustexist_attrs='chapters',
                     report_extra=bool(self.AUTHORMODE_ATTRS))
         self.allowed_attempts_base, self.allowed_attempts_hourly = self._parse_allowed_attempts()
-        self.slug = self.breadcrumb_title
-        self.namespace_add(self.configfile, self)
-        self._init_parts(configdict, self.include_stage)
+        self.name = self.slug = self.breadcrumb_title
+        self._init_parts(configdict, getattr(self, 'include_stage', ""))
         
     @property
     def breadcrumb_item(self) -> str:
@@ -231,15 +267,15 @@ class Course(el.Partscontainer):
 
     @property
     def taskgroupdict(self):
-        return self.directory.taskgroup
+        return self.directory.taskgroup  # noqa
 
     @property
     def taskdict(self):
-        return self.directory.task
+        return self.directory.task  # noqa
 
     def task(self, taskname: str):
         """Return Task for given taskname or None if no such task exists."""
-        return self.directory.task.get(taskname, None)
+        return self.directory.task.get(taskname, None)  # noqa
 
     def get_part(self, context: str, partname: str) -> el.Part:
         """Return part for given partname or self (and create an error) if no such part exists."""
@@ -249,7 +285,7 @@ class Course(el.Partscontainer):
         return self
 
     def namespace_add(self, context: str, newpart: el.Part):
-        name = newpart.slug
+        name = newpart.name
         if name in self.namespace:
             b.error("%s: name collision: %s and %s" %
                     (context, self._slugfilename(self.namespace[name]), self._slugfilename(newpart)))
@@ -270,7 +306,7 @@ class Course(el.Partscontainer):
                     yield task
 
     def _init_parts(self, configdict: dict, include_stage: str):
-        self.chapters = [self.parttype['Chapter'](ch['slug'], parent=self, course=self, chapterdict=ch) 
+        self.chapters = [self.parttype['Chapter'](ch['slug'], course=self, parent=self, chapterdict=ch)  # noqa
                          for ch in configdict['chapters']]
 
     def _parse_allowed_attempts(self) -> tuple[int, float]:
@@ -292,16 +328,16 @@ class Course(el.Partscontainer):
             return fullpath
 
 
-class Coursebuilder(Course, sdrl.partbuilder.PartbuilderMixin):
+class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
     """Course with the additions required for author mode. (Chapter, Taskgroup, Task have both in one.)"""
-    AUTHORMODE_ATTRS = ', chapterdir, altdir, stages'
+    AUTHORMODE_ATTRS = ', altdir, stages'
+    TEMPLATENAME = "homepage.html"
 
     include_stage: str  # lowest stage that parts must have to be included in output
     targetdir_s: str  # where to render student output files
     targetdir_i: str  # where to render instructor output files
 
     baseresourcedir: str = f"{sedrila_libdir}/baseresources"
-    chapterdir: str
     altdir: str
     itreedir: str | None
     templatedir: str = f"{sedrila_libdir}/templates"
@@ -309,30 +345,50 @@ class Coursebuilder(Course, sdrl.partbuilder.PartbuilderMixin):
     htaccess_template: str = None  # structure of .htaccess file generated in instructor website
     stages: list[str]  # list of allowed values of stage in parts 
 
+    course: 'Coursebuilder'
     chapters: list['Chapterbuilder']
     include_stage_index: int  # index in stages list, or len(stages) if include_stage is ""
     mtime: float  # in READ cache mode: tasks have changed if they are younger than this
     taskorder: list[Taskbuilder]  # If task B assumes or requires A, A will be before B in this list.
     glossary: glossary.Glossarybuilder
 
+    def __init__(self, name: str, *args, **kwargs):
+        super().__init__(name, *args, **kwargs)
+        self.course = self
+
     @property
     def outputfile(self) -> str:
         return "index.html"
 
-    def do_build(self):
-        body_s = self.directory.get_the(el.Body_s, self.name).value
-        body_i = self.directory.get_the(el.Body_i, self.name).value
-        self.render_structure("homepage.html", "TODO 2: sitetitle", "toc!!!",
-                              body_s, "linkslist_top!!!", "linkslist_bottom!!!", self.targetdir_s)
-        self.render_structure("homepage.html", "sitetitle!!!", "toc!!!",
-                              body_i, "linkslist_top!!!", "linkslist_bottom!!!", self.targetdir_i)
+    @property
+    def sourcefile(self) -> str:
+        return f"{self.chapterdir}/index.md"
 
-    def my_dependencies(self) -> tg.Iterable['Element']:
+    @functools.cached_property
+    def toc(self) -> str:
+        return sdrl.partbuilder.toc(self)
+
+    def my_dependencies(self) -> tg.Iterable[el.Element]:
         return [
             self.directory.get_the(el.Body_s, self.name),
             self.directory.get_the(el.Body_i, self.name),
             # self.directory.get_the(el.Toc, self.name),  # TODO 1: add
         ]
+
+    def add_inverse_links(self):
+        """add Task.required_by/Task.assumed_by lists."""
+        for taskname, task in self.taskdict.items():
+            task.assumed_by = []  # so we do not append to the class attribute
+            task.required_by = []
+        for taskname, task in self.taskdict.items():
+            for assumed_taskname in task.assumes:
+                assumed_task = self.task(assumed_taskname)
+                if assumed_task:
+                    assumed_task.assumed_by.append(taskname)
+            for required_taskname in task.requires:
+                required_task = self.task(required_taskname)
+                if required_task:
+                    required_task.required_by.append(taskname)
 
     def as_json(self) -> b.StrAnyDict:
         result = dict(title=self.title,
@@ -344,9 +400,35 @@ class Coursebuilder(Course, sdrl.partbuilder.PartbuilderMixin):
         result.update(super().as_json())
         return result
 
-    def get_template(self, name: str):
-        env = jinja2.Environment(loader=jinja2.FileSystemLoader(self.templatedir), autoescape=False)
-        return env.get_template(name)
+    def check_links(self):
+        for task in self.taskdict.values():
+            # b.debug(f"Task '{task.slug}'\tassumes {task.assumes},\trequires {task.requires}")
+            for assumed in task.assumes:
+                if not self._task_or_taskgroup_exists(assumed):
+                    b.error(f"{task.slug}:\t assumed task or taskgroup '{assumed}' does not exist")
+            for required in task.requires:
+                if not self._task_or_taskgroup_exists(required):
+                    b.error(f"{task.slug}:\t required task or taskgroup '{required}' does not exist")
+
+    def compute_taskorder(self):
+        """
+        Set self.taskorder such that it respects the 'assumes' and 'requires'
+        dependencies globally (across all taskgroups and chapters).
+        The attribute will be used for ordering the tasks when rendering a taskgroup.
+        """
+        # ----- prepare dependency graph for topological sorting:
+        graph = dict()  # maps a task to a set of tasks it depends on.
+        for mytaskname, mytask in self.taskdict.items():
+            dependencies = set()  # collection of all tasks required or assumed by mytask
+            for assumedtask in mytask.assumes:
+                if assumedtask in self.taskdict:
+                    dependencies.add(self.taskdict[assumedtask])
+            for requiredtask in mytask.requires:
+                if requiredtask in self.taskdict:
+                    dependencies.add(self.taskdict[requiredtask])
+            graph[mytask] = dependencies
+        # ----- compute taskorder (or report dependency cycle if one is found):
+        self.taskorder = self._taskordering_for_toc(graph)
 
     @dataclasses.dataclass
     class Volumereport:
@@ -374,58 +456,14 @@ class Coursebuilder(Course, sdrl.partbuilder.PartbuilderMixin):
                                     targetdir_s=self.targetdir_s, targetdir_i=self.targetdir_i,
                                     cache=self.cache)
 
-    def _add_inverse_links(self):
-        """add Task.required_by/Task.assumed_by lists."""
-        for taskname, task in self.taskdict.items():
-            task.assumed_by = []  # so we do not append to the class attribute
-            task.required_by = []
-        for taskname, task in self.taskdict.items():
-            for assumed_taskname in task.assumes:
-                assumed_task = self.task(assumed_taskname)
-                if assumed_task:
-                    assumed_task.assumed_by.append(taskname)
-            for required_taskname in task.requires:
-                required_task = self.task(required_taskname)
-                if required_task:
-                    required_task.required_by.append(taskname)
-
-    def _check_links(self):
-        for task in self.taskdict.values():
-            b.debug(f"Task '{task.slug}'\tassumes {task.assumes},\trequires {task.requires}")
-            for assumed in task.assumes:
-                if not self._task_or_taskgroup_exists(assumed):
-                    b.error(f"{task.slug}:\t assumed task or taskgroup '{assumed}' does not exist")
-            for required in task.requires:
-                if not self._task_or_taskgroup_exists(required):
-                    b.error(f"{task.slug}:\t required task or taskgroup '{required}' does not exist")
-
     def _collect_zipdirs(self):
-        for zd in self.directory.get_all(el.Zipdir):
-            self.namespace_add(zd.sourcefile, zd)
-
-    def _compute_taskorder(self):
-        """
-        Set self.taskorder such that it respects the 'assumes' and 'requires'
-        dependencies globally (across all taskgroups and chapters).
-        The attribute will be used for ordering the tasks when rendering a taskgroup.
-        """
-        # ----- prepare dependency graph for topological sorting:
-        graph = dict()  # maps a task to a set of tasks it depends on.
-        for mytaskname, mytask in self.taskdict.items():
-            dependencies = set()  # collection of all tasks required or assumed by mytask
-            for assumedtask in mytask.assumes:
-                if assumedtask in self.taskdict:
-                    dependencies.add(self.taskdict[assumedtask])
-            for requiredtask in mytask.requires:
-                if requiredtask in self.taskdict:
-                    dependencies.add(self.taskdict[requiredtask])
-            graph[mytask] = dependencies
-        # ----- compute taskorder (or report dependency cycle if one is found):
-        self.taskorder = self._taskordering_for_toc(graph)
+        for zf in self.directory.get_all(el.Zipfile):
+            self.namespace_add(zf.sourcefile, zf)
 
     def _init_parts(self, configdict: dict, include_stage: str):
         self.read_partsfile(f"{self.chapterdir}/index.md")
-        self.glossary = glossary.Glossarybuilder(self.chapterdir)
+        self.glossary = glossary.Glossarybuilder(b.GLOSSARY_BASENAME, course=self, chapterdir=self.chapterdir)
+        self.directory.record_the(glossary.Glossary, self.glossary.name, self.glossary)
         self.namespace_add("", self.glossary)
         self.find_zipdirs()
         if include_stage in self.stages:
@@ -436,27 +474,12 @@ class Coursebuilder(Course, sdrl.partbuilder.PartbuilderMixin):
                 b.error(f"'--include_stage {include_stage}' not allowed, must be one of {self.stages}")
             self.include_stage = ''  # include only parts with no stage
             self.include_stage_index = len(self.stages)
-        self.chapters = [self.parttype['Chapter'](ch['slug'], parent=self, course=self, chapterdict=ch) 
+        self.chapters = [self.parttype['Chapter'](ch['slug'], course=self, parent=self, chapterdict=ch) 
                          for ch in configdict['chapters']]
-        self._make_dependencies()
-        self._add_baseresources()
+        self.make_std_dependencies(toc=self)
+        self._make(DerivedMetadata, course=self)
         self._collect_zipdirs()  # TODO 2 collect only what gets referenced
-        self._check_links()  # TODO 2 move into build
-        self._add_inverse_links()  # TODO 2 move into build
-        self._compute_taskorder()  # TODO 2 move into build
-
-    def _make(self, mytype, **kwargs):  # abbrev
-        self.directory.make_the(mytype, self.name, cache=self.cache, **kwargs)
-
-    def _make_dependencies(self):
-        self.directory.make_the(el.Sourcefile, self.sourcefile, cache=self.cache)
-        self._make(el.Topmatter, sourcefile=self.sourcefile)
-        self._make(el.Content)
-        self._make(el.IncludeList_s)
-        self._make(el.IncludeList_i)
-        self._make(el.Body_s, sourcefile=self.sourcefile)
-        self._make(el.Body_i, sourcefile=self.sourcefile)
-        # self._make(el.!!!)  # TODO 1: TOCs!
+        self._add_baseresources()
 
     def _task_or_taskgroup_exists(self, name: str) -> bool:
         return name in self.taskdict or name in self.taskgroupdict
@@ -497,12 +520,19 @@ class Chapter(el.Partscontainer):
 
     def __init__(self, name: str, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
+        self.directory.record_the(Chapter, self.name, self)
+        self.course.namespace_add(self.sourcefile, self)
         context = f"chapter in {self.course.configfile}"
         self._init_from_dict(context, self.chapterdict)
         self._init_from_file(context, self.course)
         self.taskgroups = [self.parttype['Taskgroup'](taskgroup['slug'], 
-                                                      parent=self, chapter=self, taskgroupdict=taskgroup)
+                                                      course=self.course, parent=self, chapter=self, 
+                                                      taskgroupdict=taskgroup)
                            for taskgroup in (self.chapterdict.get('taskgroups') or [])]
+
+    @property
+    def sourcefile(self) -> str:
+        return f"{self.my_course.chapterdir}/{self.name}/index.md"
 
     def _init_from_dict(self, context: str, chapter: b.StrAnyDict):
         b.copyattrs(context,
@@ -515,7 +545,8 @@ class Chapter(el.Partscontainer):
         pass  # only present in builder class
 
 
-class Chapterbuilder(Chapter, sdrl.partbuilder.PartbuilderMixin):
+class Chapterbuilder(sdrl.partbuilder.PartbuilderMixin, Chapter):
+    TEMPLATENAME = "chapter.html"
     course: Coursebuilder
     taskgroups: list['Taskgroupbuilder']
 
@@ -532,41 +563,52 @@ class Chapterbuilder(Chapter, sdrl.partbuilder.PartbuilderMixin):
     def to_be_skipped(self) -> bool:
         return self.skipthis
 
+    @functools.cached_property
+    def toc(self) -> str:
+        return sdrl.partbuilder.toc(self)
+
     def as_json(self) -> b.StrAnyDict:
         result = dict(slug=self.slug,
                       taskgroups=[taskgroup.as_json() for taskgroup in self.taskgroups])
         result.update(super().as_json())
         return result
-
-    def _init_from_file(self, context: str, course: Coursebuilder):
-        self.read_partsfile(f"{self.course.chapterdir}/{self.slug}/index.md")
-        b.copyattrs(context,
-                    self.metadata, self,
+    
+    def process_topmatter(self, sourcefile: str, topmatter: b.StrAnyDict, course: Coursebuilder):
+        b.copyattrs(sourcefile,
+                    topmatter, self,
                     mustcopy_attrs='title',
                     cancopy_attrs='stage, todo',
                     mustexist_attrs='',
                     overwrite=True)
-        self.find_zipdirs()
-        self.evaluate_stage(context, course)
+        self.evaluate_stage(sourcefile, course)
 
+    def _init_from_file(self, context: str, course: Coursebuilder):
+        self.make_std_dependencies(toc=self)
+        self.find_zipdirs()
 
 
 class Taskgroup(el.Partscontainer):
     TOC_LEVEL = 1  # indent level in table of contents
+    course: Course
     chapter: Chapter
     tasks: list['Task']
 
     def __init__(self, name: str, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
         context = f"taskgroup in chapter '{self.chapter.slug}'"
+        self.directory.record_the(Taskgroup, self.name, self)
+        self.course.namespace_add(self.sourcefile, self)
         self._init_from_dict(context, self.taskgroupdict)
         context = f"taskgroup '{self.slug}' in chapter '{self.chapter.slug}'"
         self._init_from_file(context, self.chapter)
-        self.chapter.course.namespace_add(self.sourcefile, self)
         self._create_tasks()
 
+    @property
+    def sourcefile(self) -> str:
+        return f"{self.my_course.chapterdir}/{self.chapter.name}/{self.name}/index.md"
+
     def _create_tasks(self):
-        self.tasks = [Task(taskdict['slug'], parent=self, taskgroup=self).from_json(taskdict, taskgroup=self)
+        self.tasks = [Task(taskdict['slug'], course=self.course, parent=self, taskgroup=self).from_json(taskdict)
                       for taskdict in self.taskgroupdict['tasks']]
     def _init_from_dict(self, context: str, taskgroupdict: b.StrAnyDict):
         b.copyattrs(context,
@@ -580,7 +622,8 @@ class Taskgroup(el.Partscontainer):
 
 
 
-class Taskgroupbuilder(Taskgroup, sdrl.partbuilder.PartbuilderMixin):
+class Taskgroupbuilder(sdrl.partbuilder.PartbuilderMixin, Taskgroup):
+    TEMPLATENAME = "taskgroup.html"
     chapter: Chapterbuilder
     tasks: list['Taskbuilder']
 
@@ -593,11 +636,24 @@ class Taskgroupbuilder(Taskgroup, sdrl.partbuilder.PartbuilderMixin):
     def to_be_skipped(self) -> bool:
         return self.skipthis or self.chapter.to_be_skipped
 
+    @functools.cached_property
+    def toc(self) -> str:
+        return sdrl.partbuilder.toc(self)
+
     def as_json(self) -> b.StrAnyDict:
         result = dict(slug=self.slug, 
                       tasks=[task.as_json() for task in self.tasks])
         result.update(super().as_json())
         return result
+
+    def process_topmatter(self, sourcefile: str, topmatter: b.StrAnyDict, course: Coursebuilder):
+        b.copyattrs(sourcefile,
+                    topmatter, self,
+                    mustcopy_attrs='title',
+                    cancopy_attrs='minimum, stage, todo',
+                    mustexist_attrs='',
+                    overwrite=True)
+        self.evaluate_stage(sourcefile, course)
 
     def _add_task(self, task: Taskbuilder):
         task.taskgroup = self
@@ -610,22 +666,30 @@ class Taskgroupbuilder(Taskgroup, sdrl.partbuilder.PartbuilderMixin):
         filenames = glob.glob(f"{chapterdir}/{self.chapter.slug}/{self.slug}/*.md")
         for filename in filenames:
             if not filename.endswith("index.md"):
-                name = filename[:-3]  # remove .md suffix
-                self._add_task(Taskbuilder(name, parent=self, taskgroup=self).from_file(filename, taskgroup=self))
+                name = os.path.basename(filename[:-3])  # remove .md suffix
+                self._add_task(Taskbuilder(name, course=self.course, parent=self, taskgroup=self)
+                                    .from_file(filename, taskgroup=self))
+        tg_toc = self.directory.get_the(el.Toc, self.name)
+        for task in self.tasks:
+            tg_toc.add_tocline(task)
 
     def _init_from_file(self, context, chapter):
-        self.read_partsfile(f"{self.chapter.course.chapterdir}/{self.chapter.slug}/{self.slug}/index.md")
-        b.copyattrs(context,
-                    self.metadata, self,
-                    mustcopy_attrs='title',
-                    cancopy_attrs='minimum, stage, todo',
-                    mustexist_attrs='',
-                    overwrite=True)
+        self.make_std_dependencies(toc=self)
         self.find_zipdirs()
-        self.evaluate_stage(context, chapter.course)
 
 
 class DerivedMetadata(el.Step):
-    """Copy Topmatter into Parts' attributes, compute assumedby/requiredby."""
+    """Copy Topmatter into Parts' attributes, compute assumedby/requiredby/taskorder, check links."""
+    course: Coursebuilder
+
     def do_build(self):
-        ...
+        # ----- copy topmatter into Parts' attributes:
+        dir = self.directory
+        allparts = list(itertools.chain(dir.get_all(Chapter), dir.get_all(Taskgroup), dir.get_all(Task)))
+        for part in allparts:
+            topmatter = self.directory.get_the(el.Topmatter, part.name)
+            part.process_topmatter(part.sourcefile, topmatter.value, self.course)
+        # ----- compute and check stuff:
+        self.course.add_inverse_links()
+        self.course.compute_taskorder()
+        self.course.check_links()
