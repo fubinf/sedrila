@@ -89,7 +89,7 @@ Element
         Content
         ItemList
           IncludeList
-          PartrefList
+          TermrefList
       FreshPiece
         LinklistBottom
         Tocline

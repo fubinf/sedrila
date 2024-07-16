@@ -21,7 +21,7 @@ class Directory:
             el.Sourcefile, el.CopiedFile,
             el.Zipdir, el.Zipfile,
             el.Topmatter, el.Content, course.DerivedMetadata,
-            el.IncludeList_s, el.IncludeList_i, el.PartrefList,
+            el.IncludeList_s, el.IncludeList_i, el.TermrefList,
             el.Body_s, el.Body_i,
             el.Tocline, el.Toc, el.LinkslistBottom,
             course.Course, course.Chapter, course.Taskgroup, course.Task, glossary.Glossary,

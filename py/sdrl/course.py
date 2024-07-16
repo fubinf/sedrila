@@ -134,8 +134,8 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
 
     def from_file(self, file: str, taskgroup: 'Taskgroupbuilder'):
         self.make_std_dependencies(toc=self.taskgroup)
-        self.dependencies.append(self.directory.make_or_get_the(el.Tocline, self.name, task=self))
-        self.dependencies.append(self.directory.make_the(el.LinkslistBottom, self.name, task=self))
+        self.add_dependency(self.directory.make_or_get_the(el.Tocline, self.name, task=self))
+        self.add_dependency(self.directory.make_the(el.LinkslistBottom, self.name, task=self))
 
         # ----- ensure explains/assumes/requires are lists:
         def _handle_strlist(attrname: str):
@@ -381,7 +381,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
     include_stage_index: int  # index in stages list, or len(stages) if include_stage is ""
     mtime: float  # in READ cache mode: tasks have changed if they are younger than this
     taskorder: list[Taskbuilder]  # If task B assumes or requires A, A will be before B in this list.
-    glossary: glossary.Glossarybuilder
+    glossary: glossary.Glossary
 
     def __init__(self, name: str, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
@@ -492,7 +492,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
 
     def _init_parts(self, configdict: dict, include_stage: str):
         self.read_partsfile(f"{self.chapterdir}/index.md")
-        self.glossary = glossary.Glossarybuilder(b.GLOSSARY_BASENAME, course=self, chapterdir=self.chapterdir)
+        self.glossary = glossary.Glossary(b.GLOSSARY_BASENAME, course=self, chapterdir=self.chapterdir)
         self.directory.record_the(glossary.Glossary, self.glossary.name, self.glossary)
         self.namespace_add("", self.glossary)
         self.find_zipdirs()

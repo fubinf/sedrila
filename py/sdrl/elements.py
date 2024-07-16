@@ -24,6 +24,21 @@ class Top:  # abstract class
         pass  # because object() does not support the (self, *args, **kwargs) signature
 
 
+class DependenciesMixin:
+    """Elements that maintain an explicit list of dependencies."""
+    dependencies: list['Element']
+
+    def __init__(self, name: str, *args, **kwargs):
+        self.dependencies = []
+        super().__init__(name, *args, **kwargs)
+
+    def my_dependencies(self) -> tg.Iterable['Element']:
+        return self.dependencies
+
+    def add_dependency(self, dep: 'Element'):
+        self.dependencies.append(dep)
+
+
 class Element(Top):  # abstract class
     """
     Common superclass of the stuff taking part in incremental build: Sources and Products.
@@ -43,7 +58,7 @@ class Element(Top):  # abstract class
             setattr(self, key, val)  # store all keyword args in same-named attr
 
     @property
-    def cache(self) -> str:
+    def cache(self) -> c.SedrilaCache:
         return self.directory.cache
 
     @property
@@ -184,19 +199,23 @@ class Body_s(Piece):
         # As a dependency, it gets built earlier, so the includes_s found here will come into effect
         # only during the next run, via the cache.
         includeslist_s = self.directory.get_the(IncludeList_s, self.name)
-        html, includes_s = md.render_markdown(self.sourcefile, self.name, 
-                                              content.value, b.Mode.STUDENT, 
-                                              self.my_course.blockmacro_topmatter)
+        mddict = md.render_markdown(self.sourcefile, self.name, content.value, b.Mode.STUDENT, 
+                                    self.my_course.blockmacro_topmatter)
+        html, includes_s, termrefs_s = (mddict['html'], mddict['includefiles'], mddict['termrefs'])
         self.encache_built_value(html)
         includeslist_s.encache_built_value(includes_s)
         # --- build byproducts body_i and includeslist_i:
         body_i = self.directory.get_the(Body_i, self.name)
         includeslist_i = self.directory.get_the(IncludeList_i, self.name)
-        html, includes_i = md.render_markdown(self.sourcefile, self.name, 
-                                              content.value, b.Mode.INSTRUCTOR, 
-                                              self.my_course.blockmacro_topmatter)
+        mddict = md.render_markdown(self.sourcefile, self.name, content.value, b.Mode.INSTRUCTOR, 
+                                    self.my_course.blockmacro_topmatter)
+        html, includes_i, termrefs_i = (mddict['html'], mddict['includefiles'], mddict['termrefs'])
         body_i.encache_built_value(html)
         includeslist_i.encache_built_value(includes_i)
+        # --- build byproduct termreflist:
+        termrefs = list(termrefs_s | termrefs_i)
+        if len(termrefs) > 0:  # this part has at least 1 TERMREF: create a TermrefList for it
+            self.directory.make_the(TermrefList, self.name, termrefs)
 
     def my_dependencies(self) -> list[Element]:
         return [
@@ -216,11 +235,9 @@ class Content(Byproduct):
     pass
 
 
-class ItemList(Byproduct):  # abstract class
+class ItemList(DependenciesMixin, Byproduct):  # abstract class
     """Abstract superclass for lists of names of dependencies."""
     CACHED_TYPE = 'list'  # which kind of value is in the cache
-    dependencies: list['Element']
-    pass
 
 
 class IncludeList_s(ItemList):
@@ -230,12 +247,8 @@ class IncludeList_s(ItemList):
         includelist, state = self.cached_list()
         if state == c.State.MISSING:
             return
-        self.dependencies = []
         for includefile in includelist:
-            self.dependencies.append(self.directory.make_or_get_the(Sourcefile, includefile))
-
-    def my_dependencies(self) -> tg.Iterable['Element']:
-        return self.dependencies
+            self.add_dependency(self.directory.make_or_get_the(Sourcefile, includefile))
 
 
 class IncludeList_i(IncludeList_s):
@@ -243,25 +256,25 @@ class IncludeList_i(IncludeList_s):
     pass  # all functionality is generic
 
 
-class PartrefList(ItemList):
-    """List of names of Parts PARTREF'd by a Part."""
+class TermrefList(ItemList):
+    """
+    List of names of terms TERMREF'd by Part or term self.name.
+    Many of these will be empty, therefore TermrefList objects are created only if needed.
+    They are implicit dependencies of the Glossary.
+    """
     pass
 
 
-class Toc(Piece):
+class Toc(DependenciesMixin, Piece):
     """HTML for the toc of a Part."""
-    dependencies: list[Element]
     part: 'Part'
 
     def do_build(self):
         self.value = self.part.toc
         self.encache_built_value(self.value)
 
-    def my_dependencies(self) -> tg.Iterable['Element']:
-        return self.dependencies
-
     def add_tocline(self, task: 'sdrl.course.Task'):
-        self.dependencies.append(self.directory.make_or_get_the(Tocline, task.name, task=task))  # noqa
+        self.add_dependency(self.directory.make_or_get_the(Tocline, task.name, task=task))  # noqa
 
 
 class FreshPiece(Piece):

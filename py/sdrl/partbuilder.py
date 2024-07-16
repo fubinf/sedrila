@@ -15,19 +15,14 @@ import sdrl.html as h
 
 
 
-class PartbuilderMixin:  # to be mixed into a Part class
+class PartbuilderMixin(el.DependenciesMixin):  # to be mixed into a Part class
     directory: dir.Directory
-    dependencies: list[el.Element]
     metadata_text: str  # the YAML front matter character stream
     metadata: b.StrAnyDict  # the YAML front matter
     content: str  # the markdown block
     stage: str = ''  # stage: value
     skipthis: bool  # do not include this chapter/taskgroup/task in generated site
     toc: str  # table of contents
-
-    def __init__(self, name: str, *args, **kwargs):
-        self.dependencies = []
-        super().__init__(name, *args, **kwargs)
 
     @property
     def breadcrumb_item(self) -> str:
@@ -90,7 +85,7 @@ class PartbuilderMixin:  # to be mixed into a Part class
                 b.warning(f"'{zipdirname}' is a file, not a dir, and will be ignored.")
     
     def make_std_dependencies(self, toc: tg.Optional[el.Part]):
-        self.dependencies.append(self.directory.make_the(el.Sourcefile, self.sourcefile))  # noqa
+        self.add_dependency(self.directory.make_the(el.Sourcefile, self.sourcefile))  # noqa
         self._make(el.Topmatter, sourcefile=self.sourcefile)  # noqa
         self._make(el.Content)
         self._make(el.IncludeList_s)
@@ -98,7 +93,7 @@ class PartbuilderMixin:  # to be mixed into a Part class
         self._make(el.Body_s, sourcefile=self.sourcefile)  # noqa
         self._make(el.Body_i, sourcefile=self.sourcefile)  # noqa
         if toc:
-            self.dependencies.append(self.directory.make_or_get_the(el.Toc, toc.name, part=toc, dependencies=[]))
+            self.add_dependency(self.directory.make_or_get_the(el.Toc, toc.name, part=toc))
 
     def process_topmatter(self, sourcefile: str, topmatter: b.StrAnyDict, course):
         assert False  # must be defined in concrete classes
@@ -139,7 +134,7 @@ class PartbuilderMixin:  # to be mixed into a Part class
 
 
     def _make(self, mytype, **kwargs):  # abbrev
-        self.dependencies.append(self.directory.make_the(mytype, self.name, **kwargs))  # noqa
+        self.add_dependency(self.directory.make_the(mytype, self.name, **kwargs))  # noqa
 
     def structure_path(structure: el.Part) -> list[el.Part]:
         """List of nested parts, from a given part up to the course."""
