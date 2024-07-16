@@ -10,10 +10,11 @@ class Directory:
     when a Product gets built, the state of all its dependencies is already known.
     This order is also fully determined by the Element types alone.
     """
-    def __init__(self):
+    def __init__(self, cache):
         import sdrl.elements as el
         import sdrl.course as course
         import sdrl.glossary as glossary
+        self.cache = cache
         self.managed_types = [
             # Each has a downcased dict attribute use by get_the()/make_the().
             # The ordering is the build ordering:

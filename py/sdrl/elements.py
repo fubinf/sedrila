@@ -34,7 +34,6 @@ class Element(Top):  # abstract class
     """
     name: str  # path, filename, or partname
     state: c.State
-    cache: c.SedrilaCache
     directory: dir.Directory
 
     def __init__(self, name: str, *args, **kwargs):
@@ -42,6 +41,10 @@ class Element(Top):  # abstract class
         super().__init__(name, *args, **kwargs)  # many classes inherit this constructor!
         for key, val in kwargs.items():
             setattr(self, key, val)  # store all keyword args in same-named attr
+
+    @property
+    def cache(self) -> str:
+        return self.directory.cache
 
     @property
     def cache_key(self) -> str:
@@ -229,7 +232,7 @@ class IncludeList_s(ItemList):
             return
         self.dependencies = []
         for includefile in includelist:
-            self.dependencies.append(self.directory.make_or_get_the(Sourcefile, includefile, cache=self.cache))
+            self.dependencies.append(self.directory.make_or_get_the(Sourcefile, includefile))
 
     def my_dependencies(self) -> tg.Iterable['Element']:
         return self.dependencies
@@ -258,7 +261,7 @@ class Toc(Piece):
         return self.dependencies
 
     def add_tocline(self, task: 'sdrl.course.Task'):
-        self.dependencies.append(self.directory.make_or_get_the(Tocline, task.name, task=task, cache=self.cache))  # noqa
+        self.dependencies.append(self.directory.make_or_get_the(Tocline, task.name, task=task))  # noqa
 
 
 class FreshPiece(Piece):
@@ -371,7 +374,6 @@ class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task a
         super().__init__(name, *args, **kwargs)
         self.slug = self.name
         if getattr(self, 'parent', None):  # inherit parent attrs, to make X and XBuilder simpler:
-            self.cache = self.parent.cache
             self.directory = self.parent.directory
             self.parttype = self.parent.parttype
             self.targetdir_s = self.parent.targetdir_s

@@ -16,7 +16,6 @@ import sdrl.html as h
 
 
 class PartbuilderMixin:  # to be mixed into a Part class
-    cache: cache.SedrilaCache
     directory: dir.Directory
     dependencies: list[el.Element]
     metadata_text: str  # the YAML front matter character stream
@@ -85,14 +84,13 @@ class PartbuilderMixin:  # to be mixed into a Part class
         for zipdirname in zipdirs:
             if os.path.isdir(zipdirname):
                 zipfilename = os.path.basename(zipdirname)
-                self.directory.make_the(el.Zipdir, zipdirname, cache=self.cache)
-                self.directory.make_the(el.Zipfile, zipfilename, sourcefile=zipdirname, title=zipfilename, 
-                                        cache=self.cache)
+                self.directory.make_the(el.Zipdir, zipdirname)
+                self.directory.make_the(el.Zipfile, zipfilename, sourcefile=zipdirname, title=zipfilename)
             else:
                 b.warning(f"'{zipdirname}' is a file, not a dir, and will be ignored.")
     
     def make_std_dependencies(self, toc: tg.Optional[el.Part]):
-        self.dependencies.append(self.directory.make_the(el.Sourcefile, self.sourcefile, cache=self.cache))  # noqa
+        self.dependencies.append(self.directory.make_the(el.Sourcefile, self.sourcefile))  # noqa
         self._make(el.Topmatter, sourcefile=self.sourcefile)  # noqa
         self._make(el.Content)
         self._make(el.IncludeList_s)
@@ -100,8 +98,7 @@ class PartbuilderMixin:  # to be mixed into a Part class
         self._make(el.Body_s, sourcefile=self.sourcefile)  # noqa
         self._make(el.Body_i, sourcefile=self.sourcefile)  # noqa
         if toc:
-            kwargs = dict(part=toc, dependencies=[], cache=self.cache)
-            self.dependencies.append(self.directory.make_or_get_the(el.Toc, toc.name, **kwargs))
+            self.dependencies.append(self.directory.make_or_get_the(el.Toc, toc.name, part=toc, dependencies=[]))
 
     def process_topmatter(self, sourcefile: str, topmatter: b.StrAnyDict, course):
         assert False  # must be defined in concrete classes
@@ -142,7 +139,7 @@ class PartbuilderMixin:  # to be mixed into a Part class
 
 
     def _make(self, mytype, **kwargs):  # abbrev
-        self.dependencies.append(self.directory.make_the(mytype, self.name, cache=self.cache, **kwargs))  # noqa
+        self.dependencies.append(self.directory.make_the(mytype, self.name, **kwargs))  # noqa
 
     def structure_path(structure: el.Part) -> list[el.Part]:
         """List of nested parts, from a given part up to the course."""

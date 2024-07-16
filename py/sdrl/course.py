@@ -134,8 +134,8 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
 
     def from_file(self, file: str, taskgroup: 'Taskgroupbuilder'):
         self.make_std_dependencies(toc=self.taskgroup)
-        self.dependencies.append(self.directory.make_or_get_the(el.Tocline, self.name, task=self, cache=self.cache))
-        self.dependencies.append(self.directory.make_the(el.LinkslistBottom, self.name, task=self, cache=self.cache))
+        self.dependencies.append(self.directory.make_or_get_the(el.Tocline, self.name, task=self))
+        self.dependencies.append(self.directory.make_the(el.LinkslistBottom, self.name, task=self))
 
         # ----- ensure explains/assumes/requires are lists:
         def _handle_strlist(attrname: str):
@@ -482,10 +482,9 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         for direntry in os.scandir(self.baseresourcedir):
             # TODO 2: skip and report (jointly) non-file entries
             assert direntry.is_file()
-            self.directory.make_the(el.Sourcefile, direntry.path, cache=self.cache)
+            self.directory.make_the(el.Sourcefile, direntry.path)
             self.directory.make_the(el.CopiedFile, direntry.name, sourcefile=direntry.path,
-                                    targetdir_s=self.targetdir_s, targetdir_i=self.targetdir_i,
-                                    cache=self.cache)
+                                    targetdir_s=self.targetdir_s, targetdir_i=self.targetdir_i)
 
     def _collect_zipdirs(self):
         for zf in self.directory.get_all(el.Zipfile):
