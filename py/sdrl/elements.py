@@ -3,7 +3,6 @@ Class model for the stuff taking part in the incremental build.
 See the architecture description in README.md.
 """
 
-import glob
 import os.path
 import shutil
 import typing as tg
@@ -13,8 +12,8 @@ import yaml
 
 import base as b
 import cache as c
+import sdrl.course
 import sdrl.directory as dir
-import sdrl.html as h
 import sdrl.macros as macros
 import sdrl.markdown as md
 
@@ -72,7 +71,7 @@ class Element(Top):  # abstract class
                 self.do_build()
                 self.state = c.State.HAS_CHANGED
                 return
-        b.debug(f"{self.__class__.__name__}.build({self.name}) state:\t{self.statelabel}")
+        # b.debug(f"{self.__class__.__name__}.build({self.name}) state:\t{self.statelabel}")
 
     def check_existing_resource(self):
         """
@@ -89,7 +88,7 @@ class Element(Top):  # abstract class
 
     def do_build(self):
         """Class-specific: perform actual build work."""
-        assert False, f"{self.__class__.__name__}.{self.name}.do_build() not defined"
+        assert False, f"{self.__class__.__name__}.do_build({self.name}) not defined"
 
     def cached_str(self) -> tuple[str, c.State]:
         return self.cache.cached_str(self.cache_key)
@@ -99,7 +98,6 @@ class Element(Top):  # abstract class
 
     def cached_dict(self) -> tuple[b.StrAnyDict, c.State]:
         return self.cache.cached_dict(self.cache_key)
-
 
 
 class Product(Element):  # abstract class
@@ -259,12 +257,38 @@ class RequiredByList(ItemList):
 
 class Toc(Piece):
     """HTML for the toc of a Part."""
-    pass
+    dependencies: list[Element]
+    part: 'Part'
+
+    def do_build(self):
+        self.value = self.part.toc
+        self.encache_built_value(self.value)
+
+    def my_dependencies(self) -> tg.Iterable['Element']:
+        return self.dependencies
+
+    def add_tocline(self, task: 'sdrl.course.Task'):
+        self.dependencies.append(self.directory.make_or_get_the(Tocline, task.name, task=task, cache=self.cache))  # noqa
 
 
 class Tocline(Piece):
     """HTML for the toc entry of one Part."""
-    pass
+    task: 'sdrl.course.Taskbuilder'
+
+    def check_existing_resource(self):
+        cached_value, cached_state = self.READFUNC[self.CACHED_TYPE](self.cache, self.cache_key)
+        self.value = self.task.toc_link_text  # in fact freshly built
+        if cached_value is None:
+            self.state = c.State.MISSING
+        elif cached_value == self.value:
+            self.state = c.State.AS_BEFORE
+        else:
+            self.state = c.State.HAS_CHANGED
+        # b.debug(f"Tocline({self.name}).state = {self.state}")
+
+    def do_build(self):
+        # self.value is already set to the current value by check_existing_resource
+        self.encache_built_value(self.value)
 
 
 class Topmatter(Piece):
@@ -299,8 +323,7 @@ class Outputfile(Product):  # abstract class
     """Superclass for Products ending up in one file per targetdir."""
     targetdir_s: str  # student dir, if any
     targetdir_i: str  # instructor dir, if any
-    sourcefile: str  # the originating pathname, so we can find the Sourcefile object, if any
-    
+
     @property
     def outputfile(self) -> str:  # but different for Parts
         return self.name
@@ -360,23 +383,15 @@ class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task a
     def outputfile_s(self) -> str:
         return f"{self.name}.html"
 
+    @property
+    def toc(self) -> str:
+        return "((TOC))"  # override in concrete Part classes
+
     def check_existing_resource(self):
         self.state = c.State.AS_BEFORE  # Parts' state changes all come from dependencies
 
-    def render_structure(self, templatename: str, sitetitle: str, 
-                         toc: str, body: str, linkslist_top: str, linkslist_bottom: str, 
-                         targetdir: str):
-        template = self.my_course.get_template(templatename)
-        output = template.render(sitetitle=sitetitle,
-                                 breadcrumb=h.breadcrumb(*self.structure_path()[::-1]),
-                                 title=self.title,
-                                 linkslist_top=linkslist_top,
-                                 linkslist_bottom=linkslist_bottom,
-                                 part=self,
-                                 toc=toc,
-                                 content=body)
-        b.spit(f"{targetdir}/{self.outputfile}", output)
-        b.info(f"{targetdir}/{self.outputfile}")
+    def my_dependencies(self) -> tg.Iterable['Element']:
+        return self.dependencies  # noqa, from Partsbuilder
 
     def structure_path(self) -> list['Part']:
         """List of nested parts, from a given part up to the course."""
@@ -396,18 +411,10 @@ class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task a
             path.append(structure)
         return path
 
+
 class Partscontainer(Part):  # abstract class
     """A Part that can contain other Parts."""
-    def find_zipdirs(self):
-        """find all dirs (not files!) *.zip in self.sourcefile dir (not below!), warns about *.zip files"""
-        inputdir = os.path.dirname(self.sourcefile)
-        zipdirs = glob.glob(f"{inputdir}/*.zip")
-        for zipdirname in zipdirs:
-            if os.path.isdir(zipdirname):
-                self.directory.make_the(Zipdir, zipdirname, cache=self.cache)
-                self.directory.make_the(Zipfile, os.path.basename(zipdirname), sourcefile=zipdirname, cache=self.cache)
-            else:
-                b.warning(f"'{zipdirname}' is a file, not a dir, and will be ignored.")
+    pass
 
 
 class Zipfile(Part):
@@ -450,7 +457,6 @@ class Zipfile(Part):
         slugpos = sourcename.find(self.slug)  # will always exist
         remainder = sourcename[slugpos+len(self.slug)+1:]
         return f"{self.innerpath}/{remainder}"
-
 
 
 class Source(Element):  # abstract class
@@ -507,6 +513,7 @@ class Zipdir(Source):
             self.state = c.State.HAS_CHANGED
         else:
             self.state = c.State.AS_BEFORE
+
 
 class Step(Element):
     """Pseudo-element that does not represent data, but computation."""
