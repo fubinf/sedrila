@@ -22,8 +22,6 @@ class PartbuilderMixin:  # to be mixed into a Part class
     metadata_text: str  # the YAML front matter character stream
     metadata: b.StrAnyDict  # the YAML front matter
     content: str  # the markdown block
-    linkslist_top: str = ''  # generated HTML of cross reference links
-    linkslist_bottom: str = ''  # generated HTML of cross reference links
     stage: str = ''  # stage: value
     skipthis: bool  # do not include this chapter/taskgroup/task in generated site
     toc: str  # table of contents
@@ -134,8 +132,8 @@ class PartbuilderMixin:  # to be mixed into a Part class
         output = template.render(sitetitle=course.title,
                                  breadcrumb=h.breadcrumb(*self.structure_path()[::-1]),
                                  title=part.title,
-                                 linkslist_top=part.linkslist_top,
-                                 linkslist_bottom=part.linkslist_bottom,
+                                 linkslist_top=getattr(part, 'linkslist_top', ""),
+                                 linkslist_bottom=getattr(part, 'linkslist_bottom', ""),
                                  part=self,
                                  toc=part.toc,
                                  content=body)

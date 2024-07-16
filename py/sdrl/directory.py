@@ -22,8 +22,7 @@ class Directory:
             el.Topmatter, el.Content, course.DerivedMetadata,
             el.IncludeList_s, el.IncludeList_i, el.PartrefList,
             el.Body_s, el.Body_i,
-            el.AssumedByList, el.RequiredByList,
-            el.Tocline, el.Toc,
+            el.Tocline, el.Toc, el.LinkslistBottom,
             course.Course, course.Chapter, course.Taskgroup, course.Task, glossary.Glossary,
         ]
         for thistype in self.managed_types:

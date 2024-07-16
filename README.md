@@ -88,12 +88,12 @@ Element
         Body_i(Body_s)
         Content
         ItemList
-          AssumedByList
           IncludeList
           PartrefList
-          RequiredByList
+      FreshPiece
+        LinklistBottom
+        Tocline
       Toc
-      Tocline
       Topmatter
     Outputfile
       CopiedFile

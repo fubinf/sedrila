@@ -4,7 +4,6 @@ See the architecture sketch in README.
 TODO:
 - 
 - rename slug to name, use sedrila2.yaml, force titles to be in topmatter, remove 'slug' in sedrila2.yaml
-- move linkslist_top, linkslist_bottom to Task, adapt render_structure()
 - eventually: kick out author, rename author2 to author, changelog, adjust docs
 """
 import argparse

@@ -220,11 +220,6 @@ class ItemList(Byproduct):  # abstract class
     pass
 
 
-class AssumedByList(ItemList):
-    """List of names of Parts that assume this Part."""
-    pass
-
-
 class IncludeList_s(ItemList):
     """List of names of files INCLUDEd by a Part in its student version."""
     def __init__(self, name: str, *args, **kwargs):
@@ -250,11 +245,6 @@ class PartrefList(ItemList):
     pass
 
 
-class RequiredByList(ItemList):
-    """List of names of Parts that require this Part."""
-    pass
-
-
 class Toc(Piece):
     """HTML for the toc of a Part."""
     dependencies: list[Element]
@@ -271,24 +261,35 @@ class Toc(Piece):
         self.dependencies.append(self.directory.make_or_get_the(Tocline, task.name, task=task, cache=self.cache))  # noqa
 
 
-class Tocline(Piece):
-    """HTML for the toc entry of one Part."""
+class FreshPiece(Piece):
+    """Pieces of Tasks that are always built. The cache only determines whether it has changed."""
+    FRESH_ATTR = ''  # attr of task that represents the piece's value
     task: 'sdrl.course.Taskbuilder'
 
     def check_existing_resource(self):
         cached_value, cached_state = self.READFUNC[self.CACHED_TYPE](self.cache, self.cache_key)
-        self.value = self.task.toc_link_text  # in fact freshly built
+        self.value = getattr(self.task, self.FRESH_ATTR)  # in fact freshly built
         if cached_value is None:
             self.state = c.State.MISSING
         elif cached_value == self.value:
             self.state = c.State.AS_BEFORE
         else:
             self.state = c.State.HAS_CHANGED
-        # b.debug(f"Tocline({self.name}).state = {self.state}")
+        # b.debug(f"{self.__class__.__name__}({self.name}).state = {self.state}")
 
     def do_build(self):
         # self.value is already set to the current value by check_existing_resource
         self.encache_built_value(self.value)
+
+
+class Tocline(FreshPiece):
+    """HTML for the toc entry of a Task."""
+    FRESH_ATTR = 'toc_link_text'
+
+
+class LinkslistBottom(FreshPiece):
+    """HTML for the assumedBy/requiredBy links of a Task."""
+    FRESH_ATTR = 'linkslist_bottom'
 
 
 class Topmatter(Piece):
