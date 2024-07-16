@@ -101,7 +101,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         if label.startswith("-"):  # arg2 is meant to be a suffix
             label = term + label[1:]
         target = "%s.html#%s" % (b.GLOSSARY_BASENAME, b.slugify(term))
-        self._mentions(macrocall.partname, term)
+        self._mentions(macrocall, term)
         return (f"<a href='{target}' class='glossary-termref-term'>"
                 f"{label}<span class='glossary-termref-suffix'></span></a>")
 
@@ -208,12 +208,10 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         # ----- done!:
         return result
 
-    def _mentions(self, partname: str, term: str):  # called by phase 1 TERMREF macro expansion
+    def _mentions(self, macrocall: macros.Macrocall, term: str):  # called by phase 1 TERMREF macro expansion
+        partname = macrocall.partname
         if partname and partname != b.GLOSSARY_BASENAME:  # avoid links from glossary to itself
             if term not in self.mentionedby:
                 self.mentionedby[term] = set()
             self.mentionedby[term].add(partname)
-
-
-class Glossarybuilder(Glossary):
-    pass  # TODO 2: pull apart Glossarybuilder from Glossary
+            macrocall.md.termrefs.add(term)

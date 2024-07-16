@@ -61,10 +61,11 @@ class SedrilaMarkdown(markdown.Markdown):
     partname: str
     blockmacro_topmatter: dict[str, str]
     includefiles: set[str]  # [INCLUDE::...] will add a filename here
+    termrefs: set[str]  # [TERMREF::...] will add a term alias here
 
 
 def render_markdown(context_sourcefile: str, partname: str, markdown_markup: str, 
-                    mode: b.Mode, blockmacro_topmatter: dict[str, str]) -> tuple[str, set[str]]:
+                    mode: b.Mode, blockmacro_topmatter: dict[str, str]) -> dict[str, set[str]]:
     """
     Generates HTML from Markdown in sedrila manner.
     See https://python-markdown.github.io/
@@ -74,8 +75,9 @@ def render_markdown(context_sourcefile: str, partname: str, markdown_markup: str
     md.partname = partname
     md.blockmacro_topmatter = blockmacro_topmatter
     md.includefiles = set()
+    md.termrefs = set()
     html = md.reset().convert(markdown_markup)
-    return html, md.includefiles
+    return dict(html=html, includefiles=md.includefiles, termrefs=md.termrefs)
 
 # ######### initialization:
 
