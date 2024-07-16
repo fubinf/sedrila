@@ -87,10 +87,6 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
         super().__init__(name, *args, **kwargs)
 
     @property
-    def remaining_attempts(self) -> int:
-        return max(0, self.allowed_attempts - self.rejections)
-
-    @property
     def allowed_attempts(self) -> int:
         course = self.taskgroup.chapter.course
         return int(course.allowed_attempts_base + course.allowed_attempts_hourly*self.timevalue)
@@ -98,6 +94,18 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
     @property
     def breadcrumb_item(self) -> str:
         return f"<a href='{self.outputfile}'>{self.slug}</a>"
+
+    @functools.cached_property
+    def linkslist_bottom(self) -> str:
+        return self._render_task_linkslist('assumed_by', 'required_by')
+
+    @functools.cached_property
+    def linkslist_top(self) -> str:
+        return self._render_task_linkslist('assumes', 'requires')
+
+    @property
+    def remaining_attempts(self) -> int:
+        return max(0, self.allowed_attempts - self.rejections)
 
     @property
     def to_be_skipped(self) -> bool:
@@ -127,6 +135,7 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
     def from_file(self, file: str, taskgroup: 'Taskgroupbuilder'):
         self.make_std_dependencies(toc=self.taskgroup)
         self.dependencies.append(self.directory.make_or_get_the(el.Tocline, self.name, task=self, cache=self.cache))
+        self.dependencies.append(self.directory.make_the(el.LinkslistBottom, self.name, task=self, cache=self.cache))
 
         # ----- ensure explains/assumes/requires are lists:
         def _handle_strlist(attrname: str):
@@ -201,6 +210,28 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
             call.error(f"Difficulty must be in range {min(diffrange)}..{max(diffrange)}")
             return ""
         return h.difficulty_symbol(level)
+
+    def _render_task_linkslist(self, a_attr: str, r_attr: str) -> str:
+        """HTML for the links to assumes/requires (or assumed_by/required_by) related tasks on a task page."""
+        links = []
+        a_links = sorted((f"[PARTREF::{part}]" for part in getattr(self, a_attr)))
+        r_links = sorted((f"[PARTREF::{part}]" for part in getattr(self, r_attr)))
+        a_cssname = a_attr.replace("_", "")
+        r_cssname = r_attr.replace("_", "")
+        any_links = a_links or r_links
+        if any_links:
+            links.append(f"\n<div class='{a_cssname}-{r_cssname}-linkblock'>\n")
+        if a_links:
+            links.append(f" <div class='{a_cssname}-links'>\n   ")
+            links.append("  " + macros.expand_macros("-", self.slug, ", ".join(a_links)))
+            links.append("\n </div>\n")
+        if r_links:
+            links.append(f" <div class='{r_cssname}-links'>\n")
+            links.append("  " + macros.expand_macros("-", self.slug, ", ".join(r_links)))
+            links.append("\n </div>\n")
+        if any_links:
+            links.append("</div>\n")
+        return "".join(links)
 
     def __eq__(self, other):
         return other.slug == self.slug
