@@ -9,7 +9,7 @@ import sdrl.macros as macros
 import sdrl.markdown as md
 import sdrl.partbuilder
 
-class Glossary(el.Part, sdrl.partbuilder.PartbuilderMixin):
+class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
     """
     Processed in two phases: in phase 1, term references and term definitions are collected.
     Links to term definitions can already be generated because they have a canonical form:
@@ -26,14 +26,14 @@ class Glossary(el.Part, sdrl.partbuilder.PartbuilderMixin):
     rendered_content: str = ''  # results of render(); re-render would report duplicate definitions
     includefiles: list[str]  # files INCLUDEd while rendering the glossary
     
-    def __init__(self, chapterdir: str):
-        self.chapterdir = chapterdir
-        self.read_partsfile(f"{self.chapterdir}/{b.GLOSSARY_BASENAME}.md")
+    def __init__(self, name, *args, **kwargs):
+        super().__init__(name, *args, **kwargs)
+        self.read_partsfile(self.sourcefile)
         b.copyattrs(self.sourcefile, self.metadata, self,
                     mustcopy_attrs='title',
                     cancopy_attrs='stage',
                     mustexist_attrs='')
-        self.slug = b.GLOSSARY_BASENAME
+        self.slug = self.name
         self.explainedby = dict()
         self.mentionedby = dict()
         self.termdefs = set()
@@ -48,6 +48,10 @@ class Glossary(el.Part, sdrl.partbuilder.PartbuilderMixin):
     @property
     def outputfile_s(self) -> str:
         return f"{b.GLOSSARY_BASENAME}.html"
+
+    @property
+    def sourcefile(self) -> str:
+        return f"{self.chapterdir}/{b.GLOSSARY_BASENAME}.md"
 
     @property
     def toc_link_text(self) -> str:
