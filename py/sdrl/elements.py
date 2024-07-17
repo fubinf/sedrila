@@ -18,6 +18,9 @@ import sdrl.macros as macros
 import sdrl.markdown as md
 
 
+Buildwrapper = tg.Callable[[str], None]  # called with 'start' before, with 'end' after do_build()
+
+
 class Top:  # abstract class
     """This class' only purpose is terminating the super().__init__() call chain."""
     def __init__(self, *args, **kwargs):
@@ -50,6 +53,7 @@ class Element(Top):  # abstract class
     name: str  # path, filename, or partname
     state: c.State
     directory: dir.Directory
+    buildwrapper: Buildwrapper  # may be missing
 
     def __init__(self, name: str, *args, **kwargs):
         self.name = name
@@ -82,14 +86,18 @@ class Element(Top):  # abstract class
         self.check_existing_resource()
         if self.state != c.State.AS_BEFORE:
             b.debug(f"{self.__class__.__name__}.build({self.name}) local state:\t{self.statelabel} ")
+            self._buildwrap('start')
             self.do_build()
+            self._buildwrap('end')
             self.state = c.State.HAS_CHANGED
             return
         for dep in self.my_dependencies():
             if dep.state != c.State.AS_BEFORE:
                 which = f"{dep.__class__.__name__}({dep.name})"
                 b.debug(f"{self.__class__.__name__}.build({self.name}) dependency {which} state:\t{dep.statelabel}")
+                self._buildwrap('start')
                 self.do_build()
+                self._buildwrap('end')
                 self.state = c.State.HAS_CHANGED
                 return
         # b.debug(f"{self.__class__.__name__}.build({self.name}) state:\t{self.statelabel}")
@@ -120,6 +128,9 @@ class Element(Top):  # abstract class
     def cached_dict(self) -> tuple[b.StrAnyDict, c.State]:
         return self.cache.cached_dict(self.cache_key)
 
+    def _buildwrap(self, mode: str):
+        if getattr(self, 'buildwrapper', None):  # if set and non-None
+            self.buildwrapper(mode)
 
 class Product(Element):  # abstract class
     """Abstract superclass for any kind of thing that gets built."""
@@ -366,7 +377,6 @@ class Outputfile(Product):  # abstract class
             self.state = c.State.MISSING
         else:
             self.state = c.State.AS_BEFORE
-        # b.debug(f"Outputfile.check({self.outputfile}): {self.state}")
 
 
 class CopiedFile(Outputfile):

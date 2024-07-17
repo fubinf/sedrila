@@ -85,14 +85,14 @@ class PartbuilderMixin(el.DependenciesMixin):  # to be mixed into a Part class
             else:
                 b.warning(f"'{zipdirname}' is a file, not a dir, and will be ignored.")
     
-    def make_std_dependencies(self, toc: tg.Optional[el.Part]):
+    def make_std_dependencies(self, toc: tg.Optional[el.Part], body_buildwrapper: el.Buildwrapper = None):
         self.add_dependency(self.directory.make_the(el.Sourcefile, self.sourcefile))  # noqa
         self._make(el.Topmatter, sourcefile=self.sourcefile)  # noqa
         self._make(el.Content)
         self._make(el.IncludeList_s)
         self._make(el.IncludeList_i)
-        self._make(el.Body_s, sourcefile=self.sourcefile)  # noqa
-        self._make(el.Body_i, sourcefile=self.sourcefile)  # noqa
+        self._make(el.Body_s, sourcefile=self.sourcefile, buildwrapper=body_buildwrapper)  # noqa
+        self._make(el.Body_i, sourcefile=self.sourcefile, buildwrapper=body_buildwrapper)  # noqa
         if toc:
             self.add_dependency(self.directory.make_or_get_the(el.Toc, toc.name, part=toc))
 
@@ -133,10 +133,6 @@ class PartbuilderMixin(el.DependenciesMixin):  # to be mixed into a Part class
         b.spit(f"{targetdir}/{self.outputfile}", output)  # noqa
         b.info(f"{targetdir}/{self.outputfile}")  # noqa
 
-
-    def _make(self, mytype, **kwargs):  # abbrev
-        self.add_dependency(self.directory.make_the(mytype, self.name, **kwargs))  # noqa
-
     def structure_path(structure: el.Part) -> list[el.Part]:
         """List of nested parts, from a given part up to the course."""
         import sdrl.course
@@ -153,6 +149,9 @@ class PartbuilderMixin(el.DependenciesMixin):  # to be mixed into a Part class
         if isinstance(structure, sdrl.course.Course):
             path.append(structure)
         return path
+
+    def _make(self, mytype, **kwargs):  # abbrev
+        self.add_dependency(self.directory.make_the(mytype, self.name, **kwargs))  # noqa
 
 
 def toc(structure: el.Part) -> str:
@@ -181,14 +180,3 @@ def toc(structure: el.Part) -> str:
                 result.append(task.toc_entry)
     result.append(course.glossary.toc_entry)
     return "\n".join(result)
-
-
-def toc_for_glossary(course: 'sdrl.course.Coursebuilder') -> str:
-    """Return a chapters-only table of contents for the glossary."""
-    result = ['']  # start with a newline
-    for chapter in course.chapters:  # noqa
-        if chapter.to_be_skipped:
-            continue
-        result.append(chapter.toc_entry)
-    return "\n".join(result)
-

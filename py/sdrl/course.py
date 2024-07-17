@@ -121,9 +121,10 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
                      (self.timevalue, self.timevalue))
         refs = (self._taskrefs('assumed_by') + self._taskrefs('required_by') +
                 self._taskrefs('assumes') + self._taskrefs('requires'))
-        return f"<a {href} {titleattr}>{self.slug}</a> {diffsymbol} {timevalue}{refs}"
+        trick = f"<!--{self.taskgroup.name}-->"  # make Task Tocline depend on its Taskgroup
+        return f"<a {href} {titleattr}>{self.slug}</a> {diffsymbol} {timevalue}{refs}{trick}"
 
-    @functools.cached_property
+    @property
     def toc(self) -> str:
         return self.taskgroup.toc
 
@@ -392,13 +393,6 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
     @functools.cached_property
     def toc(self) -> str:
         return sdrl.partbuilder.toc(self)
-
-    def my_dependencies(self) -> tg.Iterable[el.Element]:
-        return [
-            self.directory.get_the(el.Body_s, self.name),
-            self.directory.get_the(el.Body_i, self.name),
-            # self.directory.get_the(el.Toc, self.name),  # TODO 1: add
-        ]
 
     def add_inverse_links(self):
         """add Task.required_by/Task.assumed_by lists."""

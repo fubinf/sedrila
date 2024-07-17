@@ -18,6 +18,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
     Defines macros TERM0 and TERM to be used in the glossary file and
     TERMREF to be used anywhere.
     """
+    TEMPLATENAME = 'glossary.html'
     chapterdir: str  # where to find GLOSSARY_FILE
     explainedby: dict[str, set[str]]  # explainedby[term] == partnames_with_explain
     mentionedby: dict[str, set[str]]  # mentionedby[term] == partnames_with_termref
@@ -38,7 +39,8 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         self.mentionedby = dict()
         self.termdefs = set()
         self.term_linkslist = None  # set by [TERM], used and unset by [ENDTERM]
-        self._register_macros_phase1()
+        self.register_macros_phase1()
+        self.make_std_dependencies(toc=self, body_buildwrapper=self._switch_macros)
 
     @property
     def breadcrumb_item(self) -> str:
@@ -46,12 +48,19 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         return f"<a href='{self.outputfile}' {titleattr}>{self.title}</a>"
 
     @property
-    def outputfile_s(self) -> str:
-        return f"{b.GLOSSARY_BASENAME}.html"
-
-    @property
     def sourcefile(self) -> str:
         return f"{self.chapterdir}/{b.GLOSSARY_BASENAME}.md"
+
+    @property
+    def toc(self) -> str:
+        """Return a chapters-only table of contents for the glossary."""
+        result = ['']  # start with a newline
+        for chapter in self.course.chapters:  # noqa
+            if chapter.to_be_skipped:
+                continue
+            result.append(chapter.toc_entry)
+        result.append(self.toc_entry)
+        return "\n".join(result)
 
     @property
     def toc_link_text(self) -> str:
@@ -65,7 +74,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
     def render(self, mode: b.Mode) -> str:
         """We render only once, because the glossary will not contain [INSTRUCTOR] calls."""
         if not self.rendered_content:
-            self._register_macros_phase2()
+            self.register_macros_phase2()
             self.rendered_content, self.includefiles = md.render_markdown(self.sourcefile, self.slug, 
                                                                           self.content, mode, dict())
         return self.rendered_content
@@ -78,14 +87,14 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
             what = "This term lacks" if len(undefined_terms) == 1 else "These terms lack"
             b.error(f"{self.sourcefile}: {what} a definition: {sorted(undefined_terms)}")
 
-    def _register_macros_phase1(self):
+    def register_macros_phase1(self):
         macros.register_macro("TERMREF", 1, macros.MM.INNER, self._expand_termref)
         macros.register_macro("TERMREF2", 2, macros.MM.INNER, self._expand_termref)
         macros.register_macro("TERM0", 1, macros.MM.INNER, self._complain_term)
         macros.register_macro("TERM", 1, macros.MM.BLOCKSTART, self._complain_term)
         macros.register_macro("ENDTERM", 0, macros.MM.BLOCKEND, self._ignore_endtermlong)
 
-    def _register_macros_phase2(self):
+    def register_macros_phase2(self):
         macros.register_macro("TERM0", 1, macros.MM.INNER, self._expand_term0, redefine=True)
         macros.register_macro("TERM", 1, macros.MM.BLOCKSTART, self._expand_term, redefine=True)
         macros.register_macro("ENDTERM", 0, macros.MM.BLOCKEND, self._expand_endterm, redefine=True)
@@ -215,3 +224,11 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
                 self.mentionedby[term] = set()
             self.mentionedby[term].add(partname)
             macrocall.md.termrefs.add(term)
+
+    def _switch_macros(self, mode: str):
+        if mode == 'start':
+            self.register_macros_phase2()  # switch macros to glossary mode
+        elif mode == 'end':
+            self.register_macros_phase1()  # switch macros to non-glossary mode
+        else:
+            assert False
