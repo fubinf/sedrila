@@ -80,7 +80,8 @@ class PartbuilderMixin(el.DependenciesMixin):  # to be mixed into a Part class
             if os.path.isdir(zipdirname):
                 zipfilename = os.path.basename(zipdirname)
                 self.directory.make_the(el.Zipdir, zipdirname)
-                self.directory.make_the(el.Zipfile, zipfilename, sourcefile=zipdirname, title=zipfilename)
+                self.directory.make_the(el.Zipfile, zipfilename, parent=self.my_course, 
+                                        sourcefile=zipdirname, title=zipfilename)
             else:
                 b.warning(f"'{zipdirname}' is a file, not a dir, and will be ignored.")
     

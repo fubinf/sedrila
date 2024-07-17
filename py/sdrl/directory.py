@@ -1,4 +1,6 @@
 """Combined Elements registry/factory and build orchestrator."""
+import itertools
+
 import base as b
 import typing as tg
 
@@ -71,6 +73,12 @@ class Directory:
 
     def get_all(self, thetype: type) -> tg.Iterator:
         return self._getdict(thetype).values()
+
+    def get_all_outputfiles(self) -> tg.Iterator:
+        import sdrl.elements as el
+        iterators = [self.get_all(t) for t in self.managed_types
+                     if issubclass(t, el.Outputfile)]
+        return itertools.chain(*iterators)
 
     def _getdict(self, thetype: type):
         dictname = thetype.__name__.lower()

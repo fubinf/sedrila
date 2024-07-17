@@ -10,10 +10,10 @@ import argparse
 import datetime as dt
 import os
 import os.path
+import typing as tg
 
 import base as b
 import cache
-import sdrl.course
 import sdrl.course as course
 import sdrl.directory as dir
 import sdrl.macroexpanders as macroexpanders
@@ -45,24 +45,26 @@ def add_arguments(subparser: argparse.ArgumentParser):
 
 def execute(pargs: argparse.Namespace):
     b.set_loglevel(pargs.log)
-    prepare_directories(pargs.targetdir)
-    the_cache = cache.SedrilaCache(f"{pargs.targetdir}/{b.CACHE_FILENAME}")
+    targetdir_s = pargs.targetdir
+    targetdir_i = _targetdir_i(pargs.targetdir)
+    prepare_directories(targetdir_s, targetdir_i)
+    the_cache = cache.SedrilaCache(os.path.join(targetdir_i, b.CACHE_FILENAME))
     directory = dir.Directory(the_cache)
     c = course  # abbrev
     the_course = c.Coursebuilder(c.Course.__name__,
             parttype=dict(Chapter=c.Chapterbuilder, Taskgroup=c.Taskgroupbuilder, Task=c.Taskbuilder), 
             configfile=pargs.config, include_stage=pargs.include_stage,
-            targetdir_s=pargs.targetdir, targetdir_i=targetdir_i(pargs.targetdir),
-            directory=directory)
+            targetdir_s=targetdir_s, targetdir_i=targetdir_i, directory=directory)
     macroexpanders.register_macros(the_course)
     directory.build()
+    purge_leftover_outputfiles(directory, targetdir_s, targetdir_i)
     if pargs.sums:
         print_volume_report(the_course)
     the_cache.close()  # write back changes
     b.exit_if_errors()
 
 
-def prepare_directories(targetdir_s: str):
+def prepare_directories(targetdir_s: str, targetdir_i: str):
     # ----- create from scratch if needed:
     if not os.path.exists(targetdir_s):
         os.mkdir(targetdir_s)
@@ -72,12 +74,8 @@ def prepare_directories(targetdir_s: str):
     if not_empty and not os.path.exists(metadatafile):  # empty pre-existing dirs will fail, too
         b.critical(f"{targetdir_s} does not look like a build directory: {b.METADATA_FILE} is missing")
     # ----- add instructor dir if needed:
-    if not os.path.exists(targetdir_i(targetdir_s)):
-        os.mkdir(targetdir_i(targetdir_s))
-
-
-def targetdir_i(targetdir_s):
-    return os.path.join(targetdir_s, OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR)
+    if not os.path.exists(targetdir_i):
+        os.mkdir(targetdir_i)
 
 
 def print_volume_report(course: course.Coursebuilder):
@@ -110,3 +108,27 @@ def print_volume_report(course: course.Coursebuilder):
             totaltime += timevalue
         table.add_row("[b]=TOTAL", f"[b]{totaltasks}", "[b]%5.1f" % totaltime)
         b.rich_print(table)  # noqa
+
+
+def purge_leftover_outputfiles(directory: dir.Directory, targetdir_s: str, targetdir_i: str):
+    expected_files = set([of.outputfile for of in directory.get_all_outputfiles()])
+    additions_s = {OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR, b.METADATA_FILE}
+    additions_i = set()
+    purge_all_but(targetdir_s, expected_files | additions_s)
+    purge_all_but(targetdir_i, expected_files | additions_i, exception=b.CACHE_FILENAME)
+
+
+def purge_all_but(dir: str, files: set[str], exception: tg.Optional[str]=None):
+    """Delete all files in dir that are not mentioned in files."""
+    actual_files = set(os.listdir(dir))
+    delete_these = actual_files - files
+    for file in sorted(delete_these):
+        if exception and file.startswith(exception):
+            continue  # avoid deleting any kind of cache file
+        path = os.path.join(dir, file)
+        b.info(f"deleted: {path}")
+        os.remove(path)
+
+
+def _targetdir_i(targetdir_s):
+    return os.path.join(targetdir_s, OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR)

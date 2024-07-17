@@ -57,6 +57,9 @@ class Element(Top):  # abstract class
         for key, val in kwargs.items():
             setattr(self, key, val)  # store all keyword args in same-named attr
 
+    def __repr__(self):
+        return self.cache_key
+
     @property
     def cache(self) -> c.SedrilaCache:
         return self.directory.cache
@@ -370,9 +373,9 @@ class CopiedFile(Outputfile):
     """For resources which are copied verbatim. The data lives in the file system, hence no value."""
     def do_build(self):
         b.debug(f"copying '{self.sourcefile}'\t-> '{self.targetdir_s}'")
-        shutil.copy(self.sourcefile, os.path.join(self.targetdir_s, self.outputfile))
+        shutil.copy(self.sourcefile, self.outputfile_s)
         b.debug(f"copying '{self.sourcefile}'\t-> '{self.targetdir_i}'")
-        shutil.copy(self.sourcefile, os.path.join(self.targetdir_i, self.outputfile))
+        shutil.copy(self.sourcefile, self.outputfile_i)
 
 
 class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task and their Builders, see course.py
@@ -392,19 +395,13 @@ class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task a
             self.targetdir_s = self.parent.targetdir_s
             self.targetdir_i = self.parent.targetdir_i
 
-    def __repr__(self):
-        return self.name
-
     @property
-    def outputfile_s(self) -> str:
+    def outputfile(self) -> str:
         return f"{self.name}.html"
 
     @property
     def toc(self) -> str:
         return "((TOC))"  # override in concrete Part classes
-
-    def check_existing_resource(self):
-        self.state = c.State.AS_BEFORE  # Parts' state changes all come from dependencies
 
     def my_dependencies(self) -> tg.Iterable['Element']:
         return self.dependencies  # noqa, from Partsbuilder
@@ -440,6 +437,10 @@ class Zipfile(Part):
     @property
     def innerpath(self) -> str:
         return self.name[:-len(".zip")]  # e.g. myzipdir
+
+    @property
+    def outputfile(self) -> str:  # like for non-Parts
+        return self.name
 
     @property
     def to_be_skipped(self) -> bool:
