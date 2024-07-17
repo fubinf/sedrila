@@ -246,12 +246,6 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
         return hash(self.slug)
 
 
-class CacheMode(enum.Enum):
-    UNCACHED = 0  # read and render everything afresh 
-    WRITE = 1  # read metadata, write cache, render everything afresh 
-    READ = 3  # read metadata from cache, reuse rendered files
-
-
 class Course(el.Partscontainer):
     """
     The master data object for this run.
@@ -492,7 +486,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
 
     def _init_parts(self, configdict: dict, include_stage: str):
         self.read_partsfile(f"{self.chapterdir}/index.md")
-        self.glossary = glossary.Glossary(b.GLOSSARY_BASENAME, course=self, chapterdir=self.chapterdir)
+        self.glossary = glossary.Glossary(b.GLOSSARY_BASENAME, course=self, parent=self, chapterdir=self.chapterdir)
         self.directory.record_the(glossary.Glossary, self.glossary.name, self.glossary)
         self.namespace_add("", self.glossary)
         self.find_zipdirs()
@@ -640,6 +634,7 @@ class Taskgroup(el.Partscontainer):
     def _create_tasks(self):
         self.tasks = [Task(taskdict['slug'], course=self.course, parent=self, taskgroup=self).from_json(taskdict)
                       for taskdict in self.taskgroupdict['tasks']]
+    
     def _init_from_dict(self, context: str, taskgroupdict: b.StrAnyDict):
         b.copyattrs(context,
                     taskgroupdict, self,
@@ -649,7 +644,6 @@ class Taskgroup(el.Partscontainer):
 
     def _init_from_file(self, context: str, chapter: Chapter):
         pass  # exists only in builder
-
 
 
 class Taskgroupbuilder(sdrl.partbuilder.PartbuilderMixin, Taskgroup):
@@ -698,7 +692,7 @@ class Taskgroupbuilder(sdrl.partbuilder.PartbuilderMixin, Taskgroup):
             if not filename.endswith("index.md"):
                 name = os.path.basename(filename[:-3])  # remove .md suffix
                 self._add_task(Taskbuilder(name, course=self.course, parent=self, taskgroup=self)
-                                    .from_file(filename, taskgroup=self))
+                                .from_file(filename, taskgroup=self))
         tg_toc = self.directory.get_the(el.Toc, self.name)
         for task in self.tasks:
             tg_toc.add_tocline(task)

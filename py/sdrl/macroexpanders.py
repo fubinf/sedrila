@@ -14,8 +14,6 @@ ALTDIR_KEYWORD = "ALT:"
 def register_macros(course: sdrl.course.Coursebuilder):
     MM = macros.MM
     b.debug("registering macros")
-    if course.cache1_mode == sdrl.course.CacheMode.READ:
-        course.glossary._register_macros_phase1()  # modifies state in module 'mocros'! 
     # ----- register EARLY-mode macros:
     macros.register_macro('INCLUDE', 1, MM.EARLY,
                           functools.partial(expand_include, course))

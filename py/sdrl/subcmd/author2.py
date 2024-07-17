@@ -54,7 +54,6 @@ def execute(pargs: argparse.Namespace):
             configfile=pargs.config, include_stage=pargs.include_stage,
             targetdir_s=pargs.targetdir, targetdir_i=targetdir_i(pargs.targetdir),
             directory=directory)
-    the_course.cache1_mode = sdrl.course.CacheMode.UNCACHED  # TODO 2: remove
     macroexpanders.register_macros(the_course)
     directory.build()
     if pargs.sums:
