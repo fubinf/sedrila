@@ -501,7 +501,10 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         self.chapters = [self.parttype['Chapter'](ch['slug'], course=self, parent=self, chapterdict=ch) 
                          for ch in configdict['chapters']]
         self.make_std_dependencies(toc=self)
-        self._make(DerivedMetadata, course=self)
+        toc: el.Toc = self.directory.get_the(el.Toc, self.name)
+        for task in self.taskdict.values():
+            toc.add_tocline(task)
+        self.directory.make_the(DerivedMetadata, self.name, course=self)
         self._collect_zipdirs()  # TODO 2 collect only what gets referenced
         self._add_baseresources()
 
