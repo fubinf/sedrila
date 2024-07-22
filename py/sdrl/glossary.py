@@ -85,7 +85,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         undefined_terms = (terms_explained | terms_mentioned) - self.termdefs
         if undefined_terms:
             what = "This term lacks" if len(undefined_terms) == 1 else "These terms lack"
-            b.error(f"{self.sourcefile}: {what} a definition: {sorted(undefined_terms)}")
+            b.error(f"{what} a definition: {sorted(undefined_terms)}", file=self.sourcefile)
 
     def register_macros_phase1(self):
         macros.register_macro("TERMREF", 1, macros.MM.INNER, self._expand_termref)
@@ -115,7 +115,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
                 f"{label}<span class='glossary-termref-suffix'></span></a>")
 
     def _complain_term(self, mc: macros.Macrocall) -> str:  # noqa
-        b.error(f"'{mc.filename}: {mc.macrocall_text}': [{mc.macroname}] can only be used in the glossary")
+        b.error(f"{mc.macrocall_text}': [{mc.macroname}] can only be used in the glossary", file=mc.filename)
         return ""  # no expansion in phase 1
 
     def _ignore_endtermlong(self, macrocall: macros.Macrocall) -> str:  # noqa
@@ -152,7 +152,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
             self.term_linkslist = None
             return close_body + "".join(result)
         else:
-            b.error(f"'{macrocall.filename}': [ENDTERM] is lacking its [TERM::...]")
+            b.error(f"[ENDTERM] is lacking its [TERM::...]", file=macrocall.filename)
             return ""
 
     @staticmethod
@@ -180,7 +180,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         # ----- report duplicate entries:
         for term in termslist:
             if term in self.termdefs:
-                b.error(f"{macrocall.macrocall_text}: Term '{term}' is already defined")
+                b.error(f"{macrocall.macrocall_text}: Term '{term}' is already defined", file=macrocall.filename)
             self.termdefs.add(term)
         # ----- open block:
         result.extend("\n<div class='glossary-term-block'>\n")
@@ -211,8 +211,8 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         # ----- close block:
         result.extend("\n</div>\n")
         if self.term_linkslist is not None:
-            b.error("'%s': %s is preceeded by a [TERM] with no [ENDTERM]" %
-                    (macrocall.filename, macrocall.macrocall_text))
+            b.error(f"{macrocall.macrocall_text} is preceeded by a [TERM] with no [ENDTERM]", 
+                    file=macrocall.filename)
         self.term_linkslist = links
         # ----- done!:
         return result

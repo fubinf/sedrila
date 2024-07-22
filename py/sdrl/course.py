@@ -5,7 +5,6 @@ In 'author' mode, metadata comes from sedrila.yaml and the partfiles.
 Otherwise, metadata comes from METADATA_FILE. 
 """
 import dataclasses
-import enum
 import functools
 import glob
 import graphlib
@@ -146,8 +145,7 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
             elif not attrvalue:
                 setattr(self, attrname, [])
             else:
-                msg = f"'{file}': value of '%s:' must be a (non-empty) string"
-                b.error(msg % attrname)
+                b.error(f"value of '{attrname}:' must be a (non-empty) string", file=file)
                 setattr(self, attrname, [])
 
         _handle_strlist('explains')
@@ -177,8 +175,7 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
             elif not attrvalue:
                 setattr(self, attrname, [])
             else:
-                msg = f"'{sourcefile}': value of '%s:' must be a (non-empty) string"
-                b.error(msg % attrname)
+                b.error(f"value of '{attrname}:' must be a (non-empty) string", file=sourcefile)
                 setattr(self, attrname, [])
 
         _handle_strlist('explains')
@@ -307,14 +304,15 @@ class Course(el.Partscontainer):
         """Return part for given partname or self (and create an error) if no such part exists."""
         if partname in self.namespace:
             return self.namespace[partname]
-        b.error(f"{context}: part '{partname}' does not exist")
+        b.error(f"part '{partname}' does not exist", file=context)
         return self
 
     def namespace_add(self, context: str, newpart: el.Part):
         name = newpart.name
         if name in self.namespace:
-            b.error("%s: name collision: %s and %s" %
-                    (context, self._slugfilename(self.namespace[name]), self._slugfilename(newpart)))
+            b.error("part name collision", 
+                    file=self._slugfilename(self.namespace[name]), 
+                    file2=self._slugfilename(newpart))
         else:
             self.namespace[name] = newpart
 
@@ -339,7 +337,7 @@ class Course(el.Partscontainer):
         mm = re.match(r"(\d+)\s?\+\s?(\d+\.\d+)\s?/\s?h", self.allowed_attempts)
         if not mm:
             msg1 = f"'allowed_attempts' must have a format exactly like '2 + 0.5/h'"
-            b.error(f"{self.sourcefile}: {msg1}, not '{self.allowed_attempts}'")
+            b.error(f"{msg1}, not '{self.allowed_attempts}'", file=self.sourcefile)
             return 2, 0
         return int(mm.group(1)), float(mm.group(2))
 
@@ -424,10 +422,10 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
             # b.debug(f"Task '{task.slug}'\tassumes {task.assumes},\trequires {task.requires}")
             for assumed in task.assumes:
                 if not self._task_or_taskgroup_exists(assumed):
-                    b.error(f"{task.slug}:\t assumed task or taskgroup '{assumed}' does not exist")
+                    b.error(f"assumed task or taskgroup '{assumed}' does not exist", file=task.sourcefile)
             for required in task.requires:
                 if not self._task_or_taskgroup_exists(required):
-                    b.error(f"{task.slug}:\t required task or taskgroup '{required}' does not exist")
+                    b.error(f"required task or taskgroup '{assumed}' does not exist", file=task.sourcefile)
 
     def compute_taskorder(self):
         """

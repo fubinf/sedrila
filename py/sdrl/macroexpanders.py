@@ -218,6 +218,6 @@ def topmatter(macrocall: macros.Macrocall, name: str) -> str:
     if name in topmatterdict:
         return topmatterdict[name]
     else:
-        b.error("'%s', %s\n  blockmacro_topmatter '%s' is not defined in config" %
-                (macrocall.filename, macrocall.macrocall_text, name))
+        b.error(f"{macrocall.macrocall_text}: blockmacro_topmatter '{name}' is not defined in config",
+                file=macrocall.filename)
         return ""  # neutral result

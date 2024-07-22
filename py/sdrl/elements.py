@@ -333,14 +333,14 @@ class Topmatter(Piece):
         # ----- obtain file contents:
         text = b.slurp(self.sourcefile)
         if SEPARATOR not in text:
-            b.error(f"{self.sourcefile}: triple-dash separator is missing")
+            b.error(f"triple-dash separator is missing", file=self.sourcefile)
             return
         topmatter_text, content_text = text.split(SEPARATOR, 1)
         # ----- parse metadata
         try:
             value = yaml.safe_load(topmatter_text) or dict()  # avoid None for empty topmatter
         except yaml.YAMLError as exc:
-            b.error(f"{self.sourcefile}: metadata YAML is malformed: {str(exc)}")
+            b.error(f"metadata YAML is malformed: {str(exc)}", file=self.sourcefile)
             value = dict()  # use empty metadata as a weak replacement
         # ----- use the pieces:
         self.encache_built_value(value)

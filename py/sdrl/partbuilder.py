@@ -65,7 +65,7 @@ class PartbuilderMixin(el.DependenciesMixin):  # to be mixed into a Part class
         try:
             stage_index = course.stages.index(stageword)
         except ValueError:
-            b.error(f"{context}: Illegal value of 'stage': '{stageword}'")
+            b.error(f"Illegal value of 'stage': '{stageword}'", file=context)
             return
         # ----- handle parts with known stage:
         self.skipthis = course.include_stage_index > stage_index
@@ -106,7 +106,7 @@ class PartbuilderMixin(el.DependenciesMixin):  # to be mixed into a Part class
         # ----- obtain file contents:
         text = b.slurp(file)
         if SEPARATOR not in text:
-            b.error(f"{self.sourcefile}: triple-dash separator is missing")  # noqa
+            b.error(f"triple-dash separator is missing", file=self.sourcefile)  # noqa
             return
         self.metadata_text, self.content = text.split(SEPARATOR, 1)
         # ----- parse metadata
@@ -114,7 +114,7 @@ class PartbuilderMixin(el.DependenciesMixin):  # to be mixed into a Part class
             # ----- parse YAML data:
             self.metadata = yaml.safe_load(self.metadata_text)
         except yaml.YAMLError as exc:
-            b.error(f"{self.sourcefile}: metadata YAML is malformed: {str(exc)}")  # noqa
+            b.error(f"metadata YAML is malformed: {str(exc)}", file=self.sourcefile)  # noqa
             self.metadata = dict()  # use empty metadata as a weak replacement
 
     def render_structure(self, course, part: el.Part, body: str, targetdir: str):

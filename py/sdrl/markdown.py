@@ -40,7 +40,7 @@ class SedrilaPreprocessor(mdpre.Preprocessor):
             nonblock_re = r"\[INSTRUCTOR::.+\]"  # find incomplete blocks that were not removed
             mm = re.search(nonblock_re, newcontent)
             if mm:
-                b.error(f"'{md.context_sourcefile}': call '{mm.group(0)}' lacks [ENDINSTRUCTOR]")
+                b.error(f"call '{mm.group(0)}' lacks [ENDINSTRUCTOR]", file=md.context_sourcefile)
             return newcontent
 
     def make_replacements(self, content: str) -> str:
