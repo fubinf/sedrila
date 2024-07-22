@@ -26,10 +26,6 @@ class State(enum.StrEnum):
     AS_BEFORE = 'AS_BEFORE'  # for Source or before build: need not build; after build: have not built
 
 
-LIST_SEPARATOR = '|'  # separates entries in list-valued dbm entries. Symbol is forbidden in all names.
-TIMESTAMP_KEY = '__mtime__'  # unix timestamp: seconds since epoch
-
-
 class SedrilaCache:
     """
     All intermediate products and some config values are stored in the cache.
@@ -41,15 +37,23 @@ class SedrilaCache:
     - dict[Any] are stored as json.
     Several helper entries use __dunder__ names.
     """
+    LIST_SEPARATOR = '|'  # separates entries in list-valued dbm entries. Symbol is forbidden in all names.
+    TIMESTAMP_KEY = '__mtime__'  # unix timestamp: seconds since epoch
+    DIRTYFILES_KEY = '__dirtyfileslist__'  # previous_dirtyfiles
+
     db: dict  # in fact a dbm._Database
     written: b.StrAnyDict  # what was written into cache since start
     timestamp_start: int  # when did the current build process begin -> the future reference time
     timestamp_cached: int  # when did the previous build process begin -> the current reference time
+    previous_dirtyfiles: set[str]  # files marked dirty during last run
+    new_dirtyfiles: set[str]  # files marked dirty during present run
 
     def __init__(self, cache_filename: str):
         self.timestamp_start = int(time.time())
         self.db = dbm.open(cache_filename, flag='c')  # open or create dbm file
-        self.timestamp_cached = int(self.db.get(TIMESTAMP_KEY, "0"))  # default to "everything is old"
+        self.timestamp_cached = int(self.db.get(self.TIMESTAMP_KEY, "0"))  # default to "everything is old"
+        self.previous_dirtyfiles = set(self.cached_list(self.DIRTYFILES_KEY))
+        self.new_dirtyfiles = set()
         self.written = dict()
         # self._dump(limit=256)  # debug, if needed
 
@@ -88,8 +92,8 @@ class SedrilaCache:
     def filestate(self, pathname: str) -> State:
         """
         Non-existing file: nonexisting.
-        Before-unseen file or file with new time: has_changed (and now the file has been seen).
-        File with old time: as_before.
+        Before-unseen file, dirty file, or file with new time: has_changed.
+        Otherwise (file with old time): as_before.
         New time means the existing file has mtime later than start of previous build.
         """
         if not os.path.exists(pathname):
@@ -98,7 +102,7 @@ class SedrilaCache:
         if cache_state == State.MISSING:
             # b.debug(f"{pathname} not in cache")
             return State.HAS_CHANGED
-        if self.is_recent(pathname):
+        if self.is_recent(pathname) or pathname in self.previous_dirtyfiles:
             # b.debug(f"{pathname} has younger mtime")
             return State.HAS_CHANGED
         else:
@@ -108,6 +112,14 @@ class SedrilaCache:
         """Whether pathname's mtime is larger than the cache's global mtime."""
         filetime = os.stat(pathname).st_mtime
         return filetime > self.mtime
+
+    def set_file_dirty(self, filename: str):
+        """
+        When a file produces an error or warning message, we mark it as 'dirty'.
+        On the next run, the cache will flag such files as HAS_CHANGED, so that they are built
+        again and the message is produced again. 
+        """
+        self.new_dirtyfiles.add(filename)
 
     def write_str(self, key: str, value: str):
         assert key not in self.written  # we should write everything only once
@@ -128,7 +140,8 @@ class SedrilaCache:
     def close(self):
         """Bring the persistent cache file up-to-date and close dbm."""
         converters = {str: self._as_is, list: self._from_list, set: self._from_list, dict: self._from_dict}
-        self.db[TIMESTAMP_KEY] = str(self.timestamp_start)  # update mtime
+        self.db[self.TIMESTAMP_KEY] = str(self.timestamp_start)  # update mtime
+        self.write_list(self.DIRTYFILES_KEY, list(self.new_dirtyfiles))
         for key, value in self.written.items():
             if value is None:  # should not happen
                 b.debug(f"cache['{key}'] is None")
@@ -150,17 +163,15 @@ class SedrilaCache:
     def _as_is(e: str) -> str:
         return e
 
-    @staticmethod
-    def _as_list(e: str) -> list[str]:
-        return e.split(LIST_SEPARATOR) if e else []
+    def _as_list(self, e: str) -> list[str]:
+        return e.split(self.LIST_SEPARATOR) if e else []
 
     @staticmethod
     def _as_dict(e: str) -> b.StrAnyDict:
         return json.loads(e)
 
-    @staticmethod
-    def _from_list(e: list[str]) -> str:
-        return LIST_SEPARATOR.join(e)
+    def _from_list(self, e: list[str]) -> str:
+        return self.LIST_SEPARATOR.join(e)
 
     @staticmethod
     def _from_dict(e: b.StrAnyDict) -> str:
@@ -184,7 +195,7 @@ class SedrilaCache:
     def _scandir(self, dirname: str, cached_filelist: str) -> tuple[list[str], list[str]]:  # TODO 2: remove
         """Lists of all (samefiles, newfiles) below dirname according to cached_filelist and timestamp_cached."""
         reftime = self.timestamp_cached  # younger than this (or equal) means new
-        knownfiles_set = set(cached_filelist.split(LIST_SEPARATOR))
+        knownfiles_set = set(cached_filelist.split(self.LIST_SEPARATOR))
         samefiles = []
         newfiles = []
         for root, dirs, files in os.walk(dirname):
@@ -198,5 +209,5 @@ class SedrilaCache:
         return samefiles, newfiles
         
     def _storefilelist(self, key: str, samefiles: list[str], newfiles: list[str]):
-        thelist = LIST_SEPARATOR.join(itertools.chain(samefiles, newfiles))
+        thelist = self.LIST_SEPARATOR.join(itertools.chain(samefiles, newfiles))
         self.db[key] = thelist
