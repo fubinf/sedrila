@@ -151,15 +151,23 @@ def info(msg: str):
         rich_print(msg, "green")
 
 
-def warning(msg: str):
+def warning(msg: str, file: str = None, file2: str = None):
     if loglevel <= logging.WARNING:
+        if file and file2:
+            msg = f"Files '{file}' and '{file2}':\n   {msg}"
+        elif file:
+            msg = f"File '{file}':\n   {msg}"
         rich_print(msg, "yellow")
 
 
-def error(msg: str):
+def error(msg: str, file: str = None, file2: str = None):
     global num_errors, msgs_seen
     if msg not in msgs_seen:
         num_errors += 1
+    if file and file2:
+        msg = f"Files '{file}' and '{file2}':\n   {msg}"
+    elif file:
+        msg = f"File '{file}':\n   {msg}"
     if loglevel <= logging.ERROR:
         rich_print(msg, "red")
 
