@@ -551,6 +551,10 @@ and you can define further macros like them if needed.
   Ditto, but using the given link text.
 - `[TERMREF::term]`:
   Create a hyperlink to the glossary entry `term`; see under glossary below.
+- `[TERMREF2::term::shown form]`:
+  Create a hyperlink to the glossary entry `term` that is rendered as `shown form`.
+  If `shown form` starts with a dash, it will be appended to `term` instead of replacing it.
+  This is useful for plural forms: `[TERMREF2::file::-s]` renders as `files`, but refers to `file`.
 
 
 #### 1.9.2 Macros for instruction enumerations: `[EC]`, `[EQ]`, `[ER]`, `[EREFC]`, `[EREFQ]`, `[EREFR]`

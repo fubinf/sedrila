@@ -3,6 +3,7 @@
 
 
 ## Version 1.4.0 (upcoming) 
+- `author`: FIX: added missing documentation for macro `[TERMREF2]`
 - ...
 
 
