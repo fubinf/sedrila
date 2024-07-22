@@ -5,7 +5,7 @@ separated by whatever, e.g. two empty lines.
 """
 import re
 
-import base
+import base as b
 
 replacement_expr_re = r"<replacement +?id=[\'\"]([\w_-]+?)[\'\"]>(.+?)</replacement>"
 replacementsdict = dict()
@@ -21,7 +21,7 @@ def load_replacements_string(context_filename: str, s: str):
     global replacementsdict, replacements_loaded
     for repl_id, body in re.findall(replacement_expr_re, s, flags=re.DOTALL):
         if repl_id in replacementsdict:
-            base.warning(f"'{context_filename}': replacement '{repl_id}' is defined multiple times")
+            b.warning(f"replacement '{repl_id}' is defined multiple times", file=context_filename)
         replacementsdict[repl_id] = body
     replacements_loaded = True
 
@@ -31,5 +31,5 @@ def get_replacement(context_filename: str, content: str, repl_id: str) -> str:
     if not replacements_loaded:
         return content
     if repl_id not in replacementsdict:
-        base.warning(f"'{context_filename}': replacement '{repl_id}' is not defined, using '????'")
+        b.warning(f"replacement '{repl_id}' is not defined, using '????'", file=context_filename)
     return replacementsdict.get(repl_id, "????")

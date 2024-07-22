@@ -73,7 +73,8 @@ def expand_treeref(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocal
     actualpath = includefile_path(course, macrocall, itree_mode=True)
     showpath = actualpath[len(course.itreedir)+1:]  # skip itreedir part of path
     if not os.path.exists(actualpath):
-        b.warning(f"{macrocall.macrocall_text}: itreedir file '{actualpath}' not found")
+        b.warning(f"{macrocall.macrocall_text}: itreedir file '{actualpath}' not found",
+                  file=macrocall.filename)
         showpath = "???"
     prefix = "<span class='treeref-prefix'></span>"
     mainpart = f"<span class='treeref'>{html.escape(showpath, quote=False)}</span>"
@@ -196,7 +197,8 @@ def includefile_path(course: sdrl.course.Coursebuilder, macrocall: macros.Macroc
     mm = re.fullmatch(arg_re, macrocall.arg1)
     is_alt = mm.group("alt") is not None
     if is_alt and itree_mode:
-        b.warning(f"{macrocall.macrocall_text}: '{ALTDIR_KEYWORD}' prefix makes no sense here")
+        b.warning(f"{macrocall.macrocall_text}: '{ALTDIR_KEYWORD}' prefix makes no sense here",
+                  file=macrocall.filename)
         is_alt = False  # ignore the prefix
     is_abs = mm.group("slash") is not None
     inc_filepath = mm.group("incfile")  # e.g. ../chapterlevel_includefile

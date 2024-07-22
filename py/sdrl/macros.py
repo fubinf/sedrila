@@ -83,10 +83,10 @@ class Macrocall:
     arg2: b.OStr
 
     def error(self, msg: str):
-        b.error(f"'{self.filename}': {self.macrocall_text}\n  {msg}")
+        b.error(f"{self.macrocall_text}\n   {msg}", file=self.filename)
 
     def warning(self, msg: str):
-        b.warning(f"'{self.filename}': {self.macrocall_text}\n  {msg}")
+        b.warning(f"{self.macrocall_text}\n   {msg}", file=self.filename)
 
 
 class MM(enum.Enum):

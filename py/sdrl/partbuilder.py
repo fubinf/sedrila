@@ -8,11 +8,9 @@ import jinja2
 import yaml
 
 import base as b
-import cache
 import sdrl.directory as dir
 import sdrl.elements as el
 import sdrl.html as h
-
 
 
 class PartbuilderMixin(el.DependenciesMixin):  # to be mixed into a Part class
@@ -83,7 +81,7 @@ class PartbuilderMixin(el.DependenciesMixin):  # to be mixed into a Part class
                 self.directory.make_the(el.Zipfile, zipfilename, parent=self.my_course, 
                                         sourcefile=zipdirname, title=zipfilename)
             else:
-                b.warning(f"'{zipdirname}' is a file, not a dir, and will be ignored.")
+                b.warning(f"'{zipdirname}' is a file, not a dir, and will be ignored.", file=self.sourcefile)
     
     def make_std_dependencies(self, toc: tg.Optional[el.Part], body_buildwrapper: el.Buildwrapper = None):
         self.add_dependency(self.directory.make_the(el.Sourcefile, self.sourcefile))  # noqa
