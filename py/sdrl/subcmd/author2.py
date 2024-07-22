@@ -49,6 +49,7 @@ def execute(pargs: argparse.Namespace):
     targetdir_i = _targetdir_i(pargs.targetdir)
     prepare_directories(targetdir_s, targetdir_i)
     the_cache = cache.SedrilaCache(os.path.join(targetdir_i, b.CACHE_FILENAME))
+    b.set_register_files_callback(the_cache.set_file_dirty)
     directory = dir.Directory(the_cache)
     c = course  # abbrev
     the_course = c.Coursebuilder(c.Course.__name__,

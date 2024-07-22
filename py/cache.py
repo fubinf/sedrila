@@ -51,10 +51,11 @@ class SedrilaCache:
     def __init__(self, cache_filename: str):
         self.timestamp_start = int(time.time())
         self.db = dbm.open(cache_filename, flag='c')  # open or create dbm file
-        self.timestamp_cached = int(self.db.get(self.TIMESTAMP_KEY, "0"))  # default to "everything is old"
-        self.previous_dirtyfiles = set(self.cached_list(self.DIRTYFILES_KEY))
-        self.new_dirtyfiles = set()
         self.written = dict()
+        self.timestamp_cached = int(self.db.get(self.TIMESTAMP_KEY, "0"))  # default to "everything is old"
+        dirtyfiles, dirtyfiles_state = self.cached_list(self.DIRTYFILES_KEY)
+        self.previous_dirtyfiles = set(dirtyfiles)
+        self.new_dirtyfiles = set()
         # self._dump(limit=256)  # debug, if needed
 
     def __contains__(self, key: str) -> bool:
@@ -113,12 +114,17 @@ class SedrilaCache:
         filetime = os.stat(pathname).st_mtime
         return filetime > self.mtime
 
+    def is_dirty(self, pathname: str) -> bool:
+        """Whether pathname was marked dirty in previous run."""
+        return pathname in self.previous_dirtyfiles
+
     def set_file_dirty(self, filename: str):
         """
         When a file produces an error or warning message, we mark it as 'dirty'.
         On the next run, the cache will flag such files as HAS_CHANGED, so that they are built
         again and the message is produced again. 
         """
+        b.debug(f"cache.set_file_dirty({filename})")
         self.new_dirtyfiles.add(filename)
 
     def write_str(self, key: str, value: str):

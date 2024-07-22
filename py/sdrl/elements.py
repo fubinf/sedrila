@@ -204,6 +204,11 @@ class Body_s(Piece):
     """Student HTML page text content.  Byproducts: Body_i, IncludeList_s, IncludeList_i."""
     sourcefile: str
 
+    def check_existing_resource(self):
+        super().check_existing_resource()
+        if self.cache.is_dirty(self.sourcefile):
+            self.state = c.State.HAS_CHANGED  # force re-build for previous dirty files
+
     def do_build(self):
         # --- prepare:
         macros.switch_part(self.name)

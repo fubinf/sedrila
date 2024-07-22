@@ -25,6 +25,7 @@ msgs_seen = set()
 loglevel = logging.ERROR
 loglevels = dict(DEBUG=logging.DEBUG, INFO=logging.INFO, WARNING=logging.WARNING,
                  ERROR=logging.ERROR, CRITICAL=logging.CRITICAL)
+register_files_callback: tg.Callable[[str], None]
 
 OStr = tg.Optional[str]
 StrAnyDict = dict[str, tg.Any]  # JSON or YAML structures
@@ -37,6 +38,11 @@ def set_loglevel(level: str):
         loglevel = loglevels[level]
     else:
         pass  # simply ignore nonexisting loglevels
+
+
+def set_register_files_callback(callback: tg.Callable[[str], None]):
+    global register_files_callback
+    register_files_callback = callback
 
 
 class Mode(enum.Enum):
@@ -153,10 +159,7 @@ def info(msg: str):
 
 def warning(msg: str, file: str = None, file2: str = None):
     if loglevel <= logging.WARNING:
-        if file and file2:
-            msg = f"Files '{file}' and '{file2}':\n   {msg}"
-        elif file:
-            msg = f"File '{file}':\n   {msg}"
+        msg = _process_params(msg, file, file2)
         rich_print(msg, "yellow")
 
 
@@ -164,11 +167,8 @@ def error(msg: str, file: str = None, file2: str = None):
     global num_errors, msgs_seen
     if msg not in msgs_seen:
         num_errors += 1
-    if file and file2:
-        msg = f"Files '{file}' and '{file2}':\n   {msg}"
-    elif file:
-        msg = f"File '{file}':\n   {msg}"
     if loglevel <= logging.ERROR:
+        msg = _process_params(msg, file, file2)
         rich_print(msg, "red")
 
 
@@ -205,6 +205,17 @@ def rich_print(msg: str, enclose_in_tag: tg.Optional[str] = None):
         if enclose_in_tag:
             msg = f"[{enclose_in_tag}]{msg}[/{enclose_in_tag}]"            
         rich.print(msg)
+
+
+def _process_params(msg: str, file: tg.Optional[str], file2: tg.Optional[str]):
+    if file and file2:
+        msg = f"Files '{file}' and '{file2}':\n   {msg}"
+        register_files_callback(file)
+        register_files_callback(file2)
+    elif file:
+        msg = f"File '{file}':\n   {msg}"
+        register_files_callback(file)
+    return msg
 
 
 def _testmode_reset():
