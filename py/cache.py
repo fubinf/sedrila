@@ -48,9 +48,9 @@ class SedrilaCache:
     previous_dirtyfiles: set[str]  # files marked dirty during last run
     new_dirtyfiles: set[str]  # files marked dirty during present run
 
-    def __init__(self, cache_filename: str):
+    def __init__(self, cache_filename: str, start_clean: bool):
         self.timestamp_start = int(time.time())
-        self.db = dbm.open(cache_filename, flag='c')  # open or create dbm file
+        self.db = dbm.open(cache_filename, flag='n' if start_clean else 'c')  # open or create dbm file
         self.written = dict()
         self.timestamp_cached = int(self.db.get(self.TIMESTAMP_KEY, "0"))  # default to "everything is old"
         dirtyfiles, dirtyfiles_state = self.cached_list(self.DIRTYFILES_KEY)
@@ -174,7 +174,7 @@ class SedrilaCache:
 
     @staticmethod
     def _as_dict(e: str) -> b.StrAnyDict:
-        return json.loads(e)
+        return json.loads(e) if e else dict()
 
     def _from_list(self, e: list[str]) -> str:
         return self.LIST_SEPARATOR.join(e)
@@ -190,7 +190,7 @@ class SedrilaCache:
         elif key in self.db:
             return (converter(self.db[key].decode()), State.AS_BEFORE)
         else:
-            return (None, State.MISSING)
+            return (converter(None), State.MISSING)
 
     def _dump(self, limit: int):
         keys = sorted(self.db.keys())

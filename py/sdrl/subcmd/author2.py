@@ -48,13 +48,13 @@ def execute(pargs: argparse.Namespace):
     targetdir_s = pargs.targetdir
     targetdir_i = _targetdir_i(pargs.targetdir)
     prepare_directories(targetdir_s, targetdir_i)
-    the_cache = cache.SedrilaCache(os.path.join(targetdir_i, b.CACHE_FILENAME))
+    the_cache = cache.SedrilaCache(os.path.join(targetdir_i, b.CACHE_FILENAME), start_clean=pargs.clean)
     b.set_register_files_callback(the_cache.set_file_dirty)
     directory = dir.Directory(the_cache)
     c = course  # abbrev
     the_course = c.Coursebuilder(c.Course.__name__,
-            parttype=dict(Chapter=c.Chapterbuilder, Taskgroup=c.Taskgroupbuilder, Task=c.Taskbuilder), 
             configfile=pargs.config, include_stage=pargs.include_stage,
+            parttype=dict(Chapter=c.Chapterbuilder, Taskgroup=c.Taskgroupbuilder, Task=c.Taskbuilder), 
             targetdir_s=targetdir_s, targetdir_i=targetdir_i, directory=directory)
     macroexpanders.register_macros(the_course)
     directory.build()
