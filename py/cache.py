@@ -198,22 +198,6 @@ class SedrilaCache:
             value = self.db[key]
             print(f"{key}:\t{value[:limit]}")
 
-    def _scandir(self, dirname: str, cached_filelist: str) -> tuple[list[str], list[str]]:  # TODO 2: remove
-        """Lists of all (samefiles, newfiles) below dirname according to cached_filelist and timestamp_cached."""
-        reftime = self.timestamp_cached  # younger than this (or equal) means new
-        knownfiles_set = set(cached_filelist.split(self.LIST_SEPARATOR))
-        samefiles = []
-        newfiles = []
-        for root, dirs, files in os.walk(dirname):
-            for filename in files:
-                pathname = os.path.join(root, filename)
-                thistime = os.stat(pathname).st_mtime
-                if pathname not in knownfiles_set or thistime >= reftime:  # if new or changed
-                    newfiles.append(pathname)
-                else:
-                    samefiles.append(pathname)
-        return samefiles, newfiles
-        
     def _storefilelist(self, key: str, samefiles: list[str], newfiles: list[str]):
         thelist = self.LIST_SEPARATOR.join(itertools.chain(samefiles, newfiles))
         self.db[key] = thelist
