@@ -7,7 +7,7 @@ import git
 import sdrl.course
 import sdrl.repo as r
 import sdrl.subcmd.instructor as sut  # system under test
-from tests.testbase import TempDirEnvironContextMgr
+import tests.testbase as tb
 
 TEST_REPO = "git@github.com:fubinf/sedrila-test1.git"
 METADATA_FILE = f"{os.path.dirname(__file__)}/data/{b.METADATA_FILE}"
@@ -19,7 +19,7 @@ def test_instructor_parts(capfd):
     sut.execute() is not well-suited for testing, so we test its constituent parts here.
     Not pretty due to the redundancy, but does the job OK.
     """
-    with TempDirEnvironContextMgr(**{sut.USER_CMD_VAR: "echo SEDRILA_INSTRUCTOR_COMMAND was called"}) as mgr:
+    with tb.TempDirEnvironContextMgr(**{sut.USER_CMD_VAR: "echo SEDRILA_INSTRUCTOR_COMMAND was called"}) as mgr:
         os.environ[sut.REPOS_HOME_VAR] = mgr.newdir  # will not be unpatched; not a problem
         # ----- test clone:
         b._testmode_reset()
@@ -37,8 +37,8 @@ def test_instructor_parts(capfd):
         shutil.copy(METADATA_FILE, 'out')
         # ----- read data from repo:
         b._testmode_reset()
-        course = sdrl.course.Course(f"out/{b.METADATA_FILE}",
-                                    include_stage="")
+        course = sdrl.course.Course(sdrl.course.Course.__name__, configfile=f"out/{b.METADATA_FILE}",
+                                    include_stage="", directory=tb.get_directory())
         r.compute_student_work_so_far(course)
         entries, workhours_total, timevalue_total = r.student_work_so_far(course)
         assert entries[0] == ('Task1', 1.0, 1.0, 0, False)

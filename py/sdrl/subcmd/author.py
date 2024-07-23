@@ -54,7 +54,6 @@ def execute(pargs: argparse.Namespace):
     c = course  # abbrev
     the_course = c.Coursebuilder(c.Course.__name__,
             configfile=pargs.config, include_stage=pargs.include_stage,
-            parttype=dict(Chapter=c.Chapterbuilder, Taskgroup=c.Taskgroupbuilder, Task=c.Taskbuilder), 
             targetdir_s=targetdir_s, targetdir_i=targetdir_i, directory=directory)
     prepare_itree_zip(the_course)
     macroexpanders.register_macros(the_course)

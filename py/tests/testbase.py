@@ -1,6 +1,9 @@
 import os
 import tempfile
 
+import cache
+import sdrl.directory
+
 class TempDirEnvironContextMgr(tempfile.TemporaryDirectory):
     """
     Context manager which (1) creates/deletes temporary directory,
@@ -45,3 +48,7 @@ class TempDirEnvironContextMgr(tempfile.TemporaryDirectory):
                     del os.environ[key]
             else:
                 os.environ[key] = oldvalue
+
+
+def get_directory() -> sdrl.directory.Directory:
+    return sdrl.directory.Directory(cache.SedrilaCache("", False))

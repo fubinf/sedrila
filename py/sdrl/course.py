@@ -242,12 +242,9 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
 
 class Course(el.Partscontainer):
     """
-    The master data object for this run.
-    Can be initialized in two different ways: 
-    - as Coursebuilder: From a handwritten YAML file. 
-      Will then read all content for a build.
-    - as Course: From a metadata file generated during build
-      for bookkeeping/reporting.
+    The master data object for this run. Can be initialized in two different ways: 
+    - as Coursebuilder: From a handwritten YAML file. Will then read all content for a build.
+    - as Course: From a metadata file generated during build for bookkeeping/reporting.
     """
     AUTHORMODE_ATTRS = ''
 
@@ -255,6 +252,7 @@ class Course(el.Partscontainer):
     breadcrumb_title: str
     chapterdir: str
     instructors: list[b.StrAnyDict]
+    course: 'Course'
     chapters: list['Chapter']
     init_data: b.StrAnyDict = {}
     allowed_attempts: str  # "2 + 0.5/h" or so, int+decimal, h is the task timevalue multiplier
@@ -264,6 +262,7 @@ class Course(el.Partscontainer):
 
     def __init__(self, name, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
+        self.course = self
         self.directory.record_the(Course, self.name, self)
         self.namespace_add(self.configfile, self)
         configdict = b.slurp_yaml(self.configfile)
@@ -277,6 +276,7 @@ class Course(el.Partscontainer):
                     report_extra=bool(self.AUTHORMODE_ATTRS))
         self.allowed_attempts_base, self.allowed_attempts_hourly = self._parse_allowed_attempts()
         self.name = self.slug = self.breadcrumb_title
+        self.parttype = dict(Chapter=Chapter, Taskgroup=Taskgroup, Task=Task)
         self._init_parts(configdict, getattr(self, 'include_stage', ""))
 
     @property
@@ -373,8 +373,8 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
     glossary: glossary.Glossary
 
     def __init__(self, name: str, *args, **kwargs):
-        self.course = self
         super().__init__(name, *args, **kwargs)
+        self.parttype = dict(Chapter=Chapterbuilder, Taskgroup=Taskgroupbuilder, Task=Taskbuilder)
 
     @property
     def outputfile(self) -> str:

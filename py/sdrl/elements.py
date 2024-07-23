@@ -417,8 +417,9 @@ class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task a
             self.directory = self.parent.directory
             self.course = self.parent.course
             self.parttype = self.parent.parttype
-            self.targetdir_s = self.parent.targetdir_s
-            self.targetdir_i = self.parent.targetdir_i
+            if getattr(self, 'targetdir_s', None):
+                self.targetdir_s = self.parent.targetdir_s
+                self.targetdir_i = self.parent.targetdir_i
 
     @property
     def outputfile(self) -> str:

@@ -1,12 +1,11 @@
 # pytest tests
 
 import base as b
-import cache
 import sdrl.markdown as md
-import sdrl.directory as dir
 import sdrl.glossary
 import sdrl.macros as macros
 
+import tests.testbase as tb
 
 expected_ref_myterm = """
 <div class='glossary-term-block'>
@@ -41,7 +40,7 @@ def test_glossary(capsys):
     macros._testmode_reset()
     macros.register_macro('PARTREF', 1, macros.MM.INNER, lambda mc: mc.arg1)  # render plain partname
     glossary = sdrl.glossary.Glossary('glossary', chapterdir="py/sdrl/tests/data",  # contains a title-only glossary.md
-                                      directory=dir.Directory(cache.SedrilaCache("", False)))
+                                      directory=tb.get_directory())
     md.render_markdown("", "", "", b.Mode.STUDENT, dict())  # must initialize md
     # ----- add term references:
     glossary.explains("ExplainingPart", "myterm")
