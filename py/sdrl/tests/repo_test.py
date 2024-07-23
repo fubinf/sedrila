@@ -12,7 +12,7 @@ import sdrl.course
 import sdrl.repo as r
 import sdrl.subcmd.student
 
-from tests.testbase import TempDirEnvironContextMgr
+import tests.testbase as tb
 
 INSTRUCTOR_USER = "sedrila-test-instructor"
 GIT_USER = f"{INSTRUCTOR_USER}@example.org"
@@ -83,9 +83,10 @@ def test_student_work_so_far():
 
     run_inside_repo(preparations, assertions)
 
+
 def run_inside_repo(preparations, assertions, coursemodifications = None):
     global fingerprint
-    with TempDirEnvironContextMgr(HOME='.') as mgr:
+    with tb.TempDirEnvironContextMgr(HOME='.') as mgr:
         #----- initialize test environment:
         course_json = b.slurp_json(f"{mgr.origdir}/py/sdrl/tests/data/{b.METADATA_FILE}")  # config template
         fingerprint = create_gpg_key()
@@ -98,7 +99,8 @@ def run_inside_repo(preparations, assertions, coursemodifications = None):
         os.system(f"git config user.signingkey {fingerprint}")
         preparations()
         #----- initialize application environment:
-        course = sdrl.course.Course(b.METADATA_FILE, include_stage="")
+        course = sdrl.course.Course(sdrl.course.Course.__name__, configfile=b.METADATA_FILE, 
+                                    include_stage="", directory=tb.get_directory())
         commits = git.commits_of_local_repo(reverse=True)
         workhours = r.workhours_of_commits(commits)
         r.accumulate_workhours_per_task(workhours, course)

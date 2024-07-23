@@ -258,12 +258,13 @@ class Course(el.Partscontainer):
     allowed_attempts: str  # "2 + 0.5/h" or so, int+decimal, h is the task timevalue multiplier
     allowed_attempts_base: int  # the int part of allowed_attempts
     allowed_attempts_hourly: float  # the decimal part of allowed_attempts
-    namespace: dict[str, el.Part] = dict()
+    namespace: dict[str, el.Part]
 
     def __init__(self, name, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
         self.course = self
         self.directory.record_the(Course, self.name, self)
+        self.namespace = dict()
         self.namespace_add(self.configfile, self)
         configdict = b.slurp_yaml(self.configfile)
         b.copyattrs(self.configfile,
