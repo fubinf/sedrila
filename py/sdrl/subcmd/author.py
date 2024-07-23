@@ -33,7 +33,7 @@ def add_arguments(subparser: argparse.ArgumentParser):
     subparser.add_argument('--include_stage', metavar="stage", default='',
                            help="include parts with this and higher 'stage:' entries in the generated output "
                                 "(default: only those with no stage)")
-    subparser.add_argument('--log', default="WARNING", choices=b.loglevels.keys(),
+    subparser.add_argument('--log', default="INFO", choices=b.loglevels.keys(),
                            help="Log level for logging to stdout (default: WARNING)")
     subparser.add_argument('--sums', action='store_const', const=True, default=False,
                            help="Print task volume reports")
@@ -56,6 +56,7 @@ def execute(pargs: argparse.Namespace):
             configfile=pargs.config, include_stage=pargs.include_stage,
             parttype=dict(Chapter=c.Chapterbuilder, Taskgroup=c.Taskgroupbuilder, Task=c.Taskbuilder), 
             targetdir_s=targetdir_s, targetdir_i=targetdir_i, directory=directory)
+    prepare_itree_zip(the_course)
     macroexpanders.register_macros(the_course)
     directory.build()
     purge_leftover_outputfiles(directory, targetdir_s, targetdir_i)
@@ -78,6 +79,16 @@ def prepare_directories(targetdir_s: str, targetdir_i: str):
     if not os.path.exists(targetdir_i):
         os.mkdir(targetdir_i)
 
+
+def prepare_itree_zip(the_course: course.Coursebuilder):
+    import sdrl.elements as el
+    if not the_course.itreedir:
+        return  # nothing to do
+    if not the_course.itreedir.endswith(".zip"):
+        b.critical(f"itreedir = '{the_course.itreedir}'; must end with '.zip'")
+    the_course.directory.make_the(el.Zipdir, the_course.itreedir, parent=the_course)
+    the_course.directory.make_the(el.Zipfile, os.path.basename(the_course.itreedir), parent=the_course, 
+                                  sourcefile=the_course.itreedir, instructor_only=True)
 
 def print_volume_report(course: course.Coursebuilder):
     """Show total timevalues per stage, difficulty, and chapter."""

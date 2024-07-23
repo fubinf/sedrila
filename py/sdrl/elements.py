@@ -455,7 +455,7 @@ class Partscontainer(Part):  # abstract class
 
 class Zipfile(Part):
     """xy.zip Outputfiles that are named Parts, plus the exceptional case itree.zip."""
-    instructor_only: bool
+    instructor_only: bool = False
 
     @property
     def innerpath(self) -> str:
@@ -467,17 +467,21 @@ class Zipfile(Part):
 
     @property
     def to_be_skipped(self) -> bool:
-        return False  # TODO 3: within course(!) could be skipped if no [PARTREF] to it exists anywhere
+        return False  # TODO 3: should be skipped if no [PARTREF] to it exists, unless instructor_only
+
+    def check_existing_resource(self):
+        s_ok = os.path.exists(self.outputfile_s) or self.instructor_only
+        i_ok = os.path.exists(self.outputfile_i)
+        self.state = c.State.AS_BEFORE if s_ok and i_ok else c.State.MISSING
 
     def do_build(self):
-        target_i = f"{self.my_course.targetdir_i}/{self.outputfile}"
-        b.info(target_i)
-        with zipfile.ZipFile(target_i, mode='w', 
+        b.info(self.outputfile_i)
+        with zipfile.ZipFile(self.outputfile_i, mode='w', 
                              compression=zipfile.ZIP_DEFLATED) as archive:  # prefer deflate for build speed
             self._zip_the_files(archive)
-        target_s = f"{self.my_course.targetdir_s}/{self.outputfile}"
-        b.info(target_s)
-        shutil.copy(target_i, target_s)  # TODO 2: not for itree.zip
+        if not self.instructor_only:
+            b.info(self.outputfile_s)
+            shutil.copy(self.outputfile_i, self.outputfile_s)
     
     def my_dependencies(self) -> tg.Iterable['Element']:
         return [self.directory.get_the(Zipdir, self.sourcefile)]
