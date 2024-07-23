@@ -65,7 +65,7 @@ class SedrilaMarkdown(markdown.Markdown):
 
 
 def render_markdown(context_sourcefile: str, partname: str, markdown_markup: str, 
-                    mode: b.Mode, blockmacro_topmatter: dict[str, str]) -> dict[str, set[str]]:
+                    mode: b.Mode, blockmacro_topmatter: dict[str, str]) -> b.StrAnyDict:
     """
     Generates HTML from Markdown in sedrila manner.
     See https://python-markdown.github.io/

@@ -1,5 +1,5 @@
 """Data structure, macros, and page generation for a glossary page (term dictionary and cross-reference)"""
-
+import itertools
 import typing as tg
 
 import base as b
@@ -8,6 +8,7 @@ import sdrl.html as h
 import sdrl.macros as macros
 import sdrl.markdown as md
 import sdrl.partbuilder
+
 
 class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
     """
@@ -40,12 +41,24 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         self.termdefs = set()
         self.term_linkslist = None  # set by [TERM], used and unset by [ENDTERM]
         self.register_macros_phase1()
-        self.make_std_dependencies(toc=self, body_buildwrapper=self._switch_macros)
+        self.add_dependency(self.directory.make_the(el.Sourcefile, self.sourcefile, part=self))
+        self.add_dependency(self.directory.make_the(el.IncludeList_s, self.name, part=self))
+        self.directory.make_the(el.Toc, self.name, part=self)  # Body_s, Body_i are created by do_build()
 
-    @property
-    def breadcrumb_item(self) -> str:
-        titleattr = f"title=\"{h.as_attribute(self.slug)}\""
-        return f"<a href='{self.outputfile}' {titleattr}>{self.title}</a>"
+    def do_build(self):
+        """A more manual than dependency-driven build."""
+        body_s = self.directory.make_the(el.Body_s, self.name, part=self)
+        body_i = self.directory.make_the(el.Body_i, self.name, part=self)
+        self.render(b.Mode.STUDENT)
+        includelist = self.directory.get_the(el.IncludeList_s, self.name)
+        body_s.encache_built_value(self.rendered_content)
+        body_i.encache_built_value(self.rendered_content)  # render only once to avoid TERM redefine errors
+        includelist.encache_built_value(self.includefiles)
+        self.render_structure(self.course, self, body_s.value, self.targetdir_s)
+        self.render_structure(self.course, self, body_i.value, self.targetdir_i)
+
+    def my_dependencies(self) -> tg.Iterable['Element']:
+        return itertools.chain(self.dependencies, self.directory.get_all(el.TermrefList))
 
     @property
     def sourcefile(self) -> str:
@@ -64,20 +77,19 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
 
     @property
     def toc_link_text(self) -> str:
-        return self.breadcrumb_item
+        return f"<a href='{self.outputfile}'>{self.title}</a>"
 
     def explains(self, partname: str, term: str):  # called by author.py
         if term not in self.explainedby:
             self.explainedby[term] = set()
         self.explainedby[term].add(partname)
 
-    def render(self, mode: b.Mode) -> str:
+    def render(self, mode: b.Mode):
         """We render only once, because the glossary will not contain [INSTRUCTOR] calls."""
         if not self.rendered_content:
             self.register_macros_phase2()
-            self.rendered_content, self.includefiles = md.render_markdown(self.sourcefile, self.slug, 
-                                                                          self.content, mode, dict())
-        return self.rendered_content
+            mddict = md.render_markdown(self.sourcefile, self.slug, self.content, mode, dict())
+            self.rendered_content, self.includefiles = (mddict['html'], mddict['includefiles'])
     
     def report_issues(self):
         terms_explained = set(self.explainedby.keys())
@@ -90,6 +102,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
     def register_macros_phase1(self):
         macros.register_macro("TERMREF", 1, macros.MM.INNER, self._expand_termref)
         macros.register_macro("TERMREF2", 2, macros.MM.INNER, self._expand_termref)
+        # --- the following will be redefined in phase2:
         macros.register_macro("TERM0", 1, macros.MM.INNER, self._complain_term)
         macros.register_macro("TERM", 1, macros.MM.BLOCKSTART, self._complain_term)
         macros.register_macro("ENDTERM", 0, macros.MM.BLOCKEND, self._ignore_endtermlong)
@@ -99,11 +112,6 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         macros.register_macro("TERM", 1, macros.MM.BLOCKSTART, self._expand_term, redefine=True)
         macros.register_macro("ENDTERM", 0, macros.MM.BLOCKEND, self._expand_endterm, redefine=True)
 
-    # ----- internals:
-    
-    # def _pseudoexpand(self, *args, **kwargs):  # for debugging
-    #    print("_pseudoexpand(self = ", self, ", args =", args, ", kwargs =", kwargs)
-    
     def _expand_termref(self, macrocall: macros.Macrocall) -> str:
         term = macrocall.arg1
         label = term if not macrocall.arg2 else macrocall.arg2  # unify calls to TERMREF and TERMREF2
@@ -122,10 +130,16 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         return ""
 
     def _expand_term0(self, macrocall: macros.Macrocall) -> str:
-        """[TERM::term|second form of term|third form|and so on], no definition text is supplied"""
+        """[TERM0::term|second form of term|third form|and so on], no definition text is supplied"""
         macrocall.arg2 = ""  # empty body
         return self._expand_termdef(macrocall)
 
+    def _expand_term(self, macrocall: macros.Macrocall) -> str:
+        """[TERM::term|second form of term|et cetera]"""
+        open_body = "\n<div class='glossary-term-body'>\n\n"
+        result = "".join(self._expand_any_termdef(macrocall)) + open_body
+        return result
+    
     def _expand_termdef(self, macrocall: macros.Macrocall) -> str:
         """allows two-argument macro calls that include a short definition"""
         termdef = macrocall.arg2
@@ -138,11 +152,6 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         self.term_linkslist = None
         # ----- done!:
         return "".join(result)
-
-    def _expand_term(self, macrocall: macros.Macrocall) -> str:
-        """[TERM::term|second form of term|etc]"""
-        open_body = "\n<div class='glossary-term-body'>\n\n"
-        return "".join(self._expand_any_termdef(macrocall)) + open_body
 
     def _expand_endterm(self, macrocall: macros.Macrocall) -> str:
         """[ENDTERM]  (a [TERM] has to be open)"""
@@ -183,7 +192,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
                 b.error(f"{macrocall.macrocall_text}: Term '{term}' is already defined", file=macrocall.filename)
             self.termdefs.add(term)
         # ----- open block:
-        result.extend("\n<div class='glossary-term-block'>\n")
+        result.append("\n<div class='glossary-term-block'>\n")
         # ----- generate anchors:
         anchors = ("<a id='%s'></a>\n" % b.slugify(term) for term in termslist)
         result.extend(anchors)
@@ -209,7 +218,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         if any_links:
             links.append("</div>\n")
         # ----- close block:
-        result.extend("\n</div>\n")
+        result.append("\n</div>\n")
         if self.term_linkslist is not None:
             b.error(f"{macrocall.macrocall_text} is preceeded by a [TERM] with no [ENDTERM]", 
                     file=macrocall.filename)
@@ -224,11 +233,3 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
                 self.mentionedby[term] = set()
             self.mentionedby[term].add(partname)
             macrocall.md.termrefs.add(term)
-
-    def _switch_macros(self, mode: str):
-        if mode == 'start':
-            self.register_macros_phase2()  # switch macros to glossary mode
-        elif mode == 'end':
-            self.register_macros_phase1()  # switch macros to non-glossary mode
-        else:
-            assert False

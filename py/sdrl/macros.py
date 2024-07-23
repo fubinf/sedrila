@@ -183,7 +183,8 @@ def expand_macro(sourcefile: str, partname: str, mm: re.Match, is_early_phase=Fa
     else:
         assert False    
     # return f"pre<{ppre}>exp<{expansion}>post<{ppost}>"
-    return f"{ppre}{expansion}{ppost}"
+    result = f"{ppre}{expansion}{ppost}"
+    return result
 
 
 def get_state(namespace: str) -> tg.Any:

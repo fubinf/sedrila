@@ -211,13 +211,13 @@ class Body_s(Piece):
 
     def do_build(self):
         # --- prepare:
-        macros.switch_part(self.name)
         content = self.directory.get_the(Content, self.name)
         # --- build body_s and byproduct includeslist_s:
         # includeslist_s gets filled when building self, but is a dependency of self!
         # As a dependency, it gets built earlier, so the includes_s found here will come into effect
         # only during the next run, via the cache.
         includeslist_s = self.directory.get_the(IncludeList_s, self.name)
+        macros.switch_part(self.name)
         mddict = md.render_markdown(self.sourcefile, self.name, content.value, b.Mode.STUDENT, 
                                     self.my_course.blockmacro_topmatter)
         html, includes_s, termrefs_s = (mddict['html'], mddict['includefiles'], mddict['termrefs'])
@@ -226,6 +226,7 @@ class Body_s(Piece):
         # --- build byproducts body_i and includeslist_i:
         body_i = self.directory.get_the(Body_i, self.name)
         includeslist_i = self.directory.get_the(IncludeList_i, self.name)
+        macros.switch_part(self.name)  # again, to reset the counters
         mddict = md.render_markdown(self.sourcefile, self.name, content.value, b.Mode.INSTRUCTOR, 
                                     self.my_course.blockmacro_topmatter)
         html, includes_i, termrefs_i = (mddict['html'], mddict['includefiles'], mddict['termrefs'])
@@ -234,7 +235,9 @@ class Body_s(Piece):
         # --- build byproduct termreflist:
         termrefs = list(termrefs_s | termrefs_i)
         if len(termrefs) > 0:  # this part has at least 1 TERMREF: create a TermrefList for it
-            self.directory.make_the(TermrefList, self.name, termrefs)
+            termreflist = self.directory.make_the(TermrefList, self.name, 
+                                                  part=self.part)  # implicit dependency of glossary
+            termreflist.encache_built_value(termrefs)
 
     def my_dependencies(self) -> list[Element]:
         return [
