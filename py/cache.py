@@ -42,6 +42,7 @@ class SedrilaCache:
     DIRTYFILES_KEY = '__dirtyfileslist__'  # previous_dirtyfiles
 
     db: dict  # in fact a dbm._Database
+    persistent_mode: bool  # supports non-persistent mode for testing: use "" as cache_filename
     written: b.StrAnyDict  # what was written into cache since start
     timestamp_start: int  # when did the current build process begin -> the future reference time
     timestamp_cached: int  # when did the previous build process begin -> the current reference time
@@ -50,7 +51,11 @@ class SedrilaCache:
 
     def __init__(self, cache_filename: str, start_clean: bool):
         self.timestamp_start = int(time.time())
-        self.db = dbm.open(cache_filename, flag='n' if start_clean else 'c')  # open or create dbm file
+        self.persistent_mode = bool(cache_filename)
+        if self.persistent_mode:
+            self.db = dbm.open(cache_filename, flag='n' if start_clean else 'c')  # open or create dbm file
+        else:
+            self.db = dict()
         self.written = dict()
         self.timestamp_cached = int(self.db.get(self.TIMESTAMP_KEY, "0"))  # default to "everything is old"
         dirtyfiles, dirtyfiles_state = self.cached_list(self.DIRTYFILES_KEY)
@@ -155,7 +160,8 @@ class SedrilaCache:
             converter = converters[type(value)]
             data = converter(value)
             self.db[key] = data  # implicitly further converts str to bytes
-        self.db.__exit__()  # dbm file context manager operation 
+        if self.persistent_mode:
+            self.db.__exit__()  # dbm file context manager operation 
 
     def state(self, key: str) -> State:
         if key in self.written:

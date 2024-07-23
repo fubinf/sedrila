@@ -56,6 +56,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         includelist.encache_built_value(self.includefiles)
         self.render_structure(self.course, self, body_s.value, self.targetdir_s)
         self.render_structure(self.course, self, body_i.value, self.targetdir_i)
+        self.report_issues()
 
     def my_dependencies(self) -> tg.Iterable['Element']:
         return itertools.chain(self.dependencies, self.directory.get_all(el.TermrefList))

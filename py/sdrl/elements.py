@@ -12,7 +12,6 @@ import yaml
 
 import base as b
 import cache as c
-import sdrl.course
 import sdrl.directory as dir
 import sdrl.macros as macros
 import sdrl.markdown as md

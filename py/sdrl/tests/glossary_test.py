@@ -1,6 +1,9 @@
 # pytest tests
 
 import base as b
+import cache
+import sdrl.markdown as md
+import sdrl.directory as dir
 import sdrl.glossary
 import sdrl.macros as macros
 
@@ -23,9 +26,12 @@ expected_ref_myterm = """
 """
 
 
-expected_output = """'src2: [TERM0::impossibleterm]': [TERM0] can only be used in the glossary
-[TERM0::myterm]: Term 'myterm' is already defined
-py/sdrl/tests/data/glossary.md: This term lacks a definition: ['mynoterm']
+expected_output = """File 'src2':
+   [TERM0::impossibleterm]': [TERM0] can only be used in the glossary
+File 'glossary.md':
+   [TERM0::myterm]: Term 'myterm' is already defined
+File 'py/sdrl/tests/data/glossary.md':
+   This term lacks a definition: ['mynoterm']
 """
 
 
@@ -34,7 +40,9 @@ def test_glossary(capsys):
     b._testmode_reset()
     macros._testmode_reset()
     macros.register_macro('PARTREF', 1, macros.MM.INNER, lambda mc: mc.arg1)  # render plain partname
-    glossary = sdrl.glossary.Glossary("py/sdrl/tests/data")  # contains a title-only glossary.md
+    glossary = sdrl.glossary.Glossary('glossary', chapterdir="py/sdrl/tests/data",  # contains a title-only glossary.md
+                                      directory=dir.Directory(cache.SedrilaCache("", False)))
+    md.render_markdown("", "", "", b.Mode.STUDENT, dict())  # must initialize md
     # ----- add term references:
     glossary.explains("ExplainingPart", "myterm")
     ref_myterm = macros.expand_macros("src",  "mypart", "[TERMREF::myterm]") 

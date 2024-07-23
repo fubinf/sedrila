@@ -224,3 +224,4 @@ def _testmode_reset():
     num_errors = 0
     msgs_seen = set()
     rich.get_console()._width = 10000
+    set_register_files_callback(lambda s: None)
