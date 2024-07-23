@@ -14,6 +14,7 @@ import sdrl.html as h
 
 
 class PartbuilderMixin(el.DependenciesMixin):  # to be mixed into a Part class
+    name: str
     directory: dir.Directory
     metadata_text: str  # the YAML front matter character stream
     metadata: b.StrAnyDict  # the YAML front matter
@@ -24,7 +25,8 @@ class PartbuilderMixin(el.DependenciesMixin):  # to be mixed into a Part class
 
     @property
     def breadcrumb_item(self) -> str:
-        return "(undefined)"
+        titleattr = f"title=\"{h.as_attribute(self.title)}\""
+        return f"<a href='{self.outputfile}' {titleattr}>{self.slug}</a>"
 
     @property
     def to_be_skipped(self) -> bool:
@@ -84,15 +86,18 @@ class PartbuilderMixin(el.DependenciesMixin):  # to be mixed into a Part class
                 b.warning(f"'{zipdirname}' is a file, not a dir, and will be ignored.", file=self.sourcefile)
     
     def make_std_dependencies(self, toc: tg.Optional[el.Part], body_buildwrapper: el.Buildwrapper = None):
-        self.add_dependency(self.directory.make_the(el.Sourcefile, self.sourcefile))  # noqa
-        self._make(el.Topmatter, sourcefile=self.sourcefile)  # noqa
-        self._make(el.Content)
-        self._make(el.IncludeList_s)
-        self._make(el.IncludeList_i)
-        self._make(el.Body_s, sourcefile=self.sourcefile, buildwrapper=body_buildwrapper)  # noqa
-        self._make(el.Body_i, sourcefile=self.sourcefile, buildwrapper=body_buildwrapper)  # noqa
+        """Create direct and indirect dependencies of Course, Chapter, Taskgroup, and Task Parts."""
+        # ----- direct dependencies:
+        self.add_dependency(self.directory.make_the(el.Topmatter, self.name, part=self))
+        self.add_dependency(self.directory.make_the(el.Body_s, self.name, part=self, buildwrapper=body_buildwrapper))
+        self.add_dependency(self.directory.make_the(el.Body_i, self.name, part=self, buildwrapper=body_buildwrapper))
         if toc:
             self.add_dependency(self.directory.make_or_get_the(el.Toc, toc.name, part=toc))
+        # ----- indirect dependencies (their dependers will know who they are):
+        self.directory.make_the(el.Sourcefile, self.sourcefile, part=self)
+        self.directory.make_the(el.Content, self.name, part=self)
+        self.directory.make_the(el.IncludeList_s, self.name, part=self)
+        self.directory.make_the(el.IncludeList_i, self.name, part=self)
 
     def process_topmatter(self, sourcefile: str, topmatter: b.StrAnyDict, course):
         assert False  # must be defined in concrete classes

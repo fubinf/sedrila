@@ -51,15 +51,18 @@ class Element(Top):  # abstract class
     check_existing_resource(), my_dependencies() and do_build().
     """
     name: str  # path, filename, or partname
+    part: 'Part'  # where to find inherited attrs, only set for non-Parts
+    directory: dir.Directory  # inherited
+    sourcefile: str  # path, inherited
     state: c.State
-    directory: dir.Directory
-    buildwrapper: Buildwrapper  # may be missing
+    buildwrapper: Buildwrapper  # usually missing
 
     def __init__(self, name: str, *args, **kwargs):
         self.name = name
         super().__init__(name, *args, **kwargs)  # many classes inherit this constructor!
         for key, val in kwargs.items():
             setattr(self, key, val)  # store all keyword args in same-named attr
+        self._inherit_from_part()
 
     def __repr__(self):
         return self.cache_key
@@ -132,6 +135,12 @@ class Element(Top):  # abstract class
         if getattr(self, 'buildwrapper', None):  # if set and non-None
             self.buildwrapper(mode)
 
+    def _inherit_from_part(self):
+        if getattr(self, 'part', None):  # inherit attrs, to make construction simpler:
+            self.directory = self.part.directory
+            self.sourcefile = self.part.sourcefile
+
+
 class Product(Element):  # abstract class
     """Abstract superclass for any kind of thing that gets built."""
     pass
@@ -156,7 +165,6 @@ class Piece(Product):  # abstract class
     def check_existing_resource(self):
         value, self.state = self.READFUNC[self.CACHED_TYPE](self.cache, self.cache_key)
         if value is not None:
-            assert self.state == c.State.AS_BEFORE  # cache write happens only later
             self.value = value  # do not set it to None
 
     def encache_built_value(self, value):
@@ -202,7 +210,6 @@ class Byproduct(Piece):  # abstract class
 
 class Body_s(Piece):
     """Student HTML page text content.  Byproducts: Body_i, IncludeList_s, IncludeList_i."""
-    sourcefile: str
 
     def check_existing_resource(self):
         super().check_existing_resource()
@@ -270,7 +277,7 @@ class IncludeList_s(ItemList):
         if state == c.State.MISSING:
             return
         for includefile in includelist:
-            self.add_dependency(self.directory.make_or_get_the(Sourcefile, includefile))
+            self.add_dependency(self.directory.make_or_get_the(Sourcefile, includefile, part=self.part))
 
 
 class IncludeList_i(IncludeList_s):
@@ -301,12 +308,12 @@ class Toc(DependenciesMixin, Piece):
 
 class FreshPiece(Piece):
     """Pieces of Tasks that are always built. The cache only determines whether it has changed."""
-    FRESH_ATTR = ''  # attr of task that represents the piece's value
-    task: 'sdrl.course.Taskbuilder'
+    FRESH_ATTR = '?'  # attr of task that represents the piece's value
+    part: 'sdrl.course.Taskbuilder'
 
     def check_existing_resource(self):
         cached_value, cached_state = self.READFUNC[self.CACHED_TYPE](self.cache, self.cache_key)
-        self.value = getattr(self.task, self.FRESH_ATTR)  # in fact freshly built
+        self.value = getattr(self.part, self.FRESH_ATTR)  # in fact freshly built
         if cached_value is None:
             self.state = c.State.MISSING
         elif cached_value == self.value:
@@ -333,7 +340,6 @@ class LinkslistBottom(FreshPiece):
 class Topmatter(Piece):
     """Metadata from a Part file. Byproduct: Content."""
     CACHED_TYPE = 'dict'  # which kind of value is in the cache
-    sourcefile: str
     
     def do_build(self):
         SEPARATOR = "---\n"
@@ -401,14 +407,16 @@ class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task a
     TOC_LEVEL = 0  # indent level in table of contents
     slug: str  # the file/dir basename by which we refer to the part
     title: str  # title: value
-    parent: 'Part'  # does not exist for Course
-    parttype: dict[str, type['Part']]
+    parttype: dict[str, type['Part']]  # for using X vs XBuilder for sub-Parts
+    parent: 'Partscontainer'
+    course: 'Coursebuilder'
 
     def __init__(self, name: str, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
         self.slug = self.name
         if getattr(self, 'parent', None):  # inherit parent attrs, to make X and XBuilder simpler:
             self.directory = self.parent.directory
+            self.course = self.parent.course
             self.parttype = self.parent.parttype
             self.targetdir_s = self.parent.targetdir_s
             self.targetdir_i = self.parent.targetdir_i
@@ -420,9 +428,6 @@ class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task a
     @property
     def toc(self) -> str:
         return "((TOC))"  # override in concrete Part classes
-
-    def my_dependencies(self) -> tg.Iterable['Element']:
-        return self.dependencies  # noqa, from Partsbuilder
 
     def structure_path(self) -> list['Part']:
         """List of nested parts, from a given part up to the course."""
@@ -508,7 +513,7 @@ class Sourcefile(Source):
     """A Source that consists of a single file. Its name is the sourcefile's full path."""
     def __init__(self, name, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
-        assert name
+        self.sourcefile = self.name
 
     def check_existing_resource(self):
         self.state = self.cache.filestate(self.name)

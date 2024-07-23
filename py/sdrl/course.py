@@ -90,10 +90,6 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
         course = self.taskgroup.chapter.course
         return int(course.allowed_attempts_base + course.allowed_attempts_hourly*self.timevalue)
 
-    @property
-    def breadcrumb_item(self) -> str:
-        return f"<a href='{self.outputfile}'>{self.slug}</a>"
-
     @functools.cached_property
     def linkslist_bottom(self) -> str:
         return self._render_task_linkslist('assumed_by', 'required_by')
@@ -134,8 +130,8 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
 
     def from_file(self, file: str, taskgroup: 'Taskgroupbuilder'):
         self.make_std_dependencies(toc=self.taskgroup)
-        self.add_dependency(self.directory.make_or_get_the(el.Tocline, self.name, task=self))
-        self.add_dependency(self.directory.make_the(el.LinkslistBottom, self.name, task=self))
+        self.add_dependency(self.directory.make_or_get_the(el.Tocline, self.name, part=self))
+        self.add_dependency(self.directory.make_the(el.LinkslistBottom, self.name, part=self))
 
         # ----- ensure explains/assumes/requires are lists:
         def _handle_strlist(attrname: str):
@@ -282,7 +278,7 @@ class Course(el.Partscontainer):
         self.allowed_attempts_base, self.allowed_attempts_hourly = self._parse_allowed_attempts()
         self.name = self.slug = self.breadcrumb_title
         self._init_parts(configdict, getattr(self, 'include_stage', ""))
-        
+
     @property
     def breadcrumb_item(self) -> str:
         titleattr = f"title=\"{h.as_attribute(self.title)}\""
@@ -377,8 +373,8 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
     glossary: glossary.Glossary
 
     def __init__(self, name: str, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
         self.course = self
+        super().__init__(name, *args, **kwargs)
 
     @property
     def outputfile(self) -> str:
@@ -468,8 +464,8 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         for direntry in os.scandir(self.baseresourcedir):
             # TODO 2: skip and report (jointly) non-file entries
             assert direntry.is_file()
-            self.directory.make_the(el.Sourcefile, direntry.path)
-            self.directory.make_the(el.CopiedFile, direntry.name, sourcefile=direntry.path,
+            self.directory.make_the(el.Sourcefile, direntry.path, part=self)
+            self.directory.make_the(el.CopiedFile, direntry.name, part=self,
                                     targetdir_s=self.targetdir_s, targetdir_i=self.targetdir_i)
 
     def _collect_zipdirs(self):
@@ -478,7 +474,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
 
     def _init_parts(self, configdict: dict, include_stage: str):
         self.read_partsfile(f"{self.chapterdir}/index.md")
-        self.glossary = glossary.Glossary(b.GLOSSARY_BASENAME, course=self, parent=self, chapterdir=self.chapterdir)
+        self.glossary = glossary.Glossary(b.GLOSSARY_BASENAME, parent=self, chapterdir=self.chapterdir)
         self.directory.record_the(glossary.Glossary, self.glossary.name, self.glossary)
         self.namespace_add("", self.glossary)
         self.find_zipdirs()
@@ -490,14 +486,14 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
                 b.error(f"'--include_stage {include_stage}' not allowed, must be one of {self.stages}")
             self.include_stage = ''  # include only parts with no stage
             self.include_stage_index = len(self.stages)
-        self.chapters = [self.parttype['Chapter'](ch['slug'], course=self, parent=self, chapterdict=ch) 
+        self.chapters = [self.parttype['Chapter'](ch['slug'], parent=self, chapterdict=ch) 
                          for ch in configdict['chapters']]
         self.make_std_dependencies(toc=self)
         toc: el.Toc = self.directory.get_the(el.Toc, self.name)
         for task in self.taskdict.values():
             toc.add_tocline(task)
-        self.directory.make_the(DerivedMetadata, self.name, course=self)
-        self._collect_zipdirs()  # TODO 2 collect only what gets referenced
+        self.directory.make_the(DerivedMetadata, self.name, part=self, course=self)
+        self._collect_zipdirs()  # TODO 3: collect only what gets referenced
         self._add_baseresources()
 
     def _task_or_taskgroup_exists(self, name: str) -> bool:
@@ -545,7 +541,7 @@ class Chapter(el.Partscontainer):
         self._init_from_dict(context, self.chapterdict)
         self._init_from_file(context, self.course)
         self.taskgroups = [self.parttype['Taskgroup'](taskgroup['slug'], 
-                                                      course=self.course, parent=self, chapter=self, 
+                                                      parent=self, chapter=self, 
                                                       taskgroupdict=taskgroup)
                            for taskgroup in (self.chapterdict.get('taskgroups') or [])]
 
@@ -568,11 +564,6 @@ class Chapterbuilder(sdrl.partbuilder.PartbuilderMixin, Chapter):
     TEMPLATENAME = "chapter.html"
     course: Coursebuilder
     taskgroups: list['Taskgroupbuilder']
-
-    @property
-    def breadcrumb_item(self) -> str:
-        titleattr = f"title=\"{h.as_attribute(self.title)}\""
-        return f"<a href='{self.outputfile}' {titleattr}>{self.slug}</a>"
 
     @property
     def outputfile(self) -> str:
@@ -627,7 +618,7 @@ class Taskgroup(el.Partscontainer):
         return f"{self.my_course.chapterdir}/{self.chapter.name}/{self.name}/index.md"
 
     def _create_tasks(self):
-        self.tasks = [Task(taskdict['slug'], course=self.course, parent=self, taskgroup=self).from_json(taskdict)
+        self.tasks = [Task(taskdict['slug'], parent=self, taskgroup=self).from_json(taskdict)
                       for taskdict in self.taskgroupdict['tasks']]
     
     def _init_from_dict(self, context: str, taskgroupdict: b.StrAnyDict):
@@ -645,11 +636,6 @@ class Taskgroupbuilder(sdrl.partbuilder.PartbuilderMixin, Taskgroup):
     TEMPLATENAME = "taskgroup.html"
     chapter: Chapterbuilder
     tasks: list['Taskbuilder']
-
-    @property
-    def breadcrumb_item(self) -> str:
-        titleattr = f"title=\"{h.as_attribute(self.title)}\""
-        return f"<a href='{self.outputfile}' {titleattr}>{self.slug}</a>"
 
     @property
     def to_be_skipped(self) -> bool:
