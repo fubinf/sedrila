@@ -8,7 +8,7 @@ import testbase
 
 def test_sedrilacache():
     with tempfile.TemporaryDirectory() as tmpdir:
-        c = cache.SedrilaCache(tmpdir)
+        c = cache.SedrilaCache(tmpdir, start_clean=False)  # cache is empty anyway
         S = cache.State
         mystr = "value s"
         mylist = ["a", "b"]
@@ -17,8 +17,8 @@ def test_sedrilacache():
         f_old = os.path.join(tmpdir, "f_old")
         # ----- Phase 1: Read from empty cache
         assert c.cached_str("s") == (None, S.MISSING)
-        assert c.cached_list("l") == (None, S.MISSING)
-        assert c.cached_dict("d") == (None, S.MISSING)
+        assert c.cached_list("l") == ([], S.MISSING)
+        assert c.cached_dict("d") == (dict(), S.MISSING)
         assert c.filestate("f") == S.MISSING
         # ----- Phase 2: Write
         c.write_str("s", mystr)
@@ -34,7 +34,7 @@ def test_sedrilacache():
         assert c.cached_str("non-s") == (None, S.MISSING)
         # ----- Phase 4: commit() and start afresh
         c.close()
-        c = cache.SedrilaCache(tmpdir)  # simulate a next run of sedrila
+        c = cache.SedrilaCache(tmpdir, start_clean=False)  # simulate a next run of sedrila
         os.utime(f_old, (c.mtime, c.mtime-5))  # make f_old old
         c.timestamp_cached -= 1  # kludge! make f_new look new
         # ----- Phase 5: Read existing

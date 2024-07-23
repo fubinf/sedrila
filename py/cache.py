@@ -42,7 +42,7 @@ class SedrilaCache:
     DIRTYFILES_KEY = '__dirtyfileslist__'  # previous_dirtyfiles
 
     db: dict  # in fact a dbm._Database
-    persistent_mode: bool  # supports non-persistent mode for testing: use "" as cache_filename
+    persistent_mode: bool  # non-persistent mode for testing/student/instructor via cache_filename=""
     written: b.StrAnyDict  # what was written into cache since start
     timestamp_start: int  # when did the current build process begin -> the future reference time
     timestamp_cached: int  # when did the previous build process begin -> the current reference time
