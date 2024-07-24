@@ -30,7 +30,7 @@ class Directory:
         ]
         for thistype in self.managed_types:
             dictname = thistype.__name__.lower()
-            self.__setattr__(dictname, dict())
+            setattr(self, dictname, dict())
 
     def get_the(self, mytype: type, name: str) -> 'sdrl.elements.Element':
         """Retrieve existing object from the directory."""

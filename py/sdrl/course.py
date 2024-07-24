@@ -277,7 +277,8 @@ class Course(el.Partscontainer):
                     report_extra=bool(self.AUTHORMODE_ATTRS))
         self.allowed_attempts_base, self.allowed_attempts_hourly = self._parse_allowed_attempts()
         self.name = self.slug = self.breadcrumb_title
-        self.parttype = dict(Chapter=Chapter, Taskgroup=Taskgroup, Task=Task)
+        if not getattr(self, 'parttype'):  # do not overwrite setting from Coursebuilder.__init__
+            self.parttype = dict(Chapter=Chapter, Taskgroup=Taskgroup, Task=Task)
         self._init_parts(configdict, getattr(self, 'include_stage', ""))
 
     @property
@@ -307,9 +308,8 @@ class Course(el.Partscontainer):
     def namespace_add(self, context: str, newpart: el.Part):
         name = newpart.name
         if name in self.namespace:
-            b.error("part name collision", 
-                    file=self._slugfilename(self.namespace[name]), 
-                    file2=self._slugfilename(newpart))
+            b.critical("Files '%s' and '%s':\n   part name collision" %  # critical because it makes assumptions wrong
+                       (self._slugfilename(self.namespace[name]), self._slugfilename(newpart)))
         else:
             self.namespace[name] = newpart
 
@@ -374,8 +374,8 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
     glossary: glossary.Glossary
 
     def __init__(self, name: str, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
         self.parttype = dict(Chapter=Chapterbuilder, Taskgroup=Taskgroupbuilder, Task=Taskbuilder)
+        super().__init__(name, *args, **kwargs)
 
     @property
     def outputfile(self) -> str:
@@ -549,7 +549,7 @@ class Chapter(el.Partscontainer):
 
     @property
     def sourcefile(self) -> str:
-        return f"{self.my_course.chapterdir}/{self.name}/index.md"
+        return f"{self.course.chapterdir}/{self.name}/index.md"
 
     def _init_from_dict(self, context: str, chapter: b.StrAnyDict):
         b.copyattrs(context,
@@ -617,7 +617,7 @@ class Taskgroup(el.Partscontainer):
 
     @property
     def sourcefile(self) -> str:
-        return f"{self.my_course.chapterdir}/{self.chapter.name}/{self.name}/index.md"
+        return f"{self.course.chapterdir}/{self.chapter.name}/{self.name}/index.md"
 
     def _create_tasks(self):
         self.tasks = [Task(taskdict['slug'], parent=self, taskgroup=self).from_json(taskdict)
@@ -696,6 +696,7 @@ class DerivedMetadata(el.Step):
         for part in allparts:
             topmatter = self.directory.get_the(el.Topmatter, part.name)
             part.process_topmatter(part.sourcefile, topmatter.value, self.course)
+            part.evaluate_stage(part.sourcefile, part.course)
         # ----- compute and check stuff:
         self.course.add_inverse_links()
         self.course.compute_taskorder()

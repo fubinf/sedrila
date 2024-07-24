@@ -3,9 +3,9 @@
 out/
 out.bak/
 .idea/
-py/sdrl/tests/data/sedrila-test1/
-py/tests/output/
-py/tests/output.bak/
+py/sdrl/tests/data/sedrila-test1
+py/sdrl/tests/input
+py/sdrl/tests/output
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

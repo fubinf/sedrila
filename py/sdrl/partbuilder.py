@@ -30,7 +30,7 @@ class PartbuilderMixin(el.DependenciesMixin):  # to be mixed into a Part class
 
     @property
     def to_be_skipped(self) -> bool:
-        return ...  # defined in concrete part classes
+        return False  # redefined in concrete part classes
 
     @property
     def toc_entry(self) -> str:
@@ -43,10 +43,12 @@ class PartbuilderMixin(el.DependenciesMixin):  # to be mixed into a Part class
         return f"<a href='{self.outputfile}' {titleattr}>{self.slug}</a>"  # noqa
 
     def do_build(self):
+        b.debug(f"do_build({self.name}): {self.to_be_skipped}")
         body_s = self.directory.get_the(el.Body_s, self.name).value  # noqa
         body_i = self.directory.get_the(el.Body_i, self.name).value  # noqa
-        self.render_structure(self.course, self, body_s, self.targetdir_s)  # noqa
-        self.render_structure(self.course, self, body_i, self.targetdir_i)  # noqa
+        if not self.to_be_skipped:
+            self.render_structure(self.course, self, body_s, self.targetdir_s)  # noqa
+            self.render_structure(self.course, self, body_i, self.targetdir_i)  # noqa
 
     def as_json(self) -> b.StrAnyDict:
         return dict(title=self.title)  # noqa
@@ -80,7 +82,7 @@ class PartbuilderMixin(el.DependenciesMixin):  # to be mixed into a Part class
             if os.path.isdir(zipdirname):
                 zipfilename = os.path.basename(zipdirname)
                 self.directory.make_the(el.Zipdir, zipdirname)
-                self.directory.make_the(el.Zipfile, zipfilename, parent=self.my_course, 
+                self.directory.make_the(el.Zipfile, zipfilename, parent=self.course, 
                                         sourcefile=zipdirname, title=zipfilename)
             else:
                 b.warning(f"'{zipdirname}' is a file, not a dir, and will be ignored.", file=self.sourcefile)

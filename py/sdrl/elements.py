@@ -78,11 +78,6 @@ class Element(Top):  # abstract class
     def statelabel(self) -> str:
         return f"{self.state}{'*' if isinstance(self, Byproduct) else ''}"
 
-    @property
-    def my_course(self):
-        import sdrl.course
-        return self.directory.get_the(sdrl.course.Course, 'Course')
-
     def build(self):
         """Generic framework operation."""
         self.check_existing_resource()
@@ -138,6 +133,7 @@ class Element(Top):  # abstract class
         if getattr(self, 'part', None):  # inherit attrs, to make construction simpler:
             self.directory = self.part.directory
             self.sourcefile = self.part.sourcefile
+            self.course = self.part.course
 
 
 class Product(Element):  # abstract class
@@ -157,10 +153,6 @@ class Piece(Product):  # abstract class
     WRITEFUNC = dict(str=SC.write_str, list=SC.write_list, dict=SC.write_dict)
     value: c.Cacheable  # build result, from Cache or from do_build()
     
-    @property
-    def cache_key(self) -> str:
-        return f"{self.name}__{self.__class__.__name__.lower()}__"
-
     def check_existing_resource(self):
         value, self.state = self.READFUNC[self.CACHED_TYPE](self.cache, self.cache_key)
         if value is not None:
@@ -225,7 +217,7 @@ class Body_s(Piece):
         includeslist_s = self.directory.get_the(IncludeList_s, self.name)
         macros.switch_part(self.name)
         mddict = md.render_markdown(self.sourcefile, self.name, content.value, b.Mode.STUDENT, 
-                                    self.my_course.blockmacro_topmatter)
+                                    self.course.blockmacro_topmatter)
         html, includes_s, termrefs_s = (mddict['html'], mddict['includefiles'], mddict['termrefs'])
         self.encache_built_value(html)
         includeslist_s.encache_built_value(includes_s)
@@ -234,7 +226,7 @@ class Body_s(Piece):
         includeslist_i = self.directory.get_the(IncludeList_i, self.name)
         macros.switch_part(self.name)  # again, to reset the counters
         mddict = md.render_markdown(self.sourcefile, self.name, content.value, b.Mode.INSTRUCTOR, 
-                                    self.my_course.blockmacro_topmatter)
+                                    self.course.blockmacro_topmatter)
         html, includes_i, termrefs_i = (mddict['html'], mddict['includefiles'], mddict['termrefs'])
         body_i.encache_built_value(html)
         includeslist_i.encache_built_value(includes_i)
@@ -417,7 +409,7 @@ class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task a
             self.directory = self.parent.directory
             self.course = self.parent.course
             self.parttype = self.parent.parttype
-            if getattr(self, 'targetdir_s', None):
+            if getattr(self.parent, 'targetdir_s', None):
                 self.targetdir_s = self.parent.targetdir_s
                 self.targetdir_i = self.parent.targetdir_i
 
