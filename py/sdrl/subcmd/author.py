@@ -8,13 +8,14 @@ TODO:
 """
 import argparse
 import datetime as dt
+import json
 import os
 import os.path
 import typing as tg
 
 import base as b
 import cache
-import sdrl.course as course
+import sdrl.course
 import sdrl.directory as dir
 import sdrl.macroexpanders as macroexpanders
 
@@ -48,21 +49,27 @@ def execute(pargs: argparse.Namespace):
     targetdir_s = pargs.targetdir
     targetdir_i = _targetdir_i(pargs.targetdir)
     prepare_directories(targetdir_s, targetdir_i)
+    create_and_build_course(pargs, targetdir_i, targetdir_s)
+    b.exit_if_errors()
+
+
+def create_and_build_course(pargs, targetdir_i, targetdir_s) -> sdrl.course.Coursebuilder:
     the_cache = cache.SedrilaCache(os.path.join(targetdir_i, b.CACHE_FILENAME), start_clean=pargs.clean)
     b.set_register_files_callback(the_cache.set_file_dirty)
     directory = dir.Directory(the_cache)
-    c = course  # abbrev
+    c = sdrl.course  # abbrev
     the_course = c.Coursebuilder(c.Course.__name__,
-            configfile=pargs.config, include_stage=pargs.include_stage,
-            targetdir_s=targetdir_s, targetdir_i=targetdir_i, directory=directory)
+                                 configfile=pargs.config, include_stage=pargs.include_stage,
+                                 targetdir_s=targetdir_s, targetdir_i=targetdir_i, directory=directory)
     prepare_itree_zip(the_course)
     macroexpanders.register_macros(the_course)
     directory.build()
+    b.spit(os.path.join(targetdir_s, b.METADATA_FILE), json.dumps(the_course.as_json(), indent=2))
     purge_leftover_outputfiles(directory, targetdir_s, targetdir_i)
     if pargs.sums:
         print_volume_report(the_course)
     the_cache.close()  # write back changes
-    b.exit_if_errors()
+    return the_course
 
 
 def prepare_directories(targetdir_s: str, targetdir_i: str):
@@ -79,7 +86,7 @@ def prepare_directories(targetdir_s: str, targetdir_i: str):
         os.mkdir(targetdir_i)
 
 
-def prepare_itree_zip(the_course: course.Coursebuilder):
+def prepare_itree_zip(the_course: sdrl.course.Coursebuilder):
     import sdrl.elements as el
     if not the_course.itreedir:
         return  # nothing to do
@@ -89,7 +96,7 @@ def prepare_itree_zip(the_course: course.Coursebuilder):
     the_course.directory.make_the(el.Zipfile, os.path.basename(the_course.itreedir), parent=the_course, 
                                   sourcefile=the_course.itreedir, instructor_only=True)
 
-def print_volume_report(course: course.Coursebuilder):
+def print_volume_report(course: sdrl.course.Coursebuilder):
     """Show total timevalues per stage, difficulty, and chapter."""
     # ----- print cumulative timevalues per stage as comma-separated values (CSV):
     volume_report_per_stage = course.volume_report_per_stage()
