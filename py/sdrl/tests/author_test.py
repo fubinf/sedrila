@@ -3,6 +3,7 @@ import argparse
 import contextlib
 import glob
 import os.path
+import re
 import shutil
 import zipfile
 
@@ -49,7 +50,19 @@ File 'ch/glossary.md':
    These terms lack a definition: ['Concept 2 undefined', 'Concept 4 undefined']
 """
 
-expected_filelist = [
+expected_output2 = """File 'ch/ch1/tg11/task111r+a.md':
+   [TREEREF::nonexisting]: itreedir file 'itree.zip/ch1/tg11/nonexisting' not found
+../out/task111r+a.html
+../out/instructor/task111r+a.html
+File 'ch/glossary.md':
+   [TERM::Concept 3]: Term 'Concept 3' is already defined
+../out/glossary.html
+../out/instructor/glossary.html
+File 'ch/glossary.md':
+   These terms lack a definition: ['Concept 2 undefined', 'Concept 4 undefined']
+"""
+
+expected_filelist1 = [
     'chapter-ch1.html', 'course.json',
     'favicon-32x32.png',
     'glossary.html',
@@ -163,6 +176,31 @@ Here, we mention
 """
 
 
+class Catcher:
+    """Retrieve multiline stretches from captured output based on prominent textual block markers."""
+    BEGIN = "########## %s ##########"
+    END = "---------- %s ----------"
+
+    def __init__(self, capfd):
+        self.capfd = capfd
+
+    def print_begin(self, marker: str):
+        print(self.BEGIN % marker)
+
+    def print_end(self, marker: str):
+        print(self.END % marker)
+
+    def get_block(self, marker: str) -> str:
+        """Return output from between the marker lines created by print_begin/print_end."""
+        actual_output, actual_err = self.capfd.readouterr()
+        assert actual_err == ""
+        print(actual_output)  # make it available again
+        regexp = f"{self.BEGIN % marker}\\n(.*){self.END % marker}"
+        mm = re.search(regexp, actual_output, re.DOTALL)
+        assert mm, f"marker '{marker}' not found"
+        return mm.group(1)
+
+
 def test_sedrila_author(capfd):
     """System test. Lots of hardcoded knowledge about the input and output of sedrila author."""
     # ----- prepare:
@@ -172,15 +210,19 @@ def test_sedrila_author(capfd):
     test_outputdir = os.path.join(OUTPUTDIR, "out")
     shutil.copytree(INPUTDIR, test_inputdir)  # test will modify the input data
     os.mkdir(test_outputdir)  # test outputs: sedrila-generated website
+    catcher = Catcher(capfd)
     # ----- run tests:
     test_outputdir = os.path.join("..", "out")  # during the test, we are in test_inputdir
     with contextlib.chdir(test_inputdir):
         # --- step 1: create and check output as-is:
-        course, actual_output1 = call_sedrila_author(test_outputdir, capfd)
+        course, actual_output1 = call_sedrila_author("step 1", test_outputdir, catcher)
         check_output1(course, actual_output1, expected_output1)
+        # --- step 2: build same config again:
+        course, actual_output2 = call_sedrila_author("step 2", test_outputdir, catcher)
+        check_output2(course, actual_output2, expected_output2)
 
 
-def call_sedrila_author(outputdir: str, capfd, start_clean=False) -> tuple[course.Coursebuilder, str]:
+def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -> tuple[course.Coursebuilder, str]:
     pargs = argparse.Namespace()
     pargs.config = b.CONFIG_FILENAME
     pargs.clean = start_clean
@@ -194,14 +236,16 @@ def call_sedrila_author(outputdir: str, capfd, start_clean=False) -> tuple[cours
     b.set_loglevel(pargs.log)
     targetdir_s = pargs.targetdir
     targetdir_i = author._targetdir_i(pargs.targetdir)
+    catcher.print_begin(step)
     author.prepare_directories(targetdir_s, targetdir_i)
     course = author.create_and_build_course(pargs, targetdir_i, targetdir_s)
-    return course, _get_output(capfd)
+    catcher.print_end(step)
+    return course, catcher.get_block(step)
 
 
 def check_output1(course: course.Coursebuilder, actual_output1: str, expected_output1: str):
     with contextlib.chdir(course.targetdir_s):
-        check_filelist1()
+        check_filelist(expected_filelist1)
         check_toc1()
         check_task_html1()
         check_zipfile1()
@@ -210,7 +254,14 @@ def check_output1(course: course.Coursebuilder, actual_output1: str, expected_ou
         assert b.num_errors == 2  # see expected_output1: 2 errors, 1 warning
 
 
-def check_filelist1():
+def check_output2(course: course.Coursebuilder, actual_output2: str, expected_output2: str):
+    with contextlib.chdir(course.targetdir_s):
+        check_filelist(expected_filelist1)  # should be as before
+        _compare_line_by_line(actual_output2, expected_output2)
+        assert b.num_errors == 2  # as before
+
+
+def check_filelist(expected_filelist: list[str]):
     actual_filelist = sorted(glob.glob('*'))
     if actual_filelist != expected_filelist:
         print("expected:", expected_filelist)
@@ -271,11 +322,3 @@ def _compare_line_by_line(actual: str, expected: str, strip=False):
                 print("actual::", actual)
                 assert (i+1, actual_lines[i]) == (i+1, expected_lines[i])
     assert len(actual_lines) == len(expected_lines)
-
-
-def _get_output(capfd) -> str:
-    actual_output, actual_err = capfd.readouterr()
-    capfd.close()  # stop capturing
-    print(actual_output)  # so that sedrila output shows up in pytest output
-    assert actual_err == ""
-    return actual_output
