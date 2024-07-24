@@ -383,7 +383,7 @@ class Outputfile(Product):  # abstract class
     def build(self):
         super().build()
         if self.state != c.State.AS_BEFORE:  # do_build() was called, file was written
-            self.cache.record_file(self.name)
+            self.cache.record_file(self.name, self.cache_key)
 
     def check_existing_resource(self):
         if not os.path.exists(self.outputfile_s) or not os.path.exists(self.outputfile_i):
@@ -520,9 +520,9 @@ class Sourcefile(Source):
         self.sourcefile = self.name
 
     def check_existing_resource(self):
-        self.state = self.cache.filestate(self.name)
+        self.state = self.cache.filestate(self.name, self.cache_key)
         if self.state != c.State.AS_BEFORE:
-            self.cache.record_file(self.name)
+            self.cache.record_file(self.name, self.cache_key)
 
 
 class Zipdir(Source):

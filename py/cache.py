@@ -95,7 +95,7 @@ class SedrilaCache:
     def cached_dict(self, key: str) -> tuple[b.StrAnyDict, State]:
         return self._entry(key, self._as_dict)
 
-    def filestate(self, pathname: str) -> State:
+    def filestate(self, pathname: str, cache_key: str) -> State:
         """
         Non-existing file: nonexisting.
         Before-unseen file, dirty file, or file with new time: has_changed.
@@ -104,7 +104,7 @@ class SedrilaCache:
         """
         if not os.path.exists(pathname):
             return State.MISSING
-        cache_state = self.state(pathname)
+        cache_state = self.state(cache_key)
         if cache_state == State.MISSING:
             # b.debug(f"{pathname} not in cache")
             return State.HAS_CHANGED
@@ -113,6 +113,10 @@ class SedrilaCache:
             return State.HAS_CHANGED
         else:
             return State.AS_BEFORE
+
+    def record_file(self, path: str, cache_key: str):
+        assert cache_key not in self.written  # we should usually write everything only once
+        self.written[cache_key] = ""  # file entries are empty because the file itself holds the data
 
     def is_recent(self, pathname: str) -> bool:
         """Whether pathname's mtime is larger than the cache's global mtime."""
@@ -144,10 +148,6 @@ class SedrilaCache:
         assert key not in self.written  # we should write everything only once
         self.written[key] = value
 
-    def record_file(self, path: str):
-        assert path not in self.written  # we should write everything only once
-        self.written[path] = ""  # file entries are empty because the file itself holds the data
-    
     def close(self):
         """Bring the persistent cache file up-to-date and close dbm."""
         converters = {str: self._as_is, list: self._from_list, set: self._from_list, dict: self._from_dict}
