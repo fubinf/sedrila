@@ -5,6 +5,7 @@ import glob
 import os.path
 import re
 import shutil
+import time
 import zipfile
 
 import bs4
@@ -67,6 +68,16 @@ expected_output3 = """../out/instructor/itree.zip
 ../out/instructor/task111r+a.html
 ../out/glossary.html
 ../out/instructor/glossary.html
+"""
+
+expected_output4 = """../out/index.html
+../out/instructor/index.html
+../out/tg12.html
+../out/instructor/tg12.html
+../out/task121.html
+../out/instructor/task121.html
+../out/task122.html
+../out/instructor/task122.html
 """
 
 expected_filelist1 = [
@@ -233,12 +244,18 @@ def test_sedrila_author(capfd):
                                                  "[TERM0::Concept 3b|Concept 2 undefined|Concept 4 undefined]"))
         b.spit("itree.zip/nonexisting.txt", "now it exists!")
         course3, actual_output3 = call_sedrila_author("step 3: repair errors", test_outputdir, catcher)
-        check_output2(course3, actual_output3, expected_output3, errors=0)
+        check_output2(course3, actual_output3, expected_output3)
         # --- step 4: modify 1 topmatter:
+        b.spit("ch/ch1/tg12/task121.md", 
+               b.slurp("ch/ch1/tg12/task121.md").replace("timevalue: 2.5",
+                                                         "timevalue: 3.0"))
+        course4, actual_output4 = call_sedrila_author("step 4: modify task121 topmatter", test_outputdir, catcher)
+        check_output2(course4, actual_output4, expected_output4)
         # --- step 5: modify instructor includefile:
         # --- step 6: modify task body_i:
-        # --- step 7: add TERMREF:
-        # --- step 8: add explains:
+        # --- step 7: rename task:
+        # --- step 8: add TERMREF:
+        # --- step 9: add explains:
 
 
 def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -> tuple[course.Coursebuilder, str]:
@@ -247,7 +264,7 @@ def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -
     pargs.clean = start_clean
     pargs.sums = False
     pargs.include_stage = "alpha"
-    pargs.log = "INFO"  # report built files
+    pargs.log = "INFO" if not step.startswith("step XXX") else "DEBUG"  # report built files
     pargs.targetdir = outputdir
     # ----- do call akin to sdrl.subcmd.author.execute():
     b._testmode_reset()  # noqa
@@ -273,7 +290,7 @@ def check_output1(course: course.Coursebuilder, actual_output1: str, expected_ou
         assert b.num_errors == errors  # see expected_output1: 2 errors, 1 warning
 
 
-def check_output2(course: course.Coursebuilder, actual_output2: str, expected_output2: str, errors: int):
+def check_output2(course: course.Coursebuilder, actual_output2: str, expected_output2: str, errors: int = 0):
     with contextlib.chdir(course.targetdir_s):
         check_filelist(expected_filelist1)  # should be as before
         _compare_line_by_line(actual_output2, expected_output2)

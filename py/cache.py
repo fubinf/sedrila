@@ -50,14 +50,17 @@ class SedrilaCache:
     new_dirtyfiles: set[str]  # files marked dirty during present run
 
     def __init__(self, cache_filename: str, start_clean: bool):
-        self.timestamp_start = int(time.time())
+        # self.timestamp_start = int(time.time() + 0.5)  # add half second in case filesystem mtime rounds, not truncates
+        self.timestamp_start = round(time.time(), 3)  # milliseconds suffice for us
         self.persistent_mode = bool(cache_filename)
         if self.persistent_mode:
             self.db = dbm.open(cache_filename, flag='n' if start_clean else 'c')  # open or create dbm file
         else:
             self.db = dict()
         self.written = dict()
-        self.timestamp_cached = int(self.db.get(self.TIMESTAMP_KEY, "0"))  # default to "everything is old"
+        timestamp_cached = float(self.db.get(self.TIMESTAMP_KEY, b"0").decode())  # default: everything is old
+        self.timestamp_cached = round(timestamp_cached, 3)  # milliseconds suffice for us
+        b.debug(f"cache.mtime/timestamp_cached: {self.timestamp_cached}")
         dirtyfiles, dirtyfiles_state = self.cached_list(self.DIRTYFILES_KEY)
         self.previous_dirtyfiles = set(dirtyfiles)
         self.new_dirtyfiles = set()
@@ -108,7 +111,7 @@ class SedrilaCache:
         if cache_state == State.MISSING:
             # b.debug(f"{pathname} not in cache")
             return State.HAS_CHANGED
-        if self.is_recent(pathname) or pathname in self.previous_dirtyfiles:
+        if self.is_recent(pathname) or self.is_dirty(pathname):
             # b.debug(f"{pathname} has younger mtime")
             return State.HAS_CHANGED
         else:
@@ -121,11 +124,17 @@ class SedrilaCache:
     def is_recent(self, pathname: str) -> bool:
         """Whether pathname's mtime is larger than the cache's global mtime."""
         filetime = os.stat(pathname).st_mtime
-        return filetime > self.mtime
+        it_is = filetime > self.mtime
+        if it_is:
+            b.debug(f"cache.is_recent({pathname}): {filetime} > {self.mtime}")
+        return it_is
 
     def is_dirty(self, pathname: str) -> bool:
         """Whether pathname was marked dirty in previous run."""
-        return pathname in self.previous_dirtyfiles
+        it_is = pathname in self.previous_dirtyfiles
+        if it_is:
+            b.debug(f"cache.is_dirty({pathname})!")
+        return it_is
 
     def set_file_dirty(self, filename: str):
         """

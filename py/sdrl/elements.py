@@ -268,7 +268,8 @@ class IncludeList_s(ItemList):
         if state == c.State.MISSING:
             return
         for includefile in includelist:
-            self.add_dependency(self.directory.make_or_get_the(Sourcefile, includefile, part=self.part))
+            self.add_dependency(self.directory.make_or_get_the(Sourcefile, includefile, 
+                                                               part=self.part, posthoc=True))
 
 
 class IncludeList_i(IncludeList_s):
@@ -507,9 +508,17 @@ class Source(Element):  # abstract class
 
 class Sourcefile(Source):
     """A Source that consists of a single file. Its name is the sourcefile's full path."""
+    posthoc: bool  # flag "this object did not yet exist during the Sourcefile.build() phase" 
+
     def __init__(self, name, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
         self.sourcefile = self.name
+        if getattr(self, 'posthoc', False):
+            # whenever a Sourcefile is first created when it is found as an includefile in a markdown render 
+            # (i.e. on first build or for a new includefile), posthoc=True is passed to the constructor.
+            # In this case, we must do cache.record_file() immediately or else the file would be considered
+            # new (and may trigger lots of rebuild actions) during the next build.
+            self.cache.record_file(self.sourcefile, self.cache_key)
 
     def check_existing_resource(self):
         self.state = self.cache.filestate(self.name, self.cache_key)
@@ -539,13 +548,13 @@ class Zipdir(Source):
                 current_filelist.append(sourcename)
         current_fileset = set(current_filelist)
         # ----- determine state according to changes and cache:
-        old_fileslist, cache_state = self.cache.cached_list(self.sourcefile)
+        old_fileslist, cache_state = self.cache.cached_list(self.cache_key)
         old_fileset = set(old_fileslist or [])
         filesets_differ = old_fileset != current_fileset
         if cache_state == c.State.MISSING or new_file_found or filesets_differ:
-            # b.debug(f"Zipdir.check({self.name}): cache {cache_state}, new_file {new_file_found}, "
-            #         f"filesets differ {filesets_differ}")
-            self.cache.write_list(self.sourcefile, current_filelist)
+            b.debug(f"Zipdir.check({self.name}): cache {cache_state}, new_file {new_file_found}, "
+                    f"filesets differ {filesets_differ}")
+            self.cache.write_list(self.cache_key, current_filelist)
             self.state = c.State.HAS_CHANGED
         else:
             self.state = c.State.AS_BEFORE
