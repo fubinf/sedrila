@@ -22,7 +22,7 @@ Enumeration: [EC], [EC].
 
 [HINT::My Hint]
 [TREEREF::/dummy.txt]
-[TREEREF::nonexisting]
+[TREEREF::/nonexisting.txt]
 [ENDHINT]
 
 [ENDSECTION]

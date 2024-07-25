@@ -23,7 +23,7 @@ expected_output1 = """../out/instructor/myarchive.zip
 ../out/myarchive.zip
 ../out/instructor/itree.zip
 File 'ch/ch1/tg11/task111r+a.md':
-   [TREEREF::nonexisting]: itreedir file 'itree.zip/ch1/tg11/nonexisting' not found
+   [TREEREF::/nonexisting.txt]: itreedir file 'itree.zip/nonexisting.txt' not found
 ../out/index.html
 ../out/instructor/index.html
 ../out/chapter-ch1.html
@@ -51,7 +51,7 @@ File 'ch/glossary.md':
 """
 
 expected_output2 = """File 'ch/ch1/tg11/task111r+a.md':
-   [TREEREF::nonexisting]: itreedir file 'itree.zip/ch1/tg11/nonexisting' not found
+   [TREEREF::/nonexisting.txt]: itreedir file 'itree.zip/nonexisting.txt' not found
 ../out/task111r+a.html
 ../out/instructor/task111r+a.html
 File 'ch/glossary.md':
@@ -60,6 +60,13 @@ File 'ch/glossary.md':
 ../out/instructor/glossary.html
 File 'ch/glossary.md':
    These terms lack a definition: ['Concept 2 undefined', 'Concept 4 undefined']
+"""
+
+expected_output3 = """../out/instructor/itree.zip
+../out/task111r+a.html
+../out/instructor/task111r+a.html
+../out/glossary.html
+../out/instructor/glossary.html
 """
 
 expected_filelist1 = [
@@ -179,7 +186,7 @@ Here, we mention
 class Catcher:
     """Retrieve multiline stretches from captured output based on prominent textual block markers."""
     BEGIN = "########## %s ##########"
-    END = "---------- %s ----------"
+    END = "---------- %s END ----------"
 
     def __init__(self, capfd):
         self.capfd = capfd
@@ -215,11 +222,23 @@ def test_sedrila_author(capfd):
     test_outputdir = os.path.join("..", "out")  # during the test, we are in test_inputdir
     with contextlib.chdir(test_inputdir):
         # --- step 1: create and check output as-is:
-        course, actual_output1 = call_sedrila_author("step 1", test_outputdir, catcher)
-        check_output1(course, actual_output1, expected_output1)
+        course1, actual_output1 = call_sedrila_author("step 1: initial build", test_outputdir, catcher)
+        check_output1(course1, actual_output1, expected_output1, errors=2)
         # --- step 2: build same config again:
-        course, actual_output2 = call_sedrila_author("step 2", test_outputdir, catcher)
-        check_output2(course, actual_output2, expected_output2)
+        course2, actual_output2 = call_sedrila_author("step 2: identical rebuild", test_outputdir, catcher)
+        check_output2(course2, actual_output2, expected_output2, errors=2)
+        # --- step 3: repair errors:
+        b.spit("ch/glossary.md", 
+               b.slurp("ch/glossary.md").replace("[TERM0::Concept 3|Concept 3b]",
+                                                 "[TERM0::Concept 3b|Concept 2 undefined|Concept 4 undefined]"))
+        b.spit("itree.zip/nonexisting.txt", "now it exists!")
+        course3, actual_output3 = call_sedrila_author("step 3: repair errors", test_outputdir, catcher)
+        check_output2(course3, actual_output3, expected_output3, errors=0)
+        # --- step 4: modify 1 topmatter:
+        # --- step 5: modify instructor includefile:
+        # --- step 6: modify task body_i:
+        # --- step 7: add TERMREF:
+        # --- step 8: add explains:
 
 
 def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -> tuple[course.Coursebuilder, str]:
@@ -238,12 +257,12 @@ def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -
     targetdir_i = author._targetdir_i(pargs.targetdir)
     catcher.print_begin(step)
     author.prepare_directories(targetdir_s, targetdir_i)
-    course = author.create_and_build_course(pargs, targetdir_i, targetdir_s)
+    this_course = author.create_and_build_course(pargs, targetdir_i, targetdir_s)
     catcher.print_end(step)
-    return course, catcher.get_block(step)
+    return this_course, catcher.get_block(step)
 
 
-def check_output1(course: course.Coursebuilder, actual_output1: str, expected_output1: str):
+def check_output1(course: course.Coursebuilder, actual_output1: str, expected_output1: str, errors: int):
     with contextlib.chdir(course.targetdir_s):
         check_filelist(expected_filelist1)
         check_toc1()
@@ -251,14 +270,14 @@ def check_output1(course: course.Coursebuilder, actual_output1: str, expected_ou
         check_zipfile1()
         check_glossary1()
         _compare_line_by_line(actual_output1, expected_output1)
-        assert b.num_errors == 2  # see expected_output1: 2 errors, 1 warning
+        assert b.num_errors == errors  # see expected_output1: 2 errors, 1 warning
 
 
-def check_output2(course: course.Coursebuilder, actual_output2: str, expected_output2: str):
+def check_output2(course: course.Coursebuilder, actual_output2: str, expected_output2: str, errors: int):
     with contextlib.chdir(course.targetdir_s):
         check_filelist(expected_filelist1)  # should be as before
         _compare_line_by_line(actual_output2, expected_output2)
-        assert b.num_errors == 2  # as before
+        assert b.num_errors == errors  # as before
 
 
 def check_filelist(expected_filelist: list[str]):
