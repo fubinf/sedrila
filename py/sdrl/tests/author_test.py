@@ -55,8 +55,6 @@ expected_output2 = """File 'ch/ch1/tg11/task111r+a.md':
    [TREEREF::/nonexisting.txt]: itreedir file 'itree.zip/nonexisting.txt' not found
 File 'ch/glossary.md':
    [TERM::Concept 3]: Term 'Concept 3' is already defined
-../out/task111r+a.html
-../out/instructor/task111r+a.html
 ../out/glossary.html
 ../out/instructor/glossary.html
 File 'ch/glossary.md':
@@ -101,9 +99,9 @@ expected_sidebar_task111 = """<div class="sidebar" id="sidebar">
 
   <div class="indent0 no-stage"><a href="chapter-ch1.html" title="Chapter 1">ch1</a></div>
     <div class="indent1 no-stage"><a href="tg11.html" title="Task group 1.1">tg11</a></div>
-      <div class="indent2 stage-alpha"><a href="task112.html" title="Task 1.1.2">task112</a> <span class="difficulty2" title="Difficulty: low">⚫︎</span> <span class="timevalue-decoration" title="Timevalue: 1.5 hours">1.5</span><span class="assumed-by-decoration" title="assumed by: task111r+a"></span><!--tg11--></div>
-      <div class="indent2 stage-alpha"><a href="task113.html" title="Task 1.1.3">task113</a> <span class="difficulty3" title="Difficulty: medium">⚫︎</span> <span class="timevalue-decoration" title="Timevalue: 2.0 hours">2.0</span><span class="required-by-decoration" title="required by: task111r+a"></span><!--tg11--></div>
-      <div class="indent2 stage-beta"><a href="task111r+a.html" title="Task 1.1.1 requires+assumes">task111r+a</a> <span class="difficulty1" title="Difficulty: verylow">⚫︎</span> <span class="timevalue-decoration" title="Timevalue: 1.0 hours">1.0</span><span class="assumes-decoration" title="assumes: task112"></span><span class="requires-decoration" title="requires: task113"></span><!--tg11--></div>
+      <div class="indent2 stage-alpha"><a href="task112.html" title="Task 1.1.2">task112</a> <span class="difficulty2" title="Difficulty: low">⚫︎</span> <span class="timevalue-decoration" title="Timevalue: 1.5 hours">1.5</span><span class="assumed-by-decoration" title="assumed by: task111r+a"></span></div>
+      <div class="indent2 stage-alpha"><a href="task113.html" title="Task 1.1.3">task113</a> <span class="difficulty3" title="Difficulty: medium">⚫︎</span> <span class="timevalue-decoration" title="Timevalue: 2.0 hours">2.0</span><span class="required-by-decoration" title="required by: task111r+a"></span></div>
+      <div class="indent2 stage-beta"><a href="task111r+a.html" title="Task 1.1.1 requires+assumes">task111r+a</a> <span class="difficulty1" title="Difficulty: verylow">⚫︎</span> <span class="timevalue-decoration" title="Timevalue: 1.0 hours">1.0</span><span class="assumes-decoration" title="assumes: task112"></span><span class="requires-decoration" title="requires: task113"></span></div>
     <div class="indent1 stage-alpha"><a href="tg12.html" title="Task group 1.2">tg12</a></div>
   <div class="indent0 no-stage"><a href="glossary.html">Glossary of terms</a></div>
   </div>
@@ -230,42 +228,43 @@ def test_sedrila_author(capfd):
     # ----- prepare:
     shutil.rmtree(OUTPUTDIR, ignore_errors=True)  # do our best to get rid of old outputs
     os.mkdir(OUTPUTDIR)
-    test_inputdir = os.path.join(OUTPUTDIR, "in")
-    test_outputdir = os.path.join(OUTPUTDIR, "out")
-    shutil.copytree(INPUTDIR, test_inputdir)  # test will modify the input data
-    os.mkdir(test_outputdir)  # test outputs: sedrila-generated website
+    myinputdir = os.path.join(OUTPUTDIR, "in")
+    myoutputdir = os.path.join(OUTPUTDIR, "out")
+    shutil.copytree(INPUTDIR, myinputdir)  # test will modify the input data
+    os.mkdir(myoutputdir)  # test outputs: sedrila-generated website
     catcher = Catcher(capfd)
     # ----- run tests:
-    test_outputdir = os.path.join("..", "out")  # during the test, we are in test_inputdir
-    with contextlib.chdir(test_inputdir):
+    myoutputdir = os.path.join("..", "out")  # during the test, we are in myinputdir
+    with contextlib.chdir(myinputdir):
         # --- step 1: create and check output as-is:
-        course1, actual_output1 = call_sedrila_author("step 1: initial build", test_outputdir, catcher)
+        course1, actual_output1 = call_sedrila_author("step 1: initial build", myoutputdir, catcher)
         check_output1(course1, actual_output1, expected_output1, errors=2)
         # --- step 2: build same config again:
-        course2, actual_output2 = call_sedrila_author("step 2: identical rebuild", test_outputdir, catcher)
+        course2, actual_output2 = call_sedrila_author("step 2: identical rebuild", myoutputdir, catcher)
         check_output2(course2, actual_output2, expected_output2, errors=2)
         # --- step 3: repair errors:
         b.spit("ch/glossary.md", 
                b.slurp("ch/glossary.md").replace("[TERM0::Concept 3|Concept 3b]",
                                                  "[TERM0::Concept 3b|Concept 2 undefined|Concept 4 undefined]"))
         b.spit("itree.zip/nonexisting.txt", "now it exists!")
-        course3, actual_output3 = call_sedrila_author("step 3: repair errors", test_outputdir, catcher)
+        course3, actual_output3 = call_sedrila_author("step 3: repair errors", myoutputdir, catcher)
         check_output2(course3, actual_output3, expected_output3)
-        # --- step 4: modify 1 topmatter:
+        # --- step 4: modify task121 topmatter (changes toc in entire taskgroup):
         b.spit("ch/ch1/tg12/task121.md", 
                b.slurp("ch/ch1/tg12/task121.md").replace("timevalue: 2.5",
                                                          "timevalue: 3.0"))
-        course4, actual_output4 = call_sedrila_author("step 4: modify task121 topmatter", test_outputdir, catcher)
+        course4, actual_output4 = call_sedrila_author("step 4: modify task121 topmatter", myoutputdir, catcher)
         check_output2(course4, actual_output4, expected_output4)
         # --- step 5: modify instructor includefile:
         b.spit("ch/include.md", 
                b.slurp("ch/include.md") + "Some more.\n")
-        course5, actual_output5 = call_sedrila_author("step 5: modify instructor includefile", test_outputdir, catcher)
+        course5, actual_output5 = call_sedrila_author("step 5: modify instructor includefile", 
+                                                      myoutputdir, catcher)
         check_output2(course5, actual_output5, expected_output5)
         # --- step 6: modify task body_i:
         b.spit("ch/ch1/tg12/task121.md", 
                b.slurp("ch/ch1/tg12/task121.md").replace("[ENDINSTRUCTOR]", "more!\n[ENDINSTRUCTOR]"))
-        course6, actual_output6 = call_sedrila_author("step 6: modify [INSTRUCTOR] part", test_outputdir, catcher)
+        course6, actual_output6 = call_sedrila_author("step 6: modify [INSTRUCTOR] section", myoutputdir, catcher)
         check_output2(course6, actual_output6, expected_output6)
         # --- step 7: rename task:
         # --- step 8: add TERMREF:
@@ -278,7 +277,7 @@ def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -
     pargs.clean = start_clean
     pargs.sums = False
     pargs.include_stage = "alpha"
-    pargs.log = "INFO" if not step.startswith("stepXXX:") else "DEBUG"  # report built files
+    pargs.log = "INFO" if not step.startswith("step XXX:") else "DEBUG"  # report built files or help debug
     pargs.targetdir = outputdir
     # ----- do call akin to sdrl.subcmd.author.execute():
     b._testmode_reset()  # noqa
