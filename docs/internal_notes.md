@@ -1,6 +1,6 @@
 # Internal technical notes
 
-## Design decisions
+## Requirements-level design decisions
 
 - We use YAML for handwritten structured data and JSON for machine-generated structured data.
 - We use Markdown as the main source language to keep authoring simple.
@@ -24,7 +24,7 @@
 - We use a student git repository for all solution transportation and bookkeeping.
 
 
-## Bookkeeping architecture
+## Student work bookkeeping architecture
 
 In a nutshell, the bookkeeping of _actual_ work hours worked by a student 
 and of _"earned value"_ effort hours (called "timevalue") certified by an instructor
@@ -53,3 +53,23 @@ is based on the following ideas:
   a rule that says a task will only count if it gets accepted no later than upon second (or third?) try.
   No such mechanism is implemented so far, though.
 
+
+## Incremental build architecture
+
+The authoring system of sedrila implements a fine-grained incremental build:
+By means of a persistent cache, only those work steps will be performed upon a new call to
+`sedrila author` that are needed to update the existing build output.
+
+The basic cache mechanism is implemented in `cache.py`.
+
+The items ("Elements") involved in the build as inputs, outputs or intermediate products are
+defined in `elements.py` and `course.py`. The latter contains those items that are part of
+the overall sedrila content model: Course, Chapter, Taskgroup, Task.
+
+The orchestration of the build is then very simple and is implemented in `directory.py`.
+Its basic idea is that there is an ordering of the Element types such that all depends-on
+edges in the dependency graph will point towards Elements that are earlier in that ordering,
+so that the build can proceed type-by-type forwards through that ordering.
+`directory.py` therefore maintains a directory of all entries accessible separately for each type.
+
+The method-level design of the build is documented at the top of `elements.py`.

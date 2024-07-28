@@ -77,41 +77,6 @@ Much of it is not yet implemented.
 
 #### 1.3.1 Elements class hierarchy
 
-The items involved in the build process as inputs or outputs are called Element.
-
-```
-Element
-  Product
-    Piece
-      Body_s
-      Byproduct
-        Body_i(Body_s)
-        Content
-        ItemList
-          IncludeList
-          TermrefList
-      FreshPiece
-        LinklistBottom
-        Tocline
-      Toc
-      Topmatter
-    Outputfile
-      CopiedFile
-      Part
-        Partscontainer
-          Course
-          Chapter
-          Taskgroup
-        Task
-        Glossary
-        Zipfile
-  Source
-    Configelement
-    Sourcefile
-    Zipdir
-  Step
-    DerivedMetadata
-```
 
 #### 1.3.2 Overall procedure
 

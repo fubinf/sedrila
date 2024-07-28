@@ -1,6 +1,114 @@
 """
 Class model for the stuff taking part in the incremental build.
-See the architecture description in README.md.
+Read the architecture description in docs/internal_notes.md first.
+
+The items involved in the build process as inputs, outputs, intermediate products, 
+or non-product pure-computation work steps are called Element.
+They are arranged in the following inheritance hierarchy:
+
+```
+Element
+  Product
+    Piece
+      Body
+          Body_s
+          Body_i
+          Glossarybody
+      Byproduct
+        Content
+        ItemList
+          IncludeList_s
+          IncludeList_i
+          TermrefList
+      FreshPiece
+        LinkslistBottom
+        Tocline
+      Toc
+      Topmatter
+    Outputfile
+      CopiedFile
+      Part
+        Partscontainer
+          Course
+          Chapter
+          Taskgroup
+        Task
+        Glossary
+        Zipfile
+  Source
+    Configelement
+    Sourcefile
+    Zipdir
+  Step
+    DerivedMetadata
+```
+
+
+## How states drive the build
+
+Any element can be `AS_BEFORE` or `HAS_CHANGED` or `MISSING` (the latter not for `Sources`).
+These are defined in `cache.State`.
+If the element is `MISSING`, it will be built, which turns the state into `HAS_CHANGED`.
+If it `HAS_CHANGED`, it will be re-built.
+If it is `AS_BEFORE`, it will be re-built only if a dependency `HAS_CHANGED`.
+
+
+## Methods involved in the build
+
+The above three state-related rules are implemented by the framework method `Element.build()`,
+which relies on three Element-type-specific methods:  
+- `check_existing_resource()` performs the state check by means of the cache.
+- `my_dependencies()` returns the Elements this Element depends on.
+- `do_build()` implements the actual build step for this particular type of element.
+
+
+## How data are represented in the cache
+
+`Steps` and `Outputfiles` need and have no cache representation.
+
+`Pieces` have a `value` that is stored in the cache;
+it is either a `str` or a `list[str]` or a `b.StrAnyDict`.
+
+`Sources` are represented in the cache only by cache keys, with an empty value.
+This serves to determine their state:
+- cache key missing: `MISSING`.
+- cache key written to cache in the present run: `HAS_CHANGED`.
+- cache key is in persistent cache from a previous run: `AS_BEFORE` or `HAS_CHANGED`, 
+  depending on the file's mtime (or file tree's youngest mtime).
+
+
+## How data are represented in the build
+
+`Elements` all have a number of attributes for management purposes, see the `Element` class.
+Most are submitted to the constructor call, but for convenience, 
+some of these are inherited via a `part` attribute.
+In contrast to these purely organizational data, there is _substantial_ data that supports the
+specific purpose of each type of element:
+
+`Steps` are pure computation. They modify the data of `Parts`, but have no data representation themselves.
+
+`CopiedFiles` are represented by their file only.
+
+`Parts` are represented by a complex object as defined in `course.py`.
+This object is created at initialization time, perhaps modified during a `Step`,
+and turned into a file during `do_build()`, when that is called.
+
+`Pieces` are represented by their `value` attribute as described above.
+
+
+## Special Element types
+
+All Element types in principle follow the build logic described under "methods involved" above.
+However, some do it in an odd way:
+
+`Byproducts` have no `do_build()` themselves and so never set their own `value` themselves.
+Instead, their `value` is set by some other `Piece`'s `do_build()`.
+
+`FreshPieces` do not use the cache to retrieve a previous value if they are `AS_BEFORE`.
+Instead, they _always_ retrieve the previous value, _always_ re-build themselves, and then compare
+the two in order to determine whether they are `AS_BEFORE` or `HAS_CHANGED`.
+This means the build step happens in `check_existing_resource()` and `do_build()` only writes
+a changed outcome to the cache.
 """
 
 import os.path
