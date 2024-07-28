@@ -187,6 +187,15 @@ def exit_if_errors(msg: str = ""):
             critical(f"==== {num_errors} error{'s' if num_errors != 1 else ''}. Exiting. ====")
 
 
+def caller(how_far_up: int = 1) -> str:
+    """Returns 'functionname:lineno' for how_far_up frames above the caller: the caller's n-th caller"""
+    import inspect as sp
+    frame = sp.currentframe().f_back  # the caller's frame
+    for k in range(how_far_up):
+        frame = frame.f_back
+    return f"{frame.f_code.co_qualname}:{frame.f_lineno}"
+
+
 def plural_s(number, value="s") -> str:
     return value if number != 1 else ""
 
