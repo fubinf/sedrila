@@ -116,8 +116,7 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
                      (self.timevalue, self.timevalue))
         refs = (self._taskrefs('assumed_by') + self._taskrefs('required_by') +
                 self._taskrefs('assumes') + self._taskrefs('requires'))
-        trick = f"<!--{self.taskgroup.name}-->"  # make Task Tocline depend on its Taskgroup
-        return f"<a {href} {titleattr}>{self.slug}</a> {diffsymbol} {timevalue}{refs}{trick}"
+        return f"<a {href} {titleattr}>{self.slug}</a> {diffsymbol} {timevalue}{refs}"
 
     @property
     def toc(self) -> str:
@@ -129,8 +128,7 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
                     assumes=self.assumes, requires=self.requires)
 
     def from_file(self, file: str, taskgroup: 'Taskgroupbuilder'):
-        self.make_std_dependencies(toc=self.taskgroup)
-        self.make_or_get_dependency(el.Tocline, part=self)
+        self.make_std_dependencies(use_toc_of=self.taskgroup)
         self.make_dependency(el.LinkslistBottom, part=self)
 
         # ----- ensure explains/assumes/requires are lists:
@@ -490,10 +488,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
             self.include_stage_index = len(self.stages)
         self.chapters = [self.parttype['Chapter'](ch['slug'], parent=self, chapterdict=ch) 
                          for ch in configdict['chapters']]
-        self.make_std_dependencies(toc=self)
-        toc: el.Toc = self.directory.get_the(el.Toc, self.name)
-        for task in self.taskdict.values():
-            toc.add_tocline(task)
+        self.make_std_dependencies(use_toc_of=self)
         self.directory.make_the(DerivedMetadata, self.name, part=self, course=self)
         self._collect_zipdirs()  # TODO 3: collect only what gets referenced
         self._add_baseresources()
@@ -595,7 +590,7 @@ class Chapterbuilder(sdrl.partbuilder.PartbuilderMixin, Chapter):
         self.evaluate_stage(sourcefile, course)
 
     def _init_from_file(self, context: str, course: Coursebuilder):
-        self.make_std_dependencies(toc=self)
+        self.make_std_dependencies(use_toc_of=self)
         self.find_zipdirs()
 
 
@@ -676,12 +671,9 @@ class Taskgroupbuilder(sdrl.partbuilder.PartbuilderMixin, Taskgroup):
                 name = os.path.basename(filename[:-3])  # remove .md suffix
                 self._add_task(Taskbuilder(name, course=self.course, parent=self, taskgroup=self)
                                 .from_file(filename, taskgroup=self))
-        tg_toc = self.directory.get_the(el.Toc, self.name)
-        for task in self.tasks:
-            tg_toc.add_tocline(task)
 
     def _init_from_file(self, context, chapter):
-        self.make_std_dependencies(toc=self)
+        self.make_std_dependencies(use_toc_of=self)
         self.find_zipdirs()
 
 
