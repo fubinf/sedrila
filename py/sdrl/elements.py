@@ -252,7 +252,7 @@ class Piece(Product):  # abstract class
         if value is not None:
             self.value = value  # do not set it to None
 
-    def encache_built_value(self, value):
+    def handle_value_and_state(self, value):
         """
         Where Outputfile elements directly produce an effect during do_build(),
         Pieces only live in the cache. This method puts them there and sets value.
@@ -265,7 +265,7 @@ class Piece(Product):  # abstract class
         else: 
             self.state = c.State.HAS_CHANGED
             self.WRITEFUNC[self.CACHED_TYPE](self.cache, self.cache_key, self.value)
-        b.debug(f"encache_built_value({self.cache_key}, c:{b.caller()}): "
+        b.debug(f"handle_value_and_state({self.cache_key}, c:{b.caller()}): "
                 f"cache: {cache_state},{'same' if self.value == cache_value else 'different'}_value"
                 f" --> {self.state}")
 
@@ -293,7 +293,7 @@ class Byproduct(Piece):  # abstract class
         return []
 
     def do_build(self):
-        pass  # Byproducts get built by their corresponding main product calling encache_built_value()
+        pass  # Byproducts get built by their corresponding main product calling handle_value_and_state()
 
 
 class Body(Piece):  # abstract class
@@ -327,8 +327,8 @@ class Body(Piece):  # abstract class
         mddict = md.render_markdown(self.sourcefile, self.name, content.value, render_mode, 
                                     self.course.blockmacro_topmatter)
         html, includes, self.termrefs = (mddict['html'], mddict['includefiles'], mddict['termrefs'])
-        self.encache_built_value(html)
-        includeslist.encache_built_value(includes)
+        self.handle_value_and_state(html)
+        includeslist.handle_value_and_state(includes)
 
 
 class Body_s(Body):
@@ -339,7 +339,7 @@ class Body_s(Body):
         if len(self.termrefs) > 0:  # this part has at least 1 TERMREF: create a TermrefList for it
             termreflist = self.directory.make_the(TermrefList, self.name, 
                                                   part=self.part)  # implicit dependency of glossary
-            termreflist.encache_built_value(self.termrefs)
+            termreflist.handle_value_and_state(self.termrefs)
 
 
 class Body_i(Body):
@@ -401,7 +401,7 @@ class Toc(Piece):
 
     def do_build(self):
         self.value = self.part.toc
-        self.encache_built_value(self.value)
+        self.handle_value_and_state(self.value)
 
     def add_tocline(self, task: 'sdrl.course.Task'):
         self.add_dependency(self.directory.make_or_get_the(Tocline, task.name, task=task))  # noqa
@@ -425,7 +425,7 @@ class FreshPiece(Piece):
 
     def do_build(self):
         # self.value is already set to the current value by check_existing_resource
-        self.encache_built_value(self.value)
+        self.handle_value_and_state(self.value)
 
 
 class Tocline(FreshPiece):
@@ -461,9 +461,9 @@ class Topmatter(Piece):
             b.error(f"metadata YAML is malformed: {str(exc)}", file=self.sourcefile)
             value = dict()  # use empty metadata as a weak replacement
         # ----- use the pieces, actual change has not necessarily happened:
-        self.encache_built_value(value)
+        self.handle_value_and_state(value)
         content_elem = self.directory.get_the(Content, self.name)  # our byproduct
-        content_elem.encache_built_value(content_text)
+        content_elem.handle_value_and_state(content_text)
 
 
 class Outputfile(Product):  # abstract class
