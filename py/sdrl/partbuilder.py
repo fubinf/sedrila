@@ -95,16 +95,15 @@ class PartbuilderMixin:  # to be mixed into a Part class
             else:
                 b.warning(f"'{zipdirname}' is a file, not a dir, and will be ignored.", file=self.sourcefile)
     
-    def make_std_dependencies(self, toc: tg.Optional[el.Part]):
+    def make_std_dependencies(self, use_toc_of: el.Part):
         """Create direct and indirect dependencies of Course, Chapter, Taskgroup, and Task Parts."""
         # ----- indirect dependency:
-        self.add_dependency(self.directory.make_the(el.Sourcefile, self.sourcefile, part=self))
+        self.directory.make_the(el.Sourcefile, self.sourcefile, part=self)
         # ----- direct dependencies, who know and create further direct dependencies:
-        self.add_dependency(self.directory.make_the(el.Topmatter, self.name, part=self))
-        self.add_dependency(self.directory.make_the(el.Body_s, self.name, part=self, includelist_class=el.IncludeList_s))
-        self.add_dependency(self.directory.make_the(el.Body_i, self.name, part=self, includelist_class=el.IncludeList_i))
-        if toc:
-            self.add_dependency(self.directory.make_or_get_the(el.Toc, toc.name, part=toc))
+        self.make_dependency(el.Topmatter, part=self)
+        self.make_dependency(el.Body_s, part=self, includelist_class=el.IncludeList_s)
+        self.make_dependency(el.Body_i, part=self, includelist_class=el.IncludeList_i)
+        self.make_or_get_dependency(el.Toc, name=use_toc_of.name, part=use_toc_of)
 
     def process_topmatter(self, sourcefile: str, topmatter: b.StrAnyDict, course):
         assert False  # must be defined in concrete classes
