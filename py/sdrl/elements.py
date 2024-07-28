@@ -22,8 +22,7 @@ Element
           TermrefList
       FreshPiece
         LinkslistBottom
-        Tocline
-      Toc
+        Toc
       Topmatter
     Outputfile
       CopiedFile
@@ -391,26 +390,9 @@ class TermrefList(ItemList):
     pass  # all functionality is generic
 
 
-class Toc(Piece):
-    """HTML for the toc of a Part."""
-    part: 'Part'
-
-    def __init__(self, name: str, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
-        # dependencies are added by the parent Part.
-
-    def do_build(self):
-        self.value = self.part.toc
-        self.handle_value_and_state(self.value)
-
-    def add_tocline(self, task: 'sdrl.course.Task'):
-        self.add_dependency(self.directory.make_or_get_the(Tocline, task.name, task=task))  # noqa
-
-
 class FreshPiece(Piece):
     """Piece of Task that has no dependency and is always built. The cache only determines whether it has changed."""
     FRESH_ATTR = '?'  # attr of task that represents the piece's value
-    part: 'sdrl.course.Taskbuilder'
 
     def check_existing_resource(self):
         cached_value, cached_state = self.READFUNC[self.CACHED_TYPE](self.cache, self.cache_key)
@@ -428,9 +410,9 @@ class FreshPiece(Piece):
         self.handle_value_and_state(self.value)
 
 
-class Tocline(FreshPiece):
-    """HTML for the toc entry of a Task."""
-    FRESH_ATTR = 'toc_link_text'
+class Toc(FreshPiece):
+    """HTML for the toc sidebar of a Part."""
+    FRESH_ATTR = 'toc'
 
 
 class LinkslistBottom(FreshPiece):  # TODO 2: integrate in the build
