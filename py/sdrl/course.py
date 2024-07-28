@@ -130,8 +130,8 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
 
     def from_file(self, file: str, taskgroup: 'Taskgroupbuilder'):
         self.make_std_dependencies(toc=self.taskgroup)
-        self.add_dependency(self.directory.make_or_get_the(el.Tocline, self.name, part=self))
-        self.add_dependency(self.directory.make_the(el.LinkslistBottom, self.name, part=self))
+        self.make_or_get_dependency(el.Tocline, part=self)
+        self.make_dependency(el.LinkslistBottom, part=self)
 
         # ----- ensure explains/assumes/requires are lists:
         def _handle_strlist(attrname: str):
@@ -685,7 +685,7 @@ class Taskgroupbuilder(sdrl.partbuilder.PartbuilderMixin, Taskgroup):
         self.find_zipdirs()
 
 
-class DerivedMetadata(el.Step):
+class DerivedMetadata(el.Step):  # TODO 1: rename to MetadataDerivation
     """Copy Topmatter into Parts' attributes, compute assumedby/requiredby/taskorder, check links."""
     course: Coursebuilder
 

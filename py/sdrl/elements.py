@@ -156,7 +156,7 @@ class Element:  # abstract class
 
     @property
     def cache_key(self) -> str:
-        return f"{self.name}__{self.__class__.__name__.lower()}__"  # e.g. MyPart__body_i__
+        return f"{self.name}__{self.__class__.__name__.lower()}"  # e.g. MyPart__body_i
 
     @property
     def statelabel(self) -> str:
@@ -164,7 +164,12 @@ class Element:  # abstract class
 
     def build(self):
         """Generic framework operation."""
-        self.check_existing_resource()
+        def do_it():
+            self.do_build()
+            if self.state == c.State.MISSING:  # HAS_CHANGED and AS_BEFORE are acceptable
+                self.state = c.State.HAS_CHANGED
+
+        self.check_existing_resource()  # some do_build() rely on this to have happened
         if self.state != c.State.AS_BEFORE:
             b.debug(f"{self.__class__.__name__}.build({self.name}) local state:\t{self.statelabel} ")
             do_it()
@@ -195,6 +200,16 @@ class Element:  # abstract class
 
     def add_dependency(self, dep: 'Element'):
         self.dependencies.append(dep)
+
+    def make_dependency(self, mytype: type, *args, **kwargs):
+        name = kwargs.pop('name') if 'name' in kwargs else self.name
+        elem = self.directory.make_the(mytype, name, *args, **kwargs)
+        self.add_dependency(elem)
+
+    def make_or_get_dependency(self, mytype: type, *args, **kwargs):
+        name = kwargs.pop('name') if 'name' in kwargs else self.name
+        elem = self.directory.make_or_get_the(mytype, name, *args, **kwargs)
+        self.add_dependency(elem)
 
     def cached_str(self) -> tuple[str, c.State]:
         return self.cache.cached_str(self.cache_key)
@@ -262,9 +277,9 @@ class Byproduct(Piece):  # abstract class
     """
     A Byproduct gets built not by its own do_build() but by its main Product's,
     which must be built first and will set the Byproduct's 'value' attr and cache entry.
-    Byproduct.do_build() only verifies that value is set.
     check_existing_resource() retrieves the cache entry iff value is not set (when the
     main Product did not need to be built).
+    In both cases, Byproduct.do_build() does nothing.
     Byproducts rely on their main Product's dependency checking; they have no dependenies of their own. 
     """
     def check_existing_resource(self):
@@ -272,64 +287,79 @@ class Byproduct(Piece):  # abstract class
             pass 
         else:  # main product was not built, need to read cache
             super().check_existing_resource()
-            assert self.has_value() or self.state == c.State.MISSING
+            assert self.has_value()  # if main product was not built, we cannot be MISSING
 
     def my_dependencies(self) -> list[Element]:
         return []
 
     def do_build(self):
-        pass  # Byproducts get built by their corresponding main product
+        pass  # Byproducts get built by their corresponding main product calling encache_built_value()
 
 
-class Body_s(Piece):
-    """Student HTML page text content.  Byproducts: Body_i, IncludeList_s, IncludeList_i."""
+class Body(Piece):  # abstract class
+    includelist_class: type
+    termrefs: set[str]
+
+    def __init__(self, name: str, *args, **kwargs):
+        super().__init__(name, *args, **kwargs)
+        self.add_dependency(self.directory.make_or_get_the(Content, self.name, part=self))
+        includelist = self.directory.make_the(self.includelist_class, self.name, part=self)
+        self.add_dependency(includelist)
+        includelist.check_existing_resource()
+        if includelist.state == c.State.AS_BEFORE:  # a list is available
+            for fname in includelist.value:
+                self.make_or_get_dependency(Sourcefile, name=fname, posthoc=True)
 
     def check_existing_resource(self):
         super().check_existing_resource()
         if self.cache.is_dirty(self.sourcefile):
             self.state = c.State.HAS_CHANGED  # force re-build for previous dirty files
 
-    def do_build(self):
+    def do_do_build(self, includelist_class: type, render_mode: b.Mode):
         # --- prepare:
         content = self.directory.get_the(Content, self.name)
-        # --- build body_s and byproduct includeslist_s:
-        # includeslist_s gets filled when building self, but is a dependency of self!
-        # As a dependency, it gets built earlier, so the includes_s found here will come into effect
+        # --- build body and byproduct includeslist:
+        # includeslist gets filled when building self, but is also a dependency of self!
+        # As a dependency, it gets built earlier, so the includes found here will come into effect
         # only during the next run, via the cache.
-        includeslist_s = self.directory.get_the(IncludeList_s, self.name)
+        includeslist = self.directory.get_the(includelist_class, self.name)
         macros.switch_part(self.name)
-        mddict = md.render_markdown(self.sourcefile, self.name, content.value, b.Mode.STUDENT, 
+        mddict = md.render_markdown(self.sourcefile, self.name, content.value, render_mode, 
                                     self.course.blockmacro_topmatter)
-        html, includes_s, termrefs_s = (mddict['html'], mddict['includefiles'], mddict['termrefs'])
+        html, includes, self.termrefs = (mddict['html'], mddict['includefiles'], mddict['termrefs'])
         self.encache_built_value(html)
-        includeslist_s.encache_built_value(includes_s)
-        # --- build byproducts body_i and includeslist_i:
-        body_i = self.directory.get_the(Body_i, self.name)
-        includeslist_i = self.directory.get_the(IncludeList_i, self.name)
-        macros.switch_part(self.name)  # again, to reset the counters
-        mddict = md.render_markdown(self.sourcefile, self.name, content.value, b.Mode.INSTRUCTOR, 
-                                    self.course.blockmacro_topmatter)
-        html, includes_i, termrefs_i = (mddict['html'], mddict['includefiles'], mddict['termrefs'])
-        body_i.encache_built_value(html)
-        includeslist_i.encache_built_value(includes_i)
-        # --- build byproduct termreflist:
-        termrefs = list(termrefs_s | termrefs_i)
-        if len(termrefs) > 0:  # this part has at least 1 TERMREF: create a TermrefList for it
+        includeslist.encache_built_value(includes)
+
+
+class Body_s(Body):
+    """Student HTML page text content.  Byproducts: IncludeList_s, Termreflist."""
+    def do_build(self):
+        self.do_do_build(IncludeList_s, b.Mode.STUDENT)
+        # --- build byproduct termreflist (body_i.termrefs ought to be identical to self.termrefs):
+        if len(self.termrefs) > 0:  # this part has at least 1 TERMREF: create a TermrefList for it
             termreflist = self.directory.make_the(TermrefList, self.name, 
                                                   part=self.part)  # implicit dependency of glossary
-            termreflist.encache_built_value(termrefs)
-
-    def my_dependencies(self) -> list[Element]:
-        return [
-            self.directory.get_the(Content, self.name),
-            self.directory.get_the(IncludeList_s, self.name),
-            self.directory.get_the(IncludeList_i, self.name),
-        ]
+            termreflist.encache_built_value(self.termrefs)
 
 
-class Body_i(Byproduct, Body_s):
-    """Just like Body_s, but for instructor HTML. Byproduct of Body_s."""
-    pass  # all functionality is generic, see Body_s.build()
+class Body_i(Body):
+    """Instructor HTML page text content.  Byproduct: IncludeList_i."""
+    def do_build(self):
+        self.do_do_build(IncludeList_i, b.Mode.INSTRUCTOR)
+
+
+class Glossarybody(Body):
+    """Glossarypage content.  Byproduct: IncludeList_s."""
+    switch_macros_op: tg.Callable
+
+    def __init__(self, name: str, *args, **kwargs):
+        super().__init__(name, *args, **kwargs)
+        for termreflist in self.directory.get_all(TermrefList):
+            self.add_dependency(termreflist)
+
+    def do_build(self):
+        self.switch_macros_op()        
+        self.do_do_build(IncludeList_s, b.Mode.STUDENT)
 
 
 class Content(Byproduct):
@@ -337,24 +367,17 @@ class Content(Byproduct):
     pass
 
 
-class ItemList(DependenciesMixin, Byproduct):  # abstract class
-    """Abstract superclass for lists of names of dependencies."""
-    CACHED_TYPE = 'list'  # which kind of value is in the cache
+class ItemList(Byproduct):  # abstract class
+    """Abstract superclass for sets of names of dependencies."""
+    CACHED_TYPE = 'set'  # which kind of value is in the cache
 
 
 class IncludeList_s(ItemList):
     """List of names of files INCLUDEd by a Part in its student version."""
-    def __init__(self, name: str, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
-        includelist, state = self.cached_list()
-        if state == c.State.MISSING:
-            return
-        for includefile in includelist:
-            self.add_dependency(self.directory.make_or_get_the(Sourcefile, includefile, 
-                                                               part=self.part, posthoc=True))
+    pass  # all functionality is generic
 
 
-class IncludeList_i(IncludeList_s):
+class IncludeList_i(ItemList):
     """List of names of files INCLUDEd by a Part in its instructor version."""
     pass  # all functionality is generic
 
@@ -365,12 +388,16 @@ class TermrefList(ItemList):
     Many of these will be empty, therefore TermrefList objects are created only if needed.
     They are implicit dependencies of the Glossary.
     """
-    pass
+    pass  # all functionality is generic
 
 
-class Toc(DependenciesMixin, Piece):
+class Toc(Piece):
     """HTML for the toc of a Part."""
     part: 'Part'
+
+    def __init__(self, name: str, *args, **kwargs):
+        super().__init__(name, *args, **kwargs)
+        # dependencies are added by the parent Part.
 
     def do_build(self):
         self.value = self.part.toc
@@ -381,7 +408,7 @@ class Toc(DependenciesMixin, Piece):
 
 
 class FreshPiece(Piece):
-    """Pieces of Tasks that are always built. The cache only determines whether it has changed."""
+    """Piece of Task that has no dependency and is always built. The cache only determines whether it has changed."""
     FRESH_ATTR = '?'  # attr of task that represents the piece's value
     part: 'sdrl.course.Taskbuilder'
 
@@ -406,7 +433,7 @@ class Tocline(FreshPiece):
     FRESH_ATTR = 'toc_link_text'
 
 
-class LinkslistBottom(FreshPiece):
+class LinkslistBottom(FreshPiece):  # TODO 2: integrate in the build
     """HTML for the assumedBy/requiredBy links of a Task."""
     FRESH_ATTR = 'linkslist_bottom'
 
@@ -415,27 +442,28 @@ class Topmatter(Piece):
     """Metadata from a Part file. Byproduct: Content."""
     CACHED_TYPE = 'dict'  # which kind of value is in the cache
     
+    def __init__(self, name: str, *args, **kwargs):
+        super().__init__(name, *args, **kwargs)
+        self.add_dependency(self.directory.get_the(Sourcefile, self.sourcefile))
+
     def do_build(self):
-        SEPARATOR = "---\n"
-        content_elem = self.directory.get_the(Content, self.name)  # our byproduct
         # ----- obtain file contents:
+        SEPARATOR = "---\n"
         text = b.slurp(self.sourcefile)
         if SEPARATOR not in text:
             b.error(f"triple-dash separator is missing", file=self.sourcefile)
             return
         topmatter_text, content_text = text.split(SEPARATOR, 1)
-        # ----- parse metadata
+        # ----- parse metadata:
         try:
             value = yaml.safe_load(topmatter_text) or dict()  # avoid None for empty topmatter
         except yaml.YAMLError as exc:
             b.error(f"metadata YAML is malformed: {str(exc)}", file=self.sourcefile)
             value = dict()  # use empty metadata as a weak replacement
-        # ----- use the pieces:
+        # ----- use the pieces, actual change has not necessarily happened:
         self.encache_built_value(value)
+        content_elem = self.directory.get_the(Content, self.name)  # our byproduct
         content_elem.encache_built_value(content_text)
-
-    def my_dependencies(self) -> list['Element']:
-        return [self.directory.get_the(Sourcefile, self.sourcefile)]
 
 
 class Outputfile(Product):  # abstract class
@@ -455,11 +483,6 @@ class Outputfile(Product):  # abstract class
     def outputfile_i(self) -> str:
         return os.path.join(self.targetdir_i, self.outputfile)
 
-    def build(self):
-        super().build()
-        if self.state != c.State.AS_BEFORE:  # do_build() was called, file was written
-            self.cache.record_file(self.name, self.cache_key)
-
     def check_existing_resource(self):
         if not os.path.exists(self.outputfile_s) or not os.path.exists(self.outputfile_i):
             self.state = c.State.MISSING
@@ -469,6 +492,10 @@ class Outputfile(Product):  # abstract class
 
 class CopiedFile(Outputfile):
     """For resources which are copied verbatim. The data lives in the file system, hence no value."""
+    def __init__(self, name: str, *args, **kwargs):
+        super().__init__(name, *args, **kwargs)
+        self.add_dependency(self.directory.get_the(Sourcefile, self.sourcefile))
+
     def do_build(self):
         b.debug(f"copying '{self.sourcefile}'\t-> '{self.targetdir_s}'")
         shutil.copy(self.sourcefile, self.outputfile_s)
@@ -531,6 +558,11 @@ class Partscontainer(Part):  # abstract class
 class Zipfile(Part):
     """xy.zip Outputfiles that are named Parts, plus the exceptional case itree.zip."""
     instructor_only: bool = False
+    
+    def __init__(self, name: str, *args, **kwargs):
+        super().__init__(name, *args, **kwargs)
+        self.add_dependency(self.directory.get_the(Zipdir, self.sourcefile))
+
 
     @property
     def innerpath(self) -> str:
@@ -557,9 +589,6 @@ class Zipfile(Part):
         if not self.instructor_only:
             b.info(self.outputfile_s)
             shutil.copy(self.outputfile_i, self.outputfile_s)
-    
-    def my_dependencies(self) -> tg.Iterable['Element']:
-        return [self.directory.get_the(Zipdir, self.sourcefile)]
     
     def _zip_the_files(self, archive: zipfile.ZipFile):
         assert os.path.exists(self.sourcefile), f"'{self.sourcefile}' is missing!"
@@ -596,16 +625,20 @@ class Sourcefile(Source):
         super().__init__(name, *args, **kwargs)
         self.sourcefile = self.name
         if getattr(self, 'posthoc', False):
-            # whenever a Sourcefile is first created when it is found as an includefile in a markdown render 
+            # whenever a Sourcefile is created when it is found as an includefile in a markdown render 
             # (i.e. on first build or for a new includefile), posthoc=True is passed to the constructor.
-            # In this case, we must do cache.record_file() immediately or else the file would be considered
-            # new (and may trigger lots of rebuild actions) during the next build.
+            # In this case, we must do cache.record_file() or else the file would be 
+            # considered new (and may trigger lots of rebuild actions) during the next build.
+            # For direct Sourcefiles of Parts, however, we must not do this, so that 
+            # the fact that the file was never seen before can be used to set state HAS_CHANGED 
+            # in check_existing_resource().
             self.cache.record_file(self.sourcefile, self.cache_key)
 
     def check_existing_resource(self):
-        self.state = self.cache.filestate(self.name, self.cache_key)
-        if self.state != c.State.AS_BEFORE:
-            self.cache.record_file(self.name, self.cache_key)
+        self.state = self.cache.filestate(self.sourcefile, self.cache_key)
+        if self.state == c.State.MISSING:  # we have never encountered this file in our cache history
+            self.cache.record_file(self.sourcefile, self.cache_key)
+            self.state = c.State.HAS_CHANGED
 
 
 class Zipdir(Source):

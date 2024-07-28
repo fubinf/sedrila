@@ -20,6 +20,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
     TERMREF to be used anywhere.
     """
     TEMPLATENAME = 'glossary.html'
+    body_s: el.Body_s  # we derive body_i 
     chapterdir: str  # where to find GLOSSARY_FILE
     explainedby: dict[str, set[str]]  # explainedby[term] == partnames_with_explain
     mentionedby: dict[str, set[str]]  # mentionedby[term] == partnames_with_termref
@@ -41,25 +42,18 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         self.termdefs = set()
         self.term_linkslist = None  # set by [TERM], used and unset by [ENDTERM]
         self.register_macros_phase1()
-        self.add_dependency(self.directory.make_the(el.Sourcefile, self.sourcefile, part=self))
-        self.add_dependency(self.directory.make_the(el.IncludeList_s, self.name, part=self))
-        self.directory.make_the(el.Toc, self.name, part=self)  # Body_s, Body_i are created by do_build()
+        self.make_dependency(el.Sourcefile, name=self.sourcefile, part=self)
+        self.make_dependency(el.Topmatter, part=self)
+        self.make_dependency(el.Glossarybody, part=self, includelist_class=el.IncludeList_s,
+                             switch_macros_op=self.register_macros_phase2)
+        self.make_dependency(el.Toc, part=self)
 
     def do_build(self):
-        """A more manual than dependency-driven build."""
-        body_s = self.directory.make_the(el.Body_s, self.name, part=self)
-        body_i = self.directory.make_the(el.Body_i, self.name, part=self)
-        self.render(b.Mode.STUDENT)
-        includelist = self.directory.get_the(el.IncludeList_s, self.name)
-        body_s.encache_built_value(self.rendered_content)
-        body_i.encache_built_value(self.rendered_content)  # render only once to avoid TERM redefine errors
-        includelist.encache_built_value(self.includefiles)
-        self.render_structure(self.course, self, body_s.value, self.targetdir_s)
-        self.render_structure(self.course, self, body_i.value, self.targetdir_i)
+        b.debug(f"do_build({self.cache_key}):")
+        body = self.directory.get_the(el.Glossarybody, self.name).value  # noqa
+        self.render_structure(self.course, self, body, self.targetdir_s)  # noqa
+        self.render_structure(self.course, self, body, self.targetdir_i)  # noqa
         self.report_issues()
-
-    def my_dependencies(self) -> tg.Iterable['Element']:
-        return itertools.chain(self.dependencies, self.directory.get_all(el.TermrefList))
 
     @property
     def sourcefile(self) -> str:

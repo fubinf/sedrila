@@ -24,7 +24,7 @@ class Directory:
             el.Zipdir, el.Zipfile,
             el.Topmatter, el.Content, course.DerivedMetadata,
             el.IncludeList_s, el.IncludeList_i, el.TermrefList,
-            el.Body_s, el.Body_i,
+            el.Body_s, el.Body_i, el.Glossarybody,
             el.Tocline, el.Toc, el.LinkslistBottom,
             course.Course, course.Chapter, course.Taskgroup, course.Task, glossary.Glossary,
         ]
@@ -41,7 +41,7 @@ class Directory:
         """Instantiate object and store it in the directory. Must be a new entry."""
         the_dict = self._getdict(mytype)
         if name in the_dict:
-            b.debug(f"make_the: overwriting internal entry {mytype.__name__}({name})")
+            b.debug(f"make_the: overwriting internal entry {mytype.__name__}({name}) from {b.caller(1)}")
         instance = mytype(name, *args, directory=self, **kwargs)
         the_dict[name] = instance
         return instance
@@ -70,9 +70,22 @@ class Directory:
             b.debug(f"building all Elements of type {thistype.__name__}")
             for elem in thisdict.values():
                 elem.build()
+            b.debug("task121 piece states: " +  # TODO 1: remove
+                    ", ".join(([f'{p.__class__.__name__}:{p.state}' for p in self.get_all('task121') 
+                                if getattr(p, 'state', None)])))
 
-    def get_all(self, thetype: type) -> tg.Iterator:
-        return self._getdict(thetype).values()
+    def get_all(self, what: type|str) -> tg.Iterator:
+        """All entries with a given type or with a given name (in any type)."""
+        if isinstance(what, type):
+            return self._getdict(what).values()
+        # collect all elements with name what:
+        result = []
+        for typ in self.managed_types:
+            candidate = self._getdict(typ).get(what, None)
+            if candidate:  # skip types with no such entry
+                result.append(candidate)
+        return result
+        
 
     def get_all_outputfiles(self) -> tg.Iterator:
         import sdrl.elements as el

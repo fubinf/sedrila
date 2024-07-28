@@ -8,12 +8,13 @@ import jinja2
 import yaml
 
 import base as b
+import cache
 import sdrl.directory as dir
 import sdrl.elements as el
 import sdrl.html as h
 
 
-class PartbuilderMixin(el.DependenciesMixin):  # to be mixed into a Part class
+class PartbuilderMixin:  # to be mixed into a Part class
     name: str
     directory: dir.Directory
     metadata_text: str  # the YAML front matter character stream
@@ -43,10 +44,17 @@ class PartbuilderMixin(el.DependenciesMixin):  # to be mixed into a Part class
         return f"<a href='{self.outputfile}' {titleattr}>{self.slug}</a>"  # noqa
 
     def do_build(self):
-        b.debug(f"do_build({self.name}): {self.to_be_skipped}")
+        b.debug(f"do_build({self.cache_key}): skip={self.to_be_skipped}")
+        if self.to_be_skipped:
+            return
         body_s = self.directory.get_the(el.Body_s, self.name).value  # noqa
         body_i = self.directory.get_the(el.Body_i, self.name).value  # noqa
-        if not self.to_be_skipped:
+        # if only the [INSTRUCTOR] part content has changed, we need not build the student file:
+        changed_deps = [dep for dep in self.my_dependencies() if dep.state == cache.State.HAS_CHANGED]
+        b.debug(str([dep.cache_key for dep in changed_deps]))
+        if len(changed_deps) == 1 and isinstance(changed_deps[0], el.Body_i):
+            self.render_structure(self.course, self, body_i, self.targetdir_i)  # noqa
+        else:
             self.render_structure(self.course, self, body_s, self.targetdir_s)  # noqa
             self.render_structure(self.course, self, body_i, self.targetdir_i)  # noqa
 
@@ -87,19 +95,16 @@ class PartbuilderMixin(el.DependenciesMixin):  # to be mixed into a Part class
             else:
                 b.warning(f"'{zipdirname}' is a file, not a dir, and will be ignored.", file=self.sourcefile)
     
-    def make_std_dependencies(self, toc: tg.Optional[el.Part], body_buildwrapper: el.Buildwrapper = None):
+    def make_std_dependencies(self, toc: tg.Optional[el.Part]):
         """Create direct and indirect dependencies of Course, Chapter, Taskgroup, and Task Parts."""
-        # ----- direct dependencies:
+        # ----- indirect dependency:
+        self.add_dependency(self.directory.make_the(el.Sourcefile, self.sourcefile, part=self))
+        # ----- direct dependencies, who know and create further direct dependencies:
         self.add_dependency(self.directory.make_the(el.Topmatter, self.name, part=self))
-        self.add_dependency(self.directory.make_the(el.Body_s, self.name, part=self, buildwrapper=body_buildwrapper))
-        self.add_dependency(self.directory.make_the(el.Body_i, self.name, part=self, buildwrapper=body_buildwrapper))
+        self.add_dependency(self.directory.make_the(el.Body_s, self.name, part=self, includelist_class=el.IncludeList_s))
+        self.add_dependency(self.directory.make_the(el.Body_i, self.name, part=self, includelist_class=el.IncludeList_i))
         if toc:
             self.add_dependency(self.directory.make_or_get_the(el.Toc, toc.name, part=toc))
-        # ----- indirect dependencies (their dependers will know who they are):
-        self.directory.make_the(el.Sourcefile, self.sourcefile, part=self)
-        self.directory.make_the(el.Content, self.name, part=self)
-        self.directory.make_the(el.IncludeList_s, self.name, part=self)
-        self.directory.make_the(el.IncludeList_i, self.name, part=self)
 
     def process_topmatter(self, sourcefile: str, topmatter: b.StrAnyDict, course):
         assert False  # must be defined in concrete classes
