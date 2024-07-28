@@ -30,10 +30,10 @@ class SedrilaCache:
     """
     All intermediate products and some config values are stored in the cache.
     There are four entry types:
-    - files (source or target) are reflected as a cache key with empty value.
+    - files are reflected as a cache key with empty value.
       The has_changed reference time for files is stored in a single entry TIMESTAMP_KEY.
     - str are just that.
-    - list[str] are stored as a string using LIST_SEPARATOR.
+    - list[str] and set[str] are stored as a string using LIST_SEPARATOR.
     - dict[Any] are stored as json.
     Several helper entries use __dunder__ names.
     """
@@ -95,22 +95,25 @@ class SedrilaCache:
     def cached_list(self, key: str) -> tuple[list[str], State]:
         return self._entry(key, self._as_list)
 
+    def cached_set(self, key: str) -> tuple[set[str], State]:
+        return self._entry(key, self._as_set)
+
     def cached_dict(self, key: str) -> tuple[b.StrAnyDict, State]:
         return self._entry(key, self._as_dict)
 
     def filestate(self, pathname: str, cache_key: str) -> State:
         """
-        Non-existing file: nonexisting.
-        Before-unseen file, dirty file, or file with new time: has_changed.
-        Otherwise (file with old time): as_before.
-        New time means the existing file has mtime later than start of previous build.
+        Non-existing file: MISSING.
+        Before-unseen file: MISSING. **Special case!`**
+        Dirty file, or recent file: HAS_CHANGED.
+        Otherwise (file with old time): AS_BEFORE.
         """
         if not os.path.exists(pathname):
             return State.MISSING
         cache_state = self.state(cache_key)
         if cache_state == State.MISSING:
             # b.debug(f"{pathname} not in cache")
-            return State.HAS_CHANGED
+            return State.MISSING
         if self.is_recent(pathname) or self.is_dirty(pathname):
             # b.debug(f"{pathname} has younger mtime")
             return State.HAS_CHANGED
@@ -153,13 +156,17 @@ class SedrilaCache:
         assert key not in self.written  # we should write everything only once
         self.written[key] = value
 
+    def write_set(self, key: str, value: set[str]):
+        assert key not in self.written  # we should write everything only once
+        self.written[key] = value
+
     def write_dict(self, key: str, value: b.StrAnyDict):
         assert key not in self.written  # we should write everything only once
         self.written[key] = value
 
     def close(self):
         """Bring the persistent cache file up-to-date and close dbm."""
-        converters = {str: self._as_is, list: self._from_list, set: self._from_list, dict: self._from_dict}
+        converters = {str: self._as_is, list: self._from_list, set: self._from_set, dict: self._from_dict}
         self.db[self.TIMESTAMP_KEY] = str(self.timestamp_start)  # update mtime
         self.write_list(self.DIRTYFILES_KEY, list(self.new_dirtyfiles))
         for key, value in self.written.items():
@@ -187,11 +194,17 @@ class SedrilaCache:
     def _as_list(self, e: str) -> list[str]:
         return e.split(self.LIST_SEPARATOR) if e else []
 
+    def _as_set(self, e: str) -> set[str]:
+        return set(e.split(self.LIST_SEPARATOR)) if e else set()
+
     @staticmethod
     def _as_dict(e: str) -> b.StrAnyDict:
         return json.loads(e) if e else dict()
 
     def _from_list(self, e: list[str]) -> str:
+        return self.LIST_SEPARATOR.join(e)
+
+    def _from_set(self, e: set[str]) -> str:
         return self.LIST_SEPARATOR.join(e)
 
     @staticmethod
