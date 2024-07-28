@@ -25,6 +25,8 @@ expected_output1 = """../out/instructor/myarchive.zip
 ../out/instructor/itree.zip
 File 'ch/ch1/tg11/task111r+a.md':
    [TREEREF::/nonexisting.txt]: itreedir file 'itree.zip/nonexisting.txt' not found
+File 'ch/glossary.md':
+   [TERM::Concept 3]: Term 'Concept 3' is already defined
 ../out/index.html
 ../out/instructor/index.html
 ../out/chapter-ch1.html
@@ -43,8 +45,6 @@ File 'ch/ch1/tg11/task111r+a.md':
 ../out/instructor/task121.html
 ../out/task122.html
 ../out/instructor/task122.html
-File 'ch/glossary.md':
-   [TERM::Concept 3]: Term 'Concept 3' is already defined
 ../out/glossary.html
 ../out/instructor/glossary.html
 File 'ch/glossary.md':
@@ -53,10 +53,10 @@ File 'ch/glossary.md':
 
 expected_output2 = """File 'ch/ch1/tg11/task111r+a.md':
    [TREEREF::/nonexisting.txt]: itreedir file 'itree.zip/nonexisting.txt' not found
-../out/task111r+a.html
-../out/instructor/task111r+a.html
 File 'ch/glossary.md':
    [TERM::Concept 3]: Term 'Concept 3' is already defined
+../out/task111r+a.html
+../out/instructor/task111r+a.html
 ../out/glossary.html
 ../out/instructor/glossary.html
 File 'ch/glossary.md':
@@ -78,6 +78,12 @@ expected_output4 = """../out/index.html
 ../out/instructor/task121.html
 ../out/task122.html
 ../out/instructor/task122.html
+"""
+
+expected_output5 = """../out/instructor/task121.html
+"""
+
+expected_output6 = """../out/instructor/task121.html
 """
 
 expected_filelist1 = [
@@ -213,7 +219,7 @@ class Catcher:
         actual_output, actual_err = self.capfd.readouterr()
         assert actual_err == ""
         print(actual_output)  # make it available again
-        regexp = f"{self.BEGIN % marker}\\n(.*){self.END % marker}"
+        regexp = f"{re.escape(self.BEGIN % marker)}\\n(.*){re.escape(self.END % marker)}"
         mm = re.search(regexp, actual_output, re.DOTALL)
         assert mm, f"marker '{marker}' not found"
         return mm.group(1)
@@ -252,7 +258,15 @@ def test_sedrila_author(capfd):
         course4, actual_output4 = call_sedrila_author("step 4: modify task121 topmatter", test_outputdir, catcher)
         check_output2(course4, actual_output4, expected_output4)
         # --- step 5: modify instructor includefile:
+        b.spit("ch/include.md", 
+               b.slurp("ch/include.md") + "Some more.\n")
+        course5, actual_output5 = call_sedrila_author("step 5: modify instructor includefile", test_outputdir, catcher)
+        check_output2(course5, actual_output5, expected_output5)
         # --- step 6: modify task body_i:
+        b.spit("ch/ch1/tg12/task121.md", 
+               b.slurp("ch/ch1/tg12/task121.md").replace("[ENDINSTRUCTOR]", "more!\n[ENDINSTRUCTOR]"))
+        course6, actual_output6 = call_sedrila_author("step 6: modify [INSTRUCTOR] part", test_outputdir, catcher)
+        check_output2(course6, actual_output6, expected_output6)
         # --- step 7: rename task:
         # --- step 8: add TERMREF:
         # --- step 9: add explains:
@@ -264,7 +278,7 @@ def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -
     pargs.clean = start_clean
     pargs.sums = False
     pargs.include_stage = "alpha"
-    pargs.log = "INFO" if not step.startswith("step XXX") else "DEBUG"  # report built files
+    pargs.log = "INFO" if not step.startswith("stepXXX:") else "DEBUG"  # report built files
     pargs.targetdir = outputdir
     # ----- do call akin to sdrl.subcmd.author.execute():
     b._testmode_reset()  # noqa
@@ -351,10 +365,8 @@ def _compare_line_by_line(actual: str, expected: str, strip=False):
     for i in range(len(actual_lines)):
         if strip:
             if actual_lines[i].strip() != expected_lines[i].strip():
-                print("actual::", actual)
                 assert (i+1, actual_lines[i].strip()) == (i+1, expected_lines[i].strip())
         else:
             if actual_lines[i] != expected_lines[i]:
-                print("actual::", actual)
                 assert (i+1, actual_lines[i]) == (i+1, expected_lines[i])
     assert len(actual_lines) == len(expected_lines)
