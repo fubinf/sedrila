@@ -16,6 +16,7 @@ import typing as tg
 import base as b
 import cache
 import sdrl.course
+import sdrl.elements as el
 import sdrl.directory as dir
 import sdrl.macroexpanders as macroexpanders
 
@@ -129,7 +130,11 @@ def print_volume_report(course: sdrl.course.Coursebuilder):
 
 
 def purge_leftover_outputfiles(directory: dir.Directory, targetdir_s: str, targetdir_i: str):
-    expected_files = set([of.outputfile for of in directory.get_all_outputfiles()])
+    def keep(outputfile: el.Outputfile) -> bool:
+        # two cases: non-Parts, Parts
+        return not isinstance(outputfile, el.Part) or not outputfile.to_be_skipped
+    
+    expected_files = set([of.outputfile for of in directory.get_all_outputfiles() if keep(of)])
     additions_s = {OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR, b.METADATA_FILE}
     additions_i = set()
     purge_all_but(targetdir_s, expected_files | additions_s)
