@@ -125,31 +125,7 @@ import sdrl.macros as macros
 import sdrl.markdown as md
 
 
-Buildwrapper = tg.Callable[[str], None]  # called with 'start' before, with 'end' after do_build()
-
-
-class Top:  # abstract class
-    """This class' only purpose is terminating the super().__init__() call chain."""
-    def __init__(self, *args, **kwargs):
-        pass  # because object() does not support the (self, *args, **kwargs) signature
-
-
-class DependenciesMixin:
-    """Elements that maintain an explicit list of dependencies."""
-    dependencies: list['Element']
-
-    def __init__(self, name: str, *args, **kwargs):
-        self.dependencies = []
-        super().__init__(name, *args, **kwargs)
-
-    def my_dependencies(self) -> tg.Iterable['Element']:
-        return self.dependencies
-
-    def add_dependency(self, dep: 'Element'):
-        self.dependencies.append(dep)
-
-
-class Element(Top):  # abstract class
+class Element:  # abstract class
     """
     Common superclass of the stuff taking part in incremental build: Sources and Products.
     Directory defines an ordering of these classes A, B, C such that if any B has any A as a dependency,
@@ -162,11 +138,11 @@ class Element(Top):  # abstract class
     directory: dir.Directory  # inherited
     sourcefile: str  # path, inherited
     state: c.State
-    buildwrapper: Buildwrapper  # usually missing
+    dependencies: list['Element']
 
     def __init__(self, name: str, *args, **kwargs):
         self.name = name
-        super().__init__(name, *args, **kwargs)  # many classes inherit this constructor!
+        self.dependencies = []
         for key, val in kwargs.items():
             setattr(self, key, val)  # store all keyword args in same-named attr
         self._inherit_from_part()
@@ -191,19 +167,13 @@ class Element(Top):  # abstract class
         self.check_existing_resource()
         if self.state != c.State.AS_BEFORE:
             b.debug(f"{self.__class__.__name__}.build({self.name}) local state:\t{self.statelabel} ")
-            self._buildwrap('start')
-            self.do_build()
-            self._buildwrap('end')
-            self.state = c.State.HAS_CHANGED
+            do_it()
             return
         for dep in self.my_dependencies():
             if dep.state != c.State.AS_BEFORE:
                 which = f"{dep.__class__.__name__}({dep.name})"
                 b.debug(f"{self.__class__.__name__}.build({self.name}) dependency {which} state:\t{dep.statelabel}")
-                self._buildwrap('start')
-                self.do_build()
-                self._buildwrap('end')
-                self.state = c.State.HAS_CHANGED
+                do_it()
                 return
         # b.debug(f"{self.__class__.__name__}.build({self.name}) state:\t{self.statelabel}")
 
@@ -217,12 +187,14 @@ class Element(Top):  # abstract class
         assert False, f"{self.__class__.__name__}.{self.name}.check_existing_resource() not defined"
 
     def my_dependencies(self) -> tg.Iterable['Element']:
-        """Class-specific. Either fixed (and enumerated here) or stored in 'dependencies'."""
-        return []  # default: no dependencies
+        return self.dependencies
 
     def do_build(self):
         """Class-specific: perform actual build work."""
         assert False, f"{self.__class__.__name__}.do_build({self.name}) not defined"
+
+    def add_dependency(self, dep: 'Element'):
+        self.dependencies.append(dep)
 
     def cached_str(self) -> tuple[str, c.State]:
         return self.cache.cached_str(self.cache_key)
@@ -230,12 +202,11 @@ class Element(Top):  # abstract class
     def cached_list(self) -> tuple[list[str], c.State]:
         return self.cache.cached_list(self.cache_key)
 
+    def cached_set(self) -> tuple[set[str], c.State]:
+        return self.cache.cached_set(self.cache_key)
+
     def cached_dict(self) -> tuple[b.StrAnyDict, c.State]:
         return self.cache.cached_dict(self.cache_key)
-
-    def _buildwrap(self, mode: str):
-        if getattr(self, 'buildwrapper', None):  # if set and non-None
-            self.buildwrapper(mode)
 
     def _inherit_from_part(self):
         if getattr(self, 'part', None):  # inherit attrs, to make construction simpler:
@@ -257,8 +228,8 @@ class Piece(Product):  # abstract class
     """
     CACHED_TYPE = 'str'  # which kind of value is in the cache
     SC = c.SedrilaCache  # abbrev
-    READFUNC = dict(str=SC.cached_str, list=SC.cached_list, dict=SC.cached_dict)
-    WRITEFUNC = dict(str=SC.write_str, list=SC.write_list, dict=SC.write_dict)
+    READFUNC = dict(str=SC.cached_str, list=SC.cached_list, set=SC.cached_set, dict=SC.cached_dict)
+    WRITEFUNC = dict(str=SC.write_str, list=SC.write_list, set=SC.write_set, dict=SC.write_dict)
     value: c.Cacheable  # build result, from Cache or from do_build()
     
     def check_existing_resource(self):
@@ -279,6 +250,9 @@ class Piece(Product):  # abstract class
         else: 
             self.state = c.State.HAS_CHANGED
             self.WRITEFUNC[self.CACHED_TYPE](self.cache, self.cache_key, self.value)
+        b.debug(f"encache_built_value({self.cache_key}, c:{b.caller()}): "
+                f"cache: {cache_state},{'same' if self.value == cache_value else 'different'}_value"
+                f" --> {self.state}")
 
     def has_value(self) -> bool:
         return hasattr(self, 'value')
