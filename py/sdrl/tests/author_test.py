@@ -84,6 +84,18 @@ expected_output5 = """../out/instructor/task121.html
 expected_output6 = """../out/instructor/task121.html
 """
 
+expected_output7 = """../out/index.html
+../out/instructor/index.html
+../out/tg12.html
+../out/instructor/tg12.html
+../out/task121new.html
+../out/instructor/task121new.html
+../out/task122.html
+../out/instructor/task122.html
+deleted: ../out/task121.html
+deleted: ../out/instructor/task121.html
+"""
+
 expected_filelist1 = [
     'chapter-ch1.html', 'course.json',
     'favicon-32x32.png',
@@ -266,8 +278,14 @@ def test_sedrila_author(capfd):
                b.slurp("ch/ch1/tg12/task121.md").replace("[ENDINSTRUCTOR]", "more!\n[ENDINSTRUCTOR]"))
         course6, actual_output6 = call_sedrila_author("step 6: modify [INSTRUCTOR] section", myoutputdir, catcher)
         check_output2(course6, actual_output6, expected_output6)
-        # --- step 7: rename task:
-        # --- step 8: add TERMREF:
+        # --- step 7: rename task121:
+        os.rename("ch/ch1/tg12/task121.md", "ch/ch1/tg12/task121new.md")
+        course7, actual_output7 = call_sedrila_author("step 7: rename task121", myoutputdir, catcher)
+        expected_filelist7 = list(expected_filelist1)
+        pos = expected_filelist7.index("task121.html")
+        expected_filelist7[pos] = "task121new.html"
+        check_output2(course7, actual_output7, expected_output7, filelist=expected_filelist7)
+        # --- step 8: task121new:[TERMREF::Concept 5]:
         # --- step 9: add explains:
 
 
@@ -303,9 +321,10 @@ def check_output1(course: course.Coursebuilder, actual_output1: str, expected_ou
         assert b.num_errors == errors  # see expected_output1: 2 errors, 1 warning
 
 
-def check_output2(course: course.Coursebuilder, actual_output2: str, expected_output2: str, errors: int = 0):
+def check_output2(course: course.Coursebuilder, actual_output2: str, expected_output2: str, 
+                  errors: int = 0, filelist=expected_filelist1):
     with contextlib.chdir(course.targetdir_s):
-        check_filelist(expected_filelist1)  # should be as before
+        check_filelist(filelist)
         _compare_line_by_line(actual_output2, expected_output2)
         assert b.num_errors == errors  # as before
 
