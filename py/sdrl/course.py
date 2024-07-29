@@ -252,7 +252,7 @@ class Course(el.Partscontainer):
                     report_extra=bool(self.AUTHORMODE_ATTRS))
         self.allowed_attempts_base, self.allowed_attempts_hourly = self._parse_allowed_attempts()
         self.name = self.slug = self.breadcrumb_title
-        if not getattr(self, 'parttype'):  # do not overwrite setting from Coursebuilder.__init__
+        if not getattr(self, 'parttype', None):  # do not overwrite setting from Coursebuilder.__init__
             self.parttype = dict(Chapter=Chapter, Taskgroup=Taskgroup, Task=Task)
         self._init_parts(configdict, getattr(self, 'include_stage', ""))
 
@@ -278,8 +278,6 @@ class Course(el.Partscontainer):
         if partname in self.namespace:
             return self.namespace[partname]
         b.error(f"part '{partname}' does not exist", file=context)
-        if partname == 'task111r+a__taskbuilder':
-            breakpoint()  # TODO 1: remove
         return self
 
     def namespace_add(self, context: str, newpart: el.Part):
@@ -468,7 +466,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         # ----- create Zipdirs, Glossary:
         self.find_zipdirs()
         self._collect_zipdirs()  # TODO 3: collect only what gets referenced
-        self.glossary = glossary.Glossary(b.GLOSSARY_BASENAME, parent=self, chapterdir=self.chapterdir)
+        self.glossary = glossary.Glossary(b.GLOSSARY_BASENAME, parent=self, course=self)
         self.directory.record_the(glossary.Glossary, self.glossary.name, self.glossary)
         self.namespace_add("", self.glossary)
         # ----- create MetadataDerivation and baseresources:

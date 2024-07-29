@@ -20,7 +20,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
     """
     TEMPLATENAME = 'glossary.html'
     body_s: el.Body_s  # we derive body_i 
-    chapterdir: str  # where to find GLOSSARY_FILE
+    course: 'sdrl.course.Coursebuilder'
     explainedby: dict[str, set[str]]  # explainedby[term] == partnames_with_explain
     mentionedby: dict[str, set[str]]  # mentionedby[term] == partnames_with_termref
     termdefs: set[str]  # what has a [TERMx] in glossary.md
@@ -61,7 +61,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
 
     @property
     def sourcefile(self) -> str:
-        return f"{self.chapterdir}/{b.GLOSSARY_BASENAME}.md"
+        return f"{self.course.chapterdir}/{b.GLOSSARY_BASENAME}.md"
 
     @property
     def toc(self) -> str:
