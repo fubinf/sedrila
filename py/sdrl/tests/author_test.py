@@ -221,6 +221,22 @@ Here, we mention
 
 """
 
+expected_glossaryitem_step9 = """<div class='glossary-term-block'>
+<a id='concept-3b'></a>
+<a id='concept-2-undefined'></a>
+<a id='concept-4-undefined'></a>
+<span class='glossary-term-heading'>Concept 3b | Concept 2 undefined | Concept 4 undefined</span>
+
+</div>
+
+<div class='glossary-term-linkblock'>
+ <div class='glossary-term-links-explainedby'>
+   <a href='task111r+a.html' class='partref-link'>task111r+a</a>, <a href='task112.html' class='partref-link'>task112</a>
+ </div>
+ <div class='glossary-term-links-mentionedby'>
+  <a href='task111r+a.html' class='partref-link'>task111r+a</a>
+ </div>
+</div>"""
 
 class Catcher:
     """Retrieve multiline stretches from captured output based on prominent textual block markers."""
@@ -310,6 +326,7 @@ def test_sedrila_author(capfd):
         course9, actual_out9 = call_sedrila_author("step 9: task121new: add explains: Concept 5",
                                                     myoutputdir, catcher)
         check_output2(course9, actual_out9, expected_out9, filelist=expected_filelist7)
+        check_glossaryitem_concept3b(os.path.join(myoutputdir, "glossary.html"), expected_glossaryitem_step9)
         # TODO 1: check bottomlinkslist
 
 def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -> tuple[course.Coursebuilder, str]:
@@ -339,7 +356,6 @@ def check_output1(course: course.Coursebuilder, actual_output1: str, expected_ou
         check_toc1()
         check_task_html1()
         check_zipfile1()
-        check_glossary1()
         _compare_line_by_line(actual_output1, expected_output1)
         assert b.num_errors == errors  # see expected_output1: 2 errors, 1 warning
 
@@ -391,9 +407,13 @@ def check_task_html1():
         assert expected in content
 
 
-def check_glossary1():
-    pass  # will be tested by glossary_test.py
-
+def check_glossaryitem_concept3b(glossaryfilename: str, expected_item: str):
+    glossary = b.slurp(glossaryfilename)
+    glossarylines = glossary.split('\n')
+    itemlines = expected_item.split('\n')
+    pos0 = glossarylines.index("<a id='concept-3b'></a>") - 1 # that string should be 2nd line of expected_item
+    glossarypart = '\n'.join(glossarylines[pos0:pos0+len(itemlines)])
+    _compare_line_by_line(glossarypart, expected_item)
 
 def check_zipfile1():
     with zipfile.ZipFile("myarchive.zip") as zipf:
