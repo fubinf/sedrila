@@ -3,7 +3,7 @@ Generate the website with incremental build.
 See the architecture sketch in README.
 TODO:
 - 
-- rename slug to name, use sedrila2.yaml, force titles to be in topmatter, remove 'slug' in sedrila2.yaml
+- use sedrila2.yaml, force titles to be in topmatter
 - eventually: kick out author, rename author2 to author, changelog, adjust docs
 """
 import argparse
@@ -22,7 +22,7 @@ import sdrl.macroexpanders as macroexpanders
 
 
 meaning = """Creates and renders an instance of a SeDriLa course with incremental build.
-Checks consistency of the course description beforehands.
+Checks consistency of the course description.
 """
 
 OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR = "instructor"

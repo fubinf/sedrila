@@ -489,9 +489,8 @@ class CopiedFile(Outputfile):
 
 
 class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task and their Builders, see course.py
-    """Outputs identified by a slug, possible targets of PARTREF."""
+    """Outputs identified by a name, possible targets of PARTREF."""
     TOC_LEVEL = 0  # indent level in table of contents
-    slug: str  # the file/dir basename by which we refer to the part
     title: str  # title: value
     parttype: dict[str, type['Part']]  # for using X vs XBuilder for sub-Parts
     parent: 'Partscontainer'
@@ -499,7 +498,6 @@ class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task a
 
     def __init__(self, name: str, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
-        self.slug = self.name
         if getattr(self, 'parent', None):  # inherit parent attrs, to make X and XBuilder simpler:
             self.directory = self.parent.directory
             self.course = self.parent.course
@@ -587,8 +585,8 @@ class Zipfile(Part):
         """
         Remove outside-of-zipdir prefix, then use innerpath plus inside-of-zipdir remainder.
         """
-        slugpos = sourcename.find(self.slug)  # will always exist
-        remainder = sourcename[slugpos+len(self.slug)+1:]
+        namepos = sourcename.find(self.name)  # will always exist
+        remainder = sourcename[namepos+len(self.name)+1:]
         return f"{self.innerpath}/{remainder}"
 
 
@@ -633,7 +631,7 @@ class Zipdir(Source):
         super().__init__(zipdirpath, *args, **kwargs)
         assert zipdirpath[-1] != '/'  # dirprefix must not end with a slash, else our logic would break
         self.sourcefile = zipdirpath  # e.g. ch/mychapter/mytaskgroup/myzipdir.zip 
-        self.slug = self.title = os.path.basename(zipdirpath)  # e.g. myzipdir.zip
+        self.title = os.path.basename(zipdirpath)  # e.g. myzipdir.zip
 
     def check_existing_resource(self):
         """HAS_CHANGED if any file in the tree is new or the set of filenames differs from cache."""

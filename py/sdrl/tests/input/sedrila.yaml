@@ -20,11 +20,11 @@ instructors:
     pubkey: .
 allowed_attempts: "2 + 0.5/h"
 chapters:
-  - slug: ch1
+  - name: ch1
     taskgroups:
-      - slug: tg11
-      - slug: tg12
-      - slug: tg13draft
-  - slug: ch2draft
+      - name: tg11
+      - name: tg12
+      - name: tg13draft
+  - name: ch2draft
     taskgroups:
-      - slug: tg21
+      - name: tg21

@@ -15,14 +15,14 @@
   "allowed_attempts":  "2 + 0.5/h",
   "chapters": [
     {
-      "slug": "basis",
+      "name": "basis",
       "title": "Basis: Necessary Preliminaries",
       "taskgroups": [
         {
-          "slug": "linuxcli",
+          "name": "linuxcli",
           "tasks": [
             {
-              "slug": "A",
+              "name": "A",
               "title": "Install a Linux work environment via WSL (on Windows only)",
               "timevalue": 1.0,
               "difficulty": 2,
@@ -30,18 +30,18 @@
               "requires": []
             },
             {
-              "slug": "B",
+              "name": "B",
               "title": "Install a Linux work environment on MacOS X (on Mac OS X only)",
               "timevalue": 2.5,
               "difficulty": 3,
               "assumes": [],
               "requires": []
             },
-            { "slug": "Task1", "title": "Task1", "timevalue": 1.0, "difficulty": 1,
+            { "name": "Task1", "title": "Task1", "timevalue": 1.0, "difficulty": 1,
               "assumes": [], "requires": [] },
-            { "slug": "Task2", "title": "Task2", "timevalue": 2.0, "difficulty": 2,
+            { "name": "Task2", "title": "Task2", "timevalue": 2.0, "difficulty": 2,
               "assumes": [], "requires": [] },
-            { "slug": "Task3", "title": "Task3", "timevalue": 3.0, "difficulty": 3,
+            { "name": "Task3", "title": "Task3", "timevalue": 3.0, "difficulty": 3,
               "assumes": [], "requires": [] }
           ],
           "title": "Linux-Umgebung schaffen"

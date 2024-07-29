@@ -35,7 +35,6 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
                     mustcopy_attrs='title',
                     cancopy_attrs='stage',
                     mustexist_attrs='')
-        self.slug = self.name
         self.explainedby = dict()
         self.mentionedby = dict()
         self.termdefs = set()
@@ -102,7 +101,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         """We render only once, because the glossary will not contain [INSTRUCTOR] calls."""
         if not self.rendered_content:
             self.register_macros_phase2()
-            mddict = md.render_markdown(self.sourcefile, self.slug, self.content, mode, dict())
+            mddict = md.render_markdown(self.sourcefile, self.name, self.content, mode, dict())
             self.rendered_content, self.includefiles = (mddict['html'], mddict['includefiles'])
     
     def report_issues(self):

@@ -21,7 +21,7 @@ def register_macros(course: sdrl.course.Coursebuilder):
     macros.register_macro('HREF', 1, MM.INNER,
                           functools.partial(expand_href, course))  # show and link a URL
     macros.register_macro('PARTREF', 1, MM.INNER, 
-                          functools.partial(expand_partref, course))  # slug as linktext
+                          functools.partial(expand_partref, course))  # name as linktext
     macros.register_macro('PARTREFTITLE', 1, MM.INNER, 
                           functools.partial(expand_partref, course))  # title as linktext
     macros.register_macro('PARTREFMANUAL', 2, MM.INNER, 
@@ -63,7 +63,7 @@ def expand_href(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocall) 
 
 def expand_partref(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocall) -> str:
     part = course.get_part(macrocall.filename, macrocall.arg1)
-    linktext = dict(PARTREF=part.slug, 
+    linktext = dict(PARTREF=part.name, 
                     PARTREFTITLE=part.title, 
                     PARTREFMANUAL=macrocall.arg2)[macrocall.macroname]
     return f"<a href='{part.outputfile}' class='partref-link'>{html.escape(linktext)}</a>"

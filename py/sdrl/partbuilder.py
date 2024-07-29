@@ -27,7 +27,7 @@ class PartbuilderMixin:  # to be mixed into a Part class
     @property
     def breadcrumb_item(self) -> str:
         titleattr = f"title=\"{h.as_attribute(self.title)}\""
-        return f"<a href='{self.outputfile}' {titleattr}>{self.slug}</a>"
+        return f"<a href='{self.outputfile}' {titleattr}>{self.name}</a>"
 
     @property
     def to_be_skipped(self) -> bool:
@@ -41,7 +41,7 @@ class PartbuilderMixin:  # to be mixed into a Part class
     @property
     def toc_link_text(self) -> str:
         titleattr = f"title=\"{self.title}\""  # noqa
-        return f"<a href='{self.outputfile}' {titleattr}>{self.slug}</a>"  # noqa
+        return f"<a href='{self.outputfile}' {titleattr}>{self.name}</a>"  # noqa
 
     def do_build(self):
         b.debug(f"do_build({self.cache_key}): skip={self.to_be_skipped}")

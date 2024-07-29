@@ -60,12 +60,12 @@ About the entries:
 - `baseresourcedir` is optional and states where the few CSS and JavaScript files live. 
   Not defining a `baseresourcedir` means to use the built-in default files.  
 - `chapterdir`: Relative path of directory in which the course content lives.  
-  The names of directories below `chapterdir` are the slugs of chapters (level 1)
-  and the slugs of taskgroups (level 2).  
+  The names of directories below `chapterdir` are the names of chapters (level 1)
+  and the names of taskgroups (level 2).  
   Slugs are used for two purposes: as short names for identifying a part and
   for the filenames in the generated HTML directory.  
   There are five part types: course, chapter, taskgroup, task, and glossary.
-  For a task defined by file `abc.md`, the slug (and hence taskname) is `abc`.
+  For a task defined by file `abc.md`, the task name is `abc`.
 - `altdir`: Relative path of the alternate chapterdir.
   The tree below `altdir` parallels that of `chapterdir`, but contains files
   only where needed.
@@ -306,7 +306,7 @@ The `id` should start with the respective task, taskgroup, or chapter name.
 
 The meat of a SeDriLa course is in the individual task files.
 A task file is a Markdown file in a particular format.
-The basename of a task file determines the canonical name ("slug") of a task.
+The basename of a task file determines the canonical name of a task.
 
 A task file starts with metadata in YAML format, followed by Markdown with some extensions.
 
@@ -723,7 +723,7 @@ which is useful for trees that pertain to several tasks.
 
 ### 1.14 Naming conventions
 
-From the point of view of the `[PARTREF]` macro, the names (slugs) of all parts
+From the point of view of the `[PARTREF]` macro, the names of all parts
 are in one single namespace, so they must all be unique.
 These names are user-facing, so they should also be sort-of natural, not too ugly,
 and sufficiently self-explanatory.

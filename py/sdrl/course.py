@@ -47,7 +47,7 @@ class Task(el.Part):
         self.course.namespace_add(self.sourcefile, self)
 
     def __hash__(self) -> int:
-        return hash(self.slug)
+        return hash(self.name)
 
     @property
     def allowed_attempts(self) -> int:
@@ -88,16 +88,16 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
         self.make_dependency(el.LinkslistBottom, part=self)
 
     def __eq__(self, other):
-        return other.slug == self.slug
+        return other.name == self.name
 
     def __lt__(self, other):
         if not isinstance(other, type(self)):
             return NotImplemented
         return (self.difficulty < other.difficulty or
-                (self.difficulty == other.difficulty and self.slug < other.slug))
+                (self.difficulty == other.difficulty and self.name < other.name))
 
     def __hash__(self) -> int:
-        return hash(self.slug)
+        return hash(self.name)
 
     @property
     def allowed_attempts(self) -> int:
@@ -130,14 +130,14 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
                      (self.timevalue, self.timevalue))
         refs = (self._taskrefs('assumed_by') + self._taskrefs('required_by') +
                 self._taskrefs('assumes') + self._taskrefs('requires'))
-        return f"<a {href} {titleattr}>{self.slug}</a> {diffsymbol} {timevalue}{refs}"
+        return f"<a {href} {titleattr}>{self.name}</a> {diffsymbol} {timevalue}{refs}"
 
     @property
     def toc(self) -> str:
         return self.taskgroup.toc
 
     def as_json(self) -> b.StrAnyDict:
-        return dict(slug=self.slug,
+        return dict(name=self.name, slug=self.name,  # slug for backwards compatibility, TODO 3: remove 2025-01
                     title=self.title, timevalue=self.timevalue, difficulty=self.difficulty,
                     assumes=self.assumes, requires=self.requires)
 
@@ -167,7 +167,7 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
         # ----- add to glossary:
         if self.explains:
             for term in self.explains:
-                course.glossary.explains(self.slug, term)
+                course.glossary.explains(self.name, term)
         # ----- done:
         return self
 
@@ -204,11 +204,11 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
             links.append(f"\n<div class='{a_cssname}-{r_cssname}-linkblock'>\n")
         if a_links:
             links.append(f" <div class='{a_cssname}-links'>\n   ")
-            links.append("  " + macros.expand_macros("-", self.slug, ", ".join(a_links)))
+            links.append("  " + macros.expand_macros("-", self.name, ", ".join(a_links)))
             links.append("\n </div>\n")
         if r_links:
             links.append(f" <div class='{r_cssname}-links'>\n")
-            links.append("  " + macros.expand_macros("-", self.slug, ", ".join(r_links)))
+            links.append("  " + macros.expand_macros("-", self.name, ", ".join(r_links)))
             links.append("\n </div>\n")
         if any_links:
             links.append("</div>\n")
@@ -251,7 +251,7 @@ class Course(el.Partscontainer):
                     mustexist_attrs='chapters',
                     report_extra=bool(self.AUTHORMODE_ATTRS))
         self.allowed_attempts_base, self.allowed_attempts_hourly = self._parse_allowed_attempts()
-        self.name = self.slug = self.breadcrumb_title
+        self.name = self.breadcrumb_title
         if not getattr(self, 'parttype', None):  # do not overwrite setting from Coursebuilder.__init__
             self.parttype = dict(Chapter=Chapter, Taskgroup=Taskgroup, Task=Task)
         self._init_parts(configdict, getattr(self, 'include_stage', ""))
@@ -302,7 +302,7 @@ class Course(el.Partscontainer):
                     yield task
 
     def _init_parts(self, configdict: dict, include_stage: str):
-        self.chapters = [self.parttype['Chapter'](ch['slug'], course=self, parent=self, chapterdict=ch)  # noqa
+        self.chapters = [self.parttype['Chapter'](ch['name'], course=self, parent=self, chapterdict=ch)  # noqa
                          for ch in configdict['chapters']]
 
     def _parse_allowed_attempts(self) -> tuple[int, float]:
@@ -391,7 +391,6 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
 
     def check_links(self):
         for task in self.taskdict.values():
-            # b.debug(f"Task '{task.slug}'\tassumes {task.assumes},\trequires {task.requires}")
             for assumed in task.assumes:
                 if not self._task_or_taskgroup_exists(assumed):
                     b.error(f"assumed task or taskgroup '{assumed}' does not exist", file=task.sourcefile)
@@ -426,7 +425,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
 
     def volume_report_per_chapter(self) -> Volumereport:
         return self._volume_report(self.chapters, "Chapter",
-                                   lambda t, c: t.taskgroup.chapter == c, lambda c: c.slug)
+                                   lambda t, c: t.taskgroup.chapter == c, lambda c: c.name)
 
     def volume_report_per_difficulty(self) -> Volumereport:
         return self._volume_report(Task.DIFFICULTY_RANGE, "Difficulty",
@@ -461,7 +460,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
             self.include_stage = ''  # include only parts with no stage
             self.include_stage_index = len(self.stages)
         # ----- create Chapters, Taskgroups, Tasks:
-        self.chapters = [self.parttype['Chapter'](ch['slug'], parent=self, chapterdict=ch) 
+        self.chapters = [self.parttype['Chapter'](ch['name'], parent=self, chapterdict=ch) 
                          for ch in configdict['chapters']]
         # ----- create Zipdirs, Glossary:
         self.find_zipdirs()
@@ -517,7 +516,7 @@ class Chapter(el.Partscontainer):
         context = f"chapter in {self.course.configfile}"
         self._init_from_dict(context, self.chapterdict)
         self._init_from_file(context, self.course)
-        self.taskgroups = [self.parttype['Taskgroup'](taskgroup['slug'], 
+        self.taskgroups = [self.parttype['Taskgroup'](taskgroup['name'], 
                                                       parent=self, chapter=self, 
                                                       taskgroupdict=taskgroup)
                            for taskgroup in (self.chapterdict.get('taskgroups') or [])]
@@ -529,9 +528,9 @@ class Chapter(el.Partscontainer):
     def _init_from_dict(self, context: str, chapter: b.StrAnyDict):
         b.copyattrs(context,
                     chapter, self,
-                    mustcopy_attrs='slug',
+                    mustcopy_attrs='name',
                     mustexist_attrs='taskgroups',
-                    cancopy_attrs='title')
+                    cancopy_attrs='title,slug')
 
     def _init_from_file(self, context: str, course: Coursebuilder):
         pass  # only present in builder class
@@ -544,7 +543,7 @@ class Chapterbuilder(sdrl.partbuilder.PartbuilderMixin, Chapter):
 
     @property
     def outputfile(self) -> str:
-        return f"chapter-{self.slug}.html"
+        return f"chapter-{self.name}.html"
 
     @property
     def to_be_skipped(self) -> bool:
@@ -555,7 +554,7 @@ class Chapterbuilder(sdrl.partbuilder.PartbuilderMixin, Chapter):
         return sdrl.partbuilder.toc(self)
 
     def as_json(self) -> b.StrAnyDict:
-        result = dict(slug=self.slug,
+        result = dict(name=self.name, slug=self.name,  # slug for backwards compatibility, TODO 3: remove 2025-01
                       taskgroups=[taskgroup.as_json() for taskgroup in self.taskgroups])
         result.update(super().as_json())
         return result
@@ -582,11 +581,11 @@ class Taskgroup(el.Partscontainer):
 
     def __init__(self, name: str, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
-        context = f"taskgroup in chapter '{self.chapter.slug}'"
+        context = f"taskgroup in chapter '{self.chapter.name}'"
         self.directory.record_the(Taskgroup, self.name, self)
         self.course.namespace_add(self.sourcefile, self)
         self._init_from_dict(context, self.taskgroupdict)
-        context = f"taskgroup '{self.slug}' in chapter '{self.chapter.slug}'"
+        context = f"taskgroup '{self.name}' in chapter '{self.chapter.name}'"
         self._init_from_file(context, self.chapter)
         self._create_tasks()
 
@@ -595,14 +594,14 @@ class Taskgroup(el.Partscontainer):
         return f"{self.course.chapterdir}/{self.chapter.name}/{self.name}/index.md"
 
     def _create_tasks(self):
-        self.tasks = [Task(taskdict['slug'], parent=self, taskgroup=self).from_json(taskdict)
+        self.tasks = [Task(taskdict['name'], parent=self, taskgroup=self).from_json(taskdict)
                       for taskdict in self.taskgroupdict['tasks']]
     
     def _init_from_dict(self, context: str, taskgroupdict: b.StrAnyDict):
         b.copyattrs(context,
                     taskgroupdict, self,
-                    mustcopy_attrs='slug',
-                    cancopy_attrs='tasks, title',
+                    mustcopy_attrs='name',
+                    cancopy_attrs='tasks, title, slug',
                     mustexist_attrs='taskgroups')
 
     def _init_from_file(self, context: str, chapter: Chapter):
@@ -623,7 +622,7 @@ class Taskgroupbuilder(sdrl.partbuilder.PartbuilderMixin, Taskgroup):
         return sdrl.partbuilder.toc(self)
 
     def as_json(self) -> b.StrAnyDict:
-        result = dict(slug=self.slug, 
+        result = dict(name=self.name, slug=self.name,  # slug for backwards compatibility, TODO 3: remove 2025-01
                       tasks=[task.as_json() for task in self.tasks])
         result.update(super().as_json())
         return result
@@ -645,7 +644,7 @@ class Taskgroupbuilder(sdrl.partbuilder.PartbuilderMixin, Taskgroup):
         """Finds and reads task files."""
         self.tasks = []
         chapterdir = self.chapter.course.chapterdir
-        filenames = glob.glob(f"{chapterdir}/{self.chapter.slug}/{self.slug}/*.md")
+        filenames = glob.glob(f"{chapterdir}/{self.chapter.name}/{self.name}/*.md")
         for filename in filenames:
             if not filename.endswith("index.md"):
                 name = os.path.basename(filename[:-3])  # remove .md suffix
