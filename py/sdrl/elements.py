@@ -335,10 +335,8 @@ class Body_s(Body):
     def do_build(self):
         self.do_do_build(IncludeList_s, b.Mode.STUDENT)
         # --- build byproduct termreflist (body_i.termrefs ought to be identical to self.termrefs):
-        if len(self.termrefs) > 0:  # this part has at least 1 TERMREF: create a TermrefList for it
-            termreflist = self.directory.make_the(TermrefList, self.name, 
-                                                  part=self.part)  # implicit dependency of glossary
-            termreflist.handle_value_and_state(self.termrefs)
+        termreflist = self.directory.get_the(TermrefList, self.name)
+        termreflist.handle_value_and_state(self.termrefs)
 
 
 class Body_i(Body):
@@ -353,6 +351,7 @@ class Glossarybody(Body):
 
     def __init__(self, name: str, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
+        # All Parts must have been created before, or this will do nothing:
         for termreflist in self.directory.get_all(TermrefList):
             self.add_dependency(termreflist)
 

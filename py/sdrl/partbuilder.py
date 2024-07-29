@@ -103,6 +103,7 @@ class PartbuilderMixin:  # to be mixed into a Part class
         self.make_dependency(el.Topmatter, part=self)
         self.make_dependency(el.Body_s, part=self, includelist_class=el.IncludeList_s)
         self.make_dependency(el.Body_i, part=self, includelist_class=el.IncludeList_i)
+        self.make_dependency(el.TermrefList, part=self)
         self.make_or_get_dependency(el.Toc, name=use_toc_of.name, part=use_toc_of)
 
     def process_topmatter(self, sourcefile: str, topmatter: b.StrAnyDict, course):
