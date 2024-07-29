@@ -262,11 +262,9 @@ def test_sedrila_author(capfd):
     with contextlib.chdir(myinputdir):
         # --- step 1: create and check output as-is:
         course1, actual_output1 = call_sedrila_author("step 1: initial build", myoutputdir, catcher)
-        shutil.copy(os.path.join(myoutputdir, "glossary.html"), "/tmp/glossary-step1.html")  # TODO 1: remove
         check_output1(course1, actual_output1, expected_output1, errors=2)
         # --- step 2: build same config again:
         course2, actual_output2 = call_sedrila_author("step 2: identical rebuild", myoutputdir, catcher)
-        shutil.copy(os.path.join(myoutputdir, "glossary.html"), "/tmp/glossary-step2.html")  # TODO 1: remove
         check_output2(course2, actual_output2, expected_output2, errors=2)
         # --- step 3: repair errors:
         b.spit("ch/glossary.md", 
@@ -274,14 +272,12 @@ def test_sedrila_author(capfd):
                                                  "[TERM0::Concept 3b|Concept 2 undefined|Concept 4 undefined]"))
         b.spit("itree.zip/nonexisting.txt", "now it exists!")
         course3, actual_output3 = call_sedrila_author("step 3: repair errors", myoutputdir, catcher)
-        shutil.copy(os.path.join(myoutputdir, "glossary.html"), "/tmp/glossary-step3.html")  # TODO 1: remove
         check_output2(course3, actual_output3, expected_output3)
         # --- step 4: modify task121 topmatter (changes toc in entire taskgroup):
         b.spit("ch/ch1/tg12/task121.md", 
                b.slurp("ch/ch1/tg12/task121.md").replace("timevalue: 2.5",
                                                          "timevalue: 3.0"))
         course4, actual_output4 = call_sedrila_author("step 4: modify task121 topmatter", myoutputdir, catcher)
-        shutil.copy(os.path.join(myoutputdir, "glossary.html"), "/tmp/glossary-step4.html")  # TODO 1: remove
         check_output2(course4, actual_output4, expected_output4)
         # --- step 5: modify instructor includefile:
         b.spit("ch/include.md", 

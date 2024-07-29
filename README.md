@@ -72,19 +72,17 @@ The files lists in `pyproject.toml` must be corrected.
 We use this convention for the development of `sedrila`.
 It may also be helpful for course authors if the team is small enough.
 
-If something is incomplete, add a TODO marker with a priorization digit:
-- `TODO 1`: to be completed soon (within a few days)
-- `TODO 2`: to be completed once the prio 1 things are done (within days or a few weeks)
-- `TODO 3`: to be completed at some later time (usually several weeks or more into the future,
-  because it is big) or never (because it is not-so-important: "nice-to-have features")
-
-Add a short description of what needs to be done. Examples:
+If something is incomplete, add a TODO marker with a priorization digit and
+add a short description of what needs to be done. Examples:
 - `TODO 1: find proper formulation`
 - `TODO 2: restructure to use ACME lib`
 - `TODO 3: add automatic grammar correction`
 
-If you intend to do it yourself, add your name in parens:  
-`TODO 1: find proper formulation (Lutz)`
+Priorities:
+- 1: to be completed soon (within a few days)
+- 2: to be completed once the prio 1 things are done (within days or a few weeks)
+- 3: to be completed at some later time (usually several weeks or more into the future,
+  because it is big) or never (because it is not-so-important: "nice-to-have features")
 
 Then use the IDE global search to work through these layer-by-layer.
 Demote items to a lower priority when they become stale or remove them.
