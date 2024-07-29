@@ -39,7 +39,7 @@ Element
     Sourcefile
     Zipdir
   Step
-    DerivedMetadata
+    MetadataDerivation
 ```
 
 

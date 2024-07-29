@@ -471,8 +471,8 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         self.glossary = glossary.Glossary(b.GLOSSARY_BASENAME, parent=self, chapterdir=self.chapterdir)
         self.directory.record_the(glossary.Glossary, self.glossary.name, self.glossary)
         self.namespace_add("", self.glossary)
-        # ----- create DerivedMetadata and baseresources:
-        self.directory.make_the(DerivedMetadata, self.name, part=self, course=self)
+        # ----- create MetadataDerivation and baseresources:
+        self.directory.make_the(MetadataDerivation, self.name, part=self, course=self)
         self._add_baseresources()
 
     def _task_or_taskgroup_exists(self, name: str) -> bool:
@@ -658,7 +658,7 @@ class Taskgroupbuilder(sdrl.partbuilder.PartbuilderMixin, Taskgroup):
         self.find_zipdirs()
 
 
-class DerivedMetadata(el.Step):  # TODO 1: rename to MetadataDerivation
+class MetadataDerivation(el.Step):
     """Copy Topmatter into Parts' attributes, compute assumedby/requiredby/taskorder, check links."""
     course: Coursebuilder
 

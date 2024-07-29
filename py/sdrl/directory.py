@@ -22,7 +22,7 @@ class Directory:
             # The ordering is the build ordering:
             el.Sourcefile, el.CopiedFile,
             el.Zipdir, el.Zipfile,
-            el.Topmatter, el.Content, course.DerivedMetadata,
+            el.Topmatter, el.Content, course.MetadataDerivation,
             el.IncludeList_s, el.IncludeList_i, el.TermrefList,
             el.Body_s, el.Body_i, el.Glossarybody,
             el.Toc, el.LinkslistBottom,
@@ -70,9 +70,6 @@ class Directory:
             b.debug(f"building all Elements of type {thistype.__name__}")
             for elem in thisdict.values():
                 elem.build()
-            b.debug("task121 piece states: " +  # TODO 1: remove
-                    ", ".join(([f'{p.__class__.__name__}:{p.state}' for p in self.get_all('task121') 
-                                if getattr(p, 'state', None)])))
 
     def get_all(self, what: type|str) -> tg.Iterator:
         """All entries with a given type or with a given name (in any type)."""
