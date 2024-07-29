@@ -80,12 +80,14 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
     def explains(self, partname: str, term: str):  # called by author.py
         if term not in self.explainedby:
             self.explainedby[term] = set()
-        self.explainedby[term].add(partname)
+        if not self.course.get_part(self.sourcefile, partname).to_be_skipped:
+            self.explainedby[term].add(partname)
 
     def mentions(self, partname: str, term: str):
         if term not in self.mentionedby:
             self.mentionedby[term] = set()
-        self.mentionedby[term].add(partname)
+        if not self.course.get_part(self.sourcefile, partname).to_be_skipped:
+            self.mentionedby[term].add(partname)
 
     def fill_mentionedbylists(self):
         """
