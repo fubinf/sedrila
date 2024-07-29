@@ -42,7 +42,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         self.termdefs = set()
         self.term_linkslist = None  # set by [TERM], used and unset by [ENDTERM]
         self.register_macros_phase1()
-        self.make_dependency(el.Sourcefile, name=self.sourcefile, part=self)
+        self.directory.make_the(el.Sourcefile, self.sourcefile)
         self.make_dependency(el.Topmatter, part=self)
         self.make_dependency(el.Glossarybody, part=self, includelist_class=el.IncludeList_s,
                              switch_macros_op=self.register_macros_phase2)

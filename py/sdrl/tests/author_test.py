@@ -92,6 +92,8 @@ expected_output7 = """../out/index.html
 ../out/instructor/task121new.html
 ../out/task122.html
 ../out/instructor/task122.html
+../out/glossary.html
+../out/instructor/glossary.html
 deleted: ../out/task121.html
 deleted: ../out/instructor/task121.html
 """

@@ -474,10 +474,8 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
 
     def _init_parts(self, configdict: dict, include_stage: str):
         self.read_partsfile(f"{self.chapterdir}/index.md")
-        self.glossary = glossary.Glossary(b.GLOSSARY_BASENAME, parent=self, chapterdir=self.chapterdir)
-        self.directory.record_the(glossary.Glossary, self.glossary.name, self.glossary)
-        self.namespace_add("", self.glossary)
-        self.find_zipdirs()
+        self.make_std_dependencies(use_toc_of=self)
+        # ----- handle include_stage:
         if include_stage in self.stages:
             self.include_stage = include_stage
             self.include_stage_index = self.stages.index(include_stage)
@@ -486,11 +484,17 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
                 b.error(f"'--include_stage {include_stage}' not allowed, must be one of {self.stages}")
             self.include_stage = ''  # include only parts with no stage
             self.include_stage_index = len(self.stages)
+        # ----- create Chapters, Taskgroups, Tasks:
         self.chapters = [self.parttype['Chapter'](ch['slug'], parent=self, chapterdict=ch) 
                          for ch in configdict['chapters']]
-        self.make_std_dependencies(use_toc_of=self)
-        self.directory.make_the(DerivedMetadata, self.name, part=self, course=self)
+        # ----- create Zipdirs, Glossary:
+        self.find_zipdirs()
         self._collect_zipdirs()  # TODO 3: collect only what gets referenced
+        self.glossary = glossary.Glossary(b.GLOSSARY_BASENAME, parent=self, chapterdir=self.chapterdir)
+        self.directory.record_the(glossary.Glossary, self.glossary.name, self.glossary)
+        self.namespace_add("", self.glossary)
+        # ----- create DerivedMetadata and baseresources:
+        self.directory.make_the(DerivedMetadata, self.name, part=self, course=self)
         self._add_baseresources()
 
     def _task_or_taskgroup_exists(self, name: str) -> bool:
