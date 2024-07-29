@@ -99,7 +99,7 @@ def copyattrs(context: str, source: StrAnyDict, target: tg.Any,
             setattr(target, cname, None)
     extra_attrs = source_names - set(mustcopy_names) - set(cancopy_names) - set(mustexist_names)
     if report_extra and extra_attrs:
-        warning(f"{context}: unexpected extra attributes found: {extra_attrs}")
+        warning(f"unexpected extra attributes found: {extra_attrs}", file=context)
     for attrname, its_type in typecheck.items():
         value = getattr(target, attrname, None)
         if value and not isinstance(value, its_type):

@@ -1,10 +1,9 @@
 """Data structure, macros, and page generation for a glossary page (term dictionary and cross-reference)"""
-import itertools
 import typing as tg
 
 import base as b
+import cache
 import sdrl.elements as el
-import sdrl.html as h
 import sdrl.macros as macros
 import sdrl.markdown as md
 import sdrl.partbuilder
@@ -48,6 +47,11 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
                              switch_macros_op=self.register_macros_phase2)
         self.make_dependency(el.Toc, part=self)
 
+    def check_existing_resource(self):
+        super().check_existing_resource()
+        if self.state == cache.State.AS_BEFORE and self.cache.is_dirty(self.sourcefile):
+            self.state = cache.State.HAS_CHANGED  # ensure repetition of error messages
+
     def do_build(self):
         b.debug(f"do_build({self.cache_key}):")
         body = self.directory.get_the(el.Glossarybody, self.name).value  # noqa
@@ -78,6 +82,21 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         if term not in self.explainedby:
             self.explainedby[term] = set()
         self.explainedby[term].add(partname)
+
+    def mentions(self, partname: str, term: str):
+        if term not in self.mentionedby:
+            self.mentionedby[term] = set()
+        self.mentionedby[term].add(partname)
+
+    def fill_mentionedbylists(self):
+        """
+        explainedby is filled because of Part.process_topmatter().
+        mentionedby is incompletely filled because most markdown does not get rendered in a given build.
+        We fill it here properly from the TermrefList objects.
+        """
+        for termreflist in self.directory.get_all(el.TermrefList):
+            for term in termreflist.value:
+                self.mentions(termreflist.part.name, term)
 
     def render(self, mode: b.Mode):
         """We render only once, because the glossary will not contain [INSTRUCTOR] calls."""
@@ -113,7 +132,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         if label.startswith("-"):  # arg2 is meant to be a suffix
             label = term + label[1:]
         target = "%s.html#%s" % (b.GLOSSARY_BASENAME, b.slugify(term))
-        self._mentions(macrocall, term)
+        self._macro_mentions(macrocall, term)
         return (f"<a href='{target}' class='glossary-termref-term'>"
                 f"{label}<span class='glossary-termref-suffix'></span></a>")
 
@@ -163,8 +182,8 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
     def _collect_parts(termrefdict: dict[str, set[str]], termslist: list[str]) -> set[str]:
         """
         termslist is the list of aliases of a term.
-        termrefdict maps a term (main or alias) to a set of parts refering to it.
-        Returns the set of parts refering to one of the terms in termslist: The union
+        termrefdict maps a term (main or alias) to a set of partnames refering to it.
+        Returns the set of partnames refering to one of the terms in termslist: The union
         of the respective termrefdict entry sets.
         """
         result = set()
@@ -221,10 +240,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         # ----- done!:
         return result
 
-    def _mentions(self, macrocall: macros.Macrocall, term: str):  # called by phase 1 TERMREF macro expansion
+    def _macro_mentions(self, macrocall: macros.Macrocall, term: str):  # called by phase 1 TERMREF macro expansion
         partname = macrocall.partname
         if partname and partname != b.GLOSSARY_BASENAME:  # avoid links from glossary to itself
-            if term not in self.mentionedby:
-                self.mentionedby[term] = set()
-            self.mentionedby[term].add(partname)
             macrocall.md.termrefs.add(term)

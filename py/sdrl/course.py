@@ -84,6 +84,20 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
 
     def __init__(self, name: str, *args, **kwargs):
         super().__init__(name, *args, **kwargs)
+        self.make_std_dependencies(use_toc_of=self.taskgroup)
+        self.make_dependency(el.LinkslistBottom, part=self)
+
+    def __eq__(self, other):
+        return other.slug == self.slug
+
+    def __lt__(self, other):
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        return (self.difficulty < other.difficulty or
+                (self.difficulty == other.difficulty and self.slug < other.slug))
+
+    def __hash__(self) -> int:
+        return hash(self.slug)
 
     @property
     def allowed_attempts(self) -> int:
@@ -127,31 +141,6 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
                     title=self.title, timevalue=self.timevalue, difficulty=self.difficulty,
                     assumes=self.assumes, requires=self.requires)
 
-    def from_file(self, file: str, taskgroup: 'Taskgroupbuilder'):
-        self.make_std_dependencies(use_toc_of=self.taskgroup)
-        self.make_dependency(el.LinkslistBottom, part=self)
-
-        # ----- ensure explains/assumes/requires are lists:
-        def _handle_strlist(attrname: str):
-            attrvalue = getattr(self, attrname)
-            if isinstance(attrvalue, str):
-                setattr(self, attrname, re.split(r", *", attrvalue))
-            elif not attrvalue:
-                setattr(self, attrname, [])
-            else:
-                b.error(f"value of '{attrname}:' must be a (non-empty) string", file=file)
-                setattr(self, attrname, [])
-
-        _handle_strlist('explains')
-        _handle_strlist('assumes')
-        _handle_strlist('requires')
-        # ----- add to glossary:
-        if self.explains:
-            for term in self.explains:
-                taskgroup.chapter.course.glossary.explains(self.slug, term)
-        # ----- done:
-        return self
-
     def process_topmatter(self, sourcefile: str, topmatter: b.StrAnyDict, course: 'Coursebuilder'):
         b.copyattrs(sourcefile,
                     topmatter, self,
@@ -163,7 +152,7 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
 
         # ----- ensure explains/assumes/requires are lists:
         def _handle_strlist(attrname: str):
-            attrvalue = getattr(self, attrname)
+            attrvalue = getattr(self, attrname, None)
             if isinstance(attrvalue, str):
                 setattr(self, attrname, re.split(r", *", attrvalue))
             elif not attrvalue:
@@ -182,6 +171,16 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
         # ----- done:
         return self
 
+    @classmethod
+    def expand_diff(cls, call: macros.Macrocall) -> str:  # noqa
+        assert call.macroname == "DIFF"
+        level = int(call.arg1)
+        diffrange = cls.DIFFICULTY_RANGE
+        if level not in diffrange:
+            call.error(f"Difficulty must be in range {min(diffrange)}..{max(diffrange)}")
+            return ""
+        return h.difficulty_symbol(level)
+
     def _taskrefs(self, attr_name: str) -> str:
         """Create a toc link dedoration for one set of related tasks."""
         attr_cssclass = "%s-decoration" % attr_name.replace("_", "-")
@@ -192,16 +191,6 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
         title = "%s: %s" % (attr_label, ", ".join(refslist))
         return ("<span class='%s' title='%s'>%s</span>" %
                 (attr_cssclass, title, ""))  # label is provided by CSS
-
-    @classmethod
-    def expand_diff(cls, call: macros.Macrocall) -> str:  # noqa
-        assert call.macroname == "DIFF"
-        level = int(call.arg1)
-        diffrange = cls.DIFFICULTY_RANGE
-        if level not in diffrange:
-            call.error(f"Difficulty must be in range {min(diffrange)}..{max(diffrange)}")
-            return ""
-        return h.difficulty_symbol(level)
 
     def _render_task_linkslist(self, a_attr: str, r_attr: str) -> str:
         """HTML for the links to assumes/requires (or assumed_by/required_by) related tasks on a task page."""
@@ -224,18 +213,6 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
         if any_links:
             links.append("</div>\n")
         return "".join(links)
-
-    def __eq__(self, other):
-        return other.slug == self.slug
-
-    def __lt__(self, other):
-        if not isinstance(other, type(self)):
-            return NotImplemented
-        return (self.difficulty < other.difficulty or
-                (self.difficulty == other.difficulty and self.slug < other.slug))
-
-    def __hash__(self) -> int:
-        return hash(self.slug)
 
 
 class Course(el.Partscontainer):
@@ -301,6 +278,8 @@ class Course(el.Partscontainer):
         if partname in self.namespace:
             return self.namespace[partname]
         b.error(f"part '{partname}' does not exist", file=context)
+        if partname == 'task111r+a__taskbuilder':
+            breakpoint()  # TODO 1: remove
         return self
 
     def namespace_add(self, context: str, newpart: el.Part):
@@ -473,7 +452,6 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
             self.namespace_add(zf.sourcefile, zf)
 
     def _init_parts(self, configdict: dict, include_stage: str):
-        self.read_partsfile(f"{self.chapterdir}/index.md")
         self.make_std_dependencies(use_toc_of=self)
         # ----- handle include_stage:
         if include_stage in self.stages:
@@ -673,8 +651,7 @@ class Taskgroupbuilder(sdrl.partbuilder.PartbuilderMixin, Taskgroup):
         for filename in filenames:
             if not filename.endswith("index.md"):
                 name = os.path.basename(filename[:-3])  # remove .md suffix
-                self._add_task(Taskbuilder(name, course=self.course, parent=self, taskgroup=self)
-                                .from_file(filename, taskgroup=self))
+                self._add_task(Taskbuilder(name, course=self.course, parent=self, taskgroup=self))
 
     def _init_from_file(self, context, chapter):
         self.make_std_dependencies(use_toc_of=self)

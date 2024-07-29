@@ -92,13 +92,17 @@ expected_output7 = """../out/index.html
 ../out/instructor/task121new.html
 ../out/task122.html
 ../out/instructor/task122.html
-../out/glossary.html
-../out/instructor/glossary.html
 deleted: ../out/task121.html
 deleted: ../out/instructor/task121.html
-"""  # TODO 3: suppress changeless re-creation of glossary (due to task121new_termreflist)
+"""
 
 expected_output8 = """../out/task121new.html
+../out/instructor/task121new.html
+../out/glossary.html
+../out/instructor/glossary.html
+"""
+
+expected_out9 = """../out/task121new.html
 ../out/instructor/task121new.html
 ../out/glossary.html
 ../out/instructor/glossary.html
@@ -258,9 +262,11 @@ def test_sedrila_author(capfd):
     with contextlib.chdir(myinputdir):
         # --- step 1: create and check output as-is:
         course1, actual_output1 = call_sedrila_author("step 1: initial build", myoutputdir, catcher)
+        shutil.copy(os.path.join(myoutputdir, "glossary.html"), "/tmp/glossary-step1.html")  # TODO 1: remove
         check_output1(course1, actual_output1, expected_output1, errors=2)
         # --- step 2: build same config again:
         course2, actual_output2 = call_sedrila_author("step 2: identical rebuild", myoutputdir, catcher)
+        shutil.copy(os.path.join(myoutputdir, "glossary.html"), "/tmp/glossary-step2.html")  # TODO 1: remove
         check_output2(course2, actual_output2, expected_output2, errors=2)
         # --- step 3: repair errors:
         b.spit("ch/glossary.md", 
@@ -268,12 +274,14 @@ def test_sedrila_author(capfd):
                                                  "[TERM0::Concept 3b|Concept 2 undefined|Concept 4 undefined]"))
         b.spit("itree.zip/nonexisting.txt", "now it exists!")
         course3, actual_output3 = call_sedrila_author("step 3: repair errors", myoutputdir, catcher)
+        shutil.copy(os.path.join(myoutputdir, "glossary.html"), "/tmp/glossary-step3.html")  # TODO 1: remove
         check_output2(course3, actual_output3, expected_output3)
         # --- step 4: modify task121 topmatter (changes toc in entire taskgroup):
         b.spit("ch/ch1/tg12/task121.md", 
                b.slurp("ch/ch1/tg12/task121.md").replace("timevalue: 2.5",
                                                          "timevalue: 3.0"))
         course4, actual_output4 = call_sedrila_author("step 4: modify task121 topmatter", myoutputdir, catcher)
+        shutil.copy(os.path.join(myoutputdir, "glossary.html"), "/tmp/glossary-step4.html")  # TODO 1: remove
         check_output2(course4, actual_output4, expected_output4)
         # --- step 5: modify instructor includefile:
         b.spit("ch/include.md", 
@@ -299,7 +307,13 @@ def test_sedrila_author(capfd):
         course8, actual_output8 = call_sedrila_author("step 8: task121new:[TERMREF::Concept 5]", 
                                                       myoutputdir, catcher)
         check_output2(course8, actual_output8, expected_output8, filelist=expected_filelist7)
-        # --- step 9: add explains:
+        # --- step 9: task121new: add explains: Concept 5
+        b.spit("ch/ch1/tg12/task121new.md",
+               b.slurp("ch/ch1/tg12/task121new.md").replace("difficulty: ",
+                                                            "explains: Concept 5\ndifficulty: "))
+        course9, actual_out9 = call_sedrila_author("step 9: task121new: add explains: Concept 5",
+                                                    myoutputdir, catcher)
+        check_output2(course9, actual_out9, expected_out9, filelist=expected_filelist7)
         # TODO 1: check bottomlinkslist
 
 def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -> tuple[course.Coursebuilder, str]:
@@ -308,7 +322,7 @@ def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -
     pargs.clean = start_clean
     pargs.sums = False
     pargs.include_stage = "alpha"
-    pargs.log = "INFO" if not step.startswith("step XXX:") else "DEBUG"  # report built files or help debug
+    pargs.log = "INFO" if not step.startswith("step X:") else "DEBUG"  # report built files or help debug
     pargs.targetdir = outputdir
     # ----- do call akin to sdrl.subcmd.author.execute():
     b._testmode_reset()  # noqa

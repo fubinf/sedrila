@@ -111,6 +111,7 @@ a changed outcome to the cache.
 """
 
 import os.path
+import re
 import shutil
 import typing as tg
 import zipfile
@@ -264,7 +265,7 @@ class Piece(Product):  # abstract class
         else: 
             self.state = c.State.HAS_CHANGED
             self.WRITEFUNC[self.CACHED_TYPE](self.cache, self.cache_key, self.value)
-        b.debug(f"handle_value_and_state({self.cache_key}, c:{b.caller()}): "
+        b.debug(f"handle_value_and_state({self.cache_key}, c:{b.caller()}): "  # TODO 2: deactivate?
                 f"cache: {cache_state},{'same' if self.value == cache_value else 'different'}_value"
                 f" --> {self.state}")
 
@@ -354,9 +355,12 @@ class Glossarybody(Body):
         # All Parts must have been created before, or this will do nothing:
         for termreflist in self.directory.get_all(TermrefList):
             self.add_dependency(termreflist)
+        for topmatter in self.directory.get_all(Topmatter):
+            self.add_dependency(topmatter)
 
     def do_build(self):
         self.switch_macros_op()        
+        self.part.fill_mentionedbylists()  # noqa
         self.do_do_build(IncludeList_s, b.Mode.STUDENT)
 
 
