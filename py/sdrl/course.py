@@ -462,8 +462,8 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
     def _add_baseresources(self):
         for direntry in os.scandir(self.baseresourcedir):
             if direntry.is_file():
-                self.directory.make_the(el.Sourcefile, direntry.path, part=self)
-                self.directory.make_the(el.CopiedFile, direntry.name, part=self,
+                self.directory.make_the(el.Sourcefile, direntry.path)
+                self.directory.make_the(el.CopiedFile, direntry.name, sourcefile=direntry.path,
                                         targetdir_s=self.targetdir_s, targetdir_i=self.targetdir_i)
             else:
                 b.warning("is not a plain file. Ignored.", file=direntry)
