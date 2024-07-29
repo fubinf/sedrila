@@ -96,6 +96,12 @@ expected_output7 = """../out/index.html
 ../out/instructor/glossary.html
 deleted: ../out/task121.html
 deleted: ../out/instructor/task121.html
+"""  # TODO 3: suppress changeless re-creation of glossary (due to task121new_termreflist)
+
+expected_output8 = """../out/task121new.html
+../out/instructor/task121new.html
+../out/glossary.html
+../out/instructor/glossary.html
 """
 
 expected_filelist1 = [
@@ -288,8 +294,13 @@ def test_sedrila_author(capfd):
         expected_filelist7[pos] = "task121new.html"
         check_output2(course7, actual_output7, expected_output7, filelist=expected_filelist7)
         # --- step 8: task121new:[TERMREF::Concept 5]:
+        b.spit("ch/ch1/tg12/task121new.md", 
+               b.slurp("ch/ch1/tg12/task121new.md").replace("Body of Task 1.2.1", "[TERMREF::Concept 5]"))
+        course8, actual_output8 = call_sedrila_author("step 8: task121new:[TERMREF::Concept 5]", 
+                                                      myoutputdir, catcher)
+        check_output2(course8, actual_output8, expected_output8, filelist=expected_filelist7)
         # --- step 9: add explains:
-
+        # TODO 1: check bottomlinkslist
 
 def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -> tuple[course.Coursebuilder, str]:
     pargs = argparse.Namespace()
