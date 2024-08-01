@@ -43,8 +43,7 @@ class Task(el.Part):
 
     def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)
-        self.directory.record_the(Task, self.name, self)
-        self.course.namespace_add(self.sourcefile, self)
+        self.course.namespace_add(self)
 
     def __hash__(self) -> int:
         return hash(self.name)
@@ -84,6 +83,7 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
 
     def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)
+        self.directory.record_the(Task, self.name, self)
         self.make_std_dependencies(use_toc_of=self.taskgroup)
         self.make_dependency(el.LinkslistBottom, part=self)
 
@@ -215,95 +215,59 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
         return "".join(links)
 
 
-class Course(el.Partscontainer):
+class Course(el.Part):
     """
-    The master data object for this run. Can be initialized in two different ways: 
-    - as Coursebuilder: From a handwritten YAML file. Will then read all content for a build.
-    - as Course: From a metadata file generated during build for bookkeeping/reporting.
+    Abstract superclass for the master data object for this run. Can be instantiated in two different forms: 
+    - as Coursebuilder (for author): 
+      From a handwritten YAML file, called configfile. 
+      Will then read all content for a build and employ directory and cache.
+    - as CourseSI (for student and instructor): 
+      From a JSON metadata file generated during build.
+    The present superclass contains the attributes and logic that both have in common.
     """
-    AUTHORMODE_ATTRS = ''
+    MUSTCOPY_ADDITIONAL = '???'  # set in subclasses
+    CANCOPY_ADDITIONAL = '???'  # set in subclasses
 
-    configfile: str
-    breadcrumb_title: str
-    chapterdir: str
+    context: str  # for error messages: where config data comes from
+    configdict: b.StrAnyDict  # all data from b.CONFIGFILE or b.METADATAFILE
+    namespace: dict[str, el.Part]  # partname -> part, for obtaining Parts in any of the logic
+
     instructors: list[b.StrAnyDict]
-    course: 'Course'
-    chapters: list['Chapter']
     init_data: b.StrAnyDict = {}
     allowed_attempts: str  # "2 + 0.5/h" or so, int+decimal, h is the task timevalue multiplier
     allowed_attempts_base: int  # the int part of allowed_attempts
     allowed_attempts_hourly: float  # the decimal part of allowed_attempts
-    namespace: dict[str, el.Part]
 
-    def __init__(self, name, **kwargs):
-        super().__init__(name, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__("...", **kwargs)  # preliminary name!
         self.course = self
-        self.directory.record_the(Course, self.name, self)
         self.namespace = dict()
-        self.namespace_add(self.configfile, self)
-        configdict = b.slurp_yaml(self.configfile)
-        b.copyattrs(self.configfile,
-                    configdict, self,
-                    mustcopy_attrs=('title, breadcrumb_title, chapterdir, instructors, allowed_attempts' +
-                                    self.AUTHORMODE_ATTRS),
-                    cancopy_attrs=('baseresourcedir, itreedir, templatedir, '
-                                   'blockmacro_topmatter, htaccess_template, init_data'),
-                    mustexist_attrs='chapters',
-                    report_extra=bool(self.AUTHORMODE_ATTRS))
+        self._read_config(self.configdict)
         self.allowed_attempts_base, self.allowed_attempts_hourly = self._parse_allowed_attempts()
-        self.name = self.breadcrumb_title
-        if not getattr(self, 'parttype', None):  # do not overwrite setting from Coursebuilder.__init__
-            self.parttype = dict(Chapter=Chapter, Taskgroup=Taskgroup, Task=Task)
-        self._init_parts(configdict, getattr(self, 'include_stage', ""))
 
-    @property
-    def breadcrumb_item(self) -> str:
-        titleattr = f"title=\"{h.as_attribute(self.title)}\""
-        return f"<a href='index.html' {titleattr}>{self.breadcrumb_title}</a>"
 
-    @property
-    def taskgroupdict(self):
-        return self.directory.taskgroup  # noqa
-
-    @property
-    def taskdict(self):
-        return self.directory.task  # noqa
-
-    def task(self, taskname: str):
-        """Return Task for given taskname or None if no such task exists."""
-        return self.directory.task.get(taskname, None)  # noqa
+    @functools.cached_property  # beware: call this only once initialization is complete!
+    def taskdict(self) -> dict[str, Task|Taskbuilder]:
+        return {k:v for k,v in self.namespace.items() if isinstance(v, Task)}
 
     def get_part(self, context: str, partname: str) -> el.Part:
-        """Return part for given partname or self (and create an error) if no such part exists."""
+        """Return part for given partname or self (and print error msg) if no such part exists."""
         if partname in self.namespace:
             return self.namespace[partname]
         b.error(f"part '{partname}' does not exist", file=context)
         return self
 
-    def namespace_add(self, context: str, newpart: el.Part):
+    def namespace_add(self, newpart: el.Part):
         name = newpart.name
         if name in self.namespace:
             b.critical("Files '%s' and '%s':\n   part name collision" %  # critical because it makes assumptions wrong
-                       (self._slugfilename(self.namespace[name]), self._slugfilename(newpart)))
+                       (self._partpath(self.namespace[name]), self._partpath(newpart)))
         else:
             self.namespace[name] = newpart
 
-    def _all_taskgroups(self) -> tg.Generator['Taskgroup', None, None]:
-        """To be used only for initializing taskgroupdict, so we can assume all taskgroups to be known"""
-        for chapter in self.chapters:
-            for taskgroup in chapter.taskgroups:
-                yield taskgroup
-
-    def _all_tasks(self):
-        """To be used only for initializing taskdict, so we can assume all tasks to be known"""
-        for chapter in self.chapters:
-            for taskgroup in chapter.taskgroups:
-                for task in taskgroup.tasks:
-                    yield task
-
-    def _init_parts(self, configdict: dict, include_stage: str):
-        self.chapters = [self.parttype['Chapter'](ch['name'], course=self, parent=self, chapterdict=ch)  # noqa
-                         for ch in configdict['chapters']]
+    def task(self, taskname: str):
+        """Return Task for given taskname or None if no such task exists."""
+        return self.taskdict.get(taskname, None)  # noqa
 
     def _parse_allowed_attempts(self) -> tuple[int, float]:
         mm = re.match(r"(\d+)\s?\+\s?(\d+\.\d+)\s?/\s?h", self.allowed_attempts)
@@ -314,7 +278,7 @@ class Course(el.Partscontainer):
         return int(mm.group(1)), float(mm.group(2))
 
     @staticmethod
-    def _slugfilename(p: el.Part) -> str:
+    def _partpath(p: el.Part) -> str:
         fullpath = p.sourcefile
         basename = os.path.basename(fullpath)
         dirname = os.path.dirname(fullpath)
@@ -323,10 +287,38 @@ class Course(el.Partscontainer):
         else:
             return fullpath
 
+    def _read_config(self, configdict: b.StrAnyDict):
+        b.copyattrs(self.context,
+                    configdict, self,
+                    mustcopy_attrs=('title, name, instructors, allowed_attempts' +
+                                    self.MUSTCOPY_ADDITIONAL),
+                    cancopy_attrs=('init_data' +
+                                   self.CANCOPY_ADDITIONAL),
+                    mustexist_attrs='chapters',
+                    report_extra=bool(self.MUSTCOPY_ADDITIONAL))
+
+
+class CourseSI(Course):
+    MUSTCOPY_ADDITIONAL = ''
+    CANCOPY_ADDITIONAL = ''
+
+    chapters: list['Chapter']
+
+    def __init__(self, configdict: b.StrAnyDict, context: str):
+        super().__init__(configdict=configdict, context=context)
+        self.parttype = dict(Chapter=Chapter, Taskgroup=Taskgroup, Task=Task)
+        self._init_parts(self.configdict)
+        
+    def _init_parts(self, configdict: dict):
+        self.chapters = [Chapter(ch['name'], parent=self, chapterdict=ch)  # noqa
+                         for ch in configdict['chapters']]
+
+
 
 class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
     """Course with the additions required for author mode. (Chapter, Taskgroup, Task have both in one.)"""
-    AUTHORMODE_ATTRS = ', altdir, stages'
+    MUSTCOPY_ADDITIONAL = ', chapterdir, altdir, stages'
+    CANCOPY_ADDITIONAL = ', baseresourcedir, itreedir, templatedir, blockmacro_topmatter, htaccess_template'
     TEMPLATENAME = "homepage.html"
 
     include_stage: str  # lowest stage that parts must have to be included in output
@@ -334,6 +326,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
     targetdir_i: str  # where to render instructor output files
 
     baseresourcedir: str = f"{sedrila_libdir}/baseresources"
+    chapterdir: str
     altdir: str
     itreedir: str | None
     templatedir: str = f"{sedrila_libdir}/templates"
@@ -348,9 +341,18 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
     taskorder: list[Taskbuilder]  # If task B assumes or requires A, A will be before B in this list.
     glossary: glossary.Glossary
 
-    def __init__(self, name: str, **kwargs):
+    def __init__(self, *, configfile: str, **kwargs):
+        self.configfile = self.context = configfile
+        self.configdict = b.slurp_yaml(configfile)
+        super().__init__(**kwargs)
         self.parttype = dict(Chapter=Chapterbuilder, Taskgroup=Taskgroupbuilder, Task=Taskbuilder)
-        super().__init__(name, **kwargs)
+        self._read_config(self.configdict)
+        self._init_parts(self.configdict, self.include_stage)
+
+    @property
+    def breadcrumb_item(self) -> str:
+        titleattr = f"title=\"{h.as_attribute(self.title)}\""
+        return f"<a href='index.html' {titleattr}>{self.name}</a>"
 
     @property
     def outputfile(self) -> str:
@@ -381,12 +383,11 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
 
     def as_json(self) -> b.StrAnyDict:
         result = dict(title=self.title,
-                      breadcrumb_title=self.breadcrumb_title,
+                      name=self.name,
                       instructors=self.instructors,
-                      init_data=self.init_data,
+                      init_data=getattr(self, 'init_data', dict()),
                       allowed_attempts=self.allowed_attempts,
                       chapters=[chapter.as_json() for chapter in self.chapters])
-        result.update(super().as_json())
         return result
 
     def check_links(self):
@@ -446,9 +447,11 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
 
     def _collect_zipdirs(self):
         for zf in self.directory.get_all(el.Zipfile):
-            self.namespace_add(zf.sourcefile, zf)
+            self.namespace_add(zf)
 
     def _init_parts(self, configdict: dict, include_stage: str):
+        self.directory.record_the(Course, self.name, self)
+        self.namespace_add(self)
         self.make_std_dependencies(use_toc_of=self)
         # ----- handle include_stage:
         if include_stage in self.stages:
@@ -460,14 +463,14 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
             self.include_stage = ''  # include only parts with no stage
             self.include_stage_index = len(self.stages)
         # ----- create Chapters, Taskgroups, Tasks:
-        self.chapters = [self.parttype['Chapter'](ch['name'], parent=self, chapterdict=ch) 
+        self.chapters = [Chapterbuilder(ch['name'], parent=self, chapterdict=ch) 
                          for ch in configdict['chapters']]
         # ----- create Zipdirs, Glossary:
         self.find_zipdirs()
         self._collect_zipdirs()  # TODO 3: collect only what gets referenced
-        self.glossary = glossary.Glossary(b.GLOSSARY_BASENAME, parent=self, course=self)
+        self.glossary = glossary.Glossary(b.GLOSSARY_BASENAME, parent=self)
         self.directory.record_the(glossary.Glossary, self.glossary.name, self.glossary)
-        self.namespace_add("", self.glossary)
+        self.namespace_add(self.glossary)
         # ----- create MetadataDerivation and baseresources:
         self.directory.make_the(MetadataDerivation, self.name, part=self, course=self)
         self._add_baseresources()
@@ -504,26 +507,21 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         return self.Volumereport(result, (column1head, "#Tasks", "Timevalue"))
 
 
-class Chapter(el.Partscontainer):
+class Chapter(el.Part):
     course: Course
     chapterdict: b.StrAnyDict
     taskgroups: list['Taskgroup']
 
-    def __init__(self, name: str, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
-        self.directory.record_the(Chapter, self.name, self)
-        self.course.namespace_add(self.sourcefile, self)
-        context = f"chapter in {self.course.configfile}"
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, **kwargs)
+        self.course.namespace_add(self)
+        context = f"chapter in {self.course.context}"
         self._init_from_dict(context, self.chapterdict)
         self._init_from_file(context, self.course)
         self.taskgroups = [self.parttype['Taskgroup'](taskgroup['name'], 
                                                       parent=self, chapter=self, 
                                                       taskgroupdict=taskgroup)
                            for taskgroup in (self.chapterdict.get('taskgroups') or [])]
-
-    @property
-    def sourcefile(self) -> str:
-        return f"{self.course.chapterdir}/{self.name}/index.md"
 
     def _init_from_dict(self, context: str, chapter: b.StrAnyDict):
         b.copyattrs(context,
@@ -541,9 +539,14 @@ class Chapterbuilder(sdrl.partbuilder.PartbuilderMixin, Chapter):
     course: Coursebuilder
     taskgroups: list['Taskgroupbuilder']
 
+
     @property
     def outputfile(self) -> str:
         return f"chapter-{self.name}.html"
+
+    @property
+    def sourcefile(self) -> str:
+        return f"{self.course.chapterdir}/{self.name}/index.md"
 
     @property
     def to_be_skipped(self) -> bool:
@@ -563,17 +566,21 @@ class Chapterbuilder(sdrl.partbuilder.PartbuilderMixin, Chapter):
         b.copyattrs(sourcefile,
                     topmatter, self,
                     mustcopy_attrs='title',
-                    cancopy_attrs='stage, todo',
+                    cancopy_attrs='stage',
                     mustexist_attrs='',
                     overwrite=True)
         self.evaluate_stage(sourcefile, course)
+
+    def _init_from_dict(self, context: str, chapter: b.StrAnyDict):
+        super()._init_from_dict(context, chapter)
+        self.directory.record_the(Chapter, self.name, self)
 
     def _init_from_file(self, context: str, course: Coursebuilder):
         self.make_std_dependencies(use_toc_of=self)
         self.find_zipdirs()
 
 
-class Taskgroup(el.Partscontainer):
+class Taskgroup(el.Part):
     TOC_LEVEL = 1  # indent level in table of contents
     course: Course
     chapter: Chapter
@@ -581,17 +588,11 @@ class Taskgroup(el.Partscontainer):
 
     def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)
-        context = f"taskgroup in chapter '{self.chapter.name}'"
-        self.directory.record_the(Taskgroup, self.name, self)
-        self.course.namespace_add(self.sourcefile, self)
+        context = f"taskgroup '{name}' in chapter '{self.chapter.name}'"
+        self.course.namespace_add(self)
         self._init_from_dict(context, self.taskgroupdict)
-        context = f"taskgroup '{self.name}' in chapter '{self.chapter.name}'"
         self._init_from_file(context, self.chapter)
         self._create_tasks()
-
-    @property
-    def sourcefile(self) -> str:
-        return f"{self.course.chapterdir}/{self.chapter.name}/{self.name}/index.md"
 
     def _create_tasks(self):
         self.tasks = [Task(taskdict['name'], parent=self, taskgroup=self).from_json(taskdict)
@@ -614,6 +615,10 @@ class Taskgroupbuilder(sdrl.partbuilder.PartbuilderMixin, Taskgroup):
     tasks: list['Taskbuilder']
 
     @property
+    def sourcefile(self) -> str:
+        return f"{self.course.chapterdir}/{self.chapter.name}/{self.name}/index.md"
+
+    @property
     def to_be_skipped(self) -> bool:
         return self.skipthis or self.chapter.to_be_skipped
 
@@ -631,7 +636,7 @@ class Taskgroupbuilder(sdrl.partbuilder.PartbuilderMixin, Taskgroup):
         b.copyattrs(sourcefile,
                     topmatter, self,
                     mustcopy_attrs='title',
-                    cancopy_attrs='minimum, stage, todo',
+                    cancopy_attrs='stage',
                     mustexist_attrs='',
                     overwrite=True)
         self.evaluate_stage(sourcefile, course)
@@ -643,12 +648,15 @@ class Taskgroupbuilder(sdrl.partbuilder.PartbuilderMixin, Taskgroup):
     def _create_tasks(self):
         """Finds and reads task files."""
         self.tasks = []
-        chapterdir = self.chapter.course.chapterdir
-        filenames = glob.glob(f"{chapterdir}/{self.chapter.name}/{self.name}/*.md")
+        filenames = glob.glob(f"{self.course.chapterdir}/{self.chapter.name}/{self.name}/*.md")
         for filename in filenames:
             if not filename.endswith("index.md"):
                 name = os.path.basename(filename[:-3])  # remove .md suffix
-                self._add_task(Taskbuilder(name, course=self.course, parent=self, taskgroup=self))
+                self._add_task(Taskbuilder(name, parent=self, taskgroup=self))
+
+    def _init_from_dict(self, context: str, taskgroupdict: b.StrAnyDict):
+        super()._init_from_dict(context, taskgroupdict)
+        self.directory.record_the(Taskgroup, self.name, self)
 
     def _init_from_file(self, context, chapter):
         self.make_std_dependencies(use_toc_of=self)
