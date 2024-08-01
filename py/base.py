@@ -57,7 +57,7 @@ def as_fingerprint(raw: str) -> str:
 
 def copyattrs(context: str, source: StrAnyDict, target: tg.Any, 
               mustcopy_attrs: str, cancopy_attrs: str, mustexist_attrs: str, 
-              typecheck: dict[str, type]=dict(), overwrite=True, report_extra=True):  # noqa
+              typecheck: dict[str, type]=dict(), overwrite=True, report_extra=False):  # noqa
     """
     Copies data from YAML or JSON mapping 'source' to class object 'target' and checks attribute set of d.
     mustcopy_attrs, cancopy_attrs, and mustexist_attrs are comma-separated attribute name lists.

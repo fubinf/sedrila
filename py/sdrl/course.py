@@ -383,7 +383,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
 
     def as_json(self) -> b.StrAnyDict:
         result = dict(title=self.title,
-                      name=self.name,
+                      name=self.name, breadcrumb_title=self.name,
                       instructors=self.instructors,
                       init_data=getattr(self, 'init_data', dict()),
                       allowed_attempts=self.allowed_attempts,
