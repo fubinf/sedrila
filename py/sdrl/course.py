@@ -41,8 +41,8 @@ class Task(el.Part):
 
     taskgroup: 'Taskgroup'  # where the task belongs
 
-    def __init__(self, name: str, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, **kwargs)
         self.directory.record_the(Task, self.name, self)
         self.course.namespace_add(self.sourcefile, self)
 
@@ -82,8 +82,8 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
 
     taskgroup: 'Taskgroupbuilder'  # where the task belongs
 
-    def __init__(self, name: str, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, **kwargs)
         self.make_std_dependencies(use_toc_of=self.taskgroup)
         self.make_dependency(el.LinkslistBottom, part=self)
 
@@ -235,8 +235,8 @@ class Course(el.Partscontainer):
     allowed_attempts_hourly: float  # the decimal part of allowed_attempts
     namespace: dict[str, el.Part]
 
-    def __init__(self, name, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
+    def __init__(self, name, **kwargs):
+        super().__init__(name, **kwargs)
         self.course = self
         self.directory.record_the(Course, self.name, self)
         self.namespace = dict()
@@ -348,9 +348,9 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
     taskorder: list[Taskbuilder]  # If task B assumes or requires A, A will be before B in this list.
     glossary: glossary.Glossary
 
-    def __init__(self, name: str, *args, **kwargs):
+    def __init__(self, name: str, **kwargs):
         self.parttype = dict(Chapter=Chapterbuilder, Taskgroup=Taskgroupbuilder, Task=Taskbuilder)
-        super().__init__(name, *args, **kwargs)
+        super().__init__(name, **kwargs)
 
     @property
     def outputfile(self) -> str:
@@ -579,8 +579,8 @@ class Taskgroup(el.Partscontainer):
     chapter: Chapter
     tasks: list['Task']
 
-    def __init__(self, name: str, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, **kwargs)
         context = f"taskgroup in chapter '{self.chapter.name}'"
         self.directory.record_the(Taskgroup, self.name, self)
         self.course.namespace_add(self.sourcefile, self)

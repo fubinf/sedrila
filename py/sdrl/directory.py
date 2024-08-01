@@ -37,12 +37,12 @@ class Directory:
         the_dict = self._getdict(mytype)
         return the_dict.get(name)
 
-    def make_the(self, mytype: type, name: str, *args, **kwargs) -> 'sdrl.elements.Element':
+    def make_the(self, mytype: type, name: str, **kwargs) -> 'sdrl.elements.Element':
         """Instantiate object and store it in the directory. Must be a new entry."""
         the_dict = self._getdict(mytype)
         if name in the_dict:
             b.debug(f"make_the: overwriting internal entry {mytype.__name__}({name}) from {b.caller(1)}")
-        instance = mytype(name, *args, directory=self, **kwargs)
+        instance = mytype(name, directory=self, **kwargs)
         the_dict[name] = instance
         return instance
 
@@ -53,9 +53,9 @@ class Directory:
             b.debug(f"take_the: overwriting internal entry {mytype.__name__}({name})")
         the_dict[name] = instance
 
-    def make_or_get_the(self, mytype: type, name: str, *args, **kwargs) -> 'sdrl.elements.Element':
+    def make_or_get_the(self, mytype: type, name: str, **kwargs) -> 'sdrl.elements.Element':
         instance = self.get_the(mytype, name)
-        return instance if instance else self.make_the(mytype, name, *args, **kwargs)
+        return instance if instance else self.make_the(mytype, name, **kwargs)
 
     def record_the(self, mytype: type, name, instance):
         """Store existing object into the directory."""

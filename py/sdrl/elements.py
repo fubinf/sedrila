@@ -143,7 +143,7 @@ class Element:  # abstract class
     state: c.State
     dependencies: list['Element']
 
-    def __init__(self, name: str, *args, **kwargs):
+    def __init__(self, name: str, **kwargs):
         self.name = name
         self.dependencies = []
         for key, val in kwargs.items():
@@ -204,14 +204,14 @@ class Element:  # abstract class
     def add_dependency(self, dep: 'Element'):
         self.dependencies.append(dep)
 
-    def make_dependency(self, mytype: type, *args, **kwargs):
+    def make_dependency(self, mytype: type, **kwargs):
         name = kwargs.pop('name') if 'name' in kwargs else self.name
-        elem = self.directory.make_the(mytype, name, *args, **kwargs)
+        elem = self.directory.make_the(mytype, name, **kwargs)
         self.add_dependency(elem)
 
-    def make_or_get_dependency(self, mytype: type, *args, **kwargs):
+    def make_or_get_dependency(self, mytype: type, **kwargs):
         name = kwargs.pop('name') if 'name' in kwargs else self.name
-        elem = self.directory.make_or_get_the(mytype, name, *args, **kwargs)
+        elem = self.directory.make_or_get_the(mytype, name, **kwargs)
         self.add_dependency(elem)
 
     def cached_str(self) -> tuple[str, c.State]:
@@ -280,8 +280,8 @@ class Body(Piece):  # abstract class
     includelist_class: type
     termrefs: set[str]
 
-    def __init__(self, name: str, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, **kwargs)
         self.add_dependency(self.directory.make_or_get_the(Content, self.name, part=self))
         includelist = self.directory.make_the(self.includelist_class, self.name, part=self)
         self.add_dependency(includelist)
@@ -330,8 +330,8 @@ class Glossarybody(Body):
     """Glossarypage content.  Byproduct: IncludeList_s."""
     switch_macros_op: tg.Callable
 
-    def __init__(self, name: str, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, **kwargs)
         # All Parts must have been created before, or this will do nothing:
         for termreflist in self.directory.get_all(TermrefList):
             self.add_dependency(termreflist)
@@ -425,8 +425,8 @@ class Topmatter(Piece):
     """Metadata from a Part file. Byproduct: Content."""
     CACHED_TYPE = 'dict'  # which kind of value is in the cache
     
-    def __init__(self, name: str, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, **kwargs)
         self.add_dependency(self.directory.get_the(Sourcefile, self.sourcefile))
 
     def do_build(self):
@@ -475,8 +475,8 @@ class Outputfile(Product):  # abstract class
 
 class CopiedFile(Outputfile):
     """For resources which are copied verbatim. The data lives in the file system, hence no value."""
-    def __init__(self, name: str, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, **kwargs)
         self.add_dependency(self.directory.get_the(Sourcefile, self.sourcefile))
 
     def do_build(self):
@@ -494,8 +494,8 @@ class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task a
     parent: 'Part'
     course: 'Coursebuilder'
 
-    def __init__(self, name: str, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, **kwargs)
         if getattr(self, 'parent', None):  # inherit parent attrs, to make X and XBuilder simpler:
             self.directory = self.parent.directory
             self.course = self.parent.course
@@ -535,8 +535,8 @@ class Zipfile(Part):
     """xy.zip Outputfiles that are named Parts, plus the exceptional case itree.zip."""
     instructor_only: bool = False
     
-    def __init__(self, name: str, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, **kwargs)
         self.add_dependency(self.directory.get_the(Zipdir, self.sourcefile))
 
 
@@ -597,8 +597,8 @@ class Sourcefile(Source):
     """A Source that consists of a single file. Its name is the sourcefile's full path."""
     posthoc: bool  # flag "this object did not yet exist during the Sourcefile.build() phase" 
 
-    def __init__(self, name, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
+    def __init__(self, name, **kwargs):
+        super().__init__(name, **kwargs)
         self.sourcefile = self.name
         if getattr(self, 'posthoc', False):
             # whenever a Sourcefile is created when it is found as an includefile in a markdown render 
@@ -620,8 +620,8 @@ class Sourcefile(Source):
 class Zipdir(Source):
     """A directory tree *.zip/** to be turned into a same-named ZIP file."""
 
-    def __init__(self, zipdirpath: str, *args, **kwargs):
-        super().__init__(zipdirpath, *args, **kwargs)
+    def __init__(self, zipdirpath: str, **kwargs):
+        super().__init__(zipdirpath, **kwargs)
         assert zipdirpath[-1] != '/'  # dirprefix must not end with a slash, else our logic would break
         self.sourcefile = zipdirpath  # e.g. ch/mychapter/mytaskgroup/myzipdir.zip 
         self.title = os.path.basename(zipdirpath)  # e.g. myzipdir.zip

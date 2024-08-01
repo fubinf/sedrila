@@ -28,8 +28,8 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
     rendered_content: str = ''  # results of render(); re-render would report duplicate definitions
     includefiles: list[str]  # files INCLUDEd while rendering the glossary
     
-    def __init__(self, name, *args, **kwargs):
-        super().__init__(name, *args, **kwargs)
+    def __init__(self, name, **kwargs):
+        super().__init__(name, **kwargs)
         self.read_partsfile(self.sourcefile)
         b.copyattrs(self.sourcefile, self.metadata, self,
                     mustcopy_attrs='title',
