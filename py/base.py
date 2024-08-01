@@ -164,18 +164,13 @@ def warning(msg: str, file: str = None, file2: str = None):
 
 
 def error(msg: str, file: str = None, file2: str = None):
-    global num_errors, msgs_seen
-    if msg not in msgs_seen:
-        num_errors += 1
     if loglevel <= logging.ERROR:
         msg = _process_params(msg, file, file2)
-        rich_print(msg, "red")
+        rich_print(msg, "red", count=1)
 
 
 def critical(msg: str):
-    global num_errors
-    num_errors += 1
-    rich_print(msg, "bold red")
+    rich_print(msg, "bold red", count=1)
     sys.exit(num_errors)
 
 
@@ -206,11 +201,12 @@ def Table() -> rich.table.Table:
                             show_edge=False, show_footer=False)
 
 
-def rich_print(msg: str, enclose_in_tag: tg.Optional[str] = None):
+def rich_print(msg: str, enclose_in_tag: tg.Optional[str] = None, count = 0):
     """Print any message, but each one only once."""
-    global msgs_seen
+    global num_errors, msgs_seen
     if msg not in msgs_seen:
         msgs_seen.add(msg)
+        num_errors += count
         if enclose_in_tag:
             msg = f"[{enclose_in_tag}]{msg}[/{enclose_in_tag}]"            
         rich.print(msg)
