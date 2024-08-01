@@ -35,8 +35,7 @@ def execute(pargs: argparse.Namespace):
         init()
         return
     student = sdrl.participant.Student()
-    metadatafile = f"{student.course_url}/{b.METADATA_FILE}"
-    course = sdrl.course.Course(metadatafile, include_stage="")
+    course = sdrl.course.CourseSI(configdict=student.metadatadict, context=student.metadata_url)
     r.compute_student_work_so_far(course)
     entries, workhours_total, timevalue_total = r.student_work_so_far(course)
     if pargs.submission:
@@ -49,25 +48,16 @@ def execute(pargs: argparse.Namespace):
 
 
 def init():
-    data = dict(course_url=os.path.dirname(input("Course URL: ")))
-    metadatafile = f"{data['course_url']}/{b.METADATA_FILE}"
-    try:
-        if metadatafile.startswith(FILE_URL_PREFIX + "/"):
-            offset = len(FILE_URL_PREFIX)
-            data['course_url'] = data['course_url'][offset:]
-            coursedata = b.slurp_json(metadatafile[offset:])
-        else:
-            resp = requests.get(url=metadatafile)
-            coursedata = resp.json()
-    except:  # noqa
-        b.critical(f"Error fetching URL '{metadatafile}'.")
-    init_data = coursedata.get('init_data') or {}  # noqa
+    course_url = os.path.dirname(input("Course URL: "))
+    metadata = sdrl.participant.Student.get_metadata(course_url)
+    init_data = metadata.get('init_data') or {}  # noqa
     prompts = sdrl.participant.Student.prompts(init_data.get('studentprompts') or {})
+    data = dict(course_url=course_url)
     for value in prompts:
         data[value] = input(prompts[value] + ": ")
     b.spit_yaml(sdrl.participant.PARTICIPANT_FILE, data)
     b.info(f"wrote '{sdrl.participant.PARTICIPANT_FILE}'. Now commit and push it.")
-    if not(coursedata.get('instructors')):
+    if not(metadata.get('instructors')):
         b.warning("No information about instructors present. Skipping key import.")
         return
     gpgimportwarning = init_data.get('gpgimportwarning') or """
@@ -77,7 +67,7 @@ def init():
     response = input(gpgimportwarning)
     if response and response in "Qq":
         b.critical("Abort.")
-    r.import_gpg_keys(coursedata['instructors'])
+    r.import_gpg_keys(metadata['instructors'])
 
 
 def prepare_submission_file(course: sdrl.course.Course, root: str, 
