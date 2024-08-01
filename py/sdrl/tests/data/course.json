@@ -1,9 +1,6 @@
 {
   "title": "Dummy SeDriLa for testing",
-  "breadcrumb_title": "DummySedrila",
-  "chapterdir": "",
-  "altdir": "",
-  "stages": [],
+  "name": "DummySedrila",
   "instructors": [
     {
       "nameish": "Dummy Instructor",
