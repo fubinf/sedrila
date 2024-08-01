@@ -59,8 +59,7 @@ def create_and_build_course(pargs, targetdir_i, targetdir_s) -> sdrl.course.Cour
     b.set_register_files_callback(the_cache.set_file_dirty)
     directory = dir.Directory(the_cache)
     c = sdrl.course  # abbrev
-    the_course = c.Coursebuilder(c.Course.__name__,
-                                 configfile=pargs.config, include_stage=pargs.include_stage,
+    the_course = c.Coursebuilder(configfile=pargs.config, context=pargs.config, include_stage=pargs.include_stage,
                                  targetdir_s=targetdir_s, targetdir_i=targetdir_i, directory=directory)
     prepare_itree_zip(the_course)
     macroexpanders.register_macros(the_course)
