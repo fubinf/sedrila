@@ -15,7 +15,8 @@ import sdrl.html as h
 
 
 class PartbuilderMixin:  # to be mixed into a Part class
-    name: str
+    TEMPLATENAME = "??.html"  # defined by each partbuilder class
+
     directory: dir.Directory
     metadata_text: str  # the YAML front matter character stream
     metadata: b.StrAnyDict  # the YAML front matter
