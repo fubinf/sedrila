@@ -393,11 +393,11 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
     def check_links(self):
         for task in self.taskdict.values():
             for assumed in task.assumes:
-                if not self._task_or_taskgroup_exists(assumed):
-                    b.error(f"assumed task or taskgroup '{assumed}' does not exist", file=task.sourcefile)
+                if not self.namespace.get(assumed, None):
+                    b.error(f"assumed part '{assumed}' does not exist", file=task.sourcefile)
             for required in task.requires:
-                if not self._task_or_taskgroup_exists(required):
-                    b.error(f"required task or taskgroup '{assumed}' does not exist", file=task.sourcefile)
+                if not self.namespace.get(required, None):
+                    b.error(f"required part '{required}' does not exist", file=task.sourcefile)
 
     def compute_taskorder(self):
         """
@@ -474,9 +474,6 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         # ----- create MetadataDerivation and baseresources:
         self.directory.make_the(MetadataDerivation, self.name, part=self, course=self)
         self._add_baseresources()
-
-    def _task_or_taskgroup_exists(self, name: str) -> bool:
-        return name in self.taskdict or name in self.taskgroupdict
 
     @staticmethod
     def _taskordering_for_toc(graph) -> list[Taskbuilder]:
