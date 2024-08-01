@@ -2,7 +2,16 @@
 
 
 
-## Version 1.4.0 (upcoming) 
+## Version 2.0.0 (upcoming) 
+- `author` optimization: sedrila now uses an incremental build, supported by a cache.
+  The code base has been greatly reorganized accordingly.
+  Build time reduces tenfold in typical cases.
+- `author` harmonization: in `sedrila.yaml`, 'slug' and 'breadcrumb_title' are renamed into 'name'.
+  (In the resulting `course.json`, 'slug' is deprecated, but still available for the time being,
+  so that students/instructors can continue to use sedrila 1.3 when authors start using sedrila 2.0.)
+- `author` simplification: `assumes` and `requires` now allow any type of part.
+  The `minimum` attribute in taskgroup files is no longer supported.
+  The (undocumented) `todo` attribute in taskgroup files is no longer supported.
 - `author`: FIX: added missing documentation for macro `[TERMREF2]`
 - ...
 
