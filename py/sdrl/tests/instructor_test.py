@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import unittest.mock
@@ -37,8 +38,8 @@ def test_instructor_parts(capfd):
         shutil.copy(METADATA_FILE, 'out')
         # ----- read data from repo:
         b._testmode_reset()
-        course = sdrl.course.Course(sdrl.course.Course.__name__, configfile=f"out/{b.METADATA_FILE}",
-                                    include_stage="", directory=tb.get_directory())
+        configfile = f"out/{b.METADATA_FILE}"
+        course = sdrl.course.CourseSI(configdict=b.slurp_json(configfile), context=configfile)
         r.compute_student_work_so_far(course)
         entries, workhours_total, timevalue_total = r.student_work_so_far(course)
         assert entries[0] == ('Task1', 1.0, 1.0, 0, False)

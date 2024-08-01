@@ -49,8 +49,7 @@ def execute(pargs: argparse.Namespace):
         os.chdir("..")
         return
     student = sdrl.participant.Student()
-    metadatafile = f"{student.course_url}/{b.METADATA_FILE}"
-    course = sdrl.course.Course(metadatafile, include_stage="")
+    course = sdrl.course.CourseSI(configdict=student.metadatadict, context=student.metadata_url)
     r.compute_student_work_so_far(course)
     entries, workhours_total, timevalue_total = r.student_work_so_far(course)
     opentasks = rewrite_submission_file(course, r.SUBMISSION_FILE)
