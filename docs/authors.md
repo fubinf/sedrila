@@ -56,7 +56,7 @@ About the entries:
 - `title`: Course title, can be chosen freely.
   A title exists at all levels (course, chapter, taskgroup, task).
   Titles are used for headings and for tooltips of links.
-- `breadcrumb_title`: Short title of the course to be used in the breadcrumb navigation.
+- `name`: Short title of the course to be used in the breadcrumb navigation.
 - `baseresourcedir` is optional and states where the few CSS and JavaScript files live. 
   Not defining a `baseresourcedir` means to use the built-in default files.  
 - `chapterdir`: Relative path of directory in which the course content lives.  
@@ -334,7 +334,7 @@ This may look as follows:
 The YAML attributes have the following meaning:
 - `title`: string, required.    
   How this task will appear in long form (e.g. navigation menu tooltip, page title).
-- `timevalue`: integer, required.  
+- `timevalue`: float, required.  
   The number of work hours of credit a student will receive when this task is submitted
   and is accepted by the instructor.
 - `difficulty`: integer (1, 2, 3, or 4), required.  
@@ -355,12 +355,14 @@ The YAML attributes have the following meaning:
   even without doing them.
   The list will be shown as tooltip-based markup in the task's menu entry.
   If the list is empty, leave out the entry.
-- `requires`: string (a comma-separated list of task or taskgroup names), optional.  
+- `requires`: string (a comma-separated list of task names), optional.  
   Like assumes, but actually doing those other tasks is strictly required so that
   a student cannot get credit for the present task without having (or getting at the same time)
   credit for the required ones.
   The list will be shown as tooltip-based markup in the task's menu entry.
-  If the list is empty, leave out the entry.
+  If the list is empty, leave out the entry.  
+  If you provide names of taskgroups or chapters here, they are shown but will be ignored
+  by the `instructor` command when checking actual preconditions.
 
 
 ### 1.6 `[SECTION]`/`[ENDSECTION]` macros for content structure
@@ -627,14 +629,10 @@ and in particular motivates why that knowledge is helpful.
 
 The YAML part can have only few entries:
 - `title`, `stage`, `explains`: like for tasks.
-- `minimum`: integer, optional.  
-  The minimum number of tasks that must be done in this taskgroup for the taskgroup
-  to be considered done if it appears in a task's `assumes` or `requires` list.
-  If no `minimum` entry exists, it means all tasks of the taskgroup must be done.
 
 Likewise, a **chapter** is described by an `index.md` file in the respective directory.
 These files work like taskgroup `index.md` files, except that 
-`explains` entries and `minimum` entries are not allowed.
+`explains` entries are not allowed.
 
 
 ### 1.11 The glossary: `glossary.md` in `chapterdir`, `[TERM]`/`[TERM0]` macros
