@@ -26,8 +26,8 @@ Element
     Outputfile
       CopiedFile
       Part
-        CourseAbstr
-          Course
+        Course
+          CourseSI
           Coursebuilder
         Chapter
           Chapterbuilder
@@ -227,6 +227,10 @@ class Element:  # abstract class
         return self.cache.cached_dict(self.cache_key)
 
     def _inherit_from_part(self):
+        """
+        Only non-Part Elements receive a part= argument and non-Part Elements exist only during 'author', 
+        when directory and cache are used and sourcefiles are meaningful.
+        """
         if getattr(self, 'part', None):  # inherit attrs, to make construction simpler:
             self.directory = self.part.directory
             self.sourcefile = self.part.sourcefile
@@ -492,17 +496,11 @@ class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task a
     title: str  # title: value
     parttype: dict[str, type['Part']]  # for using X vs XBuilder for sub-Parts
     parent: 'Part'
-    course: 'Coursebuilder'
+    course: 'Course'
 
     def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)
-        if getattr(self, 'parent', None):  # inherit parent attrs, to make X and XBuilder simpler:
-            self.directory = self.parent.directory
-            self.course = self.parent.course
-            self.parttype = self.parent.parttype
-            if getattr(self.parent, 'targetdir_s', None):
-                self.targetdir_s = self.parent.targetdir_s
-                self.targetdir_i = self.parent.targetdir_i
+        self._inherit_from_parent()
 
     @property
     def outputfile(self) -> str:
@@ -529,6 +527,22 @@ class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task a
         if isinstance(structure, sdrl.course.Course):
             path.append(structure)
         return path
+
+    def _inherit_from_parent(self):
+        """
+        Except for Course, non-Part Elements receive a parent= argument from which they copy certain
+        attributes, some depending on whether this is author mode or not.
+        Inheritance in the part= style of Element is not used for Parts and
+        so Parts need to define sourcefile themselves.
+        """
+        if getattr(self, 'parent', None):  # inherit parent attrs, to make X and XBuilder simpler:
+            self.course = self.parent.course
+            self.parttype = self.parent.parttype
+            if getattr(self.parent, 'directory', None):
+                self.directory = self.parent.directory
+            if getattr(self.parent, 'targetdir_s', None):
+                self.targetdir_s = self.parent.targetdir_s
+                self.targetdir_i = self.parent.targetdir_i
 
 
 class Zipfile(Part):
