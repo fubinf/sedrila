@@ -11,15 +11,14 @@ Element
   Product
     Piece
       Body
-          Body_s
-          Body_i
-          Glossarybody
+        Body_s
+        Body_i
+        Glossarybody
       Byproduct
         Content
-        ItemList
-          IncludeList_s
-          IncludeList_i
-          TermrefList
+        IncludeList_s
+        IncludeList_i
+        TermrefList
       FreshPiece
         LinkslistBottom
         Toc
@@ -27,11 +26,15 @@ Element
     Outputfile
       CopiedFile
       Part
-        Partscontainer
+        CourseAbstr
           Course
-          Chapter
-          Taskgroup
+          Coursebuilder
+        Chapter
+          Chapterbuilder
+        Taskgroup
+          Taskgroupbuilder
         Task
+          Taskbuilder
         Glossary
         Zipfile
   Source
@@ -273,29 +276,6 @@ class Piece(Product):  # abstract class
         return hasattr(self, 'value')
 
 
-class Byproduct(Piece):  # abstract class
-    """
-    A Byproduct gets built not by its own do_build() but by its main Product's,
-    which must be built first and will set the Byproduct's 'value' attr and cache entry.
-    check_existing_resource() retrieves the cache entry iff value is not set (when the
-    main Product did not need to be built).
-    In both cases, Byproduct.do_build() does nothing.
-    Byproducts rely on their main Product's dependency checking; they have no dependenies of their own. 
-    """
-    def check_existing_resource(self):
-        if self.has_value():  # if main product was built, all is done already
-            pass 
-        else:  # main product was not built, need to read cache
-            super().check_existing_resource()
-            assert self.has_value()  # if main product was not built, we cannot be MISSING
-
-    def my_dependencies(self) -> list[Element]:
-        return []
-
-    def do_build(self):
-        pass  # Byproducts get built by their corresponding main product calling handle_value_and_state()
-
-
 class Body(Piece):  # abstract class
     includelist_class: type
     termrefs: set[str]
@@ -364,33 +344,51 @@ class Glossarybody(Body):
         self.do_do_build(IncludeList_s, b.Mode.STUDENT)
 
 
+class Byproduct(Piece):  # abstract class
+    """
+    A Byproduct gets built not by its own do_build() but by its main Product's,
+    which must be built first and will set the Byproduct's 'value' attr and cache entry.
+    check_existing_resource() retrieves the cache entry iff value is not set (when the
+    main Product did not need to be built).
+    In both cases, Byproduct.do_build() does nothing.
+    Byproducts rely on their main Product's dependency checking; they have no dependenies of their own. 
+    """
+    def check_existing_resource(self):
+        if self.has_value():  # if main product was built, all is done already
+            pass 
+        else:  # main product was not built, need to read cache
+            super().check_existing_resource()
+            assert self.has_value()  # if main product was not built, we cannot be MISSING
+
+    def my_dependencies(self) -> list[Element]:
+        return []
+
+    def do_build(self):
+        pass  # Byproducts get built by their corresponding main product calling handle_value_and_state()
+
+
 class Content(Byproduct):
     """Markdown part of a Part sourcefile. Byproduct of Topmatter."""
     pass
 
 
-class ItemList(Byproduct):  # abstract class
-    """Abstract superclass for sets of names of dependencies."""
+class IncludeList_s(Byproduct):
+    """List of names of files INCLUDEd by a Part in its student version."""
     CACHED_TYPE = 'set'  # which kind of value is in the cache
 
 
-class IncludeList_s(ItemList):
-    """List of names of files INCLUDEd by a Part in its student version."""
-    pass  # all functionality is generic
-
-
-class IncludeList_i(ItemList):
+class IncludeList_i(Byproduct):
     """List of names of files INCLUDEd by a Part in its instructor version."""
-    pass  # all functionality is generic
+    CACHED_TYPE = 'set'  # which kind of value is in the cache
 
 
-class TermrefList(ItemList):
+class TermrefList(Byproduct):
     """
     List of names of terms TERMREF'd by Part or term self.name.
     Many of these will be empty, therefore TermrefList objects are created only if needed.
     They are implicit dependencies of the Glossary.
     """
-    pass  # all functionality is generic
+    CACHED_TYPE = 'set'  # which kind of value is in the cache
 
 
 class FreshPiece(Piece):
@@ -493,7 +491,7 @@ class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task a
     TOC_LEVEL = 0  # indent level in table of contents
     title: str  # title: value
     parttype: dict[str, type['Part']]  # for using X vs XBuilder for sub-Parts
-    parent: 'Partscontainer'
+    parent: 'Part'
     course: 'Coursebuilder'
 
     def __init__(self, name: str, *args, **kwargs):
@@ -531,11 +529,6 @@ class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task a
         if isinstance(structure, sdrl.course.Course):
             path.append(structure)
         return path
-
-
-class Partscontainer(Part):  # abstract class
-    """A Part that can contain other Parts."""
-    pass
 
 
 class Zipfile(Part):
