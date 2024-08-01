@@ -1,3 +1,4 @@
+import json
 import os
 
 import requests
@@ -45,13 +46,17 @@ class Student:
         
     @staticmethod    
     def get_metadata(course_url: str) -> b.StrAnyDict:
+        FILE_URL_PREFIX = 'file://'
         url = os.path.join(course_url, b.METADATA_FILE)
         try:
-            resp = requests.get(url=url)
+            if url.startswith(FILE_URL_PREFIX):
+                jsontext = b.slurp(url[len(FILE_URL_PREFIX):])
+            else:
+                jsontext = requests.get(url=url).resp.text
         except:  # noqa
             b.critical(f"Error fetching URL '{url}'.")
         try:
-            metadata = resp.json()
+            metadata = json.loads(jsontext)
         except:  # noqa
             b.critical(f"JSON format error at '{url}'")
         return metadata
