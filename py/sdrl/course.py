@@ -409,12 +409,12 @@ class Course(part.Partscontainer):
         self.taskorder = self._taskordering_for_toc(graph)
 
     def _parse_allowed_attempts(self) -> tuple[int, float]:
-        mm = re.match(r"(?P<fixed>\d+)(?:\s?\+\s?(?P<dynamic>\d+\.\d+)\s?/\s?h)?", self.allowed_attempts)
+        mm = re.match(r"(\d+)\s?\+\s?(\d+\.\d+)\s?/\s?h", self.allowed_attempts)
         if not mm:
             msg1 = f"'allowed_attempts' must have a format exactly like '2 + 0.5/h'"
             b.error(f"{self.sourcefile}: {msg1}, not '{self.allowed_attempts}'")
             return 2, 0
-        return int(mm.group("fixed")), float(mm.group("dynamic") or "0")
+        return int(mm.group(1)), float(mm.group(2))
 
     @staticmethod
     def _slugfilename(p: part.Structurepart) -> str:

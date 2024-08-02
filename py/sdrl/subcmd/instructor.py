@@ -30,8 +30,6 @@ def add_arguments(subparser):
                            help="commit and push to student repo")
     subparser.add_argument('--interactive', action=argparse.BooleanOptionalAction,
                            help="open interactive terminal interface to approve or reject tasks")
-    subparser.add_argument('--override', action='store_true',
-                           help="allow overriding of previous faulty gradings")
     subparser.add_argument('--log', default="INFO", choices=b.loglevels.keys(),
                            help="Log level for logging to stdout (default: INFO)")
 
@@ -56,17 +54,18 @@ def execute(pargs: argparse.Namespace):
     r.compute_student_work_so_far(course)
     entries, workhours_total, timevalue_total = r.student_work_so_far(course)
     opentasks = rewrite_submission_file(course, r.SUBMISSION_FILE)
-    entries = [entry for entry in entries if allow_grading(course, opentasks, entry, pargs.override)]
+    entries = [entry for entry in entries
+               if entry[0] in opentasks and course.task(entry[0]).remaining_attempts > 0]
     if not pargs.check:
         b.info("Don't run check, just prepare commit")
     elif not entries:
         b.info("No tasks to check found. Assuming check already done. Preparing commit.")
     elif pargs.interactive:
-        rejections = i.grade_entries(entries, student.course_url, pargs.override)
+        rejections = i.grade_entries(entries, student.course_url)
         if rejections is None:
             b.info("Nothing selected, nothing to do")
             return
-        b.spit_yaml(r.SUBMISSION_FILE, r.submission_file_entries(entries, rejections, pargs.override))
+        b.spit_yaml(r.SUBMISSION_FILE, r.submission_file_entries(entries, rejections))
         subshell_exit_info(reminder=True)
     else:
         call_instructor_cmd(course, instructor_cmd(), pargs, iteration=0)
@@ -75,17 +74,6 @@ def execute(pargs: argparse.Namespace):
         commit_and_push(r.SUBMISSION_FILE)
     os.chdir("..")
 
-def allow_grading(course, opentasks, entry, override):
-    task = course.task(entry[0])
-    if not override:
-        requirements = {requirement: course.task(requirement) for requirement in task.requires}
-        open_requirements = [k for k, v in requirements.items() if not(any(k == name for name in opentasks)) and not(v.accepted) and v.remaining_attempts]
-        if open_requirements:
-            return False
-    isallowed = (entry[0] in opentasks) != override
-    if override:
-        return isallowed and (task.rejections or task.accepted)
-    return isallowed and (task.remaining_attempts > 0) and (not task.accepted or opentask[entry[0]].endswith(r.ACCEPT_MARK))
 
 def checkout_student_repo(repo_url, home, pull=True):
     """Pulls or clones student repo and changes into its directory."""
@@ -128,7 +116,7 @@ def rewrite_submission_file(course: sdrl.course.Course, filename: str):
     entries = b.slurp_yaml(filename)
     rewrite_submission_entries(course, entries)
     b.spit_yaml(filename, entries)
-    return {taskname: mark for taskname, mark in entries.items() if mark != r.NONTASK_MARK}
+    return [taskname for taskname, mark in entries.items() if mark != r.NONTASK_MARK]
 
 
 def rewrite_submission_entries(course: sdrl.course.Course, entries: b.StrAnyDict):
@@ -181,9 +169,9 @@ def instructor_cmd() -> str:
 def validate_submission_file(course: sdrl.course.Course, filename: str) -> bool:
     """Check whether the submission file contains (and only contains) sensible entries."""
     entries = b.slurp_yaml(filename)
-    has_accept = any((r.accepted(mark) for taskname, mark in entries.items()))
-    has_reject = any((r.rejected(mark) for taskname, mark in entries.items()))
-    allowable_marks = f"(?:{r.OVERRIDE_PREFIX})?{r.ACCEPT_MARK}|(?:{r.OVERRIDE_PREFIX})?{r.REJECT_MARK}|{r.CHECK_MARK}"
+    has_accept = any((mark.startswith(r.ACCEPT_MARK) for taskname, mark in entries.items()))
+    has_reject = any((mark.startswith(r.REJECT_MARK) for taskname, mark in entries.items()))
+    allowable_marks = f"{r.ACCEPT_MARK}|{r.REJECT_MARK}|{r.CHECK_MARK}"
     is_valid = True
     
     def error(msg: str) -> bool:

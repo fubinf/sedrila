@@ -17,12 +17,9 @@ def main():  # uses sys.argv
     """Calls subcommand given on command line"""
     parser = ap_sub.ArgumentParser(description=description)
     parser.scan("sdrl.subcmd.*")
-    if os.environ.get(b.SEDRILA_COMMAND_ENV) and (len(sys.argv) < 2 or sys.argv[1].startswith("--")):
+    if os.environ.get(b.SEDRILA_COMMAND_ENV) and len(sys.argv) < 2:
         print(f"Using existing environment var {b.SEDRILA_COMMAND_ENV}")
-        input = os.environmet.get(b.SEDRILA_COMMAND_ENV)
-        if len(sys.agrv) >= 2:
-            input += " ".join(sys.argv[1:])
-        args = parser.parse_args(input.split(" "))
+        args = parser.parse_args(os.environ.get(b.SEDRILA_COMMAND_ENV).split(" "))
     else:
         args = parser.parse_args()
     parser.execute_subcommand(args)

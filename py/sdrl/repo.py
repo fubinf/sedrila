@@ -18,7 +18,6 @@ SUBMISSION_CHECKED_COMMIT_MSG = "submission.yaml checked"
 CHECK_MARK = "CHECK"
 ACCEPT_MARK = "ACCEPT"
 REJECT_MARK = "REJECT"
-OVERRIDE_PREFIX = "OVERRIDE_"
 NONTASK_MARK = "NO_SUCH_TASKNAME"
 
 CheckedTuple = tg.Tuple[str, str, str]  # hash, taskname, tasknote
@@ -26,48 +25,22 @@ WorkEntry = tg.Tuple[str, float]  # taskname, workhours
 ReportEntry = tg.Tuple[str, float, float, int, bool]  # taskname, workhoursum, timevalue, rejections, accepted
 
 
-def accumulate_timevalues_and_attempts(checked_tuple_groups: tg.Sequence[tg.Sequence[CheckedTuple]], course: sdrl.course.Course):
+def accumulate_timevalues_and_attempts(checked_tuples: tg.Sequence[CheckedTuple], course: sdrl.course.Course):
     """Reflect the check_tuples data in the course data structure."""
-    for checked_tuples in checked_tuple_groups:
-        for refid, taskname, tasknote in checked_tuples:
-            b.debug(f"tuple: {refid}, {taskname}, {tasknote}")
-            task = course.task(taskname)
-            requirements = {requirement: course.task(requirement) for requirement in task.requires}
-            open_requirements = [k for k, v in requirements.items() if not(any(k == name for (_, name, _) in checked_tuples)) and not(v.accepted) and v.remaining_attempts]
-            if open_requirements:
-                b.warning(f"Attempted to grade task {taskname} with missing requirements: {open_requirements}")
-                continue
-            overridden = tasknote.startswith(OVERRIDE_PREFIX)
-            if overridden:
-                tasknote = tasknote[len(OVERRIDE_PREFIX):]
-            if tasknote.startswith(ACCEPT_MARK):
-                if not task.remaining_attempts and not overridden:
-                    b.warning(f"Cannot accept task that has consumed its allowed attempts: {taskname}")
-                else:
-                    if overridden and task.rejections:
-                        task.rejections -= 1
-                    task.accepted = True
-                    b.debug(f"{taskname} accepted, {'' if overridden else 'not '} overridden")
-            elif tasknote.startswith(REJECT_MARK):
-                if not task.accepted or overridden:
-                    if overridden:
-                        task.accepted = False
-                    task.rejections += 1
-                    b.debug(f"{taskname} rejected, {'' if overridden else 'not '} overridden")
+    for refid, taskname, tasknote in checked_tuples:
+        b.debug(f"tuple: {refid}, {taskname}, {tasknote}")
+        task = course.task(taskname)
+        if tasknote.startswith(ACCEPT_MARK):
+            if not task.remaining_attempts:
+                b.warning(f"Cannot accept task that has consumed its allowed attempts: {taskname}")
             else:
-                pass  # unmodified entry: instructor has not checked it
-
-def accepted(tasknote: str):
-    overridden = tasknote.startswith(OVERRIDE_PREFIX)
-    if tasknote.startswith(OVERRIDE_PREFIX):
-        tasknote = tasknote[len(OVERRIDE_PREFIX):]
-    return tasknote.startswith(ACCEPT_MARK)
-
-def rejected(tasknote: str):
-    overridden = tasknote.startswith(OVERRIDE_PREFIX)
-    if tasknote.startswith(OVERRIDE_PREFIX):
-        tasknote = tasknote[len(OVERRIDE_PREFIX):]
-    return tasknote.startswith(REJECT_MARK)
+                task.accepted = True
+                b.debug(f"{taskname} accepted")
+        elif tasknote.startswith(REJECT_MARK):
+            task.rejections += 1
+            b.debug(f"{taskname} rejected")
+        else:
+            pass  # unmodified entry: instructor has not checked it
 
 
 def accumulate_workhours_per_task(workentries: tg.Sequence[WorkEntry], course: sdrl.course.Course):
@@ -80,7 +53,7 @@ def accumulate_workhours_per_task(workentries: tg.Sequence[WorkEntry], course: s
             pass  # ignore non-existing tasknames quietly
 
 
-def checked_tuples_from_commits(hasheslist: list[list[str]], course: sdrl.course.Course) -> tg.Sequence[tg.Sequence[CheckedTuple]]:
+def checked_tuples_from_commits(hasheslist: list[list[str]]) -> tg.Sequence[CheckedTuple]:
     """Collect the individual checks across all 'submission.yaml checked' commits.
     This will only allow grades for tasks that were actually requested to grade.
     The state of a task should always be the last one in a given group."""
@@ -101,8 +74,7 @@ def checked_tuples_from_commits(hasheslist: list[list[str]], course: sdrl.course
                     b.warning(f"Attempted to grade task that wasn't requested: {taskname}")
                     continue
                 groupdict[taskname] = (refid, taskname, tasknote)
-        if groupdict:
-            result.append(groupdict.values())
+        result.extend(groupdict.values())
     return result
 
 
@@ -131,7 +103,7 @@ def compute_student_work_so_far(course: sdrl.course.Course):
     workhours = workhours_of_commits(commits)
     accumulate_workhours_per_task(workhours, course)
     hasheslist = submission_checked_commit_hashes(course, commits)
-    checked_tuples = checked_tuples_from_commits(hasheslist, course)
+    checked_tuples = checked_tuples_from_commits(hasheslist)
     accumulate_timevalues_and_attempts(checked_tuples, course)
 
 
@@ -189,7 +161,7 @@ def student_work_so_far(course) -> tg.Tuple[list[ReportEntry], float, float]:
     return result, workhours_total, timevalue_total  # overall result triple
 
 
-def submission_file_entries(entries: list[ReportEntry], rejected: list[str] = None, override: bool = False) -> dict[str, str]:
+def submission_file_entries(entries: list[ReportEntry], rejected: list[str] = None) -> dict[str, str]:
     """taskname -> CHECK_MARK  for each yet-to-be-accepted task with effort in any commit."""
     candidates = dict()
     for taskname, workhoursum, timevalue, rejections, accepted in entries:
@@ -197,10 +169,10 @@ def submission_file_entries(entries: list[ReportEntry], rejected: list[str] = No
             if not accepted:
                 candidates[taskname] = CHECK_MARK
         else:
-            if taskname in rejected:
-                candidates[taskname] = (OVERRIDE_PREFIX if override else "") + REJECT_MARK
-            elif accepted:
-                candidates[taskname] = (OVERRIDE_PREFIX if override else "") + ACCEPT_MARK
+            if accepted:
+                candidates[taskname] = ACCEPT_MARK
+            elif taskname in rejected:
+                candidates[taskname] = REJECT_MARK
             else:
                 candidates[taskname] = CHECK_MARK
     return candidates
