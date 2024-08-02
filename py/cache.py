@@ -1,6 +1,7 @@
 """Element cache for incremental build."""
 import dbm
 import enum
+import gzip
 import itertools
 import json
 import os
@@ -10,6 +11,7 @@ import typing as tg
 import base as b
 
 
+UNCOMPRESSED_LIMIT = 40  # length of longest string to store uncompressed
 Cacheable = str | list[str] | b.StrAnyDict  # what can be put in the cache
 CacheEntryType = None | Cacheable  # what cache queries can return
 
@@ -58,7 +60,8 @@ class SedrilaCache:
         else:
             self.db = dict()
         self.written = dict()
-        timestamp_cached = float(self.db.get(self.TIMESTAMP_KEY, b"0").decode())  # default: everything is old
+        tsk = self.TIMESTAMP_KEY
+        timestamp_cached = float(_decompress(self.db[tsk]) if tsk in self.db else "0")  # default: everything is old
         self.timestamp_cached = round(timestamp_cached, 3)  # milliseconds suffice for us
         b.debug(f"cache.mtime/timestamp_cached: {self.timestamp_cached}")
         dirtyfiles, dirtyfiles_state = self.cached_list(self.DIRTYFILES_KEY)
@@ -73,7 +76,7 @@ class SedrilaCache:
         if key in self.written:
             return self.written[key]
         elif key in self.db:
-            return self.db[key]
+            return _decompress(self.db[key])
         raise ValueError(key)
 
     def __setitem__(self, key: str, value: tg.Any):
@@ -167,7 +170,7 @@ class SedrilaCache:
     def close(self):
         """Bring the persistent cache file up-to-date and close dbm."""
         converters = {str: self._as_is, list: self._from_list, set: self._from_set, dict: self._from_dict}
-        self.db[self.TIMESTAMP_KEY] = str(self.timestamp_start)  # update mtime
+        self.db[self.TIMESTAMP_KEY] = _compress(str(self.timestamp_start))  # update mtime
         self.write_list(self.DIRTYFILES_KEY, list(self.new_dirtyfiles))
         for key, value in self.written.items():
             if value is None:  # should not happen
@@ -175,7 +178,7 @@ class SedrilaCache:
                 continue
             converter = converters[type(value)]
             data = converter(value)
-            self.db[key] = data  # implicitly further converts str to bytes
+            self.db[key] = _compress(data)
         if self.persistent_mode:
             self.db.__exit__()  # dbm file context manager operation 
 
@@ -216,16 +219,31 @@ class SedrilaCache:
         if key in self.written:
             return (self.written[key], State.HAS_CHANGED)
         elif key in self.db:
-            return (converter(self.db[key].decode()), State.AS_BEFORE)
+            return (converter(_decompress(self.db[key])), State.AS_BEFORE)
         else:
             return (converter(None), State.MISSING)
 
     def _dump(self, limit: int):
         keys = sorted(self.db.keys())
         for key in keys:
-            value = self.db[key]
+            value = _decompress(self.db[key])
             print(f"{key}:\t{value[:limit]}")
 
     def _storefilelist(self, key: str, samefiles: list[str], newfiles: list[str]):
         thelist = self.LIST_SEPARATOR.join(itertools.chain(samefiles, newfiles))
         self.db[key] = thelist
+
+
+def _compress(s: str) -> bytes:
+    """Encoded, gzip-compressed string; short strings stay uncompressed with a 0 indicator byte prepended."""
+    if len(s) > UNCOMPRESSED_LIMIT:
+        return gzip.compress(s.encode(), compresslevel=6)
+    else:
+        return b"\x00" + s.encode()
+
+
+def _decompress(b: bytes) -> str:
+    if b[0] == 0:
+        return b[1:].decode()
+    else:
+        return gzip.decompress(b).decode()
