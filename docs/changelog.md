@@ -1,19 +1,27 @@
 # sedrila CHANGELOG
 
 
+## Version 2.x.x (upcoming)
+- ...
 
-## Version 2.0.0 (upcoming) 
+
+## Version 2.0.0 beta (2024-08-02) 
 - `author` optimization: sedrila now uses an incremental build, supported by a cache.
-  The code base has been greatly reorganized accordingly.
   Build time reduces tenfold in typical cases.
+  The previous simplistic cache and its `--cache` option were removed.
+  The code base has been greatly reorganized accordingly and is now cleaner and clearer.
+  Use `--clean` to start with an empty cache if desired (there is rarely a need for it).
+  Output now reports which files are built; use `--log WARNING` to silence this.
 - `author` harmonization: in `sedrila.yaml`, 'slug' and 'breadcrumb_title' are renamed into 'name'.
   (In the resulting `course.json`, 'slug' is deprecated, but still available for the time being,
-  so that students/instructors can continue to use sedrila 1.3 when authors start using sedrila 2.0.)
+  so that students/instructors can continue to use sedrila 1.3 when authors start using sedrila 2.0.
+  Version mixing is not well tested, though.)
 - `author` simplification: `assumes` and `requires` now allow any type of part.
   The `minimum` attribute in taskgroup files is no longer supported.
   The (undocumented) `todo` attribute in taskgroup files is no longer supported.
-- `author`: FIX: added missing documentation for macro `[TERMREF2]`
-- ...
+- `author`: FIX: added missing documentation for macro `[TERMREF2]`.
+- `author`: FIX: the reported number of errors is no longer inflated.
+- `instructor`: can now change previous accept/reject decisions``
 
 
 ## Version 1.3.2 (2024-06-13) 
