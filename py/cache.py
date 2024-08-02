@@ -1,17 +1,18 @@
 """Element cache for incremental build."""
 import dbm
 import enum
-import gzip
 import itertools
 import json
 import os
 import time
 import typing as tg
+import zlib
 
 import base as b
 
 
 UNCOMPRESSED_LIMIT = 40  # length of longest string to store uncompressed
+ZLIB_WBITS = -15
 Cacheable = str | list[str] | b.StrAnyDict  # what can be put in the cache
 CacheEntryType = None | Cacheable  # what cache queries can return
 
@@ -37,7 +38,11 @@ class SedrilaCache:
     - str are just that.
     - list[str] and set[str] are stored as a string using LIST_SEPARATOR.
     - dict[Any] are stored as json.
-    Several helper entries use __dunder__ names.
+    Keys take the form partname__entrytype.
+    Helper entries use __dunder__ keys.
+    The actual filename(s) depend(s) on the chosen DBM implementation, which depends on
+    what is installed on the system, which means cache files are not necessarily portable
+    to other computers.  The default plain-Python DBM will have a single *.db file.
     """
     LIST_SEPARATOR = '|'  # separates entries in list-valued dbm entries. Symbol is forbidden in all names.
     TIMESTAMP_KEY = '__mtime__'  # unix timestamp: seconds since epoch
@@ -237,7 +242,7 @@ class SedrilaCache:
 def _compress(s: str) -> bytes:
     """Encoded, gzip-compressed string; short strings stay uncompressed with a 0 indicator byte prepended."""
     if len(s) > UNCOMPRESSED_LIMIT:
-        return gzip.compress(s.encode(), compresslevel=6)
+        return zlib.compress(s.encode(), level=6, wbits=ZLIB_WBITS)
     else:
         return b"\x00" + s.encode()
 
@@ -246,4 +251,4 @@ def _decompress(b: bytes) -> str:
     if b[0] == 0:
         return b[1:].decode()
     else:
-        return gzip.decompress(b).decode()
+        return zlib.decompress(b, wbits=ZLIB_WBITS, bufsize=64000).decode()
