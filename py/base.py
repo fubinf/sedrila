@@ -4,6 +4,7 @@ import json
 import logging
 import re
 import sys
+import time
 import typing as tg
 
 import requests
@@ -20,6 +21,7 @@ METADATA_FILE = "course.json"  # at top-level of build directory
 TEMPLATES_DIR = "templates"
 SEDRILA_COMMAND_ENV = "SEDRILA_COMMAND"
 
+starttime = time.time()
 num_errors = 0
 msgs_seen = set()
 loglevel = logging.ERROR
@@ -86,7 +88,7 @@ def copyattrs(context: str, source: StrAnyDict, target: tg.Any,
         value = source.get(mname, ValueError)
         if value is ValueError:
             error(f"{context}: required attribute is missing: {mname}")
-            exit_if_errors()
+            finalmessage()
         else:
             mysetattr(target, mname, value)
     for cname in cancopy_names:  # transport these if present, set them to None if not
@@ -174,12 +176,12 @@ def critical(msg: str):
     sys.exit(num_errors)
 
 
-def exit_if_errors(msg: str = ""):
+def finalmessage():
+    timing = "%.1f seconds" % (time.time() - starttime)
     if num_errors > 0:
-        if msg:
-            critical(msg)
-        else:
-            critical(f"==== {num_errors} error{'s' if num_errors != 1 else ''}. Exiting. ====")
+        critical(f"==== {num_errors} error{'s' if num_errors != 1 else ''}. {timing}. Exiting. ====")
+    else:
+        info(f"::: {timing} :::")
 
 
 def caller(how_far_up: int = 1) -> str:
@@ -225,7 +227,8 @@ def _process_params(msg: str, file: tg.Optional[str], file2: tg.Optional[str]):
 
 def _testmode_reset():
     """reset error counter; avoid text wrapping of b.error() etc."""
-    global num_errors, msgs_seen
+    global num_errors, msgs_seen, starttime
+    starttime = time.time()
     num_errors = 0
     msgs_seen = set()
     rich.get_console()._width = 10000

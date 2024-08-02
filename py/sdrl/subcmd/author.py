@@ -51,7 +51,7 @@ def execute(pargs: argparse.Namespace):
     targetdir_i = _targetdir_i(pargs.targetdir)
     prepare_directories(targetdir_s, targetdir_i)
     create_and_build_course(pargs, targetdir_i, targetdir_s)
-    b.exit_if_errors()
+    b.finalmessage()
 
 
 def create_and_build_course(pargs, targetdir_i, targetdir_s) -> sdrl.course.Coursebuilder:
