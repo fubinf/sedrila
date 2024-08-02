@@ -548,7 +548,7 @@ and you can define further macros like them if needed.
   Create a hyperlink to the part description file for task, taskgroup, chapter, or zipfile `partname`,
   using the partname as the link text.
 - `[PARTREFTITLE::partname]`: 
-  Ditto, but using the part's title as the link text.
+  Ditto, but using the part's title as the link text. Not recommended.
 - `[PARTREFMANUAL::partname::link text]`: 
   Ditto, but using the given link text.
 - `[TERMREF::term]`:
@@ -763,13 +763,13 @@ Both versions will exclude all tasks, taskgroups, and chapters that have a
 
 - To include those as well, add option `--include_stage minstage` where `minstage`
   is the lowest stage that should be included; all higher ones will be included as well.  
-- To obtain more detailed console output during the generation, use `--log INFO`.  
+- To obtain less detailed console output during the generation, use `--log WARNING`.  
+- The first run creates and fills the cache (which is stored in the instructor directory) 
+  and subsequent runs will usually run _much_ faster.
+  If you want another full build for some reason, use `--clean`.
 - To use an alternative configuration file, use something like `--config myconfig.yaml`.  
 - Option `--sums` generates reports about the volume of tasks per chapter,
   per difficulty, and per stage.
-- If you only change one or two task files many times, use `--cache`
-  to greatly speed up rendering. It will keep the entire structure and only
-  replace the HTML for modified task files. 
 
 If you use a development setup with a source installation of sedrila,
 use a shell alias such as 
@@ -783,7 +783,7 @@ use a shell alias such as
 One design goal of sedrila is that course authors should be able to fork an existing ("upstream")
 sedrila course authored by people from a different university and adapt the fork to their needs,
 but still be able to receive (and integrate automatically, simply by a git merge) almost all 
-of the later changes those other authors may be making.
+later changes those other authors may be making.
 
 The support for this has the following components:
 
@@ -868,15 +868,8 @@ and be prepared for the dreaded error message
 _"fatal: cannot rebase with locally recorded submodule modifications"_
 by reading https://stackoverflow.com/questions/54215983.
 
-Besides the second repo for `altdir`, SeDriLa courses will often have third,
-stand-alone repo (called the "instructor repo") 
-for instructor information that is too bulky to be used via the [INCLUDE] mechamism.
-
-A typical example would be larger programs that consist of multiple files 
-and are less convenient for instructors to look at in the browser
-(they would rather use an IDE), let alone to execute.
-Instructors should simply have a copy of the instructor repo (if it exists)
-at standby and `[INSTRUCTOR]` blocks in tasks will then mention the respective filenames.
+The second repo for `altdir` will often also include the `itree.zip` tree.
+Alternatively, especially if its contents are bulky, the latter could reside in a third repo.
 
 ### 3.6 Translating into English
 
