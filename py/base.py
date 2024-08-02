@@ -13,7 +13,6 @@ import rich.table
 import yaml
 
 
-SEDRILA_VERSION = "1.3.2"  # keep in sync with pyproject.toml  TODO 2: read it via tomllib instead
 CACHE_FILENAME = ".sedrila_cache"  # in instructor target dir
 CONFIG_FILENAME = "sedrila.yaml"  # at top-level of source dir
 GLOSSARY_BASENAME = "glossary"  # .md at top-level of chapterdir, .html in build directory
