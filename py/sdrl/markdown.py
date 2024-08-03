@@ -83,13 +83,14 @@ def render_markdown(context_sourcefile: str, partname: str, markdown_markup: str
 
 extensions = [SedrilaExtension(), 
               'attr_list', 'codehilite', 'fenced_code',
-              'sane_lists', 'toc', 'smarty',
+              'sane_lists', 'tables', 'toc', 'smarty',
               ]
 # https://python-markdown.github.io/extensions/attr_list/
 # https://python-markdown.github.io/extensions/code_hilite/
 # https://python-markdown.github.io/extensions/fenced_code_blocks/
 # https://python-markdown.github.io/extensions/sane_lists/
 # https://python-markdown.github.io/extensions/smarty/
+# https://python-markdown.github.io/extensions/tables/
 # https://python-markdown.github.io/extensions/toc/
 # https://github.com/daGrevis/mdx_linkify  breaks the correct handling of `a < b` and cannot be used
 

@@ -19,6 +19,7 @@
 - `author` simplification: `assumes` and `requires` now allow any type of part.
   The `minimum` attribute in taskgroup files is no longer supported.
   The (undocumented) `todo` attribute in taskgroup files is no longer supported.
+- `author` feature: sedrila now also supports table syntax in Markdown.
 - `author`: FIX: added missing documentation for macro `[TERMREF2]`.
 - `author`: FIX: the reported number of errors is no longer inflated.
 - `instructor`: can now change previous accept/reject decisions``
