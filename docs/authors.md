@@ -754,12 +754,16 @@ The following rules are suggestions for how to achieve these properties.
 
 ## 2. Calling `sedrila`
 
+### 2.1 Default behavior
+
 The standard call for generating the HTML website from a sedrila course is
 `sedrila author outputdir`.
 This will create the student version of the website at location `outputdir`
 and the instructor version at `outputdir/instructor`.
-Both versions will exclude all tasks, taskgroups, and chapters that have a
+Both versions will by default exclude all tasks, taskgroups, and chapters that have a
 `stage:` entry in their metadata.
+
+### 2.2 Options
 
 - To include those as well, add option `--include_stage minstage` where `minstage`
   is the lowest stage that should be included; all higher ones will be included as well.  
@@ -770,6 +774,25 @@ Both versions will exclude all tasks, taskgroups, and chapters that have a
 - To use an alternative configuration file, use something like `--config myconfig.yaml`.  
 - Option `--sums` generates reports about the volume of tasks per chapter,
   per difficulty, and per stage.
+
+### 2.3 Copying the build output
+
+If you are using an Apache webserver and have provided a suitable `htaccess_template`
+in your config, you could copy the entire output directory as-is to a place where the
+webserver will find it, because the `instructor` subdirectory is protected from student
+access by the automatically generated `.htaccess` file it contains (unless your Apache base config
+has turned this function off, which would be unusual).
+
+In a more refined approach, you should exclude the cache file or files from copying:
+`instructor/.sedrila-cache.*`.
+These one or two files are used by `sedrila author` only, they are not part of the generated website.
+
+If have no Apache webserver, you would exclude the `instructor` subdirectory when copying
+the student website (i.e., copy `*.*`: `instructor` is the only entry that has no dot in its name)
+to a public place and then copy the visible contents of `instructor` to an access-protected place
+(the cache files are the only ones whose names start with a dot).
+
+### 2.4 Working with a development setup of sedrila
 
 If you use a development setup with a source installation of sedrila,
 use a shell alias such as 
