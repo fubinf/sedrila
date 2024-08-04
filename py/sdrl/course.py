@@ -270,12 +270,12 @@ class Course(el.Part):
         return self.taskdict.get(taskname, None)  # noqa
 
     def _parse_allowed_attempts(self) -> tuple[int, float]:
-        mm = re.match(r"(\d+)\s?\+\s?(\d+\.\d+)\s?/\s?h", self.allowed_attempts)
+        mm = re.match(r"(?P<base>\d+)(\s?\+\s?(?P<time>\d+\.\d+)\s?/\s?h)?", self.allowed_attempts)
         if not mm:
-            msg1 = f"'allowed_attempts' must have a format exactly like '2 + 0.5/h'"
+            msg1 = f"'allowed_attempts' must have a format exactly like '2 + 0.5/h' or '2'"
             b.error(f"{msg1}, not '{self.allowed_attempts}'", file=getattr(self, 'sourcefile', ''))
             return 2, 0
-        return int(mm.group(1)), float(mm.group(2))
+        return int(mm.group("base")), float(mm.group("time") or "0")
 
     @staticmethod
     def _partpath(p: el.Part) -> str:
@@ -646,7 +646,7 @@ class Taskgroupbuilder(sdrl.partbuilder.PartbuilderMixin, Taskgroup):
         """Finds and reads task files."""
         self.tasks = []
         filenames = glob.glob(f"{self.course.chapterdir}/{self.chapter.name}/{self.name}/*.md")
-        for filename in filenames:
+        for filename in sorted(filenames):
             if not filename.endswith("index.md"):
                 name = os.path.basename(filename[:-3])  # remove .md suffix
                 self._add_task(Taskbuilder(name, parent=self, taskgroup=self))

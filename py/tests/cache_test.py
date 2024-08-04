@@ -5,6 +5,7 @@ import pytest
 
 import cache
 import testbase
+import base as b
 
 
 def ck(fn: str) -> str:  # pseudo-cache_key function
@@ -13,7 +14,7 @@ def ck(fn: str) -> str:  # pseudo-cache_key function
 
 def test_sedrilacache():
     with tempfile.TemporaryDirectory() as tmpdir:
-        c = cache.SedrilaCache(tmpdir, start_clean=False)  # cache is empty anyway
+        c = cache.SedrilaCache(os.path.join(tmpdir, b.CACHE_FILENAME), start_clean=False)  # cache is empty anyway
         S = cache.State
         mystr = "value s"
         mylist = ["a", "b"]
@@ -39,7 +40,7 @@ def test_sedrilacache():
         assert c.cached_str("non-s") == (None, S.MISSING)
         # ----- Phase 4: commit() and start afresh
         c.close()
-        c = cache.SedrilaCache(tmpdir, start_clean=False)  # simulate a next run of sedrila
+        c = cache.SedrilaCache(os.path.join(tmpdir, b.CACHE_FILENAME), start_clean=False)  # simulate a next run of sedrila
         os.utime(f_old, (c.mtime, c.mtime-5))  # make f_old old
         c.timestamp_cached -= 1  # kludge! make f_new look new
         # ----- Phase 5: Read existing
