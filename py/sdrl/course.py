@@ -273,7 +273,7 @@ class Course(el.Part):
         mm = re.match(r"(\d+)\s?\+\s?(\d+\.\d+)\s?/\s?h", self.allowed_attempts)
         if not mm:
             msg1 = f"'allowed_attempts' must have a format exactly like '2 + 0.5/h'"
-            b.error(f"{msg1}, not '{self.allowed_attempts}'", file=self.sourcefile)
+            b.error(f"{msg1}, not '{self.allowed_attempts}'", file=getattr(self, 'sourcefile', ''))
             return 2, 0
         return int(mm.group(1)), float(mm.group(2))
 
