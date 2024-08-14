@@ -131,7 +131,10 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         term = macrocall.arg1
         label = term if not macrocall.arg2 else macrocall.arg2  # unify calls to TERMREF and TERMREF2
         if label.startswith("-"):  # arg2 is meant to be a suffix
-            label = term + label[1:]
+            label = f"{term}{label[1:]}"
+        elif label.startswith("&ndash;"):  # e.g. [TERMREF2::class::--like] for 'class-like', but
+            # Markdown extension smarty has garbled the '--' into '&ndash;' 
+            label = f"{term}-{label[len('&ndash;'):]}"
         target = "%s.html#%s" % (b.GLOSSARY_BASENAME, b.slugify(term))
         self._macro_mentions(macrocall, term)
         return (f"<a href='{target}' class='glossary-termref-term'>"

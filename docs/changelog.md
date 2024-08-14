@@ -1,7 +1,8 @@
 # sedrila CHANGELOG
 
 
-## Version 2.x.x (upcoming)
+## Version 2.0.1 (upcoming)
+- `author`: make `[TERMREF2::class::--like]` work correctly.
 - ...
 
 
