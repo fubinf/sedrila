@@ -3,17 +3,15 @@ import typing as tg
 import webbrowser
 
 import base as b
+import sdrl.constants as c
 import sdrl.repo as r
-
-ACCEPT_SYMBOL = "✓"
-REJECT_SYMBOL = "X"
 
 
 def prefix(entry: r.ReportEntry, selected: dict[str, bool], rejected: dict[str, bool]):
     if selected[entry[0]]:
-        return ACCEPT_SYMBOL
+        return c.INTERACT_ACCEPT_SYMBOL
     if not(rejected is None) and rejected[entry[0]]:
-        return REJECT_SYMBOL
+        return c.INTERACT_REJECT_SYMBOL
     return " "
 
 
@@ -78,7 +76,7 @@ def grade_entries(entries: list[r.ReportEntry], course_url: str, override: bool,
     Mark entries in list as accepted if they are and count rejection if not.
     Returns list of new rejections because the count is not enough to know whether they were rejected in current run
     """
-    submission = b.slurp_yaml(r.SUBMISSION_FILE)
+    submission = b.slurp_yaml(c.SUBMISSION_FILE)
     selected = {entry[0]: currently_accepted(submission, entry, override) for entry in entries}
     rejected = {entry[0]: currently_rejected(submission, entry, override) for entry in entries}
     (filter_method or filter_entries)(entries, selected, rejected, course_url)

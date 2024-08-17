@@ -2,7 +2,7 @@
 import os
 import sys
 
-import base as b
+import sdrl.constants as c
 import sdrl.argparser
 import sdrl.subcmd  # this is where the subcommands will be found
 
@@ -11,9 +11,9 @@ def main():  # uses sys.argv
     """Calls subcommand given on command line"""
     parser = sdrl.argparser.SedrilaArgParser(description="-")  # description is set lazily
     parser.scan("sdrl.subcmd.*")
-    if os.environ.get(b.SEDRILA_COMMAND_ENV) and (len(sys.argv) < 2 or sys.argv[1].startswith("--")):
-        print(f"Using existing environment var {b.SEDRILA_COMMAND_ENV}")
-        input = os.environ.get(b.SEDRILA_COMMAND_ENV)
+    if os.environ.get(c.SEDRILA_COMMAND_ENV) and (len(sys.argv) < 2 or sys.argv[1].startswith("--")):
+        print(f"Using existing environment var {c.SEDRILA_COMMAND_ENV}")
+        input = os.environ.get(c.SEDRILA_COMMAND_ENV)
         if len(sys.argv) >= 2:
             input += " ".join(sys.argv[1:])
         args = parser.parse_args(input.split(" "))

@@ -15,6 +15,7 @@ import typing as tg
 
 import base as b
 import cache
+import sdrl.constants as c
 import sdrl.course
 import sdrl.elements as el
 import sdrl.directory as dir
@@ -25,12 +26,9 @@ meaning = """Creates and renders an instance of a SeDriLa course with incrementa
 Checks consistency of the course description.
 """
 
-OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR = "instructor"
-ALTDIR_KEYWORD = "ALT:"
-
 
 def add_arguments(subparser: argparse.ArgumentParser):
-    subparser.add_argument('--config', metavar="configfile", default=b.CONFIG_FILENAME,
+    subparser.add_argument('--config', metavar="configfile", default=c.AUTHOR_CONFIG_FILENAME,
                            help="SeDriLa configuration description YAML file")
     subparser.add_argument('--include_stage', metavar="stage", default='',
                            help="include parts with this and higher 'stage:' entries in the generated output "
@@ -55,16 +53,16 @@ def execute(pargs: argparse.Namespace):
 
 
 def create_and_build_course(pargs, targetdir_i, targetdir_s) -> sdrl.course.Coursebuilder:
-    the_cache = cache.SedrilaCache(os.path.join(targetdir_i, b.CACHE_FILENAME), start_clean=pargs.clean)
+    the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=pargs.clean)
     b.set_register_files_callback(the_cache.set_file_dirty)
     directory = dir.Directory(the_cache)
-    c = sdrl.course  # abbrev
-    the_course = c.Coursebuilder(configfile=pargs.config, context=pargs.config, include_stage=pargs.include_stage,
-                                 targetdir_s=targetdir_s, targetdir_i=targetdir_i, directory=directory)
+    the_course = sdrl.course.Coursebuilder(
+        configfile=pargs.config, context=pargs.config, include_stage=pargs.include_stage,
+        targetdir_s=targetdir_s, targetdir_i=targetdir_i, directory=directory)
     prepare_itree_zip(the_course)
     macroexpanders.register_macros(the_course)
     directory.build()
-    b.spit(os.path.join(targetdir_s, b.METADATA_FILE), json.dumps(the_course.as_json(), indent=2))
+    b.spit(os.path.join(targetdir_s, c.METADATA_FILE), json.dumps(the_course.as_json(), indent=2))
     purge_leftover_outputfiles(directory, targetdir_s, targetdir_i)
     if pargs.sums:
         print_volume_report(the_course)
@@ -78,16 +76,15 @@ def prepare_directories(targetdir_s: str, targetdir_i: str):
         os.mkdir(targetdir_s)
     # ----- check plausibility:
     not_empty = len(os.listdir(targetdir_s)) > 1  # targetdir_i will exist even in fresh ones 
-    metadatafile = os.path.join(targetdir_s, b.METADATA_FILE)
+    metadatafile = os.path.join(targetdir_s, c.METADATA_FILE)
     if not_empty and not os.path.exists(metadatafile):  # empty pre-existing dirs will fail, too
-        b.critical(f"{targetdir_s} does not look like a build directory: {b.METADATA_FILE} is missing")
+        b.critical(f"{targetdir_s} does not look like a build directory: {c.METADATA_FILE} is missing")
     # ----- add instructor dir if needed:
     if not os.path.exists(targetdir_i):
         os.mkdir(targetdir_i)
 
 
 def prepare_itree_zip(the_course: sdrl.course.Coursebuilder):
-    import sdrl.elements as el
     if not the_course.itreedir:
         return  # nothing to do
     if not the_course.itreedir.endswith(".zip"):
@@ -95,6 +92,7 @@ def prepare_itree_zip(the_course: sdrl.course.Coursebuilder):
     the_course.directory.make_the(el.Zipdir, the_course.itreedir, parent=the_course)
     the_course.directory.make_the(el.Zipfile, os.path.basename(the_course.itreedir), parent=the_course, 
                                   sourcefile=the_course.itreedir, instructor_only=True)
+
 
 def print_volume_report(course: sdrl.course.Coursebuilder):
     """Show total timevalues per stage, difficulty, and chapter."""
@@ -134,13 +132,13 @@ def purge_leftover_outputfiles(directory: dir.Directory, targetdir_s: str, targe
         return not isinstance(outputfile, el.Part) or not outputfile.to_be_skipped
     
     expected_files = set([of.outputfile for of in directory.get_all_outputfiles() if keep(of)])
-    additions_s = {OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR, b.METADATA_FILE}
+    additions_s = {c.AUTHOR_OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR, c.METADATA_FILE}
     additions_i = set()
     purge_all_but(targetdir_s, expected_files | additions_s)
-    purge_all_but(targetdir_i, expected_files | additions_i, exception=b.CACHE_FILENAME)
+    purge_all_but(targetdir_i, expected_files | additions_i, exception=c.CACHE_FILENAME)
 
 
-def purge_all_but(dir: str, files: set[str], exception: tg.Optional[str]=None):
+def purge_all_but(dir: str, files: set[str], exception: tg.Optional[str] = None):
     """Delete all files in dir that are not mentioned in files."""
     actual_files = set(os.listdir(dir))
     delete_these = actual_files - files
@@ -153,4 +151,4 @@ def purge_all_but(dir: str, files: set[str], exception: tg.Optional[str]=None):
 
 
 def _targetdir_i(targetdir_s):
-    return os.path.join(targetdir_s, OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR)
+    return os.path.join(targetdir_s, c.AUTHOR_OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR)

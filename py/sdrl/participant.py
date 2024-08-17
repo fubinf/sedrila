@@ -1,11 +1,11 @@
+import functools
 import json
 import os
 
 import requests
 
 import base as b
-
-PARTICIPANT_FILE = "student.yaml"
+import sdrl.constants as c
 
 
 class Student:
@@ -21,11 +21,11 @@ class Student:
         self.root = "."
         try:
             # grant students some slack. if they are calling from inside a working dir, it's fine.
-            if not os.path.isfile(PARTICIPANT_FILE) and os.path.isfile(os.path.join("..", PARTICIPANT_FILE)):
+            if not os.path.isfile(c.PARTICIPANT_FILE) and os.path.isfile(os.path.join("..", c.PARTICIPANT_FILE)):
                 self.root = ".."
-            data = b.slurp_yaml(os.path.join(self.root, PARTICIPANT_FILE))
+            data = b.slurp_yaml(os.path.join(self.root, c.PARTICIPANT_FILE))
         except FileNotFoundError:
-            b.critical(f"cannot read '{PARTICIPANT_FILE}'")
+            b.critical(f"cannot read '{c.PARTICIPANT_FILE}'")
         try:
             self.course_url = data['course_url']  # noqa
             assert isinstance(self.course_url, str)
@@ -36,18 +36,18 @@ class Student:
             assert isinstance(self.partner_student_name, str)
             self.partner_student_id = str(data['partner_student_id'])
         except KeyError:
-            b.critical(f"malformed file '{PARTICIPANT_FILE}': must contain "
+            b.critical(f"malformed file '{c.PARTICIPANT_FILE}': must contain "
                        "course_url, student_name, student_id, partner_student_name, partner_student_id.")
-        self.metadata_url = f"{self.course_url}/{b.METADATA_FILE}"
+        self.metadata_url = f"{self.course_url}/{c.METADATA_FILE}"
 
-    @property
+    @functools.cached_property
     def metadatadict(self) -> b.StrAnyDict:
         return self.get_metadata(self.course_url)
         
     @staticmethod    
     def get_metadata(course_url: str) -> b.StrAnyDict:
         FILE_URL_PREFIX = 'file://'
-        url = os.path.join(course_url, b.METADATA_FILE)
+        url = os.path.join(course_url, c.METADATA_FILE)
         try:
             if url.startswith(FILE_URL_PREFIX):
                 jsontext = b.slurp(url[len(FILE_URL_PREFIX):])

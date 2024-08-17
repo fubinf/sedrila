@@ -3,6 +3,7 @@ import typing as tg
 
 import base as b
 import cache
+import sdrl.constants as c
 import sdrl.elements as el
 import sdrl.macros as macros
 import sdrl.markdown as md
@@ -60,7 +61,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
 
     @property
     def sourcefile(self) -> str:
-        return f"{self.course.chapterdir}/{b.GLOSSARY_BASENAME}.md"
+        return f"{self.course.chapterdir}/{c.AUTHOR_GLOSSARY_BASENAME}.md"
 
     @property
     def toc(self) -> str:
@@ -135,7 +136,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         elif label.startswith("&ndash;"):  # e.g. [TERMREF2::class::--like] for 'class-like', but
             # Markdown extension smarty has garbled the '--' into '&ndash;' 
             label = f"{term}-{label[len('&ndash;'):]}"
-        target = "%s.html#%s" % (b.GLOSSARY_BASENAME, b.slugify(term))
+        target = "%s.html#%s" % (c.AUTHOR_GLOSSARY_BASENAME, b.slugify(term))
         self._macro_mentions(macrocall, term)
         return (f"<a href='{target}' class='glossary-termref-term'>"
                 f"{label}<span class='glossary-termref-suffix'></span></a>")
@@ -246,5 +247,5 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
 
     def _macro_mentions(self, macrocall: macros.Macrocall, term: str):  # called by phase 1 TERMREF macro expansion
         partname = macrocall.partname
-        if partname and partname != b.GLOSSARY_BASENAME:  # avoid links from glossary to itself
+        if partname and partname != c.AUTHOR_GLOSSARY_BASENAME:  # avoid links from glossary to itself
             macrocall.md.termrefs.add(term)

@@ -1,7 +1,6 @@
 """sedrila-specific HTML generation helper routines."""
+import sdrl.constants as c
 
-DIFFICULTY_SIGN = "&#x26ab;&#xfe0e;"  # &#x26ab; is an icon and always black, &#xfe0e; is the text-variant selector
-# https://commons.wikimedia.org/wiki/Unicode_circle_shaped_symbols
 
 difficulty_levels = ('verylow', 'low', 'medium', 'high')
 
@@ -19,7 +18,7 @@ def breadcrumb(*args):
 def difficulty_symbol(level: int) -> str:
     difficulty_text = difficulty_levels[level - 1]
     diffclass = f"class='difficulty{level}'"
-    circle = f"<span {diffclass} title='Difficulty: {difficulty_text}'>{DIFFICULTY_SIGN}</span>"
+    circle = f"<span {diffclass} title='Difficulty: {difficulty_text}'>{c.HTML_DIFFICULTY_SIGN}</span>"
     return circle
 
 

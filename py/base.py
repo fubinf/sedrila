@@ -13,13 +13,6 @@ import rich.table
 import yaml
 
 
-CACHE_FILENAME = ".sedrila_cache"  # in instructor target dir
-CONFIG_FILENAME = "sedrila.yaml"  # at top-level of source dir
-GLOSSARY_BASENAME = "glossary"  # .md at top-level of chapterdir, .html in build directory
-METADATA_FILE = "course.json"  # at top-level of build directory
-TEMPLATES_DIR = "templates"
-SEDRILA_COMMAND_ENV = "SEDRILA_COMMAND"
-
 starttime = time.time()
 num_errors = 0
 msgs_seen = set()

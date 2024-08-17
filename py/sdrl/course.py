@@ -15,6 +15,7 @@ import re
 import typing as tg
 
 import base as b
+import sdrl.constants as c
 import sdrl.elements as el
 import sdrl.glossary as glossary
 import sdrl.html as h
@@ -229,7 +230,7 @@ class Course(el.Part):
     CANCOPY_ADDITIONAL = '???'  # set in subclasses
 
     context: str  # for error messages: where config data comes from
-    configdict: b.StrAnyDict  # all data from b.CONFIGFILE or b.METADATAFILE
+    configdict: b.StrAnyDict  # all data from c.CONFIGFILE or c.METADATAFILE
     namespace: dict[str, el.Part]  # partname -> part, for obtaining Parts in any of the logic
 
     instructors: list[b.StrAnyDict]
@@ -468,7 +469,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         # ----- create Zipdirs, Glossary:
         self.find_zipdirs()
         self._collect_zipdirs()  # TODO 3: collect only what gets referenced
-        self.glossary = glossary.Glossary(b.GLOSSARY_BASENAME, parent=self)
+        self.glossary = glossary.Glossary(c.AUTHOR_GLOSSARY_BASENAME, parent=self)
         self.directory.record_the(glossary.Glossary, self.glossary.name, self.glossary)
         self.namespace_add(self.glossary)
         # ----- create MetadataDerivation and baseresources:

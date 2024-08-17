@@ -2,16 +2,15 @@ import argparse
 import os
 import typing as tg
 import readline  # noqa, is active automatically for input()
-import requests
 
 import base as b
 import git
+import sdrl.constants as c
 import sdrl.course
 import sdrl.interactive as i
 import sdrl.participant
 import sdrl.repo as r
 
-FILE_URL_PREFIX = "file://"
 
 meaning = """Reports on course execution so far or prepares submission to instructor."""
 
@@ -20,7 +19,7 @@ def add_arguments(subparser):
     subparser.add_argument('--init', action='store_true',
                            help="start initialization for student repo directory")
     subparser.add_argument('--submission', action='store_true',
-                           help=f"generate {r.SUBMISSION_FILE} with possible tasks to be checked by instructor")
+                           help=f"generate {c.SUBMISSION_FILE} with possible tasks to be checked by instructor")
     subparser.add_argument('--interactive', default="True", action=argparse.BooleanOptionalAction,
                            help="open interactive terminal interface to select tasks to submit")
     subparser.add_argument('--import-keys', action='store_true',
@@ -55,8 +54,8 @@ def init():
     data = dict(course_url=course_url)
     for value in prompts:
         data[value] = input(prompts[value] + ": ")
-    b.spit_yaml(sdrl.participant.PARTICIPANT_FILE, data)
-    b.info(f"wrote '{sdrl.participant.PARTICIPANT_FILE}'. Now commit and push it.")
+    b.spit_yaml(c.PARTICIPANT_FILE, data)
+    b.info(f"wrote '{c.PARTICIPANT_FILE}'. Now commit and push it.")
     if not(metadata.get('instructors')):
         b.warning("No information about instructors present. Skipping key import.")
         return
@@ -78,10 +77,10 @@ def prepare_submission_file(course: sdrl.course.Course, root: str,
         b.info("No entries to submit.")
         return
     # ----- write file:
-    b.spit_yaml(os.path.join(root, r.SUBMISSION_FILE), r.submission_file_entries(entries))
-    b.info(f"Wrote file '{r.SUBMISSION_FILE}'.")
+    b.spit_yaml(os.path.join(root, c.SUBMISSION_FILE), r.submission_file_entries(entries))
+    b.info(f"Wrote file '{c.SUBMISSION_FILE}'.")
     # ----- give instructions for next steps:
-    b.info(f"1. Commit it with commit message '{r.SUBMISSION_COMMIT_MSG}'. Push it.")
+    b.info(f"1. Commit it with commit message '{c.SUBMISSION_COMMIT_MSG}'. Push it.")
     b.info(f"2. Then send the following to your instructor by email:")
     b.info(f"  Subject: Please check submission")
     b.info(f"  sedrila instructor {git.origin_remote_of_local_repo()}")
@@ -98,14 +97,14 @@ def report_student_work_so_far(course: sdrl.course.Course, entries: tg.Sequence[
     table.add_column("reject/accept")
     for taskname, workhours, timevalue, rejections, accepted in entries:
         task = course.taskdict[taskname]
-        ra_string = (i.ACCEPT_SYMBOL + " ") if task.accepted else ""
+        ra_string = (c.INTERACT_ACCEPT_SYMBOL + " ") if task.accepted else ""
         if task.rejections > 0:
-            ra_string += f"{i.REJECT_SYMBOL*task.rejections}"
+            ra_string += f"{c.INTERACT_REJECT_SYMBOL * task.rejections}"
             remaining = task.remaining_attempts
             allowed = task.allowed_attempts
             ra_string += f" ({remaining} of {allowed} remain)" if not task.accepted else ""
             if not remaining:
-                ra_string = f"{r.REJECT_MARK} (after {allowed} attempt{b.plural_s(allowed)})"
+                ra_string = f"{c.SUBMISSION_REJECT_MARK} (after {allowed} attempt{b.plural_s(allowed)})"
         table.add_row(taskname, "%4.2f" % workhours, "%4.2f" % timevalue, ra_string)
         if out is not None:
             out.append((taskname, "%4.2f" % workhours, "%4.2f" % timevalue, ra_string))

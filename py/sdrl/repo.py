@@ -10,37 +10,33 @@ import yaml
 
 import base as b
 import git
+import sdrl.constants as c
 import sdrl.course
 
-SUBMISSION_FILE = "submission.yaml"
-SUBMISSION_COMMIT_MSG = "submission.yaml"
-SUBMISSION_CHECKED_COMMIT_MSG = "submission.yaml checked"
-CHECK_MARK = "CHECK"
-ACCEPT_MARK = "ACCEPT"
-REJECT_MARK = "REJECT"
-OVERRIDE_PREFIX = "OVERRIDE_"
-NONTASK_MARK = "NO_SUCH_TASKNAME"
 
 CheckedTuple = tg.Tuple[str, str, str]  # hash, taskname, tasknote
 WorkEntry = tg.Tuple[str, float]  # taskname, workhours
 ReportEntry = tg.Tuple[str, float, float, int, bool]  # taskname, workhoursum, timevalue, rejections, accepted
 
 
-def accumulate_timevalues_and_attempts(checked_tuple_groups: tg.Sequence[tg.Sequence[CheckedTuple]], course: sdrl.course.Course):
+def accumulate_timevalues_and_attempts(checked_tuple_groups: tg.Sequence[tg.Sequence[CheckedTuple]], 
+                                       course: sdrl.course.Course):
     """Reflect the check_tuples data in the course data structure."""
     for checked_tuples in checked_tuple_groups:
         for refid, taskname, tasknote in checked_tuples:
             b.debug(f"tuple: {refid}, {taskname}, {tasknote}")
             task = course.task(taskname)
             requirements = {requirement: course.task(requirement) for requirement in task.requires}
-            open_requirements = [k for k, v in requirements.items() if not(any(k == name for (_, name, _) in checked_tuples)) and not(v.accepted) and v.remaining_attempts]
+            open_requirements = [k for k, v in requirements.items() 
+                                 if not(any(k == name for (_, name, _) in checked_tuples)) and 
+                                 not v.accepted and v.remaining_attempts]
             if open_requirements:
                 b.warning(f"Attempted to grade task {taskname} with missing requirements: {open_requirements}")
                 continue
-            overridden = tasknote.startswith(OVERRIDE_PREFIX)
+            overridden = tasknote.startswith(c.SUBMISSION_OVERRIDE_PREFIX)
             if overridden:
-                tasknote = tasknote[len(OVERRIDE_PREFIX):]
-            if tasknote.startswith(ACCEPT_MARK):
+                tasknote = tasknote[len(c.SUBMISSION_OVERRIDE_PREFIX):]
+            if tasknote.startswith(c.SUBMISSION_ACCEPT_MARK):
                 if not task.remaining_attempts and not overridden:
                     b.warning(f"Cannot accept task that has consumed its allowed attempts: {taskname}")
                 else:
@@ -48,7 +44,7 @@ def accumulate_timevalues_and_attempts(checked_tuple_groups: tg.Sequence[tg.Sequ
                         task.rejections -= 1
                     task.accepted = True
                     b.debug(f"{taskname} accepted, {'' if overridden else 'not '} overridden")
-            elif tasknote.startswith(REJECT_MARK):
+            elif tasknote.startswith(c.SUBMISSION_REJECT_MARK):
                 if not task.accepted or overridden:
                     if overridden:
                         task.accepted = False
@@ -57,17 +53,19 @@ def accumulate_timevalues_and_attempts(checked_tuple_groups: tg.Sequence[tg.Sequ
             else:
                 pass  # unmodified entry: instructor has not checked it
 
+
 def accepted(tasknote: str):
-    overridden = tasknote.startswith(OVERRIDE_PREFIX)
-    if tasknote.startswith(OVERRIDE_PREFIX):
-        tasknote = tasknote[len(OVERRIDE_PREFIX):]
-    return tasknote.startswith(ACCEPT_MARK)
+    overridden = tasknote.startswith(c.SUBMISSION_OVERRIDE_PREFIX)
+    if overridden:
+        tasknote = tasknote[len(c.SUBMISSION_OVERRIDE_PREFIX):]
+    return tasknote.startswith(c.SUBMISSION_ACCEPT_MARK)
+
 
 def rejected(tasknote: str):
-    overridden = tasknote.startswith(OVERRIDE_PREFIX)
-    if tasknote.startswith(OVERRIDE_PREFIX):
-        tasknote = tasknote[len(OVERRIDE_PREFIX):]
-    return tasknote.startswith(REJECT_MARK)
+    overridden = tasknote.startswith(c.SUBMISSION_OVERRIDE_PREFIX)
+    if overridden:
+        tasknote = tasknote[len(c.SUBMISSION_OVERRIDE_PREFIX):]
+    return tasknote.startswith(c.SUBMISSION_REJECT_MARK)
 
 
 def accumulate_workhours_per_task(workentries: tg.Sequence[WorkEntry], course: sdrl.course.Course):
@@ -80,7 +78,8 @@ def accumulate_workhours_per_task(workentries: tg.Sequence[WorkEntry], course: s
             pass  # ignore non-existing tasknames quietly
 
 
-def checked_tuples_from_commits(hasheslist: list[list[str]], course: sdrl.course.Course) -> tg.Sequence[tg.Sequence[CheckedTuple]]:
+def checked_tuples_from_commits(hasheslist: list[list[str]], course: sdrl.course.Course
+                                ) -> tg.Sequence[tg.Sequence[CheckedTuple]]:
     """Collect the individual checks across all 'submission.yaml checked' commits.
     This will only allow grades for tasks that were actually requested to grade.
     The state of a task should always be the last one in a given group."""
@@ -89,13 +88,13 @@ def checked_tuples_from_commits(hasheslist: list[list[str]], course: sdrl.course
         if not hashes:
             continue
         try:
-            gitfile = git.contents_of_file_version(hashes.pop(0), SUBMISSION_FILE, encoding='utf8')
+            gitfile = git.contents_of_file_version(hashes.pop(0), c.SUBMISSION_FILE, encoding='utf8')
             requested = list(yaml.safe_load(gitfile).keys())
         except Exception:  # noqa
             continue  # no submission file yet, grading isn't possible
         groupdict: dict[str, CheckedTuple] = {}
         for refid in hashes:
-            submission = yaml.safe_load(git.contents_of_file_version(refid, SUBMISSION_FILE, encoding='utf8'))
+            submission = yaml.safe_load(git.contents_of_file_version(refid, c.SUBMISSION_FILE, encoding='utf8'))
             for taskname, tasknote in submission.items():
                 if not(taskname in requested):
                     b.warning(f"Attempted to grade task that wasn't requested: {taskname}")
@@ -149,7 +148,7 @@ def submission_checked_commit_hashes(course: sdrl.course.Course,
     student_commit = None
     for commit in commits:
         b.debug(f"commit.subject, fpr: {commit.subject}, {commit.key_fingerprint}")
-        right_subject = re.match(SUBMISSION_CHECKED_COMMIT_MSG, commit.subject) is not None
+        right_subject = re.match(c.SUBMISSION_CHECKED_COMMIT_MSG, commit.subject) is not None
         right_signer = commit.key_fingerprint and b.as_fingerprint(commit.key_fingerprint) in allowed_signers  # noqa
         if not right_signer:
             student_commit = commit
@@ -189,20 +188,21 @@ def student_work_so_far(course) -> tg.Tuple[list[ReportEntry], float, float]:
     return result, workhours_total, timevalue_total  # overall result triple
 
 
-def submission_file_entries(entries: list[ReportEntry], rejected: list[str] = None, override: bool = False) -> dict[str, str]:
+def submission_file_entries(entries: tg.Iterable[ReportEntry], rejected: list[str] = None, 
+                            override: bool = False) -> dict[str, str]:
     """taskname -> CHECK_MARK  for each yet-to-be-accepted task with effort in any commit."""
     candidates = dict()
     for taskname, workhoursum, timevalue, rejections, accepted in entries:
         if rejected is None:
             if not accepted:
-                candidates[taskname] = CHECK_MARK
+                candidates[taskname] = c.SUBMISSION_CHECK_MARK
         else:
             if taskname in rejected:
-                candidates[taskname] = (OVERRIDE_PREFIX if override else "") + REJECT_MARK
+                candidates[taskname] = (c.SUBMISSION_OVERRIDE_PREFIX if override else "") + c.SUBMISSION_REJECT_MARK
             elif accepted:
-                candidates[taskname] = (OVERRIDE_PREFIX if override else "") + ACCEPT_MARK
+                candidates[taskname] = (c.SUBMISSION_OVERRIDE_PREFIX if override else "") + c.SUBMISSION_ACCEPT_MARK
             else:
-                candidates[taskname] = CHECK_MARK
+                candidates[taskname] = c.SUBMISSION_CHECK_MARK
     return candidates
 
 
