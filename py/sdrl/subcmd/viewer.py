@@ -162,6 +162,11 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 "No permission to list directory")
             return None
         list.sort(key=lambda a: a.lower())
+        pairslist = [(name, os.path.join(path, name)) for name in list]
+        dirpairs = [(name, fullname) for name, fullname in pairslist 
+                    if os.path.isdir(fullname)]
+        filepairs = [(name, fullname) for name, fullname in pairslist 
+                     if os.path.isfile(fullname)]
         r = []
         try:
             displaypath = urllib.parse.unquote(self.path,
@@ -177,24 +182,15 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         r.append(f'<meta charset="{enc}">')
         r.append(f'<title>{title}</title>\n</head>')
         r.append(f'<body>\n<h1>{title}</h1>')
-        r.append('<hr>\n<ul>')
-        for name in list:
-            if self.is_invisible(name):
-                continue
-            fullname = os.path.join(path, name)
-            displayname = linkname = name
-            # Append / for directories or @ for symbolic links
-            if os.path.isdir(fullname):
-                displayname = name + "/"
-                linkname = name + "/"
-            if os.path.islink(fullname):
-                displayname = name + "@"
-                # Note: a link to a directory displays with @ and links with /
-            r.append('<li><a href="%s">%s</a></li>'
-                    % (urllib.parse.quote(linkname,
-                                          errors='surrogatepass'),
-                       html.escape(displayname, quote=False)))
-        r.append('</ul>\n<hr>\n</body>\n</html>\n')
+        if dirpairs:
+            r.append('<hr>\n<h3>Directories</h3>\n<ol>')
+            r.extend(self.linkitems(dirpairs))
+            r.append('</ol>')
+        if filepairs:
+            r.append('<hr>\n<h3>Files</h3>\n<ol>')
+            r.extend(self.linkitems(filepairs))
+            r.append('</ol>')
+        r.append('</body>\n</html>\n')
         encoded = '\n'.join(r).encode(enc, 'surrogateescape')
         f = io.BytesIO()
         f.write(encoded)
@@ -204,6 +200,16 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Content-Length", str(len(encoded)))
         self.end_headers()
         return f
+
+    def linkitems(self, pairs: tg.Iterable[tuple[str, str]]) -> tg.Iterable[str]:
+        res = []
+        for name, fullname in pairs:
+            if self.is_invisible(name) or os.path.islink(fullname):
+                continue  # skip dotfiles and symlinks
+            href = urllib.parse.quote(name, errors='surrogatepass')
+            linktext = html.escape(name, quote=False)
+            res.append(f"  <li><a href='{href}'>{linktext}</a></li>\n")
+        return res
 
     def is_invisible(self, name: str) -> bool:
         return name.startswith('.')  # TODO 2: use https://pypi.org/project/gitignore-parser/
