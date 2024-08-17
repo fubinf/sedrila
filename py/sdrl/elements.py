@@ -570,7 +570,8 @@ class Zipfile(Part):
         self.state = c.State.AS_BEFORE if s_ok and i_ok else c.State.MISSING
 
     def do_build(self):
-        b.info(self.outputfile_i)
+        if self.instructor_only:  # suppress printing instructor file for the normal pairs
+            b.info(self.outputfile_i)
         with zipfile.ZipFile(self.outputfile_i, mode='w', 
                              compression=zipfile.ZIP_DEFLATED) as archive:  # prefer deflate for build speed
             self._zip_the_files(archive)

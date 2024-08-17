@@ -18,33 +18,22 @@ import sdrl.subcmd.author as author
 INPUTDIR = "py/sdrl/tests/input"  # where test data is copied from
 OUTPUTDIR = "py/sdrl/tests/output"  # where it and the test outputs go
 
-expected_output1 = """../out/instructor/myarchive.zip
-../out/myarchive.zip
+expected_output1 = """../out/myarchive.zip
 ../out/instructor/itree.zip
 File 'ch/ch1/tg11/task111r+a.md':
    [TREEREF::/nonexisting.txt]: itreedir file 'itree.zip/nonexisting.txt' not found
 File 'ch/glossary.md':
    [TERM::Concept 3]: Term 'Concept 3' is already defined
 ../out/index.html
-../out/instructor/index.html
 ../out/chapter-ch1.html
-../out/instructor/chapter-ch1.html
 ../out/tg11.html
-../out/instructor/tg11.html
 ../out/tg12.html
-../out/instructor/tg12.html
 ../out/task111r+a.html
-../out/instructor/task111r+a.html
 ../out/task112.html
-../out/instructor/task112.html
 ../out/task113.html
-../out/instructor/task113.html
 ../out/task121.html
-../out/instructor/task121.html
 ../out/task122.html
-../out/instructor/task122.html
 ../out/glossary.html
-../out/instructor/glossary.html
 File 'ch/glossary.md':
    These terms lack a definition: ['Concept 2 undefined', 'Concept 4 undefined']
 """
@@ -54,26 +43,19 @@ expected_output2 = """File 'ch/ch1/tg11/task111r+a.md':
 File 'ch/glossary.md':
    [TERM::Concept 3]: Term 'Concept 3' is already defined
 ../out/glossary.html
-../out/instructor/glossary.html
 File 'ch/glossary.md':
    These terms lack a definition: ['Concept 2 undefined', 'Concept 4 undefined']
 """
 
 expected_output3 = """../out/instructor/itree.zip
 ../out/task111r+a.html
-../out/instructor/task111r+a.html
 ../out/glossary.html
-../out/instructor/glossary.html
 """
 
 expected_output4 = """../out/index.html
-../out/instructor/index.html
 ../out/tg12.html
-../out/instructor/tg12.html
 ../out/task121.html
-../out/instructor/task121.html
 ../out/task122.html
-../out/instructor/task122.html
 """
 
 expected_output5 = """../out/instructor/task121.html
@@ -83,27 +65,19 @@ expected_output6 = """../out/instructor/task121.html
 """
 
 expected_output7 = """../out/index.html
-../out/instructor/index.html
 ../out/tg12.html
-../out/instructor/tg12.html
 ../out/task121new.html
-../out/instructor/task121new.html
 ../out/task122.html
-../out/instructor/task122.html
 deleted: ../out/task121.html
 deleted: ../out/instructor/task121.html
 """
 
 expected_output8 = """../out/task121new.html
-../out/instructor/task121new.html
 ../out/glossary.html
-../out/instructor/glossary.html
 """
 
 expected_out9 = """../out/task121new.html
-../out/instructor/task121new.html
 ../out/glossary.html
-../out/instructor/glossary.html
 """
 
 expected_filelist1 = [

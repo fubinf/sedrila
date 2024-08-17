@@ -57,7 +57,7 @@ class PartbuilderMixin:  # to be mixed into a Part class
             self.render_structure(self.course, self, body_i, self.targetdir_i)  # noqa
         else:
             self.render_structure(self.course, self, body_s, self.targetdir_s)  # noqa
-            self.render_structure(self.course, self, body_i, self.targetdir_i)  # noqa
+            self.render_structure(self.course, self, body_i, self.targetdir_i, info=False)  # noqa
 
     def as_json(self) -> b.StrAnyDict:
         return dict(title=self.title)  # noqa
@@ -130,7 +130,7 @@ class PartbuilderMixin:  # to be mixed into a Part class
             b.error(f"metadata YAML is malformed: {str(exc)}", file=self.sourcefile)  # noqa
             self.metadata = dict()  # use empty metadata as a weak replacement
 
-    def render_structure(self, course, part: el.Part, body: str, targetdir: str):
+    def render_structure(self, course, part: el.Part, body: str, targetdir: str, info=True):
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(course.templatedir), autoescape=False)
         template = env.get_template(self.TEMPLATENAME)  # noqa
         output = template.render(sitetitle=course.title,
@@ -142,7 +142,8 @@ class PartbuilderMixin:  # to be mixed into a Part class
                                  toc=part.toc,
                                  content=body)
         b.spit(f"{targetdir}/{self.outputfile}", output)  # noqa
-        b.info(f"{targetdir}/{self.outputfile}")  # noqa
+        if info:
+            b.info(f"{targetdir}/{self.outputfile}")  # noqa
 
     def structure_path(structure: el.Part) -> list[el.Part]:
         """List of nested parts, from a given part up to the course."""

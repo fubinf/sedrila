@@ -56,7 +56,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         b.debug(f"do_build({self.cache_key}):")
         body = self.directory.get_the(el.Glossarybody, self.name).value  # noqa
         self.render_structure(self.course, self, body, self.targetdir_s)  # noqa
-        self.render_structure(self.course, self, body, self.targetdir_i)  # noqa
+        self.render_structure(self.course, self, body, self.targetdir_i, info=False)  # noqa
         self.report_issues()
 
     @property

@@ -1,8 +1,10 @@
 # sedrila CHANGELOG
 
 
-## Version 2.0.1 (upcoming)
+## Version 2.1.0 (upcoming)
 - `author`: make `[TERMREF2::class::--like]` work correctly.
+- `author`: suppress info line on instructor file x when there was one on student file x
+- `viewer`: (new role): special-purpose webserver for browsing a student repo
 - ...
 
 
