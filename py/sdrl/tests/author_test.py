@@ -5,14 +5,12 @@ import glob
 import os.path
 import re
 import shutil
-import time
 import zipfile
 
 import bs4
 
 import base as b
-import cache
-import sdrl.directory as dir
+import sdrl.constants as c
 import sdrl.course as course
 import sdrl.macros as macros
 import sdrl.subcmd.author as author
@@ -331,7 +329,7 @@ def test_sedrila_author(capfd):
 
 def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -> tuple[course.Coursebuilder, str]:
     pargs = argparse.Namespace()
-    pargs.config = b.CONFIG_FILENAME
+    pargs.config = c.AUTHOR_CONFIG_FILENAME
     pargs.clean = start_clean
     pargs.sums = False
     pargs.include_stage = "alpha"
