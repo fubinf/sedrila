@@ -114,7 +114,6 @@ a changed outcome to the cache.
 """
 
 import os.path
-import re
 import shutil
 import typing as tg
 import zipfile
@@ -552,7 +551,6 @@ class Zipfile(Part):
     def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)
         self.add_dependency(self.directory.get_the(Zipdir, self.sourcefile))
-
 
     @property
     def innerpath(self) -> str:

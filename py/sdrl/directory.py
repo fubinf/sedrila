@@ -71,7 +71,7 @@ class Directory:
             for elem in thisdict.values():
                 elem.build()
 
-    def get_all(self, what: type|str) -> tg.Iterator:
+    def get_all(self, what: type | str) -> tg.Iterable:
         """All entries with a given type or with a given name (in any type)."""
         if isinstance(what, type):
             return self._getdict(what).values()
@@ -82,7 +82,6 @@ class Directory:
             if candidate:  # skip types with no such entry
                 result.append(candidate)
         return result
-        
 
     def get_all_outputfiles(self) -> tg.Iterator:
         import sdrl.elements as el
