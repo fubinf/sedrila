@@ -2,6 +2,7 @@
 import os
 import sys
 
+import base
 import sdrl.constants as c
 import sdrl.argparser
 import sdrl.subcmd  # this is where the subcommands will be found
@@ -19,7 +20,10 @@ def main():  # uses sys.argv
         args = parser.parse_args(input.split(" "))
     else:
         args = parser.parse_args()
-    parser.execute_subcommand(args)
+    try:
+        parser.execute_subcommand(args)
+    except base.CritialError:
+        pass  # base.critical has already printed a message
 
 
 if __name__ == "__main__":

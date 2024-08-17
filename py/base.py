@@ -44,6 +44,9 @@ class Mode(enum.Enum):
     INSTRUCTOR = "instructor"
 
 
+class CritialError(Exception):
+    pass
+
 def as_fingerprint(raw: str) -> str:
     """Canonicalize fingerprint: all-lowercase, no blanks"""
     return raw.replace(' ', '').lower()
@@ -165,7 +168,7 @@ def error(msg: str, file: str = None, file2: str = None):
 
 def critical(msg: str):
     rich_print(msg, "bold red", count=1)
-    sys.exit(num_errors)
+    raise CritialError(msg)
 
 
 def finalmessage():
