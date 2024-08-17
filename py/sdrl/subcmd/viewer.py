@@ -44,7 +44,6 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     """Serve nice directory listings, serve rendered versions of some file types and files as-is otherwise."""
     server_version: str
     renderer: tg.Callable[[tg.Any, tg.Any], None]  # for-read() file, for-write() file
-    index_pages = ("index.html", "index.htm")
     extensions_map = _encodings_map_default = {
         '.gz': 'application/gzip',
         '.Z': 'application/octet-stream',
@@ -59,21 +58,6 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, directory=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.server_version = f"SedrilaHTTP/{sdrl.argparser.SedrilaArgParser.get_version()}"
-
-    def xxxdo_GET(self):  # TODO 2 remove
-        """Serve a GET request."""
-        f = self.send_head()
-        if f:
-            try:
-                self.copyfile(f, self.wfile)
-            finally:
-                f.close()
-
-    def xxxdo_HEAD(self):  # TODO 2 remove
-        """Serve a HEAD request."""
-        f = self.send_head()
-        if f:
-            f.close()
 
     def xxxsend_head(self):  # TODO 2 remove
         """Common code for GET and HEAD commands.
@@ -100,13 +84,7 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_header("Content-Length", "0")
                 self.end_headers()
                 return None
-            for index in self.index_pages:
-                index = os.path.join(path, index)
-                if os.path.isfile(index):
-                    path = index
-                    break
-            else:
-                return self.list_directory(path)
+            return self.list_directory(path)
         ctype = self.guess_type(path)
         # check for trailing "/" which should return 404. See Issue17324
         # The test for this was added in test_httpserver.py
@@ -229,36 +207,6 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def is_invisible(self, name: str) -> bool:
         return name.startswith('.')  # TODO 2: use https://pypi.org/project/gitignore-parser/
-
-    def xxxtranslate_path(self, path):  # TODO 2 remove
-        """Translate a /-separated PATH to the local filename syntax.
-
-        Components that mean special things to the local file system
-        (e.g. drive or directory names) are ignored.  (XXX They should
-        probably be diagnosed.)
-
-        """
-        # abandon query parameters
-        path = path.split('?',1)[0]
-        path = path.split('#',1)[0]
-        # Don't forget explicit trailing slash when normalizing. Issue17324
-        trailing_slash = path.rstrip().endswith('/')
-        try:
-            path = urllib.parse.unquote(path, errors='surrogatepass')
-        except UnicodeDecodeError:
-            path = urllib.parse.unquote(path)
-        path = posixpath.normpath(path)
-        words = path.split('/')
-        words = filter(None, words)
-        path = self.directory
-        for word in words:
-            if os.path.dirname(word) or word in (os.curdir, os.pardir):
-                # Ignore components that are not a simple file/directory name
-                continue
-            path = os.path.join(path, word)
-        if trailing_slash:
-            path += '/'
-        return path
 
     def xxxcopyfile(self, source, outputfile):
         """Render file-like object source into file-like destination outputfile."""
