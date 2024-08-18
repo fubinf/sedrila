@@ -17,6 +17,8 @@ import argparse_subcommand as ap_sub
 import base as b
 import sdrl.argparser
 import sdrl.constants as c
+import sdrl.macros as macros
+import sdrl.markdown as md
 import sdrl.participant
 
 meaning = """Trivial webserver for viewing contents of a student repo work directory."""
@@ -44,34 +46,39 @@ class Info:
 
 
 def render_markdown(info: Info, infile, outfile) -> str:
-    markup_body = infile.read()
+    print("### render_markdown")
+    markup_body = infile.read().decode()
     markup = f"# {info.lastname}:{info.path}\n### {info.byline}\n\n{markup_body}\n"
-    do_render_markdown(markup, outfile)
+    do_render_markdown(info, markup, outfile)
 
 
 def render_prot(info: Info, infile, outfile) -> str:
-    raw_prot = infile.read()
+    raw_prot = infile.read().decode()
     markup = (f"# {info.lastname}:{info.path}\n### {info.byline}\n\n"
               f"```\n"
               f"{raw_prot}\n"
               f"```\n")
-    html = do_render_markdown(markup)
-    outfile.write(html)
+    do_render_markdown(info, markup, outfile)
 
 
 def render_sourcefile(language: str, info: Info, infile, outfile) -> str:
-    src = infile.read()
+    src = infile.read().decode()
     markup = (f"# {info.lastname}:{info.path}\n### {info.byline}\n\n"
               f"```{language}\n"
               f"{src}\n"
               f"```\n")
-    html = do_render_markdown(markup)
-    outfile.write(html)
+    do_render_markdown(info, markup, outfile)
 
 
-def do_render_markdown(markup: str, outfile):
-    html = markup  # TODO 1: render, put into HTML template
-    outfile.write(html)
+def just_copyfile(copyfilefunc, info: Info, infile, outfile):
+    copyfilefunc(infile, outfile)
+
+
+def do_render_markdown(info: Info, markup: str, outfile):
+    print("### do_render_markdown")
+    macros.switch_part("viewer")
+    mddict = md.render_markdown(info.path, info.path, markup, b.Mode.STUDENT, dict())
+    outfile.write(mddict['html'].encode())  # TODO: HTML template
 
 
 class SedrilaServer(http.server.HTTPServer):
@@ -112,23 +119,13 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         '.xz': 'application/x-xz',
     }
     how_to_render = dict(  # suffix -> (mimetype, renderfunc)
-        mdzz=('text/html', render_markdown),
-        pyzz=('text/html', functools.partial(render_sourcefile, 'python)')),
+        md=('text/html', render_markdown),
+        py  =('text/html', functools.partial(render_sourcefile, 'python)')),
         prot=('text/html', render_prot),
     )
 
 
-    def xxxsend_head(self):  # TODO 2 remove
-        """Common code for GET and HEAD commands.
-
-        This sends the response code and MIME headers.
-
-        Return value is either a file object (which has to be copied
-        to the outputfile by the caller unless the command was HEAD,
-        and must be closed by the caller under all circumstances), or
-        None, in which case the caller has nothing further to do.
-
-        """
+    def send_head(self):  # simplified: no caching, no Content-Length
         path = self.translate_path(self.path)
         f = None
         if os.path.isdir(path):
@@ -145,11 +142,6 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 return None
             return self.list_directory(path)
         ctype = self.guess_type(path)
-        # check for trailing "/" which should return 404. See Issue17324
-        # The test for this was added in test_httpserver.py
-        # However, some OS platforms accept a trailingSlash as a filename
-        # See discussion on python-dev and Issue34711 regarding
-        # parsing and rejection of filenames with a trailing slash
         if path.endswith("/"):
             self.send_error(http.HTTPStatus.NOT_FOUND, "File not found")
             return None
@@ -158,70 +150,25 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         except OSError:
             self.send_error(http.HTTPStatus.NOT_FOUND, "File not found")
             return None
-
         try:
-            fs = os.fstat(f.fileno())
-            # Use browser cache if possible
-            if ("If-Modified-Since" in self.headers
-                    and "If-None-Match" not in self.headers):
-                # compare If-Modified-Since and time of last file modification
-                try:
-                    ims = email.utils.parsedate_to_datetime(
-                        self.headers["If-Modified-Since"])
-                except (TypeError, IndexError, OverflowError, ValueError):
-                    # ignore ill-formed values
-                    pass
-                else:
-                    if ims.tzinfo is None:
-                        # obsolete format with no timezone, cf.
-                        # https://tools.ietf.org/html/rfc7231#section-7.1.1.1
-                        ims = ims.replace(tzinfo=datetime.timezone.utc)
-                    if ims.tzinfo is datetime.timezone.utc:
-                        # compare to UTC datetime of last modification
-                        last_modif = datetime.datetime.fromtimestamp(
-                            fs.st_mtime, datetime.timezone.utc)
-                        # remove microseconds, like in If-Modified-Since
-                        last_modif = last_modif.replace(microsecond=0)
-
-                        if last_modif <= ims:
-                            self.send_response(http.HTTPStatus.NOT_MODIFIED)
-                            self.end_headers()
-                            f.close()
-                            return None
-
             self.send_response(http.HTTPStatus.OK)
             self.send_header("Content-type", ctype)
-            self.send_header("Content-Length", str(fs[6]))
-            self.send_header("Last-Modified",
-                self.date_time_string(fs.st_mtime))
             self.end_headers()
             return f
         except:
             f.close()
             raise
 
-    def flush_headers(self):  # TODO 1: remove content-length header if we render something
-        if hasattr(self, '_headers_buffer'):
-            self.wfile.write(b"".join(self._headers_buffer))
-            self._headers_buffer = []
-
     def list_directory(self, path):
-        """Helper to produce a directory listing (absent index.html).
-
-        Return value is either a file object, or None (indicating an
-        error).  In either case, the headers are sent, making the
-        interface the same as for send_head().
-
-        """
         try:
-            list = os.listdir(path)
+            dirlist = os.listdir(path)
         except OSError:
             self.send_error(
                 http.HTTPStatus.NOT_FOUND,
                 "No permission to list directory")
             return None
-        list.sort(key=lambda a: a.lower())
-        pairslist = [(name, os.path.join(path, name)) for name in list]
+        dirlist.sort(key=lambda a: a.lower())
+        pairslist = [(name, os.path.join(path, name)) for name in dirlist]
         dirpairs = [(name, fullname) for name, fullname in pairslist 
                     if os.path.isdir(fullname)]
         filepairs = [(name, fullname) for name, fullname in pairslist 
@@ -239,11 +186,10 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         r.append('<html lang="en">')
         r.append('<head>')
         r.append(f'<meta charset="{enc}">')
-        r.append(self.csslinks())
+        r.append(self.sedrila_csslinks())
         r.append(f'<title>{self.server.lastname}:{title}</title>\n</head>')
         r.append(f'<body>\n<h1>{self.server.lastname}:{title}</h1>')
-        partner = f" (Partner: {self.server.partner_name})" if self.server.partner_name else ""
-        r.append(f'<p>{self.server.student_name}{partner}</p>')
+        r.append(f'<p>{self.sedrila_byline()}</p>')
         if dirpairs:
             r.append('<hr>\n<h3>Directories</h3>\n<ol>')
             r.extend(self.linkitems(dirpairs))
@@ -276,22 +222,30 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def is_invisible(self, name: str) -> bool:
         return name.startswith('.')  # TODO 2: use https://pypi.org/project/gitignore-parser/
 
-    def xxxcopyfile(self, source, outputfile):
+    def copyfile(self, source, outputfile):
         """Render file-like object source into file-like destination outputfile."""
+        print("### copyfile")
         self.renderer(source, outputfile)
 
-    def xxxguess_type(self, path):
+    def guess_type(self, path):
         base, ext = posixpath.splitext(path)
         basename = os.path.basename(path)
+        info = Info(path=basename, lastname=self.server.lastname, byline=self.sedrila_byline())
         if ext and ext[1:] in self.how_to_render:
             mimetype, renderfunc = self.how_to_render[ext[1:]]  # lookup without the dot
-            self.renderer = functools.partial(renderfunc, basename)
+            print(f"### recognized '{ext[1:]} -> {mimetype}'")
+            self.renderer = functools.partial(renderfunc, info)
             return mimetype
         else:
-            self.renderer = super().copyfile
+            print(f"### default")
+            self.renderer = functools.partial(just_copyfile, super().copyfile, info)
         return super().guess_type(path)
 
-    def csslinks(self) -> str:
+    def sedrila_byline(self) -> str:
+        partner = f" (Partner: {self.server.partner_name})" if self.server.partner_name else ""
+        return f"{self.server.student_name}{partner}"
+
+    def sedrila_csslinks(self) -> str:
         if not self.server.course_url:
             return ""
         link1 = f'<link href="{self.server.course_url}/sedrila.css" rel="stylesheet">'
