@@ -43,18 +43,19 @@ class Info:
     path: str
     lastname: str
     byline: str
+    csslinks: str
 
 
 def render_markdown(info: Info, infile, outfile) -> str:
     print("### render_markdown")
     markup_body = infile.read().decode()
-    markup = f"# {info.lastname}:{info.path}\n### {info.byline}\n\n{markup_body}\n"
+    markup = f"# {info.lastname}:{info.path}\n\n{info.byline}\n\n{markup_body}\n"
     do_render_markdown(info, markup, outfile)
 
 
 def render_prot(info: Info, infile, outfile) -> str:
     raw_prot = infile.read().decode()
-    markup = (f"# {info.lastname}:{info.path}\n### {info.byline}\n\n"
+    markup = (f"# {info.lastname}:{info.path}\n\n{info.byline}\n\n"
               f"```\n"
               f"{raw_prot}\n"
               f"```\n")
@@ -63,7 +64,7 @@ def render_prot(info: Info, infile, outfile) -> str:
 
 def render_sourcefile(language: str, info: Info, infile, outfile) -> str:
     src = infile.read().decode()
-    markup = (f"# {info.lastname}:{info.path}\n### {info.byline}\n\n"
+    markup = (f"# {info.lastname}:{info.path}\n\n{info.byline}\n\n"
               f"```{language}\n"
               f"{src}\n"
               f"```\n")
@@ -75,10 +76,24 @@ def just_copyfile(copyfilefunc, info: Info, infile, outfile):
 
 
 def do_render_markdown(info: Info, markup: str, outfile):
+    template = """<!DOCTYPE HTML>
+      <html lang="en">
+      <head>
+        <meta charset="{enc}">
+        {csslinks}
+        <title>{title}</title>
+      </head>
+      <body>
+        {body}
+      </body>
+      </html>
+    """
     print("### do_render_markdown")
     macros.switch_part("viewer")
     mddict = md.render_markdown(info.path, info.path, markup, b.Mode.STUDENT, dict())
-    outfile.write(mddict['html'].encode())  # TODO: HTML template
+    htmltext = template.format(enc='utf8', csslinks=info.csslinks,
+                               title=f"{info.lastname}:{info.path}", body=mddict['html'])
+    outfile.write(htmltext.encode())
 
 
 class SedrilaServer(http.server.HTTPServer):
@@ -230,7 +245,8 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def guess_type(self, path):
         base, ext = posixpath.splitext(path)
         basename = os.path.basename(path)
-        info = Info(path=basename, lastname=self.server.lastname, byline=self.sedrila_byline())
+        info = Info(path=basename, lastname=self.server.lastname, byline=self.sedrila_byline(),
+                    csslinks=self.sedrila_csslinks())
         if ext and ext[1:] in self.how_to_render:
             mimetype, renderfunc = self.how_to_render[ext[1:]]  # lookup without the dot
             print(f"### recognized '{ext[1:]} -> {mimetype}'")
