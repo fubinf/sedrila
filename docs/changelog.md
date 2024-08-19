@@ -2,6 +2,7 @@
 
 
 ## Version 2.1.1 (upcoming)
+- `author`: add the forgotten documentation for the new `[PROT]` macro.
 - ...
 
 

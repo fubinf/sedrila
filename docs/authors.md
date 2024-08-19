@@ -613,7 +613,37 @@ into the Markdown input stream at this point.
   that are actually needed.
 
 
-#### 1.9.4 `[TOC]`, `[DIFF]`
+#### 1.9.4 `[PROT]`
+
+Include a rendered command protocol.
+`[PROT::filename.prot]`: works much like `[INCLUDE]` and obeys the same rules for the filenames.
+The difference is in file contents: With `[INCLUDE]`, contents are treated as markdown.
+If you want to include source code of some sort, you can put the `[INCLUDE]` in a
+triple-quote source code block and get the expected results.
+
+With `[PROT]`, in contrast, a sedrila-specific rendering is applied.
+This rendering assumes the file contains content copy/pasted from a terminal session
+in a shell window.
+The shell prompt must be a two-line prompt using the following structure:  
+
+```
+export PS1="\u@\h \w \t \!\n\$ "
+```
+
+You can add coloring with ANSI sequences thusly:
+```
+export PS1="\[\e[1;33m\]\u\[\e[1;31m\]@\h \[\e[0;32m\]\w \[\e[0;37m\]\t \[\e[44m\] \! \[\e[40m\]\n\$ "
+```
+
+The `[PROT]` macro will spot lines that have the structure of that prompt
+and format them in multiple colors.
+It will assume the next line is the actual command and format that in a single color.
+It will assume everything beyond (up to the next prompt) is command output and format that
+in yet another manner, all based on CSS classes which you can find in the output.
+Line structure and spaces are preserved.
+
+
+#### 1.9.5 `[TOC]`, `[DIFF]`
 
 - `[TOC]`: Generates a table of contents from the Markdown headings present in the file
 - `[DIFF::level]` generates the task difficulty mark for the given level, from 1 (very simple) to 4 (difficult).
