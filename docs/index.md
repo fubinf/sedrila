@@ -13,8 +13,10 @@ The sedrila tool supports three user groups:
   generate a static website from a markdown-based content structure.
   There is lots of support for specialized markup, cross-referencing, and consistency checking. 
 - [Course instructors](instructors.md): 
-  receive student submissions; accept or reject student solutions
+  receive student submissions; accept or reject student solutions.
 - [Students](students.md):
-  submit finished tasks; compute status tables of submissions and time value earned
+  submit finished tasks; compute status tables of submissions and time value earned.
+
+[Viewers](viewer.md) are instructors or students who browse a directory tree of solution files.  
 
 [changelog](changelog.md)
