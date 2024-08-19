@@ -15,6 +15,7 @@ import argparse_subcommand as ap_sub
 import base as b
 import sdrl.argparser
 import sdrl.constants as c
+import sdrl.course
 import sdrl.macros as macros
 import sdrl.macroexpanders as macroexpanders
 import sdrl.markdown as md
@@ -30,8 +31,11 @@ def add_arguments(subparser):
                            help=f"include the ignore-worthy files in the listing")
 
 
-class CourseDummy:
+class CourseDummy(sdrl.course.Course):
     blockmacro_topmatter = dict()
+    
+    def __init__(self, *args, **kwargs):
+        pass  # we are a truly dumb Dummy!
 
 
 def execute(pargs: ap_sub.Namespace):

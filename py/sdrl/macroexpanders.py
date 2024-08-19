@@ -37,7 +37,7 @@ def register_macros(course: sdrl.course.Coursebuilder):
     macros.register_macro('EREFR', 1, MM.INNER, expand_enumerationref)
     macros.register_macro('DIFF', 1, MM.INNER, sdrl.course.Taskbuilder.expand_diff)
     # ----- register hard-coded block macros:
-    macros.register_macro('PROT', 1, MM.BLOCK, expand_prot)
+    macros.register_macro('PROT', 1, MM.BLOCK, functools.partial(expand_prot, course))
     macros.register_macro('SECTION', 2, MM.BLOCKSTART, expand_section)
     macros.register_macro('ENDSECTION', 0, MM.BLOCKEND, expand_section)
     macros.register_macro('INNERSECTION', 2, MM.BLOCKSTART, expand_section)
@@ -84,9 +84,13 @@ def expand_treeref(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocal
     return f"{prefix}{mainpart}{suffix}"
 
 
-def expand_prot(macrocall: macros.Macrocall) -> str:
-    """[PROT::somedir/file.prot]"""
+def expand_prot(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
+    """[PROT::somedir/file.prot]. Plain paths in viewer mode, INCLUDE-style paths in author mode."""
     path = macrocall.arg1
+    author_mode = isinstance(course, sdrl.course.Coursebuilder)  # in viewer mode we receive a dummy
+    if author_mode:
+        assert isinstance(course, sdrl.course.Coursebuilder)
+        path = includefile_path(course, macrocall, itree_mode=False)
     if not os.path.exists(path):
         b.warning(f"{macrocall.macrocall_text}: file '{path}' not found", file=macrocall.filename)
         return f"\n<p>(('{path}' not found))</p>\n"
@@ -96,7 +100,7 @@ def expand_prot(macrocall: macros.Macrocall) -> str:
         s: int
         promptcount: int
 
-    def promptmatch(line: str) -> re.Match:
+    def promptmatch(the_line: str) -> re.Match:
         r"""
         Whether line is a shell prompt as prescribed by the SeDriLa course rules.
         Canonical prompt:  export PS1="\u@\h \w \t \!\n\$ "
@@ -113,9 +117,7 @@ def expand_prot(macrocall: macros.Macrocall) -> str:
         num_re = r"(?P<num>\d+)"
         back_re = r"(?P<back>.*$)"  # any stuff in the back
         prompt_re = f"{front_re}{userhost_re}{sep_re}{dir_re}{sep_re}{time_re}{sep_re}{num_re}{back_re}"
-        return re.match(prompt_re, line)
-        prompt_re = f"{front_re}{userhost_re}{sep_re}{dir_re}{sep_re}{time_re}{sep_re}{num_re}{back_re}"
-        return re.fullmatch(prompt_re, line)
+        return re.fullmatch(prompt_re, the_line)
 
     def handle_promptmatch():  # uses mm, result, state. Corresponds to promptmatch().
         state.promptcount += 1

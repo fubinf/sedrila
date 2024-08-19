@@ -20,23 +20,24 @@ prot_expected_output = """
 """
 
 
+class CourseDummy:
+    altdir = "altdir/ch"
+    itreedir = "altdir/itree.zip"
+    chapterdir = "ch"
+
+
 def test_expand_prot():
     with tb.TempDirEnvironContextMgr():
         prot = "u@h ~/d 12:34:56 88\n$ cmd arg\nout1\nout2\nu@h ~/d 12:34:59 89\n$ cmd2\nout3"
         b.spit("myfile.prot", prot)
         call = macros.Macrocall(None, "notask.md", "notask",
                                 f"[PROT::myfile.prot]", "PROT", "myfile.prot", None)
-        prot_output = sdrl.macroexpanders.expand_prot(call)
+        prot_output = sdrl.macroexpanders.expand_prot(CourseDummy(), call)
         print(prot_output)
         assert prot_output == prot_expected_output
 
 
 def test_includefile_path():
-    class CourseDummy:
-        altdir = "altdir/ch"
-        itreedir = "altdir/itree.zip"
-        chapterdir = "ch"
-
     # ----- prepare:
     b._testmode_reset()
     # ----- perform tests:
