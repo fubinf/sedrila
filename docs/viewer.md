@@ -17,10 +17,10 @@ It also helps students check the correctness of their command protocols.
   All files whose names start with the name of a task mentioned in `submission.yaml` are highlighted
   in boldface. Behind them, a link to the respective task on the course webpage is shown.
 - For the file links:  
-  `*.md` files will be rendered as Markdown.  
-  `*.py`, `*.html`, `*.js`, `*.java` files and many others with known syntax 
-  will be rendered with syntax highlighting.  
-  `*.prot` plaintext files will be rendered in color, with highlighting of prompts and commands.
+    - `*.md` files will be rendered as Markdown.  
+    - `*.py`, `*.html`, `*.js`, `*.java` files and many others with known syntax 
+      will be rendered with syntax highlighting.  
+    - `*.prot` plaintext files will be rendered in color, with highlighting of prompts and commands.
 - There is no upward link from a subdirectory on the page. Use the browser's 'Back' button.
 - When done, go back to the shell and stop the webserver by pressing Ctrl-C.
 
