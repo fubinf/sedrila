@@ -1,6 +1,4 @@
 import dataclasses
-import datetime
-import email.utils
 import functools
 import html
 import http.server
@@ -18,10 +16,11 @@ import base as b
 import sdrl.argparser
 import sdrl.constants as c
 import sdrl.macros as macros
+import sdrl.macroexpanders as macroexpanders
 import sdrl.markdown as md
 import sdrl.participant
 
-meaning = """Trivial webserver for viewing contents of a student repo work directory."""
+meaning = """Specialized webserver for locally viewing contents of a student repo work directory."""
 
 
 def add_arguments(subparser):
@@ -31,29 +30,32 @@ def add_arguments(subparser):
                            help=f"include the ignore-worthy files in the listing")
 
 
+class CourseDummy:
+    blockmacro_topmatter = dict()
+
+
 def execute(pargs: ap_sub.Namespace):
     b.set_loglevel('INFO')
-    b.info(f"Extreeeemely basic webserver starts. Visit 'http://localhost:{pargs.port}/'. Terminate with Ctrl-C.")
+    b.info(f"Webserver starts. Visit 'http://localhost:{pargs.port}/'. Terminate with Ctrl-C.")
+    b.set_register_files_callback(lambda s: None)
+    macroexpanders.register_macros(CourseDummy())  # noqa
     server = SedrilaServer(('', pargs.port), SedrilaHTTPRequestHandler)
     server.serve_forever()
 
 
-def render_markdown(info: 'Info', infile, outfile) -> str:
+def render_markdown(info: 'Info', infile, outfile):
     markup_body = infile.read().decode()
     markup = f"# {info.lastname}:{info.path}\n\n{info.byline}\n\n{markup_body}\n"
     do_render_markdown(info, markup, outfile)
 
 
-def render_prot(info: 'Info', infile, outfile) -> str:
-    raw_prot = infile.read().decode()
+def render_prot(info: 'Info', infile, outfile):
     markup = (f"# {info.lastname}:{info.path}\n\n{info.byline}\n\n"
-              f"```\n"
-              f"{raw_prot}\n"
-              f"```\n")
+              f"[PROT::{info.path}]\n")
     do_render_markdown(info, markup, outfile)
 
 
-def render_sourcefile(language: str, info: 'Info', infile, outfile) -> str:
+def render_sourcefile(language: str, info: 'Info', infile, outfile):
     src = infile.read().decode()
     markup = (f"# {info.title}\n\n{info.byline}\n\n"
               f"```{language}\n"
@@ -128,6 +130,7 @@ class SedrilaServer(http.server.HTTPServer):
 
 class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     """Serve nice directory listings, serve rendered versions of some file types and files as-is otherwise."""
+    server: SedrilaServer
     renderer: tg.Callable[[tg.Any, tg.Any], None]  # for-read() file, for-write() file
     extensions_map = _encodings_map_default = {
         '.gz': 'application/gzip',
@@ -137,14 +140,20 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     }
     how_to_render = dict(  # suffix -> (mimetype, renderfunc)
         md=('text/html', render_markdown),
-        py  =('text/html', functools.partial(render_sourcefile, 'python')),
+        c=('text/html', functools.partial(render_sourcefile, 'c')),
+        css=('text/html', functools.partial(render_sourcefile, 'css')),
+        html=('text/html', functools.partial(render_sourcefile, 'html')),
+        json=('text/html', functools.partial(render_sourcefile, 'json')),
+        java=('text/html', functools.partial(render_sourcefile, 'java')),
+        py=('text/html', functools.partial(render_sourcefile, 'python')),
+        sh=('text/html', functools.partial(render_sourcefile, 'sh')),
+        yaml=('text/html', functools.partial(render_sourcefile, 'yaml')),
         prot=('text/html', render_prot),
     )
 
-
     def send_head(self):  # simplified: no caching, no Content-Length
         path = self.translate_path(self.path)
-        f = None
+        f = None  # noqa
         if os.path.isdir(path):
             parts = urllib.parse.urlsplit(self.path)
             if not parts.path.endswith('/'):
@@ -245,7 +254,7 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         return super().guess_type(path)
 
     def sedrila_byline(self) -> str:
-        partner = f" (Partner: {self.server.partner_name})" if self.server.partner_name else ""
+        partner = f" (and {self.server.partner_name})" if self.server.partner_name else ""
         return f"{self.server.student_name}{partner}"
 
     def sedrila_csslinks(self) -> str:
@@ -265,5 +274,6 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             res.append(f"  <li><a href='{href}'>{linktext}</a></li>\n")
         return res
 
-    def is_sedrila_invisible(self, name: str) -> bool:
+    @staticmethod
+    def is_sedrila_invisible(name: str) -> bool:
         return name.startswith('.')  # TODO 2: use https://pypi.org/project/gitignore-parser/

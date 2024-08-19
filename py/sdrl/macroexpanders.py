@@ -137,19 +137,15 @@ def expand_prot(macrocall: macros.Macrocall) -> str:
     result = ["\n<table class='vwr-table'>"]
     PROMPTSEEN, OUTPUT = (1, 2)
     state = State(s=OUTPUT, promptcount = 0)
-    print("### content: ", content)
     for line in content.split('\n'):
         line = line.rstrip()  # get rid of newline
         mm = promptmatch(line)
         if mm:
-            print("### prompt")
             handle_promptmatch()
         elif state.s == PROMPTSEEN:  # this is the command line
-            print("### cmd")
             result.append(f"<tr><td><span class='vwr-cmd'>{html.escape(line)}</span></td></tr>")
             state.s = OUTPUT
         elif state.s == OUTPUT:
-            print("### output")
             result.append(f"<tr><td><span class='vwr-output'>{html.escape(line)}</span></td></tr>")
         else:
             assert False
