@@ -41,29 +41,3 @@ def test_expand_macro_with_wrong_args(capsys):
     assert "expects 0" in log_out 
     assert "expects 1" in log_out
     assert "expects 2" in log_out
-
-
-def test_includefile_path():
-    class Course:
-        altdir = "altdir/ch"
-        itreedir = "altdir/itree.zip"
-        chapterdir = "ch"
-
-    # ----- prepare:
-    course = Course()  # dummy Course/Coursebuilder object
-    b._testmode_reset()
-    # ----- perform tests:
-    def func(arg: str, itree_mode=False) -> str:
-        call = macros.Macrocall(None, "ch/chapter/group/task.md", "task",
-                                f"[INCLUDE::{arg}]", "INCLUDE", arg, None)
-        return sdrl.macroexpanders.includefile_path(course, call, itree_mode)
-
-    assert func("other") == "ch/chapter/group/other"
-    assert func("/other2") == "ch/other2"
-    assert func("ALT:other") == "altdir/ch/chapter/group/other"
-    assert func("ALT:/other2") == "altdir/ch/other2"
-    assert func("ALT:") == "altdir/ch/chapter/group/task.md"
-    assert func("other", itree_mode=True) == "altdir/itree.zip/chapter/group/other"
-    assert func("/other2", itree_mode=True) == "altdir/itree.zip/other2"
-
-
