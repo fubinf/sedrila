@@ -27,8 +27,8 @@ meaning = """Specialized webserver for locally viewing contents of a student rep
 def add_arguments(subparser):
     subparser.add_argument('--port', '-p', type=int, default=8080,
                            help="webserver will listen on this port (default: 8080)")
-    subparser.add_argument('--all', '-a', action='store_true', default=False,
-                           help=f"include the ignore-worthy files in the listing")
+    subparser.add_argument('--instructor', '-i', action='store_true', default=False,
+                           help=f"generate task links to the instructor versions (not the student versions)")
 
 
 class CourseDummy(sdrl.course.Course):
@@ -43,7 +43,7 @@ def execute(pargs: ap_sub.Namespace):
     b.info(f"Webserver starts. Visit 'http://localhost:{pargs.port}/'. Terminate with Ctrl-C.")
     b.set_register_files_callback(lambda s: None)
     macroexpanders.register_macros(CourseDummy())  # noqa
-    server = SedrilaServer(('', pargs.port), SedrilaHTTPRequestHandler)
+    server = SedrilaServer(('', pargs.port), SedrilaHTTPRequestHandler, pargs=pargs)
     server.serve_forever()
 
 
@@ -94,6 +94,7 @@ def do_render_markdown(info: 'Info', markup: str, outfile):
 
 @dataclasses.dataclass
 class Info:
+    pargs: ap_sub.Namespace
     path: str
     lastname: str
     byline: str
@@ -105,6 +106,7 @@ class Info:
 
 
 class SedrilaServer(http.server.HTTPServer):
+    pargs: ap_sub.Namespace
     student_name: str = "N.N."
     lastname: str = "N.N."
     partner_name: str = ""
@@ -114,6 +116,7 @@ class SedrilaServer(http.server.HTTPServer):
 
     def __init__(self, *args, **kwargs):
         self.server_version = f"SedrilaHTTP/{sdrl.argparser.SedrilaArgParser.get_version()}"
+        self.pargs = kwargs.pop('pargs')
         try:
             student = sdrl.participant.Student()
             self.student_name = student.student_name
@@ -215,7 +218,8 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             displaypath = urllib.parse.unquote(path)
         displaypath = html.escape(displaypath, quote=False)
         enc = sys.getfilesystemencoding()
-        info = Info(path=displaypath, lastname=self.server.lastname, byline=self.sedrila_byline(),
+        info = Info(pargs=self.server.pargs,
+                    path=displaypath, lastname=self.server.lastname, byline=self.sedrila_byline(),
                     csslinks=self.sedrila_csslinks())
         r.append('<!DOCTYPE HTML>')
         r.append('<html lang="en">')
@@ -227,11 +231,11 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         r.append(f'<p>{info.byline}</p>')
         if filepairs:
             r.append('<hr>\n<h3>Files</h3>\n<ol>')
-            r.extend(self.sedrila_linkitems(filepairs))
+            r.extend(self.sedrila_linkitems(filepairs, info))
             r.append('</ol>')
         if dirpairs:
             r.append('<hr>\n<h3>Directories</h3>\n<ol>')
-            r.extend(self.sedrila_linkitems(dirpairs, dirs=True))
+            r.extend(self.sedrila_linkitems(dirpairs, info, dirs=True))
             r.append('</ol>')
         r.append('</body>\n</html>\n')
         encoded = '\n'.join(r).encode(enc, 'surrogateescape')
@@ -252,7 +256,8 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def guess_type(self, path):
         base, ext = posixpath.splitext(path)
         basename = os.path.basename(path)
-        info = Info(path=basename, lastname=self.server.lastname, byline=self.sedrila_byline(),
+        info = Info(pargs=self.server.pargs,
+                    path=basename, lastname=self.server.lastname, byline=self.sedrila_byline(),
                     csslinks=self.sedrila_csslinks())
         if ext and ext[1:] in self.how_to_render:
             mimetype, renderfunc = self.how_to_render[ext[1:]]  # lookup without the dot
@@ -273,7 +278,7 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 f'<link href="{self.server.course_url}/local.css" rel="stylesheet">\n'
                 f'<link href="{self.server.course_url}/codehilite.css" rel="stylesheet">\n')
     
-    def sedrila_linkitems(self, pairs: tg.Iterable[tuple[str, str]], dirs=False) -> tg.Iterable[str]:
+    def sedrila_linkitems(self, pairs: tg.Iterable[tuple[str, str]], info: Info, dirs=False) -> tg.Iterable[str]:
         res = []
         submission_re = self.server.submission_re
         for name, fullname in pairs:
@@ -286,7 +291,9 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             elif submission_mm:
                 cssclass = 'vwr-filelink-submission'
                 matchtext = submission_mm.group()
-                taskurl = f"{self.server.course_url}/{matchtext}.html"
+                instructordir = (f"{c.AUTHOR_OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR}/" 
+                                 if info.pargs.instructor else "")
+                taskurl = f"{self.server.course_url}/{instructordir}{matchtext}.html"
                 tasklink = f"&#9;&#9;&#9;<a href='{taskurl}' class='vwr-tasklink'>Task '{matchtext}'</a>"
             else:
                 cssclass = 'vwr-filelink'
