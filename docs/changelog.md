@@ -1,11 +1,14 @@
 # sedrila CHANGELOG
 
 
-## Version 2.1.0 (upcoming)
+## Version 2.1.1 (upcoming)
+- ...
+
+
+## Version 2.1.0 (2024-08-19)
 - `author`: make `[TERMREF2::class::--like]` work correctly.
 - `author`: suppress info line on instructor file x when there was one on student file x
 - `viewer`: (new role): special-purpose webserver for browsing a student repo
-- ...
 
 
 ## Version 2.0.0 beta (2024-08-02) 
@@ -77,7 +80,7 @@
 
 ## Version 0.6.0 alpha (2024-03-26)
 
-- `author --cache` added to greatly speed up the processing of small changes
+- `author --cache` added which greatly (if very inflexibly) speeds up the processing of small changes
 - `author` now leaves empty taskgroups and chapters out from TOCs
 - `author` added linkslists of subsequent (assumed by, required by) tasks at bottom of task pages
 - `author` generates .htaccess file in instructor website
