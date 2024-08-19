@@ -106,6 +106,7 @@ class SedrilaServer(http.server.HTTPServer):
     partner_name: str = ""
     course_url: str = ""
     submissionitems: dict
+    submission_re: str
 
     def __init__(self, *args, **kwargs):
         self.server_version = f"SedrilaHTTP/{sdrl.argparser.SedrilaArgParser.get_version()}"
@@ -119,14 +120,18 @@ class SedrilaServer(http.server.HTTPServer):
         except b.CritialError:
             pass  # fall back to defaults
         if os.path.exists(c.SUBMISSION_FILE):
-            self.submissionitems = ...  # b.slurp_yaml(c.SUBMISSION_FILE)
+            self.submissionitems = b.slurp_yaml(c.SUBMISSION_FILE)
+            self.submission_re = self._matcher_regexp(self.submissionitems.keys())
         else:
             self.submissionitems = dict()
+            self.submission_re = None
         super().__init__(*args, **kwargs)
 
     def version_string(self) -> str:
         return self.server_version
     
+    def _matcher_regexp(self, items: tg.Iterable[str]) -> str:
+        return '|'.join([re.escape(item) for item in items])
 
 class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     """Serve nice directory listings, serve rendered versions of some file types and files as-is otherwise."""
@@ -216,13 +221,13 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         r.append(f'<title>{info.title}</title>\n</head>')
         r.append(f'<body>\n<h1>{info.title}</h1>')
         r.append(f'<p>{info.byline}</p>')
-        if dirpairs:
-            r.append('<hr>\n<h3>Directories</h3>\n<ol>')
-            r.extend(self.sedrila_linkitems(dirpairs))
-            r.append('</ol>')
         if filepairs:
             r.append('<hr>\n<h3>Files</h3>\n<ol>')
             r.extend(self.sedrila_linkitems(filepairs))
+            r.append('</ol>')
+        if dirpairs:
+            r.append('<hr>\n<h3>Directories</h3>\n<ol>')
+            r.extend(self.sedrila_linkitems(dirpairs, dirs=True))
             r.append('</ol>')
         r.append('</body>\n</html>\n')
         encoded = '\n'.join(r).encode(enc, 'surrogateescape')
@@ -264,14 +269,26 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 f'<link href="{self.server.course_url}/local.css" rel="stylesheet">\n'
                 f'<link href="{self.server.course_url}/codehilite.css" rel="stylesheet">\n')
     
-    def sedrila_linkitems(self, pairs: tg.Iterable[tuple[str, str]]) -> tg.Iterable[str]:
+    def sedrila_linkitems(self, pairs: tg.Iterable[tuple[str, str]], dirs=False) -> tg.Iterable[str]:
         res = []
+        submission_re = self.server.submission_re
         for name, fullname in pairs:
+            submission_mm = submission_re and re.match(submission_re, name)
+            tasklink = ""
             if self.is_sedrila_invisible(name) or os.path.islink(fullname):
                 continue  # skip dotfiles and symlinks
+            if dirs:
+                cssclass = 'vwr-dirlink'
+            elif submission_mm:
+                cssclass = 'vwr-filelink-submission'
+                matchtext = submission_mm.group()
+                taskurl = f"{self.server.course_url}/{matchtext}.html"
+                tasklink = f"&#9;&#9;&#9;<a href='{taskurl}' class='vwr-tasklink'>Task '{matchtext}'</a>"
+            else:
+                cssclass = 'vwr-filelink'
             href = urllib.parse.quote(name, errors='surrogatepass')
             linktext = html.escape(name, quote=False)
-            res.append(f"  <li><a href='{href}'>{linktext}</a></li>\n")
+            res.append(f"  <li class='vwr-pre'><a href='{href}' class='{cssclass}'>{linktext}</a>{tasklink}</li>")
         return res
 
     @staticmethod
