@@ -6,11 +6,12 @@ A macro expands into text and may have state.
 
 ## 4 macro modes
 
-Any macro belongs to one of four modes of working:
+Any macro belongs to one of the following modes of working:
 - EARLY: The macro produces Markdown markup and will be expanded in the preprocessor stage of 
   the Markdown module. 
   Macros of the other modes all get expanded in the postprocessor stage.
 - INNER: The macro produces a fragment of HTML text within a paragraph.
+- BLOCK: The macro produces a self-contained <div>...</div> block.
 - BLOCKSTART: The macro produces (among other things) an HTML opening tag.
 - BLOCKEND: The macro produces (possibly among other things) the corresponding closing tag.
 
@@ -93,8 +94,9 @@ class MM(enum.Enum):
     """MacroMode"""
     EARLY = 1
     INNER = 2
-    BLOCKSTART = 3
-    BLOCKEND = 4
+    BLOCK = 3
+    BLOCKSTART = 4
+    BLOCKEND = 5
 
 
 Macroexpander = tg.Callable[[Macrocall], str]
@@ -153,6 +155,8 @@ def expand_macro(sourcefile: str, partname: str, mm: re.Match, is_early_phase=Fa
     if mode == MM.EARLY:
         pass  # use ppre, ppost verbatim
     elif mode == MM.INNER:
+        pass  # ditto
+    elif mode == MM.BLOCK:
         pass  # ditto
     elif mode == MM.BLOCKSTART:
         if not ppre and not ppost:  # Layout 1

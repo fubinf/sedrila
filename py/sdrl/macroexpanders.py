@@ -1,3 +1,4 @@
+import dataclasses
 import functools
 import os
 import re
@@ -36,6 +37,7 @@ def register_macros(course: sdrl.course.Coursebuilder):
     macros.register_macro('EREFR', 1, MM.INNER, expand_enumerationref)
     macros.register_macro('DIFF', 1, MM.INNER, sdrl.course.Taskbuilder.expand_diff)
     # ----- register hard-coded block macros:
+    macros.register_macro('PROT', 1, MM.BLOCK, expand_prot)
     macros.register_macro('SECTION', 2, MM.BLOCKSTART, expand_section)
     macros.register_macro('ENDSECTION', 0, MM.BLOCKEND, expand_section)
     macros.register_macro('INNERSECTION', 2, MM.BLOCKSTART, expand_section)
@@ -82,6 +84,79 @@ def expand_treeref(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocal
     return f"{prefix}{mainpart}{suffix}"
 
 
+def expand_prot(macrocall: macros.Macrocall) -> str:
+    """[PROT::somedir/file.prot]"""
+    path = macrocall.arg1
+    if not os.path.exists(path):
+        b.warning(f"{macrocall.macrocall_text}: file '{path}' not found", file=macrocall.filename)
+        return f"\n<p>(('{path}' not found))</p>\n"
+
+    @dataclasses.dataclass
+    class State:
+        s: int
+        promptcount: int
+
+    def promptmatch(line: str) -> re.Match:
+        r"""
+        Whether line is a shell prompt as prescribed by the SeDriLa course rules.
+        Canonical prompt:  export PS1="\u@\h \w \t \!\n\$ "
+        This is a two-line prompt. This routine considers the first line only.
+        Prompts are copy-pasted as plaintext, so possible ANSI sequences for color are no longer present.
+        The group names front, userhost, dir, time, num, back are part of the function interface 
+        (i.e. the caller knows they all exist in any match and can use the group contents).
+        """
+        front_re = r"(?P<front>^.*?)"  # any stuff up front, e.g. '(myvenv)' 
+        userhost_re = r"(?P<userhost>\w+@\w+)"  # user@host
+        sep_re = r"\s+"
+        dir_re = r"(?P<dir>[/~]\S*)"  # anything whitespace-less starting with '~' or '/'
+        time_re = r"(?P<time>\d\d:\d\d:\d\d)"  # e.g. '14:03:59'
+        num_re = r"(?P<num>\d+)"
+        back_re = r"(?P<back>.*$)"  # any stuff in the back
+        prompt_re = f"{front_re}{userhost_re}{sep_re}{dir_re}{sep_re}{time_re}{sep_re}{num_re}{back_re}"
+        return re.match(prompt_re, line)
+        prompt_re = f"{front_re}{userhost_re}{sep_re}{dir_re}{sep_re}{time_re}{sep_re}{num_re}{back_re}"
+        return re.fullmatch(prompt_re, line)
+
+    def handle_promptmatch():  # uses mm, result, state. Corresponds to promptmatch().
+        state.promptcount += 1
+        state.s = PROMPTSEEN
+        promptindex = f"<span class='vwr-promptidx'>{state.promptcount}.</span>"
+        front = f"<span class='vwr-front'>{esc('front')}</span>"
+        userhost = f"<span class='vwr-userhost'>{esc('userhost')}</span>"
+        dir = f"<span class='vwr-dir'>{esc('dir')}</span>"
+        time = f"<span class='vwr-time'>{esc('time')}</span>"
+        num = f"<span class='vwr-num'> {esc('num')} </span>"
+        back = f"<span class='vwr-back'>{esc('back')}</span>"
+        result.append(f"<tr><td>{promptindex} {front} {userhost} {dir} {time} {num} {back}</td></tr>")
+
+    def esc(groupname: str) -> str:  # abbrev; uses mm
+        return html.escape(mm.group(groupname))  # TODO_1_prechelt: make whitespace (indentation etc.) work
+
+    # ----- expand_prot(): process lines:
+    content = b.slurp(path)
+    result = ["\n<table class='vwr-table'>"]
+    PROMPTSEEN, OUTPUT = (1, 2)
+    state = State(s=OUTPUT, promptcount = 0)
+    print("### content: ", content)
+    for line in content.split('\n'):
+        line = line.rstrip()  # get rid of newline
+        mm = promptmatch(line)
+        if mm:
+            print("### prompt")
+            handle_promptmatch()
+        elif state.s == PROMPTSEEN:  # this is the command line
+            print("### cmd")
+            result.append(f"<tr><td><span class='vwr-cmd'>{html.escape(line)}</span></td></tr>")
+            state.s = OUTPUT
+        elif state.s == OUTPUT:
+            print("### output")
+            result.append(f"<tr><td><span class='vwr-output'>{html.escape(line)}</span></td></tr>")
+        else:
+            assert False
+    result.append("</table>\n\n")
+    return '\n'.join(result)
+
+
 def expand_section(macrocall: macros.Macrocall) -> str:
     """
     [SECTION::goal::subtype1,subtype2] etc.
@@ -116,6 +191,7 @@ def expand_section(macrocall: macros.Macrocall) -> str:
 
 
 def expand_hint(macrocall: macros.Macrocall) -> str:
+    """[HINT::description what it is about]"""
     if macrocall.macroname == 'HINT':
         content = topmatter(macrocall, 'hint').format(arg1=macrocall.arg1)
         return f"<details class='blockmacro blockmacro-hint'><summary>\n{content}\n</summary>\n"
@@ -125,6 +201,7 @@ def expand_hint(macrocall: macros.Macrocall) -> str:
 
 
 def expand_foldout(macrocall: macros.Macrocall) -> str:
+    """[FOLDOUT]"""
     if macrocall.macroname == 'FOLDOUT':
         return f"<details class='blockmacro blockmacro-foldout'><summary>\n{macrocall.arg1}\n</summary>\n"
     elif macrocall.macroname == 'ENDFOLDOUT':
@@ -143,6 +220,7 @@ def expand_block(macrocall: macros.Macrocall) -> str:
 
 
 def expand_enumeration(macrocall: macros.Macrocall) -> str:
+    """[EC], [EQ], [ER]"""
     macroname = macrocall.macroname
     classname = f"enumeration-{macroname.lower()}"
     value = macros.get_state(macroname) + 1
@@ -155,6 +233,7 @@ def partswitch_enumeration(macroname: str, newpartname: str):  # noqa
 
 
 def expand_enumerationref(macrocall: macros.Macrocall) -> str:
+    """[ECREF], [EQREF], [ERREF]"""
     # markup matches that of expand_enumeration(), argument is not checked in any way
     macroname = macrocall.macroname
     classname = f"enumeration-{macroname.lower()}"
@@ -184,6 +263,9 @@ def expand_include(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocal
     macrocall.md.includefiles.add(fullfilename)  # record that we have included this file
     if fullfilename.endswith('.md'):
         return macros.expand_macros(md.md.context_sourcefile, md.md.partname, rawcontent)
+    elif fullfilename.endswith('.prot'):
+        macrocall.error("filename must be *.prot. Call ignored.")
+        return ""  # ignore the entire macrocall
     else:
         return rawcontent
 
