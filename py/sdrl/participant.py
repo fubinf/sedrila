@@ -52,12 +52,14 @@ class Student:
             if url.startswith(FILE_URL_PREFIX):
                 jsontext = b.slurp(url[len(FILE_URL_PREFIX):])
             else:
-                jsontext = requests.get(url=url).resp.text
-        except:  # noqa
+                jsontext = requests.get(url=url).text
+        except Exception as exc:  # noqa
+            jsontext = ""
             b.critical(f"Error fetching URL '{url}'.")
         try:
             metadata = json.loads(jsontext)
         except:  # noqa
+            metadata = dict()
             b.critical(f"JSON format error at '{url}'")
         return metadata
 
