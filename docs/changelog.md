@@ -6,6 +6,10 @@
 - ...
 
 
+## Version 2.1.2 (2024-08-20)
+- `student`: FIX: repair broken get_metadata() that led to a crash
+
+
 ## Version 2.1.1 (2024-08-20)
 - `author`: add the forgotten documentation for the new `[PROT]` macro.
 - `author`: HTML now uses more semantic markup: `<nav>`, `<main>`, `<section>`, `<aside>`,
