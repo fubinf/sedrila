@@ -13,8 +13,18 @@ class SedrilaArgParser(ap_sub.ArgumentParser):
     @staticmethod
     def get_version() -> str:
         import tomllib
-        topdir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        # the development tree (and tar version of the package) have this structure:
+        #   pyproject.toml
+        #   py/sdrl/argparser.py
+        # in contrast, the whl version of the package has this structure:
+        #   pyproject.toml
+        #   sdrl/argparser.py
+        # our logic needs to work for both.  We try the whl version first:
+        topdir = os.path.dirname(os.path.dirname(__file__))
         pyprojectfile = os.path.join(topdir, "pyproject.toml")
+        if not os.path.exists(pyprojectfile):  # we have the tar or development tree here:
+            topdir = os.path.dirname(topdir)  # go from py to top in dev tree
+            pyprojectfile = os.path.join(topdir, "pyproject.toml")  # this ought to work now
         with open(pyprojectfile, 'rb') as f:
             toml = tomllib.load(f)
             return toml['tool']['poetry']['version']

@@ -37,6 +37,7 @@ These changes require a lot of changes of import statements.
 For instance, the current module `base` will become `sedrila.base`
 and `sdrl.course` will become `sedrila.course`.
 The logic for computing `sedrila_libdir` in `courses.py` must be adapted.
+`SedrilaArgParser.get_version()` must be adapted.
 The files lists in `pyproject.toml` must be corrected.
 
 
