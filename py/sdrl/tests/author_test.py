@@ -91,7 +91,7 @@ expected_filelist1 = [
     'task111r+a.html', 'task112.html', 'task113.html', 'task121.html', 'task122.html', 'tg11.html', 'tg12.html', 
 ]
 
-expected_sidebar_task111 = """<div class="sidebar" id="sidebar">
+expected_sidebar_task111 = """<nav class="sidebar" id="sidebar">
 
   <div class="indent0 no-stage"><a href="chapter-ch1.html" title="Chapter 1">ch1</a></div>
     <div class="indent1 no-stage"><a href="tg11.html" title="Task group 1.1">tg11</a></div>
@@ -100,7 +100,7 @@ expected_sidebar_task111 = """<div class="sidebar" id="sidebar">
       <div class="indent2 stage-beta"><a href="task111r+a.html" title="Task 1.1.1 requires+assumes">task111r+a</a> <span class="difficulty1" title="Difficulty: verylow">⚫︎</span> <span class="timevalue-decoration" title="Timevalue: 1.0 hours">1.0</span><span class="assumes-decoration" title="assumes: task112"></span><span class="requires-decoration" title="requires: task113"></span></div>
     <div class="indent1 stage-alpha"><a href="tg12.html" title="Task group 1.2">tg12</a></div>
   <div class="indent0 no-stage"><a href="glossary.html">Glossary of terms</a></div>
-  </div>
+  </nav>
 """  # noqa
 
 expected_body_task111 = """
