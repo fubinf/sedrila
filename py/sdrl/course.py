@@ -202,7 +202,7 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
         r_cssname = r_attr.replace("_", "")
         any_links = a_links or r_links
         if any_links:
-            links.append(f"\n<div class='{a_cssname}-{r_cssname}-linkblock'>\n")
+            links.append(f"\n<aside class='{a_cssname}-{r_cssname}-linkblock'>\n")
         if a_links:
             links.append(f" <div class='{a_cssname}-links'>\n   ")
             links.append("  " + macros.expand_macros("-", self.name, ", ".join(a_links)))
@@ -212,7 +212,7 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
             links.append("  " + macros.expand_macros("-", self.name, ", ".join(r_links)))
             links.append("\n </div>\n")
         if any_links:
-            links.append("</div>\n")
+            links.append("</aside>\n")
         return "".join(links)
 
 
