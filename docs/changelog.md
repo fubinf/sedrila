@@ -2,6 +2,7 @@
 
 
 ## Version 2.2.0 (upcoming)
+- `viewer`: add link to show `*.html` as a page instead of its source
 - ...
 
 

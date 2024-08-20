@@ -68,7 +68,7 @@ def render_sourcefile(language: str, info: 'Info', infile, outfile):
     do_render_markdown(info, markup, outfile)
 
 
-def just_copyfile(copyfilefunc, info: 'Info', infile, outfile):
+def just_copyfile(copyfilefunc, info, infile, outfile):
     copyfilefunc(infile, outfile)
 
 
@@ -183,7 +183,7 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_error(http.HTTPStatus.NOT_FOUND, "File not found")
             return None
         try:
-            f = open(path, 'rb')
+            f = open(self.sedrila_actualpath(path), 'rb')
         except OSError:
             self.send_error(http.HTTPStatus.NOT_FOUND, "File not found")
             return None
@@ -263,9 +263,18 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             mimetype, renderfunc = self.how_to_render[ext[1:]]  # lookup without the dot
             self.renderer = functools.partial(renderfunc, info)
             return mimetype
+        elif ext == ".htmlpage":  # special case
+            self.renderer = functools.partial(just_copyfile, super().copyfile, info)
+            return 'text/html'
         else:
             self.renderer = functools.partial(just_copyfile, super().copyfile, info)
         return super().guess_type(path)
+
+    def sedrila_actualpath(self, path: str) -> str:
+        """Convert *.htmlpage to *.html (special case)."""
+        actual = re.sub(r"\.htmlpage$", ".html", path)
+        print(f"actualpath: {path} -> {actual}")
+        return actual
 
     def sedrila_byline(self) -> str:
         partner = f" (and {self.server.partner_name})" if self.server.partner_name else ""
@@ -286,6 +295,10 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             tasklink = ""
             if self.is_sedrila_invisible(name) or os.path.islink(fullname):
                 continue  # skip dotfiles and symlinks
+            if not dirs and name.endswith('.html'):
+                htmlpagelink = f"&#9;&#9;&#9;<a href='{name}page' class='vwr-htmlpagelink'>page</a>"
+            else:
+                htmlpagelink = ""
             if dirs:
                 cssclass = 'vwr-dirlink'
             elif submission_mm:
@@ -299,7 +312,8 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 cssclass = 'vwr-filelink'
             href = urllib.parse.quote(name, errors='surrogatepass')
             linktext = html.escape(name, quote=False)
-            res.append(f"  <li class='vwr-pre'><a href='{href}' class='{cssclass}'>{linktext}</a>{tasklink}</li>")
+            res.append(f"  <li class='vwr-pre'><a href='{href}' class='{cssclass}'>{linktext}</a>"
+                       f"{tasklink}{htmlpagelink}</li>")
         return res
 
     @staticmethod
