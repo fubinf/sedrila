@@ -1,9 +1,15 @@
 # sedrila CHANGELOG
 
 
-## Version 2.1.1 (upcoming)
-- `author`: add the forgotten documentation for the new `[PROT]` macro.
+## Version 2.2.0 (upcoming)
 - ...
+
+
+## Version 2.1.1 (2024-08-20)
+- `author`: add the forgotten documentation for the new `[PROT]` macro.
+- `author`: HTML now uses more semantic markup: `<nav>`, `<main>`, `<section>`, `<aside>`,
+  `role=`
+- (all): FIX: repair search for `pyproject.toml`, which is broken in the wheel version of the PyPI package
 
 
 ## Version 2.1.0 (2024-08-19)
