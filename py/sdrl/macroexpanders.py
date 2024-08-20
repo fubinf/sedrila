@@ -174,7 +174,7 @@ def expand_section(macrocall: macros.Macrocall) -> str:
     sectionsubtypes = macrocall.arg2
     if macrocall.macroname in ('SECTION', 'INNERSECTION'):
         r = []  # noqa, results list, to be join'ed
-        r.append(f"<div class='section section-{sectiontype}'>")  # level 1
+        r.append(f"<section class='section section-{sectiontype}'>")  # level 1
         r.append(f"<div class='section-subtypes section-{sectiontype}-subtypes'>")  # level 2
         subtypeslist = sectionsubtypes.split(",")
         for subtype in subtypeslist:
@@ -184,7 +184,7 @@ def expand_section(macrocall: macros.Macrocall) -> str:
         r.append(topmatter(macrocall, f'section_{sectiontype}'))
         return "\n".join(r)
     elif macrocall.macroname in ('ENDSECTION', 'ENDINNERSECTION'):
-        return "</div>"
+        return "</section>"
     assert False, macrocall  # impossible
 
 

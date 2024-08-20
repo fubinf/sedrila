@@ -105,7 +105,7 @@ expected_sidebar_task111 = """<nav class="sidebar" id="sidebar">
 
 expected_body_task111 = """
 <div class="pagetype-task pagetype-task-difficulty1" id="taskbody">
- <div class="section section-background">
+ <section class="section section-background">
   <div class="section-subtypes section-background-subtypes">
    <div class="section-subtype section-background-default">
    </div>
@@ -188,7 +188,7 @@ Here, we mention
     </span>
    </p>
   </details>
- </div>
+ </section>
 </div>
 
 """
