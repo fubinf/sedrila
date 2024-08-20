@@ -74,7 +74,7 @@ def just_copyfile(copyfilefunc, info: 'Info', infile, outfile):
 
 def do_render_markdown(info: 'Info', markup: str, outfile):
     template = """<!DOCTYPE HTML>
-      <html lang="en">
+      <html>
       <head>
         <meta charset="{enc}">
         {csslinks}
@@ -222,7 +222,7 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     path=displaypath, lastname=self.server.lastname, byline=self.sedrila_byline(),
                     csslinks=self.sedrila_csslinks())
         r.append('<!DOCTYPE HTML>')
-        r.append('<html lang="en">')
+        r.append('<html>')
         r.append('<head>')
         r.append(f'<meta charset="{enc}">')
         r.append(info.csslinks)
