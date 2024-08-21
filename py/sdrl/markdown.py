@@ -60,7 +60,7 @@ class SedrilaMarkdown(markdown.Markdown):
     context_sourcefile: str
     partname: str
     blockmacro_topmatter: dict[str, str]
-    includefiles: set[str]  # [INCLUDE::...] will add a filename here
+    includefiles: set[str]  # [INCLUDE::...], [PROT::...] will add a filename here
     termrefs: set[str]  # [TERMREF::...] will add a term alias here
 
 

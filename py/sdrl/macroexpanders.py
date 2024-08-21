@@ -136,6 +136,7 @@ def expand_prot(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
 
     # ----- expand_prot(): process lines:
     content = b.slurp(path)
+    macrocall.md.includefiles.add(path)  # record that we have included this file
     result = ["\n<table class='vwr-table'>"]
     PROMPTSEEN, OUTPUT = (1, 2)
     state = State(s=OUTPUT, promptcount = 0)
