@@ -27,9 +27,9 @@ def accumulate_timevalues_and_attempts(checked_tuple_groups: tg.Sequence[tg.Sequ
             b.debug(f"tuple: {refid}, {taskname}, {tasknote}")
             task = course.task(taskname)
             requirements = {requirement: course.task(requirement) for requirement in task.requires}
-            open_requirements = [k for k, v in requirements.items() 
-                                 if not(any(k == name for (_, name, _) in checked_tuples)) and 
-                                 not v.accepted and v.remaining_attempts]
+            open_requirements = [taskname for taskname, task in requirements.items() 
+                                 if not(any(taskname == tname for (_, tname, _) in checked_tuples)) and 
+                                 not task.accepted and task.remaining_attempts]
             if open_requirements:
                 b.warning(f"Attempted to grade task {taskname} with missing requirements: {open_requirements}")
                 continue
