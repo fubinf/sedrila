@@ -40,7 +40,8 @@ def test_instructor_parts(capfd):
         b._testmode_reset()
         configfile = f"out/{c.METADATA_FILE}"
         course = sdrl.course.CourseSI(configdict=b.slurp_json(configfile), context=configfile)
-        r.compute_student_work_so_far(course)
+        commits = git.commits_of_local_repo(reverse=True)
+        r.compute_student_work_so_far(course, commits)
         entries, workhours_total, timevalue_total = r.student_work_so_far(course)
         assert entries[0] == ('Task1', 1.0, 1.0, 0, False)
         # ----- rewrite submission file:

@@ -120,13 +120,12 @@ def import_gpg_keys(instructors: tg.Sequence[b.StrAnyDict]):
         sp.run(["gpg", "--import"], input=instructor['pubkey'], encoding='ascii')
 
 
-def compute_student_work_so_far(course: sdrl.course.Course):
+def compute_student_work_so_far(course: sdrl.course.Course, commits: tg.Sequence[git.Commit]):
     """
     Obtain per-task worktimes from student commits and 
     per-task timevalues from submission checked commits.
     Store them in course.
     """
-    commits = git.commits_of_local_repo(reverse=True)
     workhours = workhours_of_commits(commits)
     accumulate_workhours_per_task(workhours, course)
     hasheslist = submission_checked_commit_hashes(course, commits)

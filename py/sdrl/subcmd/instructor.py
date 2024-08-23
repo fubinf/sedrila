@@ -49,7 +49,8 @@ def execute(pargs: argparse.Namespace):
         return
     student = sdrl.participant.Student()
     course = sdrl.course.CourseSI(configdict=student.metadatadict, context=student.metadata_url)
-    r.compute_student_work_so_far(course)
+    commits = git.commits_of_local_repo(reverse=True)
+    r.compute_student_work_so_far(course, commits)
     entries, workhours_total, timevalue_total = r.student_work_so_far(course)
     opentasks = rewrite_submission_file(course, c.SUBMISSION_FILE)
     entries = [entry for entry in entries if allow_grading(course, opentasks, entry, pargs.override)]
