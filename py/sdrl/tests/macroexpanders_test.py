@@ -1,4 +1,6 @@
 # pytest tests
+import unittest.mock
+
 import base as b
 import sdrl.macros as macros
 import sdrl.macroexpanders
@@ -30,7 +32,7 @@ def test_expand_prot():
     with tb.TempDirEnvironContextMgr():
         prot = "u@h ~/d 12:34:56 88\n$ cmd arg\nout1\nout2\nu@h ~/d 12:34:59 89\n$ cmd2\nout3"
         b.spit("myfile.prot", prot)
-        call = macros.Macrocall(None, "notask.md", "notask",
+        call = macros.Macrocall(unittest.mock.MagicMock(), "notask.md", "notask",
                                 f"[PROT::myfile.prot]", "PROT", "myfile.prot", None)
         prot_output = sdrl.macroexpanders.expand_prot(CourseDummy(), call)
         print(prot_output)
