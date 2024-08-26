@@ -100,7 +100,8 @@ def _accumulate_timevalues_and_attempts(checked_tuple_groups: tg.Sequence[tg.Seq
         for refid, taskname, tasknote in checked_tuples:
             b.debug(f"tuple: {refid}, {taskname}, {tasknote}")
             task = course.task(taskname)
-            requirements = {requirement: course.task(requirement) for requirement in task.requires}
+            requirements = {requirement: course.task(requirement) for requirement in task.requires
+                            if course.task(requirement) is not None}  # ignore Taskgroups
             b.debug(f"requirements({task.name}): {requirements}")
             open_requirements = [taskname for taskname, task in requirements.items()
                                  if not(any(taskname == tname for (_, tname, _) in checked_tuples)) and
