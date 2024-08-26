@@ -104,7 +104,7 @@ def grade_entries(entries: list[r.ReportEntry], course_url: str, override: bool,
     return [key for key, value in rejected.items() if value]
 
 def currently_accepted(submission: b.StrAnyDict, entry: r.ReportEntry, override: bool) -> bool:
-    return entry[4] if override else r.accepted(submission.get(entry[0]) or "")
+    return entry[4] if override else r.is_accepted(submission.get(entry[0]) or "")
 
 def currently_rejected(submission: b.StrAnyDict, entry: r.ReportEntry, override: bool) -> bool:
-    return not(currently_accepted(submission, entry, override)) if override else r.rejected(submission.get(entry[0]) or "")
+    return not(currently_accepted(submission, entry, override)) if override else r.is_rejected(submission.get(entry[0]) or "")

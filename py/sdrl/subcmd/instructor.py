@@ -77,15 +77,15 @@ def allow_grading(course, opentasks, entry, override):
     task = course.task(entry[0])
     if not override:
         requirements = {requirement: course.task(requirement) for requirement in task.requires}
-        open_requirements = [k for k, v in requirements.items() 
-                             if not any(k == name for name in opentasks) and not v.accepted and v.remaining_attempts]
+        open_requirements = [k for k, v in requirements.items()
+                             if not any(k == name for name in opentasks) and not v.is_accepted and v.remaining_attempts]
         if open_requirements:
             return False
     isallowed = (entry[0] in opentasks) != override
     if override:
-        return isallowed and (task.rejections or task.accepted)
-    return (isallowed and (task.remaining_attempts > 0) and 
-            (not task.accepted or opentasks[entry[0]].endswith(c.SUBMISSION_ACCEPT_MARK)))
+        return isallowed and (task.rejections or task.is_accepted)
+    return (isallowed and (task.remaining_attempts > 0) and
+            (not task.is_accepted or opentasks[entry[0]].endswith(c.SUBMISSION_ACCEPT_MARK)))
 
 
 def checkout_student_repo(repo_url, home, pull=True):
@@ -142,7 +142,7 @@ def rewrite_submission_entries(course: sdrl.course.Course, entries: b.StrAnyDict
         task = course.task(taskname)
         if task is None:
             entries[taskname] = c.SUBMISSION_NONTASK_MARK
-        elif task.accepted:
+        elif task.is_accepted:
             entries[taskname] = c.SUBMISSION_ACCEPT_MARK
         elif task.rejections > 0:
             entries[taskname] += f" (previously rejected {task.rejections}x)"
@@ -186,8 +186,8 @@ def instructor_cmd() -> str:
 def validate_submission_file(course: sdrl.course.Course, filename: str) -> bool:
     """Check whether the submission file contains (and only contains) sensible entries."""
     entries = b.slurp_yaml(filename)
-    has_accept = any((r.accepted(mark) for taskname, mark in entries.items()))
-    has_reject = any((r.rejected(mark) for taskname, mark in entries.items()))
+    has_accept = any((r.is_accepted(mark) for taskname, mark in entries.items()))
+    has_reject = any((r.is_rejected(mark) for taskname, mark in entries.items()))
     allowable_marks = (f"(?:{c.SUBMISSION_OVERRIDE_PREFIX})?{c.SUBMISSION_ACCEPT_MARK}|"
                        f"(?:{c.SUBMISSION_OVERRIDE_PREFIX})?{c.SUBMISSION_REJECT_MARK}|{c.SUBMISSION_CHECK_MARK}")
     is_valid = True

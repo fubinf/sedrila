@@ -15,21 +15,96 @@ import sdrl.course
 
 
 CheckedTuple = tg.Tuple[str, str, str]  # hash, taskname, tasknote
-WorkEntry = tg.Tuple[str, float]  # taskname, workhours
 ReportEntry = tg.Tuple[str, float, float, int, bool]  # taskname, workhoursum, timevalue, rejections, accepted
 
 
-def accumulate_timevalues_and_attempts(checked_tuple_groups: tg.Sequence[tg.Sequence[CheckedTuple]], 
-                                       course: sdrl.course.Course):
+def import_gpg_keys(instructors: tg.Sequence[b.StrAnyDict]):
+    for instructor in instructors:
+        if not(instructor.get('pubkey')):
+            b.warning("No key present for " + instructor.get('nameish') + ", skipping")
+            continue
+        b.info("Importing key for " + instructor.get('nameish'))
+        if type(instructor['pubkey']) is list:
+            instructor['pubkey'] = "\n".join(instructor['pubkey'])
+        if not instructor['pubkey'].startswith("-----"):
+            instructor['pubkey'] = ("-----BEGIN PGP PUBLIC KEY BLOCK-----\n"
+                                    f"\n{instructor['pubkey']}\n"
+                                    "-----END PGP PUBLIC KEY BLOCK-----")
+        sp.run(["gpg", "--import"], input=instructor['pubkey'], encoding='ascii')
+
+
+def compute_student_work_so_far(course: sdrl.course.Course, commits: tg.Sequence[git.Commit]):
+    """
+    Obtain per-task worktimes from student commits and 
+    per-task timevalues from submission checked commits.
+    Store them in course.
+    """
+    _accumulate_workhours_per_task(commits, course)
+    hasheslist = _submission_checked_commit_hashes(course, commits)
+    checked_tuples = _checked_tuples_from_commits(hasheslist, course)
+    _accumulate_timevalues_and_attempts(checked_tuples, course)
+
+
+def student_work_so_far(course) -> tg.Tuple[list[ReportEntry], float, float]:
+    """Data for work report: retrieve pre-computed per-task entries (worktime, attempts) and totals."""
+    workhours_total = 0.0
+    timevalue_total = 0.0
+    result = []
+    for taskname in sorted((t.name for t in course.taskdict.values())):
+        task = course.taskdict[taskname]
+        if task.workhours != 0.0:
+            workhours_total += task.workhours
+            if task.is_accepted:
+                timevalue_total += task.timevalue
+            result.append((taskname, task.workhours, task.timevalue,
+                           task.rejections, task.is_accepted))  # one result tuple
+    return result, workhours_total, timevalue_total  # overall result triple
+
+
+def is_accepted(tasknote: str):
+    overridden = tasknote.startswith(c.SUBMISSION_OVERRIDE_PREFIX)
+    if overridden:
+        tasknote = tasknote[len(c.SUBMISSION_OVERRIDE_PREFIX):]
+    return tasknote.startswith(c.SUBMISSION_ACCEPT_MARK)
+
+
+def is_rejected(tasknote: str):
+    overridden = tasknote.startswith(c.SUBMISSION_OVERRIDE_PREFIX)
+    if overridden:
+        tasknote = tasknote[len(c.SUBMISSION_OVERRIDE_PREFIX):]
+    return tasknote.startswith(c.SUBMISSION_REJECT_MARK)
+
+
+def submission_file_entries(entries: tg.Iterable[ReportEntry], rejected: list[str] = None, 
+                            override: bool = False) -> dict[str, str]:
+    """taskname -> CHECK_MARK  for each yet-to-be-accepted task with effort in any commit."""
+    candidates = dict()
+    for taskname, workhoursum, timevalue, rejections, accepted in entries:
+        if rejected is None:
+            if not accepted:
+                candidates[taskname] = c.SUBMISSION_CHECK_MARK
+        else:
+            if taskname in rejected:
+                candidates[taskname] = (c.SUBMISSION_OVERRIDE_PREFIX if override else "") + c.SUBMISSION_REJECT_MARK
+            elif accepted:
+                candidates[taskname] = (c.SUBMISSION_OVERRIDE_PREFIX if override else "") + c.SUBMISSION_ACCEPT_MARK
+            else:
+                candidates[taskname] = c.SUBMISSION_CHECK_MARK
+    return candidates
+
+
+def _accumulate_timevalues_and_attempts(checked_tuple_groups: tg.Sequence[tg.Sequence[CheckedTuple]],
+                                        course: sdrl.course.Course):
     """Reflect the check_tuples data in the course data structure."""
     for checked_tuples in checked_tuple_groups:
         for refid, taskname, tasknote in checked_tuples:
             b.debug(f"tuple: {refid}, {taskname}, {tasknote}")
             task = course.task(taskname)
             requirements = {requirement: course.task(requirement) for requirement in task.requires}
-            open_requirements = [taskname for taskname, task in requirements.items() 
-                                 if not(any(taskname == tname for (_, tname, _) in checked_tuples)) and 
-                                 not task.accepted and task.remaining_attempts]
+            b.debug(f"requirements({task.name}): {requirements}")
+            open_requirements = [taskname for taskname, task in requirements.items()
+                                 if not(any(taskname == tname for (_, tname, _) in checked_tuples)) and
+                                 not task.is_accepted and task.remaining_attempts]
             if open_requirements:
                 b.warning(f"Attempted to grade task {taskname} with missing requirements: {open_requirements}")
                 continue
@@ -42,44 +117,34 @@ def accumulate_timevalues_and_attempts(checked_tuple_groups: tg.Sequence[tg.Sequ
                 else:
                     if overridden and task.rejections:
                         task.rejections -= 1
-                    task.accepted = True
+                    task.is_accepted = True
                     b.debug(f"{taskname} accepted, {'' if overridden else 'not '} overridden")
             elif tasknote.startswith(c.SUBMISSION_REJECT_MARK):
-                if not task.accepted or overridden:
+                if not task.is_accepted or overridden:
                     if overridden:
-                        task.accepted = False
+                        task.is_accepted = False
                     task.rejections += 1
                     b.debug(f"{taskname} rejected, {'' if overridden else 'not '} overridden")
             else:
                 pass  # unmodified entry: instructor has not checked it
 
 
-def accepted(tasknote: str):
-    overridden = tasknote.startswith(c.SUBMISSION_OVERRIDE_PREFIX)
-    if overridden:
-        tasknote = tasknote[len(c.SUBMISSION_OVERRIDE_PREFIX):]
-    return tasknote.startswith(c.SUBMISSION_ACCEPT_MARK)
-
-
-def rejected(tasknote: str):
-    overridden = tasknote.startswith(c.SUBMISSION_OVERRIDE_PREFIX)
-    if overridden:
-        tasknote = tasknote[len(c.SUBMISSION_OVERRIDE_PREFIX):]
-    return tasknote.startswith(c.SUBMISSION_REJECT_MARK)
-
-
-def accumulate_workhours_per_task(workentries: tg.Sequence[WorkEntry], course: sdrl.course.Course):
+def _accumulate_workhours_per_task(commits: tg.Iterable[git.Commit], course: sdrl.course.Course):
     """Reflect the workentries data in the course data structure."""
-    for taskname, workhours in sorted(workentries):
+    for commit in commits:
+        parts = _parse_taskname_workhours(commit.subject)
+        if parts is None:  # this is no worktime commit
+            continue
+        taskname, worktime = parts  # unpack
         if taskname in course.taskdict:
             task = course.taskdict[taskname]
-            task.workhours += workhours
+            task.workhours += worktime
         else:
-            pass  # ignore non-existing tasknames quietly
+            b.warning(f"Commit '{commit.subject}': Task '{taskname}' does not exist. Entry ignored.")
 
 
-def checked_tuples_from_commits(hasheslist: list[list[str]], course: sdrl.course.Course
-                                ) -> tg.Sequence[tg.Sequence[CheckedTuple]]:
+def _checked_tuples_from_commits(hasheslist: list[list[str]], course: sdrl.course.Course
+                                 ) -> tg.Sequence[tg.Sequence[CheckedTuple]]:
     """Collect the individual checks across all 'submission.yaml checked' commits.
     This will only allow grades for tasks that were actually requested to grade.
     The state of a task should always be the last one in a given group."""
@@ -105,36 +170,8 @@ def checked_tuples_from_commits(hasheslist: list[list[str]], course: sdrl.course
     return result
 
 
-def import_gpg_keys(instructors: tg.Sequence[b.StrAnyDict]):
-    for instructor in instructors:
-        if not(instructor.get('pubkey')):
-            b.warning("No key present for " + instructor.get('nameish') + ", skipping")
-            continue
-        b.info("Importing key for " + instructor.get('nameish'))
-        if type(instructor['pubkey']) is list:
-            instructor['pubkey'] = "\n".join(instructor['pubkey'])
-        if not instructor['pubkey'].startswith("-----"):
-            instructor['pubkey'] = ("-----BEGIN PGP PUBLIC KEY BLOCK-----\n"
-                                    f"\n{instructor['pubkey']}\n"
-                                    "-----END PGP PUBLIC KEY BLOCK-----")
-        sp.run(["gpg", "--import"], input=instructor['pubkey'], encoding='ascii')
-
-
-def compute_student_work_so_far(course: sdrl.course.Course, commits: tg.Sequence[git.Commit]):
-    """
-    Obtain per-task worktimes from student commits and 
-    per-task timevalues from submission checked commits.
-    Store them in course.
-    """
-    workhours = workhours_of_commits(commits)
-    accumulate_workhours_per_task(workhours, course)
-    hasheslist = submission_checked_commit_hashes(course, commits)
-    checked_tuples = checked_tuples_from_commits(hasheslist, course)
-    accumulate_timevalues_and_attempts(checked_tuples, course)
-
-
-def submission_checked_commit_hashes(course: sdrl.course.Course,
-                                     commits: tg.Sequence[git.Commit]) -> list[list[str]]:
+def _submission_checked_commit_hashes(course: sdrl.course.Course,
+                                      commits: tg.Sequence[git.Commit]) -> list[list[str]]:
     """List of hashes of properly instructor-signed commits of finished submission checks.
     This will be grouped by consecutively done commits of instructors and student, starting with the grading request."""
     try:
@@ -161,51 +198,7 @@ def submission_checked_commit_hashes(course: sdrl.course.Course,
     return result
 
 
-def workhours_of_commits(commits: tg.Sequence[git.Commit]) -> list[WorkEntry]:
-    """Extract all pairs of (taskname, workhours) from commit list."""
-    result = []
-    for commit in commits:
-        pair = _parse_taskname_workhours(commit.subject)
-        if pair:
-            result.append(pair)
-    return result
-
-
-def student_work_so_far(course) -> tg.Tuple[list[ReportEntry], float, float]:
-    """Data for work report: per-task entries (worktime, attempts) and totals."""
-    workhours_total = 0.0
-    timevalue_total = 0.0
-    result = []
-    for taskname in sorted((t.name for t in course.taskdict.values())):
-        task = course.taskdict[taskname]
-        if task.workhours != 0.0:
-            workhours_total += task.workhours
-            if task.accepted:
-                timevalue_total += task.timevalue
-            result.append((taskname, task.workhours, task.timevalue,
-                           task.rejections, task.accepted))  # one result tuple
-    return result, workhours_total, timevalue_total  # overall result triple
-
-
-def submission_file_entries(entries: tg.Iterable[ReportEntry], rejected: list[str] = None, 
-                            override: bool = False) -> dict[str, str]:
-    """taskname -> CHECK_MARK  for each yet-to-be-accepted task with effort in any commit."""
-    candidates = dict()
-    for taskname, workhoursum, timevalue, rejections, accepted in entries:
-        if rejected is None:
-            if not accepted:
-                candidates[taskname] = c.SUBMISSION_CHECK_MARK
-        else:
-            if taskname in rejected:
-                candidates[taskname] = (c.SUBMISSION_OVERRIDE_PREFIX if override else "") + c.SUBMISSION_REJECT_MARK
-            elif accepted:
-                candidates[taskname] = (c.SUBMISSION_OVERRIDE_PREFIX if override else "") + c.SUBMISSION_ACCEPT_MARK
-            else:
-                candidates[taskname] = c.SUBMISSION_CHECK_MARK
-    return candidates
-
-
-def _parse_taskname_workhours(commit_msg: str) -> tg.Optional[WorkEntry]:
+def _parse_taskname_workhours(commit_msg: str) -> tg.Optional[tg.Tuple[str, float]]:  # taskname, workhours
     """Return pair of (taskname, workhours) from commit message if present, or None otherwise."""
     worktime_regexp = (r"\s*[#%](?P<name>[\w.-]+?)\s+"
                        r"(?:(?P<dectime>-?\d+(\.\d+)?)|"

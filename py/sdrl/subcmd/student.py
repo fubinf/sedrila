@@ -98,12 +98,12 @@ def report_student_work_so_far(course: sdrl.course.Course, entries: tg.Sequence[
     table.add_column("reject/accept")
     for taskname, workhours, timevalue, rejections, accepted in entries:
         task = course.taskdict[taskname]
-        ra_string = (c.INTERACT_ACCEPT_SYMBOL + " ") if task.accepted else ""
+        ra_string = (c.INTERACT_ACCEPT_SYMBOL + " ") if task.is_accepted else ""
         if task.rejections > 0:
             ra_string += f"{c.INTERACT_REJECT_SYMBOL * task.rejections}"
             remaining = task.remaining_attempts
             allowed = task.allowed_attempts
-            ra_string += f" ({remaining} of {allowed} remain)" if not task.accepted else ""
+            ra_string += f" ({remaining} of {allowed} remain)" if not task.is_accepted else ""
             if not remaining:
                 ra_string = f"{c.SUBMISSION_REJECT_MARK} (after {allowed} attempt{b.plural_s(allowed)})"
         table.add_row(taskname, "%4.2f" % workhours, "%4.2f" % timevalue, ra_string)
