@@ -1,9 +1,13 @@
 # sedrila CHANGELOG
 
 
-## Version 2.2.0 (upcoming)
-- `viewer`: add link to show `*.html` as a page instead of its source
+## Version 2.3.0 (upcoming)
 - ...
+
+
+## Version 2.2.0 (2024-08-26)
+- `viewer`: add link to show `*.html` as a page instead of its source
+- `student`, `instructor`: FIX: ignore Taskgroups in `require` when checking
 
 
 ## Version 2.1.2 (2024-08-20)
