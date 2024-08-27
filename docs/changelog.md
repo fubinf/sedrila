@@ -5,9 +5,13 @@
 - ...
 
 
+## Version 2.2.1 (2024-08-27)
+- `instructor`: forgotten FIX: ignore Taskgroups in `require` when checking
+
+
 ## Version 2.2.0 (2024-08-26)
 - `viewer`: add link to show `*.html` as a page instead of its source
-- `student`, `instructor`: FIX: ignore Taskgroups in `require` when checking
+- `student`: FIX: ignore Taskgroups in `require` when checking
 
 
 ## Version 2.1.2 (2024-08-20)
