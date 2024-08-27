@@ -332,6 +332,7 @@ This may look as follows:
 ```
 
 The YAML attributes have the following meaning:
+
 - `title`: string, required.    
   How this task will appear in long form (e.g. navigation menu tooltip, page title).
 - `timevalue`: float, required.  
