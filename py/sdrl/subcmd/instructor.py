@@ -76,9 +76,10 @@ def execute(pargs: argparse.Namespace):
 def allow_grading(course, opentasks, entry, override):
     task = course.task(entry[0])
     if not override:
-        requirements = {requirement: course.task(requirement) for requirement in task.requires}
+        requirements = {requirement: course.task(requirement) for requirement in task.requires
+                        if course.task(requirement) is not None}  # ignore Taskgroups
         open_requirements = [k for k, v in requirements.items()
-                             if not any(k == name for name in opentasks) and v and not v.is_accepted and v.remaining_attempts]
+                             if not any(k == name for name in opentasks) and not v.is_accepted and v.remaining_attempts]
         if open_requirements:
             return False
     isallowed = (entry[0] in opentasks) != override
