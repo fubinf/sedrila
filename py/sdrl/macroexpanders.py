@@ -110,7 +110,7 @@ def expand_prot(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
         (i.e. the caller knows they all exist in any match and can use the group contents).
         """
         front_re = r"(?P<front>^.*?)"  # any stuff up front, e.g. '(myvenv)' 
-        userhost_re = r"(?P<userhost>\w+@\w+)"  # user@host
+        userhost_re = r"(?P<userhost>[-\+\w]+@[-\+\w]+)"  # user@host
         sep_re = r"\s+"
         dir_re = r"(?P<dir>[/~]\S*)"  # anything whitespace-less starting with '~' or '/'
         time_re = r"(?P<time>\d\d:\d\d:\d\d)"  # e.g. '14:03:59'

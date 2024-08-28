@@ -2,6 +2,7 @@
 
 
 ## Version 2.3.0 (upcoming)
+- `viewer`: make shellprompt recognition more liberal
 - ...
 
 
