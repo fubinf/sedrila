@@ -3,12 +3,12 @@ import enum
 import json
 import logging
 import re
-import sys
 import time
 import typing as tg
 
 import requests
 import rich
+import rich.progress
 import rich.table
 import yaml
 
@@ -196,6 +196,10 @@ def Table() -> rich.table.Table:
     """An empty Table in default sedrila style"""
     return rich.table.Table(show_header=True, header_style="bold yellow",
                             show_edge=False, show_footer=False)
+
+
+def get_progressbar(maxcount: int) -> tg.Iterator[rich.progress.ProgressType]:
+    return iter(rich.progress.track(range(maxcount), description="", transient=True, ))
 
 
 def rich_print(msg: str, enclose_in_tag: tg.Optional[str] = None, count = 0):
