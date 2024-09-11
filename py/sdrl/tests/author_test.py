@@ -325,6 +325,7 @@ def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -
 def check_output1(course: course.Coursebuilder, actual_output1: str, expected_output1: str, errors: int):
     with contextlib.chdir(course.targetdir_s):
         check_filelist(expected_filelist1)
+        assert os.path.exists(os.path.join(course.targetdir_i, c.HTACCESS_FILE))
         check_toc1()
         check_task_html1()
         check_zipfile1()

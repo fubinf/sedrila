@@ -18,6 +18,8 @@ instructors:
     webaccount: oinstr
     keyfingerprint: ABCDEF0123
     pubkey: .
+htaccess_template: |
+    Require ldap-user {userlist_quotes_spaces}
 allowed_attempts: "2 + 0.5/h"
 chapters:
   - name: ch1
