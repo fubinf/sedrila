@@ -3,6 +3,7 @@ import unittest.mock
 import base as b
 import git
 
+
 def test_get_commits():
     # uses fixed knowledge about our own very repo
     commits = git.commits_of_local_repo()
