@@ -34,7 +34,7 @@ def add_arguments(subparser: argparse.ArgumentParser):
                            help="include parts with this and higher 'stage:' entries in the generated output "
                                 "(default: only those with no stage)")
     subparser.add_argument('--log', default="INFO", choices=b.loglevels.keys(),
-                           help="Log level for logging to stdout (default: WARNING)")
+                           help="Log level for logging to stdout (default: INFO)")
     subparser.add_argument('--sums', action='store_const', const=True, default=False,
                            help="Print task volume reports")
     subparser.add_argument('--clean', action='store_const', const=True, default=False,
@@ -53,21 +53,37 @@ def execute(pargs: argparse.Namespace):
 
 
 def create_and_build_course(pargs, targetdir_i, targetdir_s) -> sdrl.course.Coursebuilder:
+    # ----- prepare build:
     the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=pargs.clean)
     b.set_register_files_callback(the_cache.set_file_dirty)
     directory = dir.Directory(the_cache)
     the_course = sdrl.course.Coursebuilder(
         configfile=pargs.config, context=pargs.config, include_stage=pargs.include_stage,
         targetdir_s=targetdir_s, targetdir_i=targetdir_i, directory=directory)
+    # ----- perform main part of build:
     prepare_itree_zip(the_course)
     macroexpanders.register_macros(the_course)
     directory.build()
+    # ----- build special files:
     b.spit(os.path.join(targetdir_s, c.METADATA_FILE), json.dumps(the_course.as_json(), indent=2))
+    generate_htaccess(the_course)
+    # ----- clean up and report:
     purge_leftover_outputfiles(directory, targetdir_s, targetdir_i)
     if pargs.sums:
         print_volume_report(the_course)
     the_cache.close()  # write back changes
     return the_course
+
+
+def generate_htaccess(course: sdrl.course.Coursebuilder):
+    if not course.htaccess_template:
+        return  # nothing to do
+    userlist = [u['webaccount'] for u in course.instructors]
+    htaccess_txt = (course.htaccess_template.format(
+                       userlist_commas=",".join(userlist),
+                       userlist_spaces = " ".join(userlist),
+                       userlist_quotes_spaces = " ".join((f'"{u}"' for u in userlist))))
+    b.spit(os.path.join(course.targetdir_i, c.HTACCESS_FILE), htaccess_txt)
 
 
 def prepare_directories(targetdir_s: str, targetdir_i: str):
@@ -133,13 +149,13 @@ def purge_leftover_outputfiles(directory: dir.Directory, targetdir_s: str, targe
     
     expected_files = set([of.outputfile for of in directory.get_all_outputfiles() if keep(of)])
     additions_s = {c.AUTHOR_OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR, c.METADATA_FILE}
-    additions_i = set()
+    additions_i = {c.HTACCESS_FILE}
     purge_all_but(targetdir_s, expected_files | additions_s)
     purge_all_but(targetdir_i, expected_files | additions_i, exception=c.CACHE_FILENAME)
 
 
 def purge_all_but(dir: str, files: set[str], exception: tg.Optional[str] = None):
-    """Delete all files in dir that are not mentioned in files."""
+    """Delete all files in dir that are not mentioned in files and are no exceptions."""
     actual_files = set(os.listdir(dir))
     delete_these = actual_files - files
     for file in sorted(delete_these):

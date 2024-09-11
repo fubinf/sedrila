@@ -2,6 +2,7 @@
 
 
 ## Version 2.3.0 (upcoming)
+- `author`: FIX: generate .htaccess again (was missing since 2.0.0)
 - `viewer`: make shellprompt recognition more liberal
 - ...
 
