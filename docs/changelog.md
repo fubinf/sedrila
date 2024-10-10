@@ -1,10 +1,14 @@
 # sedrila CHANGELOG
 
 
-## Version 2.3.0 (upcoming)
+## Version 2.3.1 (upcoming)
+- ...
+
+
+## Version 2.3.0 (2024-10-10)
 - `author`: FIX: generate .htaccess again (was missing since 2.0.0)
 - `viewer`: make shellprompt recognition more liberal
-- ...
+- `viewer`: allow .prot files to lie in subdirectories rather than at top level
 
 
 ## Version 2.2.1 (2024-08-27)
