@@ -49,13 +49,13 @@ def execute(pargs: ap_sub.Namespace):
 
 def render_markdown(info: 'Info', infile, outfile):
     markup_body = infile.read().decode()
-    markup = f"# {info.lastname}:{info.path}\n\n{info.byline}\n\n{markup_body}\n"
+    markup = f"# {info.lastname}:{info.fullpath}\n\n{info.byline}\n\n{markup_body}\n"
     do_render_markdown(info, markup, outfile)
 
 
 def render_prot(info: 'Info', infile, outfile):
-    markup = (f"# {info.lastname}:{info.path}\n\n{info.byline}\n\n"
-              f"[PROT::{info.path}]\n")
+    markup = (f"# {info.lastname}:{info.fullpath}\n\n{info.byline}\n\n"
+              f"[PROT::{info.fullpath}]\n")
     do_render_markdown(info, markup, outfile)
 
 
@@ -86,23 +86,24 @@ def do_render_markdown(info: 'Info', markup: str, outfile):
       </html>
     """
     macros.switch_part("viewer")
-    mddict = md.render_markdown(info.path, info.path, markup, b.Mode.STUDENT, dict())
+    mddict = md.render_markdown(info.fullpath, info.basename, markup, b.Mode.STUDENT, dict())
     htmltext = template.format(enc='utf8', csslinks=info.csslinks,
-                               title=f"{info.lastname}:{info.path}", body=mddict['html'])
+                               title=f"{info.lastname}:{info.basename}", body=mddict['html'])
     outfile.write(htmltext.encode())
 
 
 @dataclasses.dataclass
 class Info:
     pargs: ap_sub.Namespace
-    path: str
+    basename: str
+    fullpath: str
     lastname: str
     byline: str
     csslinks: str
 
     @property
     def title(self) -> str:
-        return f"{self.lastname}:{self.path}"
+        return f"{self.lastname}:{self.basename}"
 
 
 class SedrilaServer(http.server.HTTPServer):
@@ -184,7 +185,7 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             return None
         try:
             f = open(self.sedrila_actualpath(path), 'rb')
-        except OSError:
+        except (OSError, FileNotFoundError):
             self.send_error(http.HTTPStatus.NOT_FOUND, "File not found")
             return None
         try:
@@ -219,7 +220,8 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         displaypath = html.escape(displaypath, quote=False)
         enc = sys.getfilesystemencoding()
         info = Info(pargs=self.server.pargs,
-                    path=displaypath, lastname=self.server.lastname, byline=self.sedrila_byline(),
+                    basename=displaypath, fullpath=displaypath, 
+                    lastname=self.server.lastname, byline=self.sedrila_byline(),
                     csslinks=self.sedrila_csslinks())
         r.append('<!DOCTYPE HTML>')
         r.append('<html>')
@@ -257,7 +259,8 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         base, ext = posixpath.splitext(path)
         basename = os.path.basename(path)
         info = Info(pargs=self.server.pargs,
-                    path=basename, lastname=self.server.lastname, byline=self.sedrila_byline(),
+                    basename=basename, fullpath=os.path.relpath(path), 
+                    lastname=self.server.lastname, byline=self.sedrila_byline(),
                     csslinks=self.sedrila_csslinks())
         if ext and ext[1:] in self.how_to_render:
             mimetype, renderfunc = self.how_to_render[ext[1:]]  # lookup without the dot
@@ -273,7 +276,7 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def sedrila_actualpath(self, path: str) -> str:
         """Convert *.htmlpage to *.html (special case)."""
         actual = re.sub(r"\.htmlpage$", ".html", path)
-        print(f"actualpath: {path} -> {actual}")
+        # print(f"actualpath: {path} -> {actual}")
         return actual
 
     def sedrila_byline(self) -> str:
