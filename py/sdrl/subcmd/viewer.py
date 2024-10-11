@@ -44,7 +44,10 @@ def execute(pargs: ap_sub.Namespace):
     b.set_register_files_callback(lambda s: None)
     macroexpanders.register_macros(CourseDummy())  # noqa
     server = SedrilaServer(('', pargs.port), SedrilaHTTPRequestHandler, pargs=pargs)
-    server.serve_forever()
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("  sedrila viewer terminated.")
 
 
 def render_markdown(info: 'Info', infile, outfile):

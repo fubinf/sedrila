@@ -2,6 +2,7 @@
 
 
 ## Version 2.3.1 (upcoming)
+- `viewer`: Ctrl-C now only prints a nice exit message.
 - ...
 
 
