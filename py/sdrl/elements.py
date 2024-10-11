@@ -171,6 +171,7 @@ class Element:  # abstract class
             if self.state == c.State.MISSING:  # HAS_CHANGED and AS_BEFORE are acceptable
                 self.state = c.State.HAS_CHANGED
 
+        # b.debug(f"{self.__class__.__name__}.build({self.name}) check_existing_resource()")
         self.check_existing_resource()  # some do_build() rely on this to have happened
         if self.state != c.State.AS_BEFORE:
             b.debug(f"{self.__class__.__name__}.build({self.name}) local state:\t{self.statelabel} ")

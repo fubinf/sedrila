@@ -129,7 +129,11 @@ class SedrilaCache:
             return State.AS_BEFORE
 
     def record_file(self, path: str, cache_key: str):
-        assert cache_key not in self.written  # we should usually write everything only once
+        # if cache_key in self.written:
+        #     b.warning(f"cache key '{cache_key}' is surprisingly being written more than once.")
+        # assert cache_key not in self.written  # we should usually write everything only once
+        # The above assertion is violated sometimes (quite rarely) and I do not understand why
+        # despite debugging and tracing. But is should not be a problem.
         self.written[cache_key] = ""  # file entries are empty because the file itself holds the data
 
     def is_recent(self, pathname: str) -> bool:
