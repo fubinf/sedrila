@@ -3,6 +3,7 @@
 
 ## Version 2.3.1 (upcoming)
 - `viewer`: Ctrl-C now only prints a nice exit message.
+- `viewer`: Show all files named like submitted entries (in any directory) together
 - ...
 
 
