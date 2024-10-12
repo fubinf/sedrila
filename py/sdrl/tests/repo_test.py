@@ -77,7 +77,8 @@ def create_gpg_key() -> str:
 def test_student_work_so_far():
     def preparations():
         commit("hello", "%A 3.25h", "%A 0:45h"),
-        grade({"A": f"{c.SUBMISSION_REJECT_MARK}"})  # should not throw, but should not count
+        request_grading("A")
+        grade({"A": f"{c.SUBMISSION_REJECT_MARK}"})
         request_grading("A")
         grade({"A": f"{c.SUBMISSION_REJECT_MARK}  some comment about the problem"})
 
@@ -89,7 +90,7 @@ def test_student_work_so_far():
         assert workhours_total == 4.0
         assert timevalue_total == 0.0
         assert len(entries) == 1
-        assert entries[0] == ("A", 4.0, 1.0, 1, False)
+        assert entries[0] == ("A", 4.0, 1.0, 2, False)
 
     run_inside_repo(preparations, assertions)
 
@@ -113,7 +114,7 @@ def run_inside_repo(preparations, assertions, coursemodifications=None):
         r._accumulate_workhours_per_task(commits, course)
         hashes = r._submission_checked_commit_hashes(course, commits)
         print("hashes:", hashes)
-        checked_tuples = r._checked_tuples_from_commits(hashes, course)
+        checked_tuples = r._taskcheck_entries_from_commits(hashes, course)
         print("checked_tuples:", checked_tuples)
         r._accumulate_timevalues_and_attempts(checked_tuples, course)
         assertions(course)
