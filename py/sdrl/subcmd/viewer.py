@@ -131,6 +131,7 @@ class SedrilaServer(http.server.HTTPServer):
         except b.CritialError:
             pass  # fall back to defaults
         if os.path.exists(c.SUBMISSION_FILE):
+            # TODO 2: collect matching files in the entire dirtree
             self.submissionitems = b.slurp_yaml(c.SUBMISSION_FILE)
             self.submission_re = self._matcher_regexp(self.submissionitems.keys())
         else:
@@ -201,6 +202,7 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             raise
 
     def list_directory(self, path):
+        # TODO 2: add a section showing the files matching a submission.yaml entry, wherever they are
         try:
             dirlist = os.listdir(path)
         except OSError:
