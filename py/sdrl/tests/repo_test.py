@@ -111,10 +111,10 @@ def run_inside_repo(preparations, assertions, coursemodifications=None):
         # ----- initialize application environment:
         course = sdrl.course.CourseSI(configdict=b.slurp_json(c.METADATA_FILE), context=c.METADATA_FILE)
         commits = git.commits_of_local_repo(reverse=True)
-        r._accumulate_workhours_per_task(commits, course)
-        hashes = r._submission_checked_commit_hashes(course, commits)
+        r._accumulate_student_workhours_per_task(commits, course)
+        hashes = r.submission_checked_commits(course.instructors, commits)
         print("hashes:", hashes)
-        checked_tuples = r._taskcheck_entries_from_commits(hashes, course)
+        checked_tuples = r.taskcheck_entries_from_commits(hashes)
         print("checked_tuples:", checked_tuples)
         r._accumulate_timevalues_and_attempts(checked_tuples, course)
         assertions(course)
