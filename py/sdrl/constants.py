@@ -2,7 +2,8 @@ AUTHOR_ALTDIR_KEYWORD = "ALT:"
 AUTHOR_CONFIG_FILENAME = "sedrila.yaml"  # at top-level of source dir
 AUTHOR_GLOSSARY_BASENAME = "glossary"  # .md at top-level of chapterdir, .html in build directory
 AUTHOR_OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR = "instructor"
-CACHE_FILENAME = ".sedrila_cache"  # in instructor target dir
+CACHE_FILENAME = ".sedrila_cache"  # author: in instructor target dir
+EVENTCACHE_FILENAME = ".sedrila_events"  # evaluator: in respos_dir
 HTML_DIFFICULTY_SIGN = "&#x26ab;&#xfe0e;"  # &#x26ab; is an icon and always black, &#xfe0e; is the text-variant selector
   # https://commons.wikimedia.org/wiki/Unicode_circle_shaped_symbols
 INTERACT_ACCEPT_SYMBOL = "✓"
