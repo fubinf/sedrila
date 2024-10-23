@@ -12,16 +12,12 @@ import base as b
 LOG_FORMAT_SEPARATOR = '\t'
 LOG_FORMAT = "%h%x09%ae%x09%at%x09%GF%x09%s"  # see notes at attributes of Commit or git help log "Pretty Formats"
 
-@dataclasses.dataclass
-class Commit:
+class Commit(tg.NamedTuple):
     hash: str  # %h
     author_email: str  # %ae
     author_date: dt.datetime  # converted from %at
     key_fingerprint: str  # %GF
     subject: str  # %s
-    files: int
-    insertions: int
-    deletions: int
 
 
 def add(filename: str):
@@ -48,9 +44,8 @@ def commits_of_local_repo(reverse=False, with_insertions_deletions=False) -> tg.
     result = []
     for line in gitrun.stdout.split('\n'):
         hash_, email, tstamp, fngrprnt, subj = tuple(line.split(LOG_FORMAT_SEPARATOR))
-        c = Commit(hash_, email, 
-                   dt.datetime.fromtimestamp(int(tstamp), tz=dt.timezone.utc),
-                   fngrprnt, subj, 0, 0, 0)
+        c = Commit(hash_, email, dt.datetime.fromtimestamp(int(tstamp), tz=dt.timezone.utc),
+                   fngrprnt, subj)
         result.append(c)
     return list(reversed(result)) if reverse else result
 

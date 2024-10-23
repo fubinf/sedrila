@@ -300,6 +300,7 @@ class Course(el.Part):
 
 
 class CourseSI(Course):
+    """Course for cmds student and instructor. Init from c.METADATA_FILE."""
     MUSTCOPY_ADDITIONAL = ''
     CANCOPY_ADDITIONAL = ''
 
