@@ -55,6 +55,11 @@ class Task(el.Part):
         return int(course.allowed_attempts_base + course.allowed_attempts_hourly*self.timevalue)
 
     @property
+    def path(self) -> str:
+        """Returns 'mychapter/mytaskgroup/self.name'"""
+        return f"{self.course.name}/{self.taskgroup.name}/{self.name}"
+
+    @property
     def remaining_attempts(self) -> int:
         return max(0, self.allowed_attempts - self.rejections)
 
@@ -91,7 +96,7 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
     def __eq__(self, other):
         return other.name == self.name
 
-    def __lt__(self, other):
+    def __lt__(self, other):  # for sorting in Coursebuilder._taskordering_for_toc() 
         if not isinstance(other, type(self)):
             return NotImplemented
         return (self.difficulty < other.difficulty or

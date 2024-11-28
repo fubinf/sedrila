@@ -46,6 +46,7 @@ class WorkEntry(tg.NamedTuple):
 
 class ReportEntry(tg.NamedTuple):
     taskname: str
+    taskpath: str
     workhoursum: float
     timevalue: float
     rejections: int
@@ -159,7 +160,7 @@ def student_work_so_far(course) -> tg.Tuple[list[ReportEntry], float, float]:
             workhours_total += task.workhours
             if task.is_accepted:
                 timevalue_total += task.timevalue
-            result.append(ReportEntry(taskname, task.workhours, task.timevalue,
+            result.append(ReportEntry(taskname, task.path, task.workhours, task.timevalue,
                                       task.rejections, task.is_accepted))
     return result, workhours_total, timevalue_total
 
