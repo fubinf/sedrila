@@ -43,7 +43,7 @@ def test_instructor_parts(capfd):
         commits = git.commits_of_local_repo(reverse=True)
         r.compute_student_work_so_far(course, commits)
         entries, workhours_total, timevalue_total = r.student_work_so_far(course)
-        assert entries[0] == ('Task1', 1.0, 1.0, 0, False)
+        assert entries[0] == r.ReportEntry('Task1', 'DummySedrila/linuxcli/Task1', 1.0, 1.0, 0, False)
         # ----- rewrite submission file:
         # the repo's submission file contains dict(Task1="CHECK", NonExistingTask3="CHECK")
         b._testmode_reset()

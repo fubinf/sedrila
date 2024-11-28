@@ -90,7 +90,7 @@ def test_student_work_so_far():
         assert workhours_total == 4.0
         assert timevalue_total == 0.0
         assert len(entries) == 1
-        assert entries[0] == ("A", 4.0, 1.0, 2, False)
+        assert entries[0] == r.ReportEntry("A", "DummySedrila/linuxcli/A", 4.0, 1.0, 2, False)
 
     run_inside_repo(preparations, assertions)
 
