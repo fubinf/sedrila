@@ -1,79 +1,81 @@
+import typing as tg
+
 import sdrl.constants as c
 import sdrl.interactive as i
 import sdrl.repo as r
 import sdrl.subcmd.instructor as ins
 
-from repo_test import commit, request_grading, grade, run_inside_repo
+import repo_test as rt
 
 
 def test_interactive_requirement_grading():
-    def preparations(step):
-        commit("%A 1h", "%requiresA 1h", "%requiresRequiresA 1h", "%B 1h", "%requiresB 1h")
-        request_grading("A", "requiresB")
+    def preparations(step: int):
+        rt.commit("%A 1h", "%requiresA 1h", "%requiresRequiresA 1h", "%B 1h", "%requiresB 1h")
+        rt.request_grading("A", "requiresB")
         if step < 2:
             return
-        grade({"A": c.SUBMISSION_ACCEPT_MARK, 
-               "requiresB": c.SUBMISSION_REJECT_MARK})  # the later should not count, as B isn't done yet
-        request_grading("requiresRequiresA", "requiresA", "B")  # accepting both at once should work!
+        rt.grade({"A": c.SUBMISSION_ACCEPT_MARK, 
+                  "requiresB": c.SUBMISSION_REJECT_MARK})  # note that B isn't done yet
+        rt.request_grading("requiresRequiresA", "requiresA", "B")  # accepting both at once should work!
         if step < 3:
             return
-        grade({"requiresA": c.SUBMISSION_ACCEPT_MARK, "requiresRequiresA": c.SUBMISSION_ACCEPT_MARK, 
-               "B": c.SUBMISSION_REJECT_MARK})
-        request_grading("requiresB")
+        rt.grade({"requiresA": c.SUBMISSION_ACCEPT_MARK, "requiresRequiresA": c.SUBMISSION_ACCEPT_MARK, 
+                  "B": c.SUBMISSION_REJECT_MARK})
+        rt.request_grading("requiresB")
 
     def coursemodifications(course_json):
         course_json["allowed_attempts"] = "1"
 
-    def grade_input_assertions(step, entries, selected, rejected, course_url):
+    def grade_input_assertions(step: int, entries: tg.Sequence[r.ReportEntry], selected, rejected, course_url):
         if step == 1:  # requiresB should not be shown at all
             assert len(entries) == 1
-            assert entries[0][0] == "A"
+            assert entries[0].taskname == "A"
         if step == 2:  # both A successors should be there at once
             assert len(entries) == 3
-            names = [e[0] for e in entries]
+            names = [e.taskname for e in entries]
             assert "requiresRequiresA" in names
             assert "requiresA" in names
             assert "B" in names
-        if step == 3:  # requiresB is now allowed
-            assert len(entries) == 1
-            assert entries[0][0] == "requiresB"
+        if step == 3:  # requiresB was rejected before (when B had not been accepted)
+            assert len(entries) == 0
 
-    def assertions(course, step):
+    def assertions(course, step: int):
         entries, _, _ = r.student_work_so_far(course)
         opentasks = ins.rewrite_submission_file(course, c.SUBMISSION_FILE)
         entries = [entry for entry in entries if ins.allow_grading(course, opentasks, entry, False)]
-        i.grade_entries(entries, None, False, lambda e, s, r, c: grade_input_assertions(step, e, s, r, c))
+        i.grade_entries(entries, "", False, lambda e, s, r, c: grade_input_assertions(step, e, s, r, c))
 
-    run_inside_repo(lambda: preparations(1), lambda course: assertions(course, 1), coursemodifications)
-    run_inside_repo(lambda: preparations(2), lambda course: assertions(course, 2), coursemodifications)
-    run_inside_repo(lambda: preparations(3), lambda course: assertions(course, 3), coursemodifications)
+    rt.run_inside_repo(lambda: preparations(1), lambda course: assertions(course, 1), coursemodifications)
+    rt.run_inside_repo(lambda: preparations(2), lambda course: assertions(course, 2), coursemodifications)
+    rt.run_inside_repo(lambda: preparations(3), lambda course: assertions(course, 3), coursemodifications)
 
 
 def test_grading_mistakes():
     def preparations():
-        commit("%A 1h", "%B 1h", "%requiresA 1h", "%requiresB 1h")
-        request_grading("A", "B")
-        grade({"A": c.SUBMISSION_REJECT_MARK, "B": c.SUBMISSION_ACCEPT_MARK})  # initial false gradings
-        request_grading("requiresA", "requiresB")
+        rt.commit("%A 1h", "%B 1h", "%requiresA 1h", "%requiresB 1h")
+        rt.request_grading("A", "B")
+        rt.grade({"A": c.SUBMISSION_REJECT_MARK, "B": c.SUBMISSION_ACCEPT_MARK})  # mistaken gradings
+        rt.request_grading("requiresA", "requiresB")  # both allowed, even though A was rejected
 
     def coursemodifications(course_json):
         course_json["allowed_attempts"] = "1"
         
-    def grade_input_assertions(override, entries, selected, rejected, course_url):
+    def grade_input_assertions(override: bool, entries: tg.Sequence[r.ReportEntry], selected, rejected, course_url):
         assert len(entries) == 2
-        names = [e[0] for e in entries]
-        assert ("A" if override else "requiresA") in names
-        assert ("B" if override else "requiresB") in names
-        if override:  # actively override!
-            assert selected["B"]
-            assert rejected["A"]
-            selected["B"] = False
-            rejected["B"] = True
-        else:
+        names = {e.taskname for e in entries}
+        if not override:  # first call
+            assert names == {"requiresA", "requiresB"}
             assert all(not v for v in selected.values())
             assert all(not v for v in rejected.values())
             selected["requiresA"] = True
             rejected["requiresB"] = True
+        if override:  # second call
+            assert names == {"A", "B"}  # with override, offer only previous gradings
+            print("### selected/rejected:", selected, rejected)
+            assert selected["B"]
+            assert rejected["A"]
+            selected["B"] = False
+            rejected["B"] = True
 
     def assertions(course):
         entries, _, _ = r.student_work_so_far(course)
@@ -81,7 +83,7 @@ def test_grading_mistakes():
         for override in [False, True]:
             allowed = [entry for entry in entries if ins.allow_grading(course, opentasks, entry, override)]
             assert len(allowed) == 2
-            rejections = i.grade_entries(allowed, None, override, 
+            rejections = i.grade_entries(allowed, "", override, 
                                          lambda e, s, r, c: grade_input_assertions(override, e, s, r, c))
             output = r.submission_file_entries(allowed, rejections, override)
             if override:
@@ -94,9 +96,9 @@ def test_grading_mistakes():
             else:
                 assert len(rejections) == 1
                 assert "requiresB" in rejections
-                assert all(entry[4] == (entry[0] == "requiresA") for entry in allowed)
+                assert all(entry.accepted == (entry.taskname == "requiresA") for entry in allowed)
                 assert len(output) == 2
                 assert output["requiresA"] == c.SUBMISSION_ACCEPT_MARK
                 assert output["requiresB"] == c.SUBMISSION_REJECT_MARK
 
-    run_inside_repo(preparations, assertions, coursemodifications)
+    rt.run_inside_repo(preparations, assertions, coursemodifications)
