@@ -56,7 +56,7 @@ def execute(pargs: ap_sub.Namespace):
     # events_df.info(buf=sys.stdout)
     weeks_df = weekly_studentsum(events_df)
     weekly_df = pd.DataFrame(fill_all_weeks(weeks_df))
-    print(weekly_df.query('evtype == "work"'))
+    # print(weekly_df.query('evtype == "work"'))
     plot_weekly_student_quantiles(weekly_df, 'accept', 'cumtimevalue', 
                                   'timevalue hours accepted', pargs.outputdir)
     plot_weekly_student_quantiles(weekly_df, 'reject', 'cumtimevalue', 
@@ -199,6 +199,6 @@ def plot_weekly_student_quantiles(weekly_df: pd.DataFrame, evtype: str, attrname
     plt.xlabel("week")
     plt.ylabel(ylabel)
     plt.legend(loc='upper left')
-    plt.subplots_adjust(left=0.1, right=0.98, bottom=0.1, top=0.98)
+    plt.subplots_adjust(left=0.1, right=0.98, bottom=0.15, top=0.98)
     plt.savefig(os.path.join(outputdir, f"stackplot-weekly-student-quantiles-{evtype}.pdf"))
 

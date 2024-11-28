@@ -73,8 +73,8 @@ def execute(pargs: argparse.Namespace):
     os.chdir("..")
 
 
-def allow_grading(course, opentasks, entry, override):
-    task = course.task(entry[0])
+def allow_grading(course, opentasks, entry: r.ReportEntry, override: bool) -> bool:
+    task = course.task(entry.taskname)
     if not override:
         requirements = {requirement: course.task(requirement) for requirement in task.requires
                         if course.task(requirement) is not None}  # ignore Taskgroups
@@ -82,11 +82,11 @@ def allow_grading(course, opentasks, entry, override):
                              if not any(k == name for name in opentasks) and not v.is_accepted and v.remaining_attempts]
         if open_requirements:
             return False
-    isallowed = (entry[0] in opentasks) != override
+    isallowed = (entry.taskname in opentasks) != override
     if override:
         return isallowed and (task.rejections or task.is_accepted)
     return (isallowed and (task.remaining_attempts > 0) and
-            (not task.is_accepted or opentasks[entry[0]].endswith(c.SUBMISSION_ACCEPT_MARK)))
+            (not task.is_accepted or opentasks[entry.taskname].endswith(c.SUBMISSION_ACCEPT_MARK)))
 
 
 def checkout_student_repo(repo_url, home, pull=True):

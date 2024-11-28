@@ -39,7 +39,8 @@ def execute(pargs: argparse.Namespace):
     r.compute_student_work_so_far(course, commits)
     entries, workhours_total, timevalue_total = r.student_work_so_far(course)
     if pargs.submission:
-        entries = [entry for entry in entries if course.task(entry[0]).remaining_attempts]  # without final rejections
+        entries = [entry for entry in entries 
+                   if course.task(entry.taskname).remaining_attempts]  # without final rejections
         prepare_submission_file(course, student.root, entries, pargs.interactive)
     elif pargs.import_keys:
         r.import_gpg_keys(course.instructors)
@@ -96,7 +97,7 @@ def report_student_work_so_far(course: sdrl.course.Course, entries: tg.Sequence[
     table.add_column("Workhours", justify="right")
     table.add_column("Timevalue", justify="right")
     table.add_column("reject/accept")
-    for taskname, workhours, timevalue, rejections, accepted in entries:
+    for taskname, taskpath, workhours, timevalue, rejections, accepted in entries:
         task = course.taskdict[taskname]
         ra_string = (c.INTERACT_ACCEPT_SYMBOL + " ") if task.is_accepted else ""
         if task.rejections > 0:
@@ -106,7 +107,7 @@ def report_student_work_so_far(course: sdrl.course.Course, entries: tg.Sequence[
             ra_string += f" ({remaining} of {allowed} remain)" if not task.is_accepted else ""
             if not remaining:
                 ra_string = f"{c.SUBMISSION_REJECT_MARK} (after {allowed} attempt{b.plural_s(allowed)})"
-        table.add_row(taskname, "%4.2f" % workhours, "%4.2f" % timevalue, ra_string)
+        table.add_row(taskpath, "%4.2f" % workhours, "%4.2f" % timevalue, ra_string)
         if out is not None:
             out.append((taskname, "%4.2f" % workhours, "%4.2f" % timevalue, ra_string))
     # table.add_section()
