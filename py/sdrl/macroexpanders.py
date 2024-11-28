@@ -263,7 +263,7 @@ def expand_include(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocal
     if fullfilename.endswith('.md'):
         return macros.expand_macros(md.md.context_sourcefile, md.md.partname, rawcontent)
     elif fullfilename.endswith('.prot'):
-        macrocall.error("filename must be *.prot. Call ignored.")
+        macrocall.error("Filename must not be *.prot. Call ignored. Use [PROT::...] for protocol files.")
         return ""  # ignore the entire macrocall
     else:
         return rawcontent
