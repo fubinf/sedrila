@@ -54,6 +54,7 @@ def execute(pargs: argparse.Namespace):
     entries, workhours_total, timevalue_total = r.student_work_so_far(course)
     opentasks = rewrite_submission_file(course, c.SUBMISSION_FILE)
     entries = [entry for entry in entries if allow_grading(course, opentasks, entry, pargs.override)]
+    entries = sorted(entries, key=lambda e: e.taskpath)  # sort by chapter+taskgroup
     if not pargs.check:
         b.info("Don't run check, just prepare commit")
     elif not entries:

@@ -74,6 +74,7 @@ def init():
 def prepare_submission_file(course: sdrl.course.Course, root: str, 
                             entries: tg.Sequence[r.ReportEntry], interactive: bool = False):
     if interactive:
+        entries = sorted(entries, key=lambda e: e.taskpath)  # sort by chapter+taskgroup
         entries = i.select_entries(entries)
     if not entries:
         b.info("No entries to submit.")
@@ -97,6 +98,7 @@ def report_student_work_so_far(course: sdrl.course.Course, entries: tg.Sequence[
     table.add_column("Workhours", justify="right")
     table.add_column("Timevalue", justify="right")
     table.add_column("reject/accept")
+    entries = sorted(entries, key=lambda e: e.taskpath)  # sort by chapter+taskgroup
     for taskname, taskpath, workhours, timevalue, rejections, accepted in entries:
         task = course.taskdict[taskname]
         ra_string = (c.INTERACT_ACCEPT_SYMBOL + " ") if task.is_accepted else ""
