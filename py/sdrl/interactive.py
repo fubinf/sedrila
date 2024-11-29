@@ -1,6 +1,7 @@
-from blessed import Terminal
 import typing as tg
 import webbrowser
+
+import blessed
 
 import base as b
 import sdrl.constants as c
@@ -15,7 +16,7 @@ def prefix(entry: r.ReportEntry, selected: dict[str, bool], rejected: dict[str, 
     return " "
 
 
-def redraw_filter_selection(term: Terminal, entries: tg.Sequence[r.ReportEntry], rowindex: int, 
+def redraw_filter_selection(term: blessed.Terminal, entries: tg.Sequence[r.ReportEntry], rowindex: int, 
                             selected: dict[str, bool], rejected: dict[str, bool], course_url: str):
     print(term.home + term.clear, end="")
     lines = term.height - 1
@@ -23,8 +24,9 @@ def redraw_filter_selection(term: Terminal, entries: tg.Sequence[r.ReportEntry],
     if not(course_url is None):
         print("Press 'o' to open task in browser")
         lines = lines - 1
-    rangestart = max(0, rowindex - lines // 2)
-    rangeend = min(len(entries), rowindex + lines // 2)
+    would_overflow = lines < len(entries)
+    rangestart = max(0, rowindex - lines // 2) if would_overflow else 0
+    rangeend = min(len(entries), rowindex + lines // 2) if would_overflow else len(entries)
     for i in range(rangestart, rangeend):
         if i == rowindex:
             print(term.reverse, end="")
@@ -32,14 +34,14 @@ def redraw_filter_selection(term: Terminal, entries: tg.Sequence[r.ReportEntry],
             print(term.normal, end="")
         entry = entries[i]
         print(prefix(entry, selected, rejected) + " %4.2fh " % entry.workhoursum + entry.taskpath, end="")
-        print(" " * (term.width - 9 - len(entry.taskname)))  # padding to end of line
+        print(" " * (term.width - 9 - len(entry.taskpath)))  # padding to end of line
     print(term.normal, end="")  # if we end on the selection
 
 
 def filter_entries(entries: tg.Sequence[r.ReportEntry], selected: dict[str, bool], 
                    rejected: dict[str, bool] | None, course_url: str | None):
     """Interactively select/reject individual entries."""
-    term = Terminal()
+    term = blessed.Terminal()
     rowindex = 0
     with term.cbreak(), term.hidden_cursor():
         inp = None
@@ -74,7 +76,7 @@ def select_entries(entries: tg.Sequence[r.ReportEntry]) -> tg.Sequence[r.ReportE
     return [entry for entry in entries if selected[entry]]
 
 
-def grade_entries(entries: list[r.ReportEntry], course_url: str, override: bool, filter_method=None
+def grade_entries(entries: list[r.ReportEntry], course_url: str, override: bool, filter_method=filter_entries
                   ) -> list[str] | None:
     """
     Mark entries in list as accepted if they are and count rejection if not.
@@ -83,7 +85,7 @@ def grade_entries(entries: list[r.ReportEntry], course_url: str, override: bool,
     submission = b.slurp_yaml(c.SUBMISSION_FILE)
     selected = {entry.taskname: currently_accepted(submission, entry, override) for entry in entries}
     rejected = {entry.taskname: currently_rejected(submission, entry, override) for entry in entries}
-    (filter_method or filter_entries)(entries, selected, rejected, course_url)
+    filter_method(entries, selected, rejected, course_url)
     if not any(selected.values()) and not any(rejected.values()):
         return None  # nothing to do
 
