@@ -57,7 +57,7 @@ class Task(el.Part):
     @property
     def path(self) -> str:
         """Returns 'mychapter/mytaskgroup/self.name'"""
-        return f"{self.course.name}/{self.taskgroup.name}/{self.name}"
+        return f"{self.taskgroup.chapter.name}/{self.taskgroup.name}/{self.name}"
 
     @property
     def remaining_attempts(self) -> int:
