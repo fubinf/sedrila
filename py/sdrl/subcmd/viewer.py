@@ -1,3 +1,4 @@
+import base64
 import dataclasses
 import functools
 import html
@@ -7,6 +8,7 @@ import os
 import pathlib
 import posixpath
 import re
+import shutil
 import sys
 import typing as tg
 import urllib.parse
@@ -23,7 +25,21 @@ import sdrl.markdown as md
 import sdrl.participant
 
 meaning = """Specialized webserver for locally viewing contents of a student repo work directory."""
-
+favicon32x32_png_base64 = """iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACqklEQVRYR+1Wv0t6cRQ9CiloQikk
+RlpBU5BQDhlitTgouAoZDg0NmX9Is0MSQlMaItTSIIiDRBERgQ4OCuqgLUkikSD98Mu98Pp+Lc33
+pOg7eEHkwefec965597Pk+3t7bXxiyEbEhgq8N8qMDMzA6PRiNfXV7y9vUEmk0Eul/M/xcXFBdrt
+vwNkMBgwNzfHZymHgs7Tr1qtolQqdZ21nlMwMTEBvV4Pu90OjUbDyZVKBTc3NwxcKBQ6CIyPj4NI
+jI2NcQ5FNptFsVjEw8MD7u/vpREQTi8vL2N9fZ0fCfTk5OTLrUGqeb1eNJtN7O/vv6vRK6nvHqC3
+39nZYelbrRaCwSDL3CtWVlawurqKq6srpNPpviuuLwGqsLGxAZPJxMVisRjK5XLPwj6fj1txcHCA
+RqPxPQTMZjOcTicXu729RTKZ7Fp4dHQUfr+fDRePx/uC0wFRCigUCgQCAYyMjODx8RGhUKjDgALS
+0tISHA4HTk9Pkc/nv48AVXK73Zifn+eiR0dHPFofg1ql0+nYfF/55N88UQpQwuzsLDweD+fSKKZS
+qQ58lUqF3d1dXF9fizKfkCyaAE0B9Zf63K0Ni4uLLH84HEa9Xhclv2gPCNXW1tZgtVq7toHkpzg+
+PhYNLpmAVqvF9vb2pzao1WqW/+zsDLlc7ucIUOXNzU1MTU11tMFiscBms7H5Xl5efpbAwsICXC4X
+g0QiEb4faPnc3d19MqYYJqJNKBSjXUByK5VKngZaTNSWw8ND1Go1MZgdZyQToGxyOy0dmoZMJoPp
+6WlEo1HJ4JJNKCDQVb21tcWPz8/PSCQSks0neQ98fD3q++TkJJ6enng1Cx8hUmUYqAUEIlxQl5eX
+OD8/l4r7fn5gAmRGuvvJiPTxMWgMTGBQwI95QwJDBX5dgT/hoVUQturVFQAAAABJRU5ErkJggg=="""
+favicon32x32_png = base64.b64decode(favicon32x32_png_base64)
+FAVICON_URL = "/favicon-32x32.png"
 
 def add_arguments(subparser):
     subparser.add_argument('--port', '-p', type=int, default=8080,
@@ -32,19 +48,15 @@ def add_arguments(subparser):
                            help=f"generate task links to the instructor versions (not the student versions)")
 
 
-class CourseDummy(sdrl.course.Course):
-    blockmacro_topmatter = dict()
-    
-    def __init__(self, *args, **kwargs):
-        pass  # we are a truly dumb Dummy!
-
-
 def execute(pargs: ap_sub.Namespace):
     b.set_loglevel('INFO')
     b.info(f"Webserver starts. Visit 'http://localhost:{pargs.port}/'. Terminate with Ctrl-C.")
-    b.set_register_files_callback(lambda s: None)
-    macroexpanders.register_macros(CourseDummy())  # noqa
-    server = SedrilaServer(('', pargs.port), SedrilaHTTPRequestHandler, pargs=pargs)
+    b.set_register_files_callback(lambda s: None)  # in case student .md files contain weird macro calls
+    student = sdrl.participant.Student()
+    course = sdrl.course.CourseSI(configdict=student.metadatadict, context=student.metadata_url)
+    macroexpanders.register_macros(course)  # noqa
+    server = SedrilaServer(('', pargs.port), SedrilaHTTPRequestHandler, 
+                           course=course, student=student, pargs=pargs)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -116,14 +128,16 @@ class SedrilaServer(http.server.HTTPServer):
     lastname: str = "N.N."
     partner_name: str = ""
     course_url: str = ""
+    course: sdrl.course.CourseSI
     submissionitems: dict
     submission_re: str
 
     def __init__(self, *args, **kwargs):
         self.server_version = f"SedrilaHTTP/{sdrl.argparser.SedrilaArgParser.get_version()}"
         self.pargs = kwargs.pop('pargs')
+        self.course = kwargs.pop('course')
+        student = kwargs.pop('student')
         try:
-            student = sdrl.participant.Student()
             self.student_name = student.student_name
             mm = re.search(r"(\w+)$", self.student_name)
             self.lastname = mm.group(1) if mm else "??"
@@ -192,7 +206,7 @@ class SedrilaServer(http.server.HTTPServer):
                 else:
                     same_start = False
                     lines.append(_indented_div(i, pathparts[i]))
-            lines.append(_indented_div(i+1, self.sedrila_linkitem(filename, path, self.pargs.instructor)))
+            lines.append(_indented_div(len(pathparts), self.sedrila_linkitem(filename, path, self.pargs.instructor)))
             previous_pathparts = pathparts
         return f"<p>\n{NEWLINE.join(lines)}\n</p>\n"
 
@@ -221,6 +235,7 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         sh=('text/html', functools.partial(render_sourcefile, 'sh')),
         yaml=('text/html', functools.partial(render_sourcefile, 'yaml')),
         prot=('text/html', render_prot),
+        png=('image/png', lambda info, infile, outfile: shutil.copyfileobj(infile, outfile))
     )
 
     def send_head(self):  # simplified: no caching, no Content-Length
@@ -243,7 +258,7 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_error(http.HTTPStatus.NOT_FOUND, "File not found")
             return None
         try:
-            f = open(self.sedrila_actualpath(path), 'rb')
+            f = self.the_file_for(path)
         except FileNotFoundError:
             self.send_error(http.HTTPStatus.NOT_FOUND, "File not found")
             return None
@@ -338,6 +353,13 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.renderer = functools.partial(just_copyfile, super().copyfile, info)
         return super().guess_type(path)
 
+    def the_file_for(self, path: str):
+        """Return a diskfile handle or virtualfile handle."""
+        if path.endswith(FAVICON_URL):
+            return io.BytesIO(favicon32x32_png)
+        else:
+            return open(self.sedrila_actualpath(path), 'rb')
+
     def sedrila_actualpath(self, path: str) -> str:
         """Convert *.htmlpage to *.html (special case)."""
         actual = re.sub(r"\.htmlpage$", ".html", path)
@@ -351,7 +373,8 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def sedrila_csslinks(self) -> str:
         if not self.server.course_url:
             return ""
-        return (f'<link href="{self.server.course_url}/sedrila.css" rel="stylesheet">\n'
+        return (f'<link rel="icon" type="image/png" sizes="16x16 32x32" href="{FAVICON_URL}">\n'
+                f'<link href="{self.server.course_url}/sedrila.css" rel="stylesheet">\n'
                 f'<link href="{self.server.course_url}/local.css" rel="stylesheet">\n'
                 f'<link href="{self.server.course_url}/codehilite.css" rel="stylesheet">\n')
     

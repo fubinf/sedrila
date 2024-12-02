@@ -239,7 +239,8 @@ class Course(el.Part):
     namespace: dict[str, el.Part]  # partname -> part, for obtaining Parts in any of the logic
 
     instructors: list[b.StrAnyDict]
-    init_data: b.StrAnyDict = {}
+    init_data: b.StrAnyDict = dict()
+    blockmacro_topmatter: dict[str, str] = dict()
     allowed_attempts: str  # "2 + 0.5/h" or so, int+decimal, h is the task timevalue multiplier
     allowed_attempts_base: int  # the int part of allowed_attempts
     allowed_attempts_hourly: float  # the decimal part of allowed_attempts
@@ -337,7 +338,6 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
     altdir: str
     itreedir: str | None
     templatedir: str = f"{sedrila_libdir}/templates"
-    blockmacro_topmatter: dict[str, str]
     htaccess_template: str = None  # structure of .htaccess file generated in instructor website
     stages: list[str]  # list of allowed values of stage in parts 
 
