@@ -54,9 +54,11 @@ def execute(pargs: ap_sub.Namespace):
     b.set_register_files_callback(lambda s: None)  # in case student .md files contain weird macro calls
     student = sdrl.participant.Student()
     course = sdrl.course.CourseSI(configdict=student.metadatadict, context=student.metadata_url)
+    basedir = os.path.basename(os.getcwd())
     macroexpanders.register_macros(course)  # noqa
     server = SedrilaServer(('', pargs.port), SedrilaHTTPRequestHandler, 
-                           course=course, student=student, pargs=pargs)
+                           course=course, student=student, basedir=basedir,
+                           pargs=pargs)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -111,6 +113,7 @@ def do_render_markdown(info: 'Info', markup: str, outfile):
 @dataclasses.dataclass
 class Info:
     pargs: ap_sub.Namespace
+    basedir: str  # basename of top-level directory (=username)
     basename: str
     fullpath: str
     lastname: str
@@ -119,7 +122,7 @@ class Info:
 
     @property
     def title(self) -> str:
-        return f"{self.lastname}:{self.basename}"
+        return f"{self.basedir}:{self.basename}"
 
 
 class SedrilaServer(http.server.HTTPServer):
@@ -129,6 +132,7 @@ class SedrilaServer(http.server.HTTPServer):
     partner_name: str = ""
     course_url: str = ""
     course: sdrl.course.CourseSI
+    basedir: str  # basename of top-level directory (=username)
     submissionitems: dict
     submission_re: str
 
@@ -136,6 +140,7 @@ class SedrilaServer(http.server.HTTPServer):
         self.server_version = f"SedrilaHTTP/{sdrl.argparser.SedrilaArgParser.get_version()}"
         self.pargs = kwargs.pop('pargs')
         self.course = kwargs.pop('course')
+        self.basedir = kwargs.pop('basedir')
         student = kwargs.pop('student')
         try:
             self.student_name = student.student_name
@@ -297,7 +302,7 @@ class SedrilaHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         displaypath = html.escape(displaypath, quote=False)
         enc = sys.getfilesystemencoding()
         info = Info(pargs=self.server.pargs,
-                    basename=displaypath, fullpath=displaypath, 
+                    basedir=self.server.basedir, basename=displaypath, fullpath=displaypath, 
                     lastname=self.server.lastname, byline=self.sedrila_byline(),
                     csslinks=self.sedrila_csslinks())
         r.append('<!DOCTYPE HTML>')
