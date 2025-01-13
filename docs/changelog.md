@@ -1,12 +1,17 @@
 # sedrila CHANGELOG
 
 
-## Version 2.4.0 (upcoming)
+## Version 2.5.0 (upcoming)
+- `viewer1`: exact copy of `viewer`, while a new viewer is being implemented
+- `viewer`: incomplete new viewer that can browse several directory trees at once
+- ...
+
+
+## Version 2.4.0 (2025-01-13)
 - `author`: Remove the ToC at bottom of homepages of course, chapter, or taskgroup
 - `viewer`: Ctrl-C now only prints a nice exit message.
 - `viewer`: Show all files named like submitted entries (in any directory) together
 - `viewer`: Provide favicon
-- ...
 
 
 ## Version 2.3.0 (2024-10-10)
