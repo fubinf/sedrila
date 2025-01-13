@@ -5,6 +5,8 @@ Its main purpose is helping instructors view students' solution files.
 In particular, it renders command protocols such that they become easy to read.
 It also helps students check the correctness of their command protocols.
 
+**Note:** A new version of `viewer` is currently being implemented.
+The description below refers to the old version, which is still available under the name `viewer1`.
 
 ## 1. Basic use
 
