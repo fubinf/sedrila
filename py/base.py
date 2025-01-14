@@ -22,7 +22,8 @@ loglevels = dict(DEBUG=logging.DEBUG, INFO=logging.INFO, WARNING=logging.WARNING
 register_files_callback: tg.Callable[[str], None]
 
 OStr = tg.Optional[str]
-StrAnyDict = dict[str, tg.Any]  # JSON or YAML structures
+StrAnyDict = dict[str, tg.Any]  # JSON or YAML structure
+StrStrDict = dict[str, str]  # flat, string-only JSON or YAML structure
 
 
 def set_loglevel(level: str):
@@ -46,6 +47,7 @@ class Mode(enum.Enum):
 
 class CritialError(Exception):
     pass
+
 
 def as_fingerprint(raw: str) -> str:
     """Canonicalize fingerprint: all-lowercase, no blanks"""
@@ -202,7 +204,7 @@ def get_progressbar(maxcount: int) -> tg.Iterator[rich.progress.ProgressType]:
     return iter(rich.progress.track(range(maxcount), description="", transient=True, ))
 
 
-def rich_print(msg: str, enclose_in_tag: tg.Optional[str] = None, count = 0):
+def rich_print(msg: str, enclose_in_tag: tg.Optional[str] = None, count=0):
     """Print any message, but each one only once."""
     global num_errors, msgs_seen
     if msg not in msgs_seen:
