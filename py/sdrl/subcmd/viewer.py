@@ -9,6 +9,7 @@ import re
 import typing as tg
 
 import argparse_subcommand as ap_sub
+import naja_atra as na
 import naja_atra.server as nas
 
 import base as b
@@ -36,6 +37,7 @@ g0QiEb4faPnc3d19MqYYJqJNKBSjXUByK5VKngZaTNSWw8ND1Go1MZgdZyQToGxyOy0dmoZMJoPp
 OD8/l4r7fn5gAmRGuvvJiPTxMWgMTGBQwI95QwJDBX5dgT/hoVUQturVFQAAAABJRU5ErkJggg=="""
 favicon32x32_png = base64.b64decode(favicon32x32_png_base64)
 FAVICON_URL = "/favicon-32x32.png"
+VIEWER_CSS_URL = "/viewer.css"
 context: 'Context'  # global data
 
 
@@ -53,8 +55,8 @@ def execute(pargs: ap_sub.Namespace):
     b.set_register_files_callback(lambda s: None)  # in case student .md files contain weird macro calls
     global context
     context = Context(pargs)
-    dump()
-    b.critical("STOP.")
+    # dump()
+    # b.critical("STOP.")
     b.info(f"Webserver starts. Visit 'http://localhost:{pargs.port}/'. Terminate with Ctrl-C.")
     b.warning("Incomplete development version, not ready for use. Temporarily use 'viewer1' for serious use.")
     try:
@@ -141,6 +143,10 @@ class Context:
         macroexpanders.register_macros(self.course)  # noqa
 
     @functools.cached_property
+    def course_url(self) -> str:
+        return self.workdirs[0].metadata.course_url
+
+    @functools.cached_property
     def pathset(self) -> set[str]:
         """file pathnames present in any Workdir"""
         return set(itertools.chain.from_iterable((wd.pathset for wd in self.workdirs)))
@@ -177,6 +183,94 @@ class Context:
             else:
                 files.add(localpath)
         return dirs, files
+
+
+basepage_html = """<!DOCTYPE html>
+<html>
+ <head>
+  <title>{title}</title>
+  <meta charset="utf-8">
+  {csslinks}
+ </head>
+ <body>
+  {body}
+ </body>
+</html>
+"""
+
+
+viewer_css = """
+
+"""
+
+@na.route("/")
+def serve_root():
+    global context
+    body = directorylist_html("/")
+    pagetext = basepage_html.format(
+        title=f"viewer",
+        csslinks=csslinks_html(context.course_url),
+        body=body
+    )
+    return pagetext
+
+
+@na.route(FAVICON_URL)
+def serve_favicon():
+    return (200, favicon32x32_png, 'img/png')
+
+
+@na.route(VIEWER_CSS_URL)
+def serve_css():
+    return (200, viewer_css, 'text/css')
+
+
+@na.route("**/")
+def serve_directory(path=na.PathValue()):
+    global context
+    pagetext = basepage_html.format(
+        title=f"viewer",
+        csslinks=csslinks_html(context.course_url),
+        body=directorylist_html(f"{path}/")
+    )
+    return pagetext
+
+
+@na.route("**")
+def serve_file(path=na.PathValue()):
+    ...
+    return f"<!DOCTYPE html><html><body><h1>TODO: serve_file({repr(path)})</h1></body></html>"
+
+
+def csslinks_html(course_url: str) -> str:
+    return (f'<link rel="icon" type="image/png" sizes="16x16 32x32" href="{FAVICON_URL}">\n'
+            f'<link href="{course_url}/sedrila.css" rel="stylesheet">\n'
+            f'<link href="{course_url}/local.css" rel="stylesheet">\n'
+            f'<link href="{course_url}/codehilite.css" rel="stylesheet">\n'
+            f'<link href="{VIEWER_CSS_URL}" rel="stylesheet">\n')
+
+
+def directorylist_html(mypath):
+    global context
+    dirs, files = context.ls(mypath)
+    lines = []
+    lines.append("<hr>")
+    lines.append(f"<h1>Contents of '{mypath}'</h1>")
+    lines.append("<h2>Subdirectories</h2>")
+    lines.append("<table>")
+    for dir in dirs:
+        lines.append(f"<tr><td><a href='{dir}'>{dir}</a></td></tr>")
+    lines.append("</table>")
+    lines.append("<hr>")
+    lines.append("<h2>Files</h2>")
+    lines.append("<table>")
+    for file in files:
+        lines.append(f"<tr><td><a href='{file}'>{file}</a></td></tr>")
+    lines.append("</table>")
+    lines.append("<hr>")
+    body = "\n".join(lines)
+    return body
+
 
 
 def render_markdown(info: 'Info', infile, outfile):
