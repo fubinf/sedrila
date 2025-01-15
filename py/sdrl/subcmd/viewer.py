@@ -1,6 +1,8 @@
 import base64
 import dataclasses
+import functools
 import html
+import itertools
 import os
 import pathlib
 import re
@@ -66,66 +68,66 @@ def dump():
     for wd in context.workdirs:
         stud = wd.metadata
         b.info(f"\n===== {stud.root}: {stud.student_name}")
-        print(f"--Paths:\t{wd.pathlist[:3]}...{wd.pathlist[-3:]} ({len(wd.pathlist)} total)")
+        print(f"--Paths:\t{list(wd.pathset)[:3]}...{list(wd.pathset)[-3:]} ({len(wd.pathset)} total)")
         print(f"--{c.SUBMISSION_FILE}:\t{wd.submission} ({len(wd.submission)} total)")
-        print(f"--submission files:\t{wd.submission_pathlist[:3]}...{wd.submission_pathlist[-3:]} "
-              f"({len(wd.submission_pathlist)} total)")
-
+        print(f"--submission files:\t{list(wd.submission_pathset)[:3]}...{list(wd.submission_pathset)[-3:]} "
+              f"({len(wd.submission_pathset)} total)")
+    b.info(f"\n===== Context")
+    print(context.ls('/'))
 
 class Workdir:
-    """Represents and handles one student working directory"""
+    """Represents and handles one student working directory."""
     topdir: str  # name of workdir as given on commandline
-    metadata: sdrl.participant.Student
-    submission: set[str]  # list of tasknames from SUBMISSION_FILE (or empty if none)
-    pathlist: list[str]  # fixed, sorted list of file pathnames
-    pathset: set[str]  # equivalent set of file pathnames (for quick member checks)
-    submission_pathlist: list[str]  # paths with names matching submitted tasks
 
     def __init__(self, topdir: str):
         self.topdir = topdir = topdir.rstrip('/')  # avoid trouble with non-canonical names
-        self.metadata = self._participant_data(topdir)
-        self.submission = self._submission_data(os.path.join(topdir, c.SUBMISSION_FILE))
-        self.pathlist = self._ordered_pathlist(topdir)
-        self.pathset = set(self.pathlist)
-        self.submission_pathlist = self._paths_with_submission(self.pathlist, self.submission)
-    
-    @staticmethod
-    def _ordered_pathlist(topdir: str) -> list[str]:
         if not os.path.exists(topdir):
             b.critical(f"'{topdir}' does not exist.")
         elif not os.path.isdir(topdir):
             b.critical(f"'{topdir}' must be a directory.")
-        raw_pathlist = sorted((str(p) for p in pathlib.Path(topdir).glob('**/*')
-                              if '/.git/' not in str(p) and p.is_file()))
-        start = len(topdir) + 1  # index after 'topdir/' in each path
-        return [p[start:] for p in raw_pathlist]
-    
-    @staticmethod
-    def _participant_data(topdir: str) -> sdrl.participant.Student:
-        participantfile_path = os.path.join(topdir, c.PARTICIPANT_FILE)
+        b.info(f"'{self.topdir}':\t{len(self.pathset)} files\t{len(self.submission)} submissions")
+
+    @functools.cached_property
+    def pathset(self) -> set[str]:
+        """file pathnames within topdir"""
+        raw_pathlist = (str(p) for p in pathlib.Path(self.topdir).glob('**/*')
+                        if '/.git/' not in str(p) and p.is_file())
+        start = len(self.topdir)  # index after 'topdir/' in each path, except it includes the slash
+        return set((p[start:] for p in raw_pathlist))
+
+    @functools.cached_property
+    def metadata(self) -> sdrl.participant.Student:
+        participantfile_path = os.path.join(self.topdir, c.PARTICIPANT_FILE)
         if os.path.isfile(participantfile_path):
-            return sdrl.participant.Student(topdir)
+            return sdrl.participant.Student(self.topdir)
         else:
             b.warning(f"'{participantfile_path}' not found, using dummy student description instead.")
             return sdrl.participant.Student.dummy_participant()
 
-    @staticmethod
-    def _paths_with_submission(pathlist: list[str], submission: set[str]) -> list[str]:
-        items_re = '|'.join([re.escape(item) for item in sorted(submission)])
-        submission_re = f"\\b({items_re})\\b"  # match task names only as words or multiwords
-        return [p for p in pathlist if re.match(submission_re, p)]  # formerly: match(..., os.path.basename(p)
-
-    
-    @staticmethod
-    def _submission_data(submissionfile_path: str) -> set[str]:
+    @functools.cached_property
+    def submission(self) -> set[str]:
+        """tasknames from c.SUBMISSION_FILE (or empty if none)"""
+        submissionfile_path = os.path.join(self.topdir, c.SUBMISSION_FILE)
         if not os.path.isfile(submissionfile_path):
             b.warning(f"'{submissionfile_path}' not found, using an empty set of submissions instead.")
             return set()
         submission_yaml = b.slurp_yaml(submissionfile_path)
         return set(submission_yaml.keys())
 
+    @functools.cached_property
+    def submission_pathset(self) -> set[str]:
+        """paths with names matching submitted tasks"""
+        return set((p for p in self.pathset if re.match(self.submission_re, p)))
+
+    @functools.cached_property
+    def submission_re(self) -> str:
+        """regexp matching the name of any submitted task"""
+        items_re = '|'.join([re.escape(item) for item in sorted(self.submission)])
+        return f"\\b({items_re})\\b"  # match task names only as words or multiwords
+
 
 class Context:
+    """The virtual filesystem that is being browsed: the merged union of the student Workdirs."""
     # cssfile: b.OStr  # TODO 2: argument of --cssfile
     course: sdrl.course.CourseSI
     workdirs: list[Workdir]  # list of student dirs, forming implicit pairs (0, 1), (2, 3), ...
@@ -133,8 +135,31 @@ class Context:
     def __init__(self, args: ap_sub.Namespace):
         self.workdirs = [Workdir(topdir) for topdir in args.dir]
         student1 = self.workdirs[0].metadata
+        if not hasattr(student1, 'course_url'):
+            b.critical(f"'{args.dir[0]}' must have a {c.PARTICIPANT_FILE}, because we need a course URL")
         self.course = sdrl.course.CourseSI(configdict=student1.metadatadict, context=student1.metadata_url)
         macroexpanders.register_macros(self.course)  # noqa
+
+    @functools.cached_property
+    def pathset(self) -> set[str]:
+        """file pathnames present in any Workdir"""
+        return set(itertools.chain.from_iterable((wd.pathset for wd in self.workdirs)))
+
+    @functools.cached_property
+    def submission(self) -> set[str]:
+        """union of submitted tasknames"""
+        return set(itertools.chain.from_iterable((wd.submission for wd in self.workdirs)))
+
+    @functools.cached_property
+    def submission_pathset(self) -> set[str]:
+        """union of submission_pathsets"""
+        return set(itertools.chain.from_iterable((wd.submission_pathset for wd in self.workdirs)))
+
+    @functools.cached_property
+    def submission_re(self) -> str:
+        """regexp matching the name of any submitted task"""
+        items_re = '|'.join([re.escape(item) for item in sorted(self.submission)])
+        return f"\\b({items_re})\\b"  # match task names only as words or multiwords
 
 
 def render_markdown(info: 'Info', infile, outfile):
