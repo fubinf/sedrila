@@ -94,7 +94,12 @@ def expand_prot(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
     if not os.path.exists(path):
         b.warning(f"{macrocall.macrocall_text}: file '{path}' not found", file=macrocall.filename)
         return f"\n<p>(('{path}' not found))</p>\n"
+    content = b.slurp(path)
+    macrocall.md.includefiles.add(path)  # record that we have included this file
+    return prot_html(content)
 
+
+def prot_html(content: str) -> str:
     @dataclasses.dataclass
     class State:
         s: int
@@ -134,9 +139,6 @@ def expand_prot(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
     def esc(groupname: str) -> str:  # abbrev; uses mm
         return html.escape(mm.group(groupname))  # TODO_1_prechelt: make whitespace (indentation etc.) work
 
-    # ----- expand_prot(): process lines:
-    content = b.slurp(path)
-    macrocall.md.includefiles.add(path)  # record that we have included this file
     result = ["\n<table class='vwr-table'>"]
     PROMPTSEEN, OUTPUT = (1, 2)
     state = State(s=OUTPUT, promptcount = 0)

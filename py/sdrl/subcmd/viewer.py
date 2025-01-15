@@ -9,7 +9,7 @@ import re
 import typing as tg
 
 import argparse_subcommand as ap_sub
-import naja_atra as na
+import naja_atra as na  # https://github.com/naja-atra/naja-atra/tree/main/docs
 import naja_atra.server as nas
 
 import base as b
@@ -127,6 +127,9 @@ class Workdir:
         items_re = '|'.join([re.escape(item) for item in sorted(self.submission)])
         return f"\\b({items_re})\\b"  # match task names only as words or multiwords
 
+    def exists(self, path: str) -> bool:
+        return path in self.pathset
+
 
 class Context:
     """The virtual filesystem that is being browsed: the merged union of the student Workdirs."""
@@ -231,15 +234,20 @@ def serve_directory(path=na.PathValue()):
     pagetext = basepage_html.format(
         title=f"viewer",
         csslinks=csslinks_html(context.course_url),
-        body=directorylist_html(f"{path}/")
+        body=directorylist_html(f"/{path}/")
     )
     return pagetext
 
 
 @na.route("**")
 def serve_file(path=na.PathValue()):
-    ...
-    return f"<!DOCTYPE html><html><body><h1>TODO: serve_file({repr(path)})</h1></body></html>"
+    body = file_html(str(path))
+    pagetext = basepage_html.format(
+        title=f"viewer",
+        csslinks=csslinks_html(context.course_url),
+        body=body
+    )
+    return pagetext
 
 
 def csslinks_html(course_url: str) -> str:
@@ -250,9 +258,11 @@ def csslinks_html(course_url: str) -> str:
             f'<link href="{VIEWER_CSS_URL}" rel="stylesheet">\n')
 
 
-def directorylist_html(mypath):
+def directorylist_html(mypath) -> str:
+    """A page listing the directories and files under mypath in the virtual filesystem."""
     global context
     dirs, files = context.ls(mypath)
+    b.info(f"directorylist_html('{mypath}') -> ({dirs}, {files})")
     lines = []
     lines.append("<hr>")
     lines.append(f"<h1>Contents of '{mypath}'</h1>")
@@ -271,6 +281,42 @@ def directorylist_html(mypath):
     body = "\n".join(lines)
     return body
 
+
+def file_html(mypath) -> str:
+    """
+    Page body showing each Workdir's version (if existing) of file mypath, and pairwise diffs where possible.
+    We create this as a Markdown page, then render it.
+    """
+    global context
+    binaryfile_suffixes = ('pdf', 'zip')  # TODO 2: what else?
+    suffix2lang = dict(py="python")
+    filename = os.path.basename(mypath)
+    frontname, suffix = os.path.splitext(filename)
+    lines = []  # some entries will be entire file contents, not single lines
+    lines.append(f"# {mypath}")
+    for idx, workdir in enumerate(context.workdirs):
+        lines.append(f"# {idx}. {workdir.topdir}: {filename}")
+        if not workdir.exists(mypath):
+            lines.append(f"(('{mypath}' does not exist in '{workdir.topdir}'))")
+            continue
+        content = b.slurp(f"{workdir.topdir}{mypath}")
+        if suffix == '.md':
+            lines.append(content)
+        elif suffix == '.prot':
+            lines.append(macroexpanders.prot_html(content))
+        elif not suffix:
+            lines.append("No filename suffix? What is this supposed to be?")
+        elif suffix[1:] in binaryfile_suffixes:
+            lines.append(f"((cannot show '{mypath}': file has a binary file format))")
+        else:  # any other suffix: assume this is a sourcefile 
+            language = suffix2lang.get(suffix)
+        lines.append(f"<hr>")
+        if idx % 2 == 1:  # add a diff section after each pair
+            ...
+    markdown = "\n".join(lines)
+    macros.switch_part("viewer")
+    mddict = md.render_markdown(mypath, filename, markdown, b.Mode.STUDENT, dict())
+    return mddict['html']
 
 
 def render_markdown(info: 'Info', infile, outfile):
