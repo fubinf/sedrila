@@ -36,6 +36,9 @@ class Student:
         except KeyError:
             b.critical(f"malformed file '{c.PARTICIPANT_FILE}': must contain strings "
                        "course_url, student_name, student_id, partner_student_name, partner_student_id.")
+        homepage_explicitname = "index.html"
+        if self.course_url.endswith(f"/{homepage_explicitname}"):
+            self.course_url = self.course_url[:-len(homepage_explicitname)]  # leave only directory path
         self.metadata_url = f"{self.course_url}/{c.METADATA_FILE}"
 
     @functools.cached_property
