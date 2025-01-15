@@ -161,6 +161,23 @@ class Context:
         items_re = '|'.join([re.escape(item) for item in sorted(self.submission)])
         return f"\\b({items_re})\\b"  # match task names only as words or multiwords
 
+    def ls(self, dirname: str) -> tuple[set[str], set[str]]:
+        """dirs, files = ls("/some/dir/")  somewhat like the Unix ls command"""
+        assert dirname.endswith('/')
+        dirs, files = set(), set()
+        start = len(dirname)  # index of 'local' (within dirname) part of pathname
+        for path in self.pathset:
+            if not path.startswith(dirname):  # not our business
+                continue
+            localpath = path[start:]
+            slashpos = localpath.find("/")
+            slash_found = slashpos > -1
+            if slash_found:
+                dirs.add(localpath[:slashpos+1])  # adding it again makes no difference
+            else:
+                files.add(localpath)
+        return dirs, files
+
 
 def render_markdown(info: 'Info', infile, outfile):
     markup_body = infile.read().decode()
