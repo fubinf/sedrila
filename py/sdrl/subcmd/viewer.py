@@ -1,8 +1,9 @@
 """Implementation of the 'viewer' subcommand: a student directory and submission web server.
 viewer TODO 1 list:
-- render source code
 - compute diffs
 - render diffs
+- raw serve for binary files and *.html 
+- add link to raw serves 
 - add TOC to file pages
 - homepage: list of submission-related files with presence indicators
 - equality indicator
@@ -29,6 +30,7 @@ import typing as tg
 import argparse_subcommand as ap_sub
 import naja_atra as na  # https://github.com/naja-atra/naja-atra/tree/main/docs
 import naja_atra.server as nas
+import naja_atra.utils as nau
 
 import base as b
 import sdrl.argparser
@@ -78,6 +80,7 @@ def execute(pargs: ap_sub.Namespace):
     b.info(f"Webserver starts. Visit 'http://localhost:{pargs.port}/'. Terminate with Ctrl-C.")
     b.warning("Incomplete development version, not ready for use. Temporarily use 'viewer1' for serious use.")
     try:
+        nau.logger.set_handler(None)  # suppress logging
         nas.start(port=pargs.port)
     except KeyboardInterrupt:
         print("  sedrila viewer terminated.")
@@ -307,7 +310,14 @@ def file_html(mypath) -> str:
     """
     global context
     binaryfile_suffixes = ('pdf', 'zip')  # TODO 2: what else?
-    suffix2lang = dict(py="python")
+    suffix2lang = dict(  # see https://pygments.org/languages/  TODO 2: always just use the suffix?
+        c="c", cc="c++", cpp="c++", cs="csharp",
+        go="golang",
+        h="c++", html="html",
+        java="java", js="javascript",
+        py="python", 
+        sh="shell", 
+        txt="")
     filename = os.path.basename(mypath)
     frontname, suffix = os.path.splitext(filename)
     lines = []  # some entries will be entire file contents, not single lines
@@ -327,7 +337,10 @@ def file_html(mypath) -> str:
         elif suffix[1:] in binaryfile_suffixes:
             lines.append(f"((cannot show '{mypath}': file has a binary file format))")
         else:  # any other suffix: assume this is a sourcefile 
-            language = suffix2lang.get(suffix)
+            language = suffix2lang.get(suffix[1:], "")
+            lines.append(f"```{language}")
+            lines.append(content.rstrip("\n"))
+            lines.append(f"```")
         lines.append(f"<hr>")
         if idx % 2 == 1:  # add a diff section after each pair
             ...
