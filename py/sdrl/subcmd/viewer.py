@@ -1,6 +1,5 @@
 """Implementation of the 'viewer' subcommand: a student directory and submission web server.
 viewer TODO 1 list:
-- render *.md
 - render *.prot
 - render source code
 - compute diffs
@@ -260,7 +259,7 @@ def serve_directory(path=na.PathValue()):
 
 @na.route("**")
 def serve_file(path=na.PathValue()):
-    body = file_html(str(path))
+    body = file_html(f"/{str(path)}")
     pagetext = basepage_html.format(
         title=f"viewer",
         csslinks=csslinks_html(context.course_url),
