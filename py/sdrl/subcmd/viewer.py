@@ -1,3 +1,22 @@
+"""Implementation of the 'viewer' subcommand: a student directory and submission web server.
+viewer TODO 1 list:
+- render *.md
+- render *.prot
+- render source code
+- compute diffs
+- render diffs
+- add TOC to file pages
+- homepage: list of submission-related files with presence indicators
+- equality indicator
+- list of submissions with status
+- mark submissions not represented in list of submission-related files
+viewer TODO 2 list:
+- --css cssfile option
+- create service for persistently managing marks in submission.yaml
+- reflect submission git history in that service (as 'instructor' already does)
+- persist submission git history (key: id of last commit) for rapid startup
+- add accept/reject logic to viewer 
+"""
 import base64
 import dataclasses
 import functools
