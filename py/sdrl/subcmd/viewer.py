@@ -1,12 +1,12 @@
 """Implementation of the 'viewer' subcommand: a student directory and submission web server.
 viewer TODO 1 list:
-- render *.prot
 - render source code
 - compute diffs
 - render diffs
 - add TOC to file pages
 - homepage: list of submission-related files with presence indicators
 - equality indicator
+- task links
 - list of submissions with status
 - mark submissions not represented in list of submission-related files
 viewer TODO 2 list:
@@ -286,13 +286,13 @@ def directorylist_html(mypath) -> str:
     lines.append(f"<h1>Contents of '{mypath}'</h1>")
     lines.append("<h2>Subdirectories</h2>")
     lines.append("<table>")
-    for dir in dirs:
+    for dir in sorted(dirs):
         lines.append(f"<tr><td><a href='{dir}'>{dir}</a></td></tr>")
     lines.append("</table>")
     lines.append("<hr>")
     lines.append("<h2>Files</h2>")
     lines.append("<table>")
-    for file in files:
+    for file in sorted(files):
         lines.append(f"<tr><td><a href='{file}'>{file}</a></td></tr>")
     lines.append("</table>")
     lines.append("<hr>")
