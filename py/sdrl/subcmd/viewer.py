@@ -211,6 +211,11 @@ class Context:
         items_re = '|'.join([re.escape(item) for item in sorted(self.submission)])
         return f"\\b({items_re})\\b"  # match task names only as words or multiwords
 
+    @functools.cached_property
+    def submissions_remaining(self) -> set[str]:
+        """submissions not matched (in at least one Workdir) by paths"""
+        return set(itertools.chain.from_iterable((wd.submissions_remaining for wd in self.workdirs)))
+
     def ls(self, dirname: str) -> tuple[set[str], set[str]]:
         """dirs, files = ls("/some/dir/")  somewhat like the Unix ls command"""
         assert dirname.endswith('/')
@@ -255,8 +260,9 @@ viewer_css = """
 @bottle.route("/")
 def serve_root():
     global context
-    body = "%s\n\n%s" % (
+    body = "%s\n\n%s\n\n%s" % (
         html_for_submissionrelated_files(),
+        html_for_remaining_submissions(),
         html_for_directorylist("/", breadcrumb=False),
     )
     pagetext = basepage_html.format(
@@ -448,7 +454,6 @@ def html_for_file_existence(mypath: str) -> str:
         if idx % 2 == 1:  # finish a pair
             if entries[-1] != MISSING and entries[-2] != MISSING:  # both files are present
                 size_even, size_odd = prev_wd.actualsize(mypath), wd.actualsize(mypath)
-                b.info(f"sizes: even {size_even}, odd {size_odd}")
                 if size_even > 1.5*size_odd:
                     sign = ">>"
                 elif size_even > size_odd:
@@ -470,6 +475,22 @@ def html_for_file_existence(mypath: str) -> str:
     if entries[-1] == BEGIN:  # repair the end
         entries.pop()
     return ''.join(entries)
+
+
+def html_for_remaining_submissions() -> str:
+    def html_for_remainingness(subm: str) -> str:
+        MISSING = '-- '
+        parts = []
+        for idx, wd in enumerate(context.workdirs):
+            parts.append(f"{str(idx)} " if subm in wd.submissions_remaining else MISSING)    
+        return ''.join(parts)
+
+    global context
+    lines = ["<hr>", "<h1>Submissions not covered above</h1>", "<table>"]
+    for submission in sorted(context.submissions_remaining):
+        lines.append(f"<tr><td>{submission}</td><td>{html_for_remainingness(submission)}</td></tr>")
+    lines.append("</table>")
+    return "\n".join(lines)
 
 
 def html_for_submissionrelated_files() -> str:
