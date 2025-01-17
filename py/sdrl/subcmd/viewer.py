@@ -1,6 +1,5 @@
 """Implementation of the 'viewer' subcommand: a student directory and submission web server.
 viewer TODO 1 list:
-- add TOC to file pages
 - homepage: list of submission-related files with presence indicators
 - equality indicator
 - check for unique course
@@ -17,7 +16,6 @@ viewer TODO 2 list:
 import base64
 import functools
 import itertools
-import mimetypes
 import os
 import pathlib
 import re
@@ -377,7 +375,8 @@ def html_for_file(mypath) -> str:
 
     def append_diff():
         prevdir = context.workdirs[idx-1]  # previous workdir
-        lines.append(f"<hr>")
+        toc.append(f"<a href='#diff-{prevdir.topdir}-{workdir.topdir}'>diff</a>  ")
+        lines.append(f"<hr id='diff-{prevdir.topdir}-{workdir.topdir}'>")
         lines.append(f"# {idx-1}/{idx}. diff {prevdir.topdir}/{workdir.topdir} for {filename}")
         if kinds[-2:] != [SRC, SRC]:
             lines.append("No diff shown. It requires two source files, which we do not have here.")
@@ -390,10 +389,10 @@ def html_for_file(mypath) -> str:
     # ----- iterate through workdirs and prepare the sections:
     kinds = []  # which files are SRC, BINARY, or MISSING
     lines = []  # noqa, some entries will be entire file contents, not single lines
-    lines.append(html_for_breadcrumb(mypath)) 
-    lines.append(f"# {mypath}")
+    toc = []
     for idx, workdir in enumerate(context.workdirs):
-        lines.append(f"<hr>")
+        toc.append(f"<a href='#{workdir.topdir}'>{idx}. {workdir.topdir}</a>  ")
+        lines.append(f"<hr id='{workdir.topdir}'>")
         lines.append(f"# {idx}. {workdir.topdir}: {filename}")
         if not workdir.exists(mypath):
             lines.append(f"(('{mypath}' does not exist in '{workdir.topdir}'))")
@@ -403,7 +402,8 @@ def html_for_file(mypath) -> str:
         if idx % 2 == 1:
             append_diff()
     # ----- render:
-    markdown = "\n".join(lines)
+    the_toc, the_lines = '\n'.join(toc), '\n'.join(lines)
+    markdown = f"{html_for_breadcrumb(mypath)}\n# {mypath}\n{the_toc}\n{the_lines}"
     macros.switch_part("viewer")
     mddict = md.render_markdown(mypath, filename, markdown, b.Mode.STUDENT, dict())
     return mddict['html']
