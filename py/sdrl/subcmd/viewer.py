@@ -1,6 +1,5 @@
 """Implementation of the 'viewer' subcommand: a student directory and submission web server.
 viewer TODO 1 list:
-- check for unique course
 - task links
 - list of submissions with status
 - mark submissions not represented in list of submission-related files
@@ -183,6 +182,9 @@ class Context:
         student1 = self.workdirs[0].metadata
         if not hasattr(student1, 'course_url'):
             b.critical(f"'{args.dir[0]}' must have a {c.PARTICIPANT_FILE}, because we need a course URL")
+        course_set = set((wd.metadata.course_url for wd in self.workdirs if hasattr(wd.metadata, 'course_url')))
+        if len(course_set) > 1:
+            b.critical(f"All work dirs must come from the same course. I found several: {course_set}")
         self.course = sdrl.course.CourseSI(configdict=student1.metadatadict, context=student1.metadata_url)
         macroexpanders.register_macros(self.course)  # noqa
 
