@@ -1,7 +1,5 @@
 """Implementation of the 'viewer' subcommand: a student directory and submission web server.
 viewer TODO 1 list:
-- homepage: list of submission-related files with presence indicators
-- equality indicator
 - check for unique course
 - task links
 - list of submissions with status
@@ -73,7 +71,7 @@ def execute(pargs: ap_sub.Namespace):
     # dump()
     # b.critical("STOP.")
     b.info(f"Webserver starts. Visit 'http://localhost:{pargs.port}/'. Terminate with Ctrl-C.")
-    b.warning("Incomplete development version, not ready for use. Temporarily use 'viewer1' for serious use.")
+    b.warning("Incomplete development version.")
     try:
         bottle.run(host='localhost', port=pargs.port, debug=DEBUG, reloader=DEBUG)
     except KeyboardInterrupt:
@@ -87,10 +85,11 @@ def dump():
         b.info(f"\n===== {stud.root}: {stud.student_name}")
         print(f"--Paths:\t{list(wd.pathset)[:3]}...{list(wd.pathset)[-3:]} ({len(wd.pathset)} total)")
         print(f"--{c.SUBMISSION_FILE}:\t{wd.submission} ({len(wd.submission)} total)")
+        print(f"--submission_re:\t{wd.submission_re}")
         print(f"--submission files:\t{list(wd.submission_pathset)[:3]}...{list(wd.submission_pathset)[-3:]} "
               f"({len(wd.submission_pathset)} total)")
     b.info(f"\n===== Context")
-    print(context.ls('/'))
+    print(sorted(context.submission_pathset))
 
 
 class Workdir:
@@ -135,13 +134,31 @@ class Workdir:
     @functools.cached_property
     def submission_pathset(self) -> set[str]:
         """paths with names matching submitted tasks"""
-        return set((p for p in self.pathset if re.match(self.submission_re, p)))
+        return self._submission_pathset_and_remaining_submissions[0]
+
+    @functools.cached_property
+    def _submission_pathset_and_remaining_submissions(self) -> tuple[set[str], set[str]]:
+        """paths with names matching submitted tasks & this"""
+        paths_matched, submissions_matched = set(), set()
+        my_re = re.compile(self.submission_re)
+        for p in self.pathset:
+            mm = my_re.search(p)
+            if mm:
+                paths_matched.add(p)
+                submissions_matched.add(mm.group())
+        remaining_submissions = self.submission - submissions_matched
+        return paths_matched, remaining_submissions
 
     @functools.cached_property
     def submission_re(self) -> str:
         """regexp matching the name of any submitted task"""
         items_re = '|'.join([re.escape(item) for item in sorted(self.submission)])
-        return f"\\b({items_re})\\b"  # match task names only as words or multiwords
+        return f"\\b{items_re}\\b"  # match task names only as words or multiwords
+
+    @functools.cached_property
+    def submissions_remaining(self) -> set[str]:
+        """submissions not matched by paths"""
+        return self._submission_pathset_and_remaining_submissions[1]
 
     def exists(self, path: str) -> bool:
         return path in self.pathset
@@ -150,6 +167,9 @@ class Workdir:
         """Turns the absolute virtual path into a physical path."""
         assert path[0] == '/'
         return os.path.join(self.topdir, path[1:])
+
+    def actualsize(self, path: str) -> int:
+        return pathlib.Path(self.actualpath(path)).stat().st_size
 
 
 class Context:
@@ -235,7 +255,10 @@ viewer_css = """
 @bottle.route("/")
 def serve_root():
     global context
-    body = html_for_directorylist("/")
+    body = "%s\n\n%s" % (
+        html_for_submissionrelated_files(),
+        html_for_directorylist("/", breadcrumb=False),
+    )
     pagetext = basepage_html.format(
         title=f"viewer",
         csslinks=html_for_csslinks(context.course_url),
@@ -310,11 +333,11 @@ def html_for_csslinks(course_url: str) -> str:
         f'<link href="{VIEWER_CSS_URL}" rel="stylesheet">\n')
 
 
-def html_for_directorylist(mypath) -> str:
+def html_for_directorylist(mypath, breadcrumb=True) -> str:
     """A page listing the directories and files under mypath in the virtual filesystem."""
     global context
     dirs, files = context.ls(mypath)
-    lines = [html_for_breadcrumb(mypath)]  # noqa
+    lines = [html_for_breadcrumb(mypath) if breadcrumb else ""]  # noqa
     lines.append("<hr>")
     lines.append(f"<h1>Contents of '{mypath}'</h1>")
     lines.append("<h2>Subdirectories</h2>")
@@ -326,7 +349,8 @@ def html_for_directorylist(mypath) -> str:
     lines.append("<h2>Files</h2>")
     lines.append("<table>")
     for file in sorted(files):
-        lines.append(f"<tr><td><a href='{file}'>{file}</a></td></tr>")
+        filepath = os.path.join(mypath, file)
+        lines.append(f"<tr><td><a href='{filepath}'>{file}</a></td>{html_for_file_existence(filepath)}</tr>")
     lines.append("</table>")
     lines.append("<hr>")
     body = "\n".join(lines)
@@ -407,6 +431,54 @@ def html_for_file(mypath) -> str:
     macros.switch_part("viewer")
     mddict = md.render_markdown(mypath, filename, markdown, b.Mode.STUDENT, dict())
     return mddict['html']
+
+
+def html_for_file_existence(mypath: str) -> str:
+    """One or more table column entries with file existence markers for each file or file pair."""
+    global context
+    BEGIN = '<td>'
+    END = '</td>'
+    MISSING = '-- '
+    entries = [BEGIN]
+    for idx, wd in enumerate(context.workdirs):
+        if wd.exists(mypath):
+            entries.append(f"{str(idx)} ")
+        else:
+            entries.append(MISSING)
+        if idx % 2 == 1:  # finish a pair
+            if entries[-1] != MISSING and entries[-2] != MISSING:  # both files are present
+                size_even, size_odd = prev_wd.actualsize(mypath), wd.actualsize(mypath)
+                b.info(f"sizes: even {size_even}, odd {size_odd}")
+                if size_even > 1.5*size_odd:
+                    sign = ">>"
+                elif size_even > size_odd:
+                    sign = ">"
+                elif size_even == size_odd:
+                    sign = "="
+                elif 1.5 * size_even < size_odd:
+                    sign = "<<"
+                elif size_even < size_odd:
+                    sign = "<"
+                else:
+                    assert False
+                last = entries.pop()
+                entries.append(f" {sign} ")
+                entries.append(last)
+            entries.append(END)
+            entries.append(BEGIN)
+        prev_wd = wd
+    if entries[-1] == BEGIN:  # repair the end
+        entries.pop()
+    return ''.join(entries)
+
+
+def html_for_submissionrelated_files() -> str:
+    global context
+    lines = ["<hr>", "<h1>Files with submission-related names</h1>", "<table>"]
+    for mypath in sorted(context.submission_pathset):
+        lines.append(f"<tr><td><a href='{mypath}'>{mypath}</a></td>{html_for_file_existence(mypath)}</tr>")
+    lines.append("</table>")
+    return "\n".join(lines)
 
 
 def diff_files(path1: str, path2: str) -> str:
