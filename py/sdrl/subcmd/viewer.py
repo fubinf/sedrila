@@ -277,20 +277,37 @@ def serve_vfile(path=na.PathValue()):
     return pagetext
 
 
-def csslinks_html(course_url: str) -> str:
+def html_for_breadcrumb(path: str) -> str:
+    parts = [f"<p><a href='/'>viewer</a>:"]
+    slashpos = path.find("/", 0)
+    assert slashpos == 0
+    nextslashpos = path.find("/", slashpos+1)
+    # ----- process path elements between slashes:
+    while nextslashpos > 0:
+        parts.append(f" / <a href='{path[:nextslashpos+1]}'>{path[slashpos+1:nextslashpos]}</a>")
+        slashpos = nextslashpos
+        nextslashpos = path.find("/", slashpos+1)
+    # ----- process last path element:
+    if slashpos + 1 == len(path):
+        parts.append(" /")  # dir path
+    else:
+        parts.append(f" / <a href='{path}'>{path[slashpos+1:]}</a>")  # file path
+    return f"{''.join(parts)}</p>"
+
+
+def html_for_csslinks(course_url: str) -> str:
     return (f'<link rel="icon" type="image/png" sizes="16x16 32x32" href="{FAVICON_URL}">\n'
-            f'<link href="{course_url}/sedrila.css" rel="stylesheet">\n'
-            f'<link href="{course_url}/local.css" rel="stylesheet">\n'
-            f'<link href="{course_url}/codehilite.css" rel="stylesheet">\n'
-            f'<link href="{VIEWER_CSS_URL}" rel="stylesheet">\n')
+        f'<link href="{course_url}/sedrila.css" rel="stylesheet">\n'
+        f'<link href="{course_url}/local.css" rel="stylesheet">\n'
+        f'<link href="{course_url}/codehilite.css" rel="stylesheet">\n'
+        f'<link href="{VIEWER_CSS_URL}" rel="stylesheet">\n')
 
 
 def html_for_directorylist(mypath) -> str:
     """A page listing the directories and files under mypath in the virtual filesystem."""
     global context
     dirs, files = context.ls(mypath)
-    b.info(f"directorylist_html('{mypath}') -> ({dirs}, {files})")
-    lines = []
+    lines = [html_for_breadcrumb(mypath)]  # noqa
     lines.append("<hr>")
     lines.append(f"<h1>Contents of '{mypath}'</h1>")
     lines.append("<h2>Subdirectories</h2>")
