@@ -1,7 +1,5 @@
 """Implementation of the 'viewer' subcommand: a student directory and submission web server.
 viewer TODO 1 list:
-- raw serve for binary files and *.html 
-- add link to raw serves 
 - add TOC to file pages
 - homepage: list of submission-related files with presence indicators
 - equality indicator
@@ -370,6 +368,8 @@ def html_for_file(mypath) -> str:
             return
         else:  # any other suffix: assume this is a sourcefile 
             language = suffix2lang.get(suffix[1:], "")
+            if language == 'html':
+                lines.append(f"<a href='?raw={workdir.topdir}'>view as HTML page</a>")
             lines.append(f"```{language}")
             lines.append(content.rstrip("\n"))
             lines.append(f"```")
