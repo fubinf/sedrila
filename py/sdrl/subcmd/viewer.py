@@ -1,12 +1,11 @@
 """Implementation of the 'viewer' subcommand: a student directory and submission web server.
 viewer TODO 1 list:
-- compute diffs
-- render diffs
 - raw serve for binary files and *.html 
 - add link to raw serves 
 - add TOC to file pages
 - homepage: list of submission-related files with presence indicators
 - equality indicator
+- check for unique course
 - task links
 - list of submissions with status
 - mark submissions not represented in list of submission-related files
@@ -99,7 +98,7 @@ def dump():
     print(context.ls('/'))
 
 class Workdir:
-    """Represents and handles one student working directory."""
+    """Represents and handles one student working directory. Its top is the root of the virtual file system."""
     topdir: str  # name of workdir as given on commandline
 
     def __init__(self, topdir: str):
@@ -150,6 +149,11 @@ class Workdir:
 
     def exists(self, path: str) -> bool:
         return path in self.pathset
+
+    def actualpath(self, path: str) -> str:
+        """Turns the absolute virtual path into a physical path."""
+        assert path[0] == '/'
+        return os.path.join(self.topdir, path[1:])
 
 
 class Context:
@@ -230,10 +234,10 @@ viewer_css = """
 @na.route("/")
 def serve_root():
     global context
-    body = directorylist_html("/")
+    body = html_for_directorylist("/")
     pagetext = basepage_html.format(
         title=f"viewer",
-        csslinks=csslinks_html(context.course_url),
+        csslinks=html_for_csslinks(context.course_url),
         body=body
     )
     return pagetext
@@ -254,18 +258,18 @@ def serve_directory(path=na.PathValue()):
     global context
     pagetext = basepage_html.format(
         title=f"viewer",
-        csslinks=csslinks_html(context.course_url),
-        body=directorylist_html(f"/{path}/")
+        csslinks=html_for_csslinks(context.course_url),
+        body=html_for_directorylist(f"/{path}/")
     )
     return pagetext
 
 
 @na.route("**")
-def serve_file(path=na.PathValue()):
-    body = file_html(f"/{str(path)}")
+def serve_vfile(path=na.PathValue()):
+    body = html_for_file(f"/{str(path)}")
     pagetext = basepage_html.format(
         title=f"viewer",
-        csslinks=csslinks_html(context.course_url),
+        csslinks=html_for_csslinks(context.course_url),
         body=body
     )
     return pagetext
@@ -279,7 +283,7 @@ def csslinks_html(course_url: str) -> str:
             f'<link href="{VIEWER_CSS_URL}" rel="stylesheet">\n')
 
 
-def directorylist_html(mypath) -> str:
+def html_for_directorylist(mypath) -> str:
     """A page listing the directories and files under mypath in the virtual filesystem."""
     global context
     dirs, files = context.ls(mypath)
@@ -303,12 +307,15 @@ def directorylist_html(mypath) -> str:
     return body
 
 
-def file_html(mypath) -> str:
+def html_for_file(mypath) -> str:
     """
     Page body showing each Workdir's version (if existing) of file mypath, and pairwise diffs where possible.
     We create this as a Markdown page, then render it.
     """
     global context
+    SRC = 'src'
+    BINARY = 'binary'
+    MISSING = 'missing'
     binaryfile_suffixes = ('pdf', 'zip')  # TODO 2: what else?
     suffix2lang = dict(  # see https://pygments.org/languages/  TODO 2: always just use the suffix?
         c="c", cc="c++", cpp="c++", cs="csharp",
@@ -320,13 +327,8 @@ def file_html(mypath) -> str:
         txt="")
     filename = os.path.basename(mypath)
     frontname, suffix = os.path.splitext(filename)
-    lines = []  # some entries will be entire file contents, not single lines
-    lines.append(f"# {mypath}")
-    for idx, workdir in enumerate(context.workdirs):
-        lines.append(f"# {idx}. {workdir.topdir}: {filename}")
-        if not workdir.exists(mypath):
-            lines.append(f"(('{mypath}' does not exist in '{workdir.topdir}'))")
-            continue
+
+    def append_one_file():
         content = b.slurp(f"{workdir.topdir}{mypath}")
         if suffix == '.md':
             lines.append(content)
@@ -336,79 +338,55 @@ def file_html(mypath) -> str:
             lines.append("No filename suffix? What is this supposed to be?")
         elif suffix[1:] in binaryfile_suffixes:
             lines.append(f"((cannot show '{mypath}': file has a binary file format))")
+            kinds.append(BINARY)
+            return
         else:  # any other suffix: assume this is a sourcefile 
             language = suffix2lang.get(suffix[1:], "")
             lines.append(f"```{language}")
             lines.append(content.rstrip("\n"))
             lines.append(f"```")
+        kinds.append(SRC)
+
+    def append_diff():
+        prevdir = context.workdirs[idx-1]  # previous workdir
         lines.append(f"<hr>")
-        if idx % 2 == 1:  # add a diff section after each pair
-            ...
+        lines.append(f"# {idx-1}/{idx}. diff {prevdir.topdir}/{workdir.topdir} for {filename}")
+        if kinds[-2:] != [SRC, SRC]:
+            lines.append("No diff shown. It requires two source files, which we do not have here.")
+            return
+        diff_output = diff_files(prevdir.actualpath(mypath), workdir.actualpath(mypath))
+        lines.append("\n```diff")
+        lines.append(diff_output)
+        lines.append("```")
+
+    # ----- iterate through workdirs and prepare the sections:
+    kinds = []  # which files are SRC, BINARY, or MISSING
+    lines = []  # noqa, some entries will be entire file contents, not single lines
+    lines.append(html_for_breadcrumb(mypath)) 
+    lines.append(f"# {mypath}")
+    for idx, workdir in enumerate(context.workdirs):
+        lines.append(f"<hr>")
+        lines.append(f"# {idx}. {workdir.topdir}: {filename}")
+        if not workdir.exists(mypath):
+            lines.append(f"(('{mypath}' does not exist in '{workdir.topdir}'))")
+            kinds.append(MISSING)
+        else:
+            append_one_file()
+        if idx % 2 == 1:
+            append_diff()
+    # ----- render:
     markdown = "\n".join(lines)
     macros.switch_part("viewer")
     mddict = md.render_markdown(mypath, filename, markdown, b.Mode.STUDENT, dict())
     return mddict['html']
 
 
-def render_markdown(info: 'Info', infile, outfile):
-    markup_body = infile.read().decode()
-    markup = f"# {info.lastname}:{info.fullpath}\n\n{info.byline}\n\n{markup_body}\n"
-    do_render_markdown(info, markup, outfile)
-
-
-def render_prot(info: 'Info', infile, outfile):
-    markup = (f"# {info.lastname}:{info.fullpath}\n\n{info.byline}\n\n"
-              f"[PROT::{info.fullpath}]\n")
-    do_render_markdown(info, markup, outfile)
-
-
-def render_sourcefile(language: str, info: 'Info', infile, outfile):
-    src = infile.read().decode()
-    markup = (f"# {info.title}\n\n{info.byline}\n\n"
-              f"```{language}\n"
-              f"{src}\n"
-              f"```\n")
-    do_render_markdown(info, markup, outfile)
-
-
-def just_copyfile(copyfilefunc, info, infile, outfile):
-    copyfilefunc(infile, outfile)
-
-
-def do_render_markdown(info: 'Info', markup: str, outfile):
-    template = """<!DOCTYPE HTML>
-      <html>
-      <head>
-        <meta charset="{enc}">
-        {csslinks}
-        <title>{title}</title>
-      </head>
-      <body>
-        {body}
-      </body>
-      </html>
-    """
-    macros.switch_part("viewer")
-    mddict = md.render_markdown(info.fullpath, info.basename, markup, b.Mode.STUDENT, dict())
-    htmltext = template.format(enc='utf8', csslinks=info.csslinks,
-                               title=f"{info.lastname}:{info.basename}", body=mddict['html'])
-    outfile.write(htmltext.encode())
-
-
-@dataclasses.dataclass
-class Info:
-    pargs: ap_sub.Namespace
-    basedir: str  # basename of top-level directory (=username)
-    basename: str
-    fullpath: str
-    lastname: str
-    byline: str
-    csslinks: str
-
-    @property
-    def title(self) -> str:
-        return f"{self.basedir}:{self.basename}"
-
-
-def _indented_div(level: int, text: str) -> str:
-    return "%s<div style='padding-left: %dem'>%s</div>" % (2*level*' ', 2*level, text)
+def diff_files(path1: str, path2: str) -> str:
+    cmd = f"/usr/bin/diff '{path1}' '{path2}'"
+    result = subprocess.run(cmd, shell=True, text=True, capture_output=True, check=False)
+    if result.returncode == 0:
+        return "files are identical"
+    elif result.returncode == 1:  # differences found
+        return result.stdout
+    else:  # there were execution problems
+        return f"<p>('diff' exit status: {result.returncode}</p>\n{result.stderr}"
