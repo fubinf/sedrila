@@ -21,6 +21,7 @@ import dataclasses
 import functools
 import html
 import itertools
+import mimetypes
 import os
 import pathlib
 import re
@@ -214,6 +215,10 @@ class Context:
                 files.add(localpath)
         return dirs, files
 
+    def workdir(self, workdirname: str) -> Workdir:
+        candidates = [wd for wd in self.workdirs if wd.topdir == workdirname]
+        return candidates[0]  # rightfully crash for nonexisting name
+
 
 basepage_html = """<!DOCTYPE html>
 <html>
@@ -232,6 +237,8 @@ basepage_html = """<!DOCTYPE html>
 viewer_css = """
 
 """
+
+
 
 @na.route("/")
 def serve_root():
@@ -264,6 +271,18 @@ def serve_directory(path=na.PathValue()):
         body=html_for_directorylist(f"/{path}/")
     )
     return pagetext
+
+
+# @na.route("**", params="raw")
+def serve_rawfile(path=na.PathValue(), raw=""):  # , workdir=na.PathValue()):
+    global context
+    workdir = context.workdirs[0].topdir  # debug
+    b.info(f"serve_rawfile('{path}', '{workdir}'")
+    return f"serve_rawfile('{path}', '{workdir}'"
+
+    contenttype = mimetypes.guess_type(path)
+    wd = context.workdir(workdir)
+    return "duh" or na.StaticFile(wd.actualpath(path), contenttype)
 
 
 @na.route("**")
@@ -353,10 +372,8 @@ def html_for_file(mypath) -> str:
             lines.append(content)
         elif suffix == '.prot':
             lines.append(macroexpanders.prot_html(content))
-        elif not suffix:
-            lines.append("No filename suffix? What is this supposed to be?")
-        elif suffix[1:] in binaryfile_suffixes:
-            lines.append(f"((cannot show '{mypath}': file has a binary file format))")
+        elif not suffix or suffix[1:] in binaryfile_suffixes:
+            lines.append(f"<a href='?raw={workdir.topdir}'>{workdir.actualpath(mypath)}</a>")
             kinds.append(BINARY)
             return
         else:  # any other suffix: assume this is a sourcefile 
