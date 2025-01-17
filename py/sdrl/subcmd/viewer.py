@@ -271,6 +271,8 @@ def serve_directory(mypath: str):
 
 @bottle.route("<mypath:path>")
 def serve_vfile(mypath: str):
+    if bottle.request.query.raw:  # ...?raw=workdirname
+        return handle_rawfile(mypath, bottle.request.query.raw)
     body = html_for_file(f"{mypath}")
     pagetext = basepage_html.format(
         title=f"viewer",
@@ -278,6 +280,12 @@ def serve_vfile(mypath: str):
         body=body
     )
     return pagetext
+
+
+def handle_rawfile(mypath: str, workdir: str):
+    global context
+    wd = context.workdir(workdir)
+    return bottle.static_file(wd.actualpath(mypath), root='.')
 
 
 def html_for_breadcrumb(path: str) -> str:
