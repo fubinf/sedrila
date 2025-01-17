@@ -24,6 +24,7 @@ import itertools
 import os
 import pathlib
 import re
+import subprocess
 import typing as tg
 
 import argparse_subcommand as ap_sub
@@ -41,6 +42,9 @@ import sdrl.markdown as md
 import sdrl.participant
 
 meaning = """Specialized webserver for locally viewing contents of one or more student repo work directories."""
+DEFAULT_PORT = '8077'
+FAVICON_URL = "/favicon-32x32.png"
+VIEWER_CSS_URL = "/viewer.css"
 favicon32x32_png_base64 = """iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACqklEQVRYR+1Wv0t6cRQ9CiloQikk
 RlpBU5BQDhlitTgouAoZDg0NmX9Is0MSQlMaItTSIIiDRBERgQ4OCuqgLUkikSD98Mu98Pp+Lc33
 pOg7eEHkwefec965597Pk+3t7bXxiyEbEhgq8N8qMDMzA6PRiNfXV7y9vUEmk0Eul/M/xcXFBdrt
@@ -55,14 +59,12 @@ g0QiEb4faPnc3d19MqYYJqJNKBSjXUByK5VKngZaTNSWw8ND1Go1MZgdZyQToGxyOy0dmoZMJoPp
 6WlEo1HJ4JJNKCDQVb21tcWPz8/PSCQSks0neQ98fD3q++TkJJ6enng1Cx8hUmUYqAUEIlxQl5eX
 OD8/l4r7fn5gAmRGuvvJiPTxMWgMTGBQwI95QwJDBX5dgT/hoVUQturVFQAAAABJRU5ErkJggg=="""
 favicon32x32_png = base64.b64decode(favicon32x32_png_base64)
-FAVICON_URL = "/favicon-32x32.png"
-VIEWER_CSS_URL = "/viewer.css"
 context: 'Context'  # global data
 
 
 def add_arguments(subparser: ap_sub.ArgumentParser):
-    subparser.add_argument('--port', '-p', type=int, default=8080,
-                           help="webserver will listen on this port (default: 8080)")
+    subparser.add_argument('--port', '-p', type=int, default=DEFAULT_PORT,
+                           help=f"webserver will listen on this port (default: {DEFAULT_PORT})")
     subparser.add_argument('--instructor', '-i', action='store_true', default=False,
                            help="generate task links to the instructor versions (not the student versions)")
     subparser.add_argument('dir', type=str, nargs='+',
