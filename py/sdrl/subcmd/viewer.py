@@ -17,9 +17,7 @@ viewer TODO 2 list:
 - add accept/reject logic to viewer 
 """
 import base64
-import dataclasses
 import functools
-import html
 import itertools
 import mimetypes
 import os
@@ -29,9 +27,7 @@ import subprocess
 import typing as tg
 
 import argparse_subcommand as ap_sub
-import naja_atra as na  # https://github.com/naja-atra/naja-atra/tree/main/docs
-import naja_atra.server as nas
-import naja_atra.utils as nau
+import bottle  # https://bottlepy.org/docs/dev/
 
 import base as b
 import sdrl.argparser
@@ -43,6 +39,7 @@ import sdrl.markdown as md
 import sdrl.participant
 
 meaning = """Specialized webserver for locally viewing contents of one or more student repo work directories."""
+DEBUG = True  # TODO 1: turn off debug for release
 DEFAULT_PORT = '8077'
 FAVICON_URL = "/favicon-32x32.png"
 VIEWER_CSS_URL = "/viewer.css"
@@ -82,8 +79,7 @@ def execute(pargs: ap_sub.Namespace):
     b.info(f"Webserver starts. Visit 'http://localhost:{pargs.port}/'. Terminate with Ctrl-C.")
     b.warning("Incomplete development version, not ready for use. Temporarily use 'viewer1' for serious use.")
     try:
-        nau.logger.set_handler(None)  # suppress logging
-        nas.start(port=pargs.port)
+        bottle.run(host='localhost', port=pargs.port, debug=DEBUG, reloader=DEBUG)
     except KeyboardInterrupt:
         print("  sedrila viewer terminated.")
 
@@ -99,6 +95,7 @@ def dump():
               f"({len(wd.submission_pathset)} total)")
     b.info(f"\n===== Context")
     print(context.ls('/'))
+
 
 class Workdir:
     """Represents and handles one student working directory. Its top is the root of the virtual file system."""
@@ -239,8 +236,7 @@ viewer_css = """
 """
 
 
-
-@na.route("/")
+@bottle.route("/")
 def serve_root():
     global context
     body = html_for_directorylist("/")
@@ -252,42 +248,30 @@ def serve_root():
     return pagetext
 
 
-@na.route(FAVICON_URL)
+@bottle.route(FAVICON_URL)
 def serve_favicon():
     return (200, favicon32x32_png, 'img/png')
 
 
-@na.route(VIEWER_CSS_URL)
+@bottle.route(VIEWER_CSS_URL)
 def serve_css():
     return (200, viewer_css, 'text/css')
 
 
-@na.route("**/")
-def serve_directory(path=na.PathValue()):
+@bottle.route("<mypath:path>/")
+def serve_directory(mypath: str):
     global context
     pagetext = basepage_html.format(
         title=f"viewer",
         csslinks=html_for_csslinks(context.course_url),
-        body=html_for_directorylist(f"/{path}/")
+        body=html_for_directorylist(f"{mypath}/")
     )
     return pagetext
 
 
-# @na.route("**", params="raw")
-def serve_rawfile(path=na.PathValue(), raw=""):  # , workdir=na.PathValue()):
-    global context
-    workdir = context.workdirs[0].topdir  # debug
-    b.info(f"serve_rawfile('{path}', '{workdir}'")
-    return f"serve_rawfile('{path}', '{workdir}'"
-
-    contenttype = mimetypes.guess_type(path)
-    wd = context.workdir(workdir)
-    return "duh" or na.StaticFile(wd.actualpath(path), contenttype)
-
-
-@na.route("**")
-def serve_vfile(path=na.PathValue()):
-    body = html_for_file(f"/{str(path)}")
+@bottle.route("<mypath:path>")
+def serve_vfile(mypath: str):
+    body = html_for_file(f"{mypath}")
     pagetext = basepage_html.format(
         title=f"viewer",
         csslinks=html_for_csslinks(context.course_url),
