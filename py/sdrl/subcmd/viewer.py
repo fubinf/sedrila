@@ -32,6 +32,7 @@ import sdrl.markdown as md
 import sdrl.participant
 
 meaning = """Specialized webserver for locally viewing contents of one or more student repo work directories."""
+CSS = "class='viewer'"  # to be included in HTML tags
 DEBUG = True  # TODO 1: turn off debug for release
 DEFAULT_PORT = '8077'
 FAVICON_URL = "/favicon-32x32.png"
@@ -247,7 +248,7 @@ basepage_html = """<!DOCTYPE html>
   <meta charset="utf-8">
   {csslinks}
  </head>
- <body>
+ <body class='viewer'>
   {body}
  </body>
 </html>
@@ -316,7 +317,7 @@ def handle_rawfile(mypath: str, workdir: str):
 
 
 def html_for_breadcrumb(path: str) -> str:
-    parts = [f"<p><a href='/'>viewer</a>:"]
+    parts = [f"<nav {CSS}><a href='/'>viewer</a>:"]
     slashpos = path.find("/", 0)
     assert slashpos == 0
     nextslashpos = path.find("/", slashpos+1)
@@ -330,7 +331,7 @@ def html_for_breadcrumb(path: str) -> str:
         parts.append(" /")  # dir path
     else:
         parts.append(f" / <a href='{path}'>{path[slashpos+1:]}</a>")  # file path
-    return f"{''.join(parts)}</p>"
+    return f"{''.join(parts)}</nav>"
 
 
 def html_for_csslinks(course_url: str) -> str:
@@ -347,18 +348,19 @@ def html_for_directorylist(mypath, breadcrumb=True) -> str:
     dirs, files = context.ls(mypath)
     lines = [html_for_breadcrumb(mypath) if breadcrumb else ""]  # noqa
     lines.append("<hr>")
-    lines.append(f"<h1>Contents of '{mypath}'</h1>")
-    lines.append("<h2>Subdirectories</h2>")
-    lines.append("<table>")
-    for dir in sorted(dirs):
-        lines.append(f"<tr><td><a href='{dir}'>{dir}</a></td></tr>")
+    lines.append(f"<h1 {CSS}>Contents of '{mypath}'</h1>")
+    lines.append(f"<h2 {CSS}>Subdirectories</h2>")
+    lines.append(f"<table {CSS}>")
+    for idx, dir in enumerate(sorted(dirs)):
+        lines.append(f"{tr_tag(idx)}<td><a href='{dir}'>{dir}</a></td></tr>")
     lines.append("</table>")
     lines.append("<hr>")
-    lines.append("<h2>Files</h2>")
-    lines.append("<table>")
-    for file in sorted(files):
+    lines.append(f"<h2 {CSS}>Files</h2>")
+    lines.append(f"<table {CSS}>")
+    for idx, file in enumerate(sorted(files)):
         filepath = os.path.join(mypath, file)
-        lines.append(f"<tr><td><a href='{filepath}'>{file}</a></td>{html_for_file_existence(filepath)}</tr>")
+        lines.append(f"{tr_tag(idx)}<td><a href='{filepath}'>{file}</a></td>"
+                     f"{html_for_file_existence(filepath)}</tr>")
     lines.append("</table>")
     lines.append("<hr>")
     body = "\n".join(lines)
@@ -488,20 +490,30 @@ def html_for_remaining_submissions() -> str:
         return ''.join(parts)
 
     global context
-    lines = ["<hr>", "<h1>Submissions not covered above</h1>", "<table>"]
-    for submission in sorted(context.submissions_remaining):
-        lines.append(f"<tr><td>{submission}</td><td>{html_for_remainingness(submission)}</td></tr>")
+    lines = ["<hr>", 
+             f"<h1 {CSS}>Submissions not covered above</h1>", 
+             f"<table {CSS}>"]
+    for idx, submission in enumerate(sorted(context.submissions_remaining)):
+        lines.append(f"{tr_tag(idx)}<td>{submission}</td>"
+                     f"<td>{html_for_remainingness(submission)}</td></tr>")
     lines.append("</table>")
     return "\n".join(lines)
 
 
 def html_for_submissionrelated_files() -> str:
     global context
-    lines = ["<hr>", "<h1>Files with submission-related names</h1>", "<table>"]
-    for mypath in sorted(context.submission_pathset):
-        lines.append(f"<tr><td><a href='{mypath}'>{mypath}</a></td>{html_for_file_existence(mypath)}</tr>")
+    lines = ["<hr>",
+             f"<h1 {CSS}>Files with submission-related names</h1>", 
+             f"<table {CSS}>"]
+    for idx, mypath in enumerate(sorted(context.submission_pathset)):
+        lines.append(f"{tr_tag(idx)}<td><a href='{mypath}'>{mypath}</a></td>{html_for_file_existence(mypath)}</tr>")
     lines.append("</table>")
     return "\n".join(lines)
+
+
+def tr_tag(idx: int) -> str:
+    color = "even" if idx % 2 == 0 else "odd"
+    return f"<tr class='viewer {color}'>"
 
 
 def diff_files(path1: str, path2: str) -> str:
