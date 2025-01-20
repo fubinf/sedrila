@@ -1,8 +1,4 @@
 """Implementation of the 'viewer' subcommand: a student directory and submission web server.
-viewer TODO 1 list:
-- task links
-- list of submissions with status
-- mark submissions not represented in list of submission-related files
 viewer TODO 2 list:
 - --css cssfile option
 - create service for persistently managing marks in submission.yaml
@@ -84,7 +80,7 @@ def dump():
         b.info(f"\n===== {stud.root}: {stud.student_name}")
         print(f"--Paths:\t{list(wd.pathset)[:3]}...{list(wd.pathset)[-3:]} ({len(wd.pathset)} total)")
         print(f"--{c.SUBMISSION_FILE}:\t{wd.submission} ({len(wd.submission)} total)")
-        print(f"--submission_re:\t{wd.submission_re}")
+        print(f"--submission_re:\t{wd.submission_re.pattern}")
         print(f"--submission files:\t{list(wd.submission_pathset)[:3]}...{list(wd.submission_pathset)[-3:]} "
               f"({len(wd.submission_pathset)} total)")
     b.info(f"\n===== Context")
@@ -139,9 +135,8 @@ class Workdir:
     def _submission_pathset_and_remaining_submissions(self) -> tuple[set[str], set[str]]:
         """paths with names matching submitted tasks & this"""
         paths_matched, submissions_matched = set(), set()
-        my_re = re.compile(self.submission_re)
         for p in self.pathset:
-            mm = my_re.search(p)
+            mm = self.submission_re.search(p)
             if mm:
                 paths_matched.add(p)
                 submissions_matched.add(mm.group())
@@ -149,10 +144,10 @@ class Workdir:
         return paths_matched, remaining_submissions
 
     @functools.cached_property
-    def submission_re(self) -> str:
+    def submission_re(self) -> re.Pattern:
         """regexp matching the name of any submitted task"""
         items_re = '|'.join([re.escape(item) for item in sorted(self.submission)])
-        return f"\\b{items_re}\\b"  # match task names only as words or multiwords
+        return re.compile(f"\\b{items_re}\\b")  # match task names only as words or multiwords
 
     @functools.cached_property
     def submissions_remaining(self) -> set[str]:
@@ -175,6 +170,7 @@ class Context:
     """The virtual filesystem that is being browsed: the merged union of the student Workdirs."""
     # cssfile: b.OStr  # TODO 2: argument of --cssfile
     course: sdrl.course.CourseSI
+    is_instructor: bool
     workdirs: list[Workdir]  # list of student dirs, forming implicit pairs (0, 1), (2, 3), ...
     
     def __init__(self, args: ap_sub.Namespace):
@@ -186,6 +182,7 @@ class Context:
         if len(course_set) > 1:
             b.critical(f"All work dirs must come from the same course. I found several: {course_set}")
         self.course = sdrl.course.CourseSI(configdict=student1.metadatadict, context=student1.metadata_url)
+        self.is_instructor = args.instructor
         macroexpanders.register_macros(self.course)  # noqa
 
     @functools.cached_property
@@ -208,10 +205,10 @@ class Context:
         return set(itertools.chain.from_iterable((wd.submission_pathset for wd in self.workdirs)))
 
     @functools.cached_property
-    def submission_re(self) -> str:
+    def submission_re(self) -> re.Pattern:
         """regexp matching the name of any submitted task"""
         items_re = '|'.join([re.escape(item) for item in sorted(self.submission)])
-        return f"\\b({items_re})\\b"  # match task names only as words or multiwords
+        return re.compile(f"\\b({items_re})\\b")  # match task names only as words or multiwords
 
     @functools.cached_property
     def submissions_remaining(self) -> set[str]:
@@ -369,14 +366,20 @@ def html_for_directorylist(mypath, breadcrumb=True) -> str:
     lines.append(f"<h2 {CSS}>Subdirectories</h2>")
     lines.append(f"<table {CSS}>")
     for idx, mydir in enumerate(sorted(dirs)):
-        lines.append(f"{tr_tag(idx)}<td {CSS}><a href='{mydir}'>{mydir}</a></td></tr>")
+        lines.append(f"{tr_tag(idx)}"
+                     f"<td {CSS}><a href='{mydir}'>{mydir}</a></td>"
+                     f"<td {CSS}>{html_for_tasklink(mydir)}</td>"
+                     f"</tr>")
     lines.append("</table>")
     lines.append(f"<h2 {CSS}>Files</h2>")
     lines.append(f"<table {CSS}>")
     for idx, file in enumerate(sorted(files)):
         filepath = os.path.join(mypath, file)
-        lines.append(f"{tr_tag(idx)}<td {CSS}><a href='{filepath}'>{file}</a></td>"
-                     f"{html_for_file_existence(filepath)}</tr>")
+        lines.append(f"{tr_tag(idx)}"
+                     f"<td {CSS}><a href='{filepath}'>{file}</a></td>"
+                     f"{html_for_file_existence(filepath)}"
+                     f"<td {CSS}>{html_for_tasklink(filepath)}</td>"
+                     f"</tr>")
     lines.append("</table>")
     body = "\n".join(lines)
     return body
@@ -510,8 +513,11 @@ def html_for_remaining_submissions() -> str:
     lines = [f"<h1 {CSS}>Submissions not covered above</h1>", 
              f"<table {CSS}>"]
     for idx, submission in enumerate(sorted(context.submissions_remaining)):
-        lines.append(f"{tr_tag(idx)}<td {CSS}>{submission}</td>"
-                     f"<td {CSS}>{html_for_remainingness(submission)}</td></tr>")
+        lines.append(f"{tr_tag(idx)}"
+                     f"<td {CSS}>{submission}</td>"
+                     f"<td {CSS}>{html_for_remainingness(submission)}</td>"
+                     f"<td {CSS}>{html_for_tasklink(submission)}</td>"
+                     f"</tr>")
     lines.append("</table>")
     return "\n".join(lines)
 
@@ -521,9 +527,20 @@ def html_for_submissionrelated_files() -> str:
     lines = [f"<h1 {CSS}>Files with submission-related names</h1>", 
              f"<table {CSS}>"]
     for idx, mypath in enumerate(sorted(context.submission_pathset)):
-        lines.append(f"{tr_tag(idx)}<td {CSS}><a href='{mypath}'>{mypath}</a></td>{html_for_file_existence(mypath)}</tr>")
+        lines.append(f"{tr_tag(idx)}"
+                     f"<td {CSS}><a href='{mypath}'>{mypath}</a></td>"
+                     f"{html_for_file_existence(mypath)}"
+                     f"<td {CSS}>{html_for_tasklink(mypath)}</td>"
+                     f"</tr>")
     lines.append("</table>")
     return "\n".join(lines)
+
+
+def html_for_tasklink(str_with_taskname: str) -> str:
+    global context
+    mm = context.submission_re.search(str_with_taskname)
+    instructorpart = "instructor/" if context.is_instructor else ""
+    return f"<a href='{context.course_url}{instructorpart}{mm.group()}.html'>task</a>" if mm else ""
 
 
 def tr_tag(idx: int) -> str:
