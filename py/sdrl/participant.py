@@ -39,7 +39,9 @@ class Student:
         homepage_explicitname = "index.html"
         if self.course_url.endswith(f"/{homepage_explicitname}"):
             self.course_url = self.course_url[:-len(homepage_explicitname)]  # leave only directory path
-        self.metadata_url = f"{self.course_url}/{c.METADATA_FILE}"
+        if not self.course_url.endswith("/"):
+            self.course_url += "/"  # make sure directory path ends with slash
+        self.metadata_url = f"{self.course_url}{c.METADATA_FILE}"
 
     @functools.cached_property
     def metadatadict(self) -> b.StrAnyDict:
