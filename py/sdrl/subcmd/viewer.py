@@ -17,7 +17,6 @@ import os
 import pathlib
 import re
 import subprocess
-import typing as tg
 
 import argparse_subcommand as ap_sub
 import bottle  # https://bottlepy.org/docs/dev/
@@ -256,7 +255,24 @@ basepage_html = """<!DOCTYPE html>
 
 
 viewer_css = """
+h1.viewer, h2.viewer, h3.viewer {
+  font-family: sans-serif;
+  width: 100%;
+  background-color: var(--main-color);
+  padding: 0.5ex 1em;
+  border-radius: 0.5ex;
+  box-sizing: border-box;
+}
 
+td.viewer {
+  padding: 0.3ex 1em;
+}
+
+tr.even {}
+
+tr.odd {
+    background-color: #ddd;
+}
 """
 
 
@@ -278,12 +294,14 @@ def serve_root():
 
 @bottle.route(FAVICON_URL)
 def serve_favicon():
-    return (200, favicon32x32_png, 'img/png')
+    bottle.response.content_type = 'img/png'
+    return favicon32x32_png
 
 
 @bottle.route(VIEWER_CSS_URL)
 def serve_css():
-    return (200, viewer_css, 'text/css')
+    bottle.response.content_type = 'text/css'
+    return viewer_css
 
 
 @bottle.route("<mypath:path>/")
@@ -336,10 +354,10 @@ def html_for_breadcrumb(path: str) -> str:
 
 def html_for_csslinks(course_url: str) -> str:
     return (f'<link rel="icon" type="image/png" sizes="16x16 32x32" href="{FAVICON_URL}">\n'
-        f'<link href="{course_url}/sedrila.css" rel="stylesheet">\n'
-        f'<link href="{course_url}/local.css" rel="stylesheet">\n'
-        f'<link href="{course_url}/codehilite.css" rel="stylesheet">\n'
-        f'<link href="{VIEWER_CSS_URL}" rel="stylesheet">\n')
+            f'<link href="{course_url}/sedrila.css" rel="stylesheet">\n'
+            f'<link href="{course_url}/local.css" rel="stylesheet">\n'
+            f'<link href="{course_url}/codehilite.css" rel="stylesheet">\n'
+            f'<link href="{VIEWER_CSS_URL}" rel="stylesheet">\n')
 
 
 def html_for_directorylist(mypath, breadcrumb=True) -> str:
@@ -347,22 +365,19 @@ def html_for_directorylist(mypath, breadcrumb=True) -> str:
     global context
     dirs, files = context.ls(mypath)
     lines = [html_for_breadcrumb(mypath) if breadcrumb else ""]  # noqa
-    lines.append("<hr>")
     lines.append(f"<h1 {CSS}>Contents of '{mypath}'</h1>")
     lines.append(f"<h2 {CSS}>Subdirectories</h2>")
     lines.append(f"<table {CSS}>")
-    for idx, dir in enumerate(sorted(dirs)):
-        lines.append(f"{tr_tag(idx)}<td><a href='{dir}'>{dir}</a></td></tr>")
+    for idx, mydir in enumerate(sorted(dirs)):
+        lines.append(f"{tr_tag(idx)}<td {CSS}><a href='{mydir}'>{mydir}</a></td></tr>")
     lines.append("</table>")
-    lines.append("<hr>")
     lines.append(f"<h2 {CSS}>Files</h2>")
     lines.append(f"<table {CSS}>")
     for idx, file in enumerate(sorted(files)):
         filepath = os.path.join(mypath, file)
-        lines.append(f"{tr_tag(idx)}<td><a href='{filepath}'>{file}</a></td>"
+        lines.append(f"{tr_tag(idx)}<td {CSS}><a href='{filepath}'>{file}</a></td>"
                      f"{html_for_file_existence(filepath)}</tr>")
     lines.append("</table>")
-    lines.append("<hr>")
     body = "\n".join(lines)
     return body
 
@@ -410,8 +425,8 @@ def html_for_file(mypath) -> str:
     def append_diff():
         prevdir = context.workdirs[idx-1]  # previous workdir
         toc.append(f"<a href='#diff-{prevdir.topdir}-{workdir.topdir}'>diff</a>  ")
-        lines.append(f"<hr id='diff-{prevdir.topdir}-{workdir.topdir}'>")
-        lines.append(f"# {idx-1}/{idx}. diff {prevdir.topdir}/{workdir.topdir} for {filename}")
+        lines.append(f"<h2 id='diff-{prevdir.topdir}-{workdir.topdir}' {CSS}"
+                     f">{idx-1}/{idx}. diff {prevdir.topdir}/{workdir.topdir}</h2>")
         if kinds[-2:] != [SRC, SRC]:
             lines.append("No diff shown. It requires two source files, which we do not have here.")
             return
@@ -426,8 +441,7 @@ def html_for_file(mypath) -> str:
     toc = []
     for idx, workdir in enumerate(context.workdirs):
         toc.append(f"<a href='#{workdir.topdir}'>{idx}. {workdir.topdir}</a>  ")
-        lines.append(f"<hr id='{workdir.topdir}'>")
-        lines.append(f"# {idx}. {workdir.topdir}: {filename}")
+        lines.append(f"<h2 id='{workdir.topdir}' {CSS}>{idx}. {workdir.topdir}: {filename}</h2>")
         if not workdir.exists(mypath):
             lines.append(f"(('{mypath}' does not exist in '{workdir.topdir}'))")
             kinds.append(MISSING)
@@ -437,7 +451,10 @@ def html_for_file(mypath) -> str:
             append_diff()
     # ----- render:
     the_toc, the_lines = '\n'.join(toc), '\n'.join(lines)
-    markdown = f"{html_for_breadcrumb(mypath)}\n# {mypath}\n{the_toc}\n{the_lines}"
+    markdown = (f"{html_for_breadcrumb(mypath)}\n"
+                f"<h1 {CSS}>{mypath}</h1>\n"
+                f"{the_toc}\n"
+                f"{the_lines}")
     macros.switch_part("viewer")
     mddict = md.render_markdown(mypath, filename, markdown, b.Mode.STUDENT, dict())
     return mddict['html']
@@ -446,7 +463,7 @@ def html_for_file(mypath) -> str:
 def html_for_file_existence(mypath: str) -> str:
     """One or more table column entries with file existence markers for each file or file pair."""
     global context
-    BEGIN = '<td>'
+    BEGIN = f'<td {CSS}>'
     END = '</td>'
     MISSING = '-- '
     entries = [BEGIN]
@@ -457,7 +474,7 @@ def html_for_file_existence(mypath: str) -> str:
             entries.append(MISSING)
         if idx % 2 == 1:  # finish a pair
             if entries[-1] != MISSING and entries[-2] != MISSING:  # both files are present
-                size_even, size_odd = prev_wd.actualsize(mypath), wd.actualsize(mypath)
+                size_even, size_odd = prev_wd.actualsize(mypath), wd.actualsize(mypath)  # noqa
                 if size_even > 1.5*size_odd:
                     sign = ">>"
                 elif size_even > size_odd:
@@ -485,28 +502,26 @@ def html_for_remaining_submissions() -> str:
     def html_for_remainingness(subm: str) -> str:
         MISSING = '-- '
         parts = []
-        for idx, wd in enumerate(context.workdirs):
-            parts.append(f"{str(idx)} " if subm in wd.submissions_remaining else MISSING)    
+        for idx2, wd in enumerate(context.workdirs):
+            parts.append(f"{str(idx2)} " if subm in wd.submissions_remaining else MISSING)    
         return ''.join(parts)
 
     global context
-    lines = ["<hr>", 
-             f"<h1 {CSS}>Submissions not covered above</h1>", 
+    lines = [f"<h1 {CSS}>Submissions not covered above</h1>", 
              f"<table {CSS}>"]
     for idx, submission in enumerate(sorted(context.submissions_remaining)):
-        lines.append(f"{tr_tag(idx)}<td>{submission}</td>"
-                     f"<td>{html_for_remainingness(submission)}</td></tr>")
+        lines.append(f"{tr_tag(idx)}<td {CSS}>{submission}</td>"
+                     f"<td {CSS}>{html_for_remainingness(submission)}</td></tr>")
     lines.append("</table>")
     return "\n".join(lines)
 
 
 def html_for_submissionrelated_files() -> str:
     global context
-    lines = ["<hr>",
-             f"<h1 {CSS}>Files with submission-related names</h1>", 
+    lines = [f"<h1 {CSS}>Files with submission-related names</h1>", 
              f"<table {CSS}>"]
     for idx, mypath in enumerate(sorted(context.submission_pathset)):
-        lines.append(f"{tr_tag(idx)}<td><a href='{mypath}'>{mypath}</a></td>{html_for_file_existence(mypath)}</tr>")
+        lines.append(f"{tr_tag(idx)}<td {CSS}><a href='{mypath}'>{mypath}</a></td>{html_for_file_existence(mypath)}</tr>")
     lines.append("</table>")
     return "\n".join(lines)
 
