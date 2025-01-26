@@ -49,26 +49,19 @@ def execute(pargs: argparse.Namespace):
 
 
 def init():
-    course_url = os.path.dirname(input("Course URL: "))
-    metadata = sdrl.participant.Student.get_metadata(course_url)
-    init_data = metadata.get('init_data') or {}  # noqa
-    prompts = sdrl.participant.Student.prompts(init_data.get('studentprompts') or {})
-    data = dict(course_url=course_url)
-    for value in prompts:
-        data[value] = input(prompts[value] + ": ")
-    b.spit_yaml(c.PARTICIPANT_FILE, data)
-    b.info(f"wrote '{c.PARTICIPANT_FILE}'. Now commit and push it.")
-    if not(metadata.get('instructors')):
+    sdrl.participant.Student.build_participant_file()
+    student = sdrl.participant.Student()
+    if not(student.course_metadata.get('instructors')):
         b.warning("No information about instructors present. Skipping key import.")
         return
-    gpgimportwarning = init_data.get('gpgimportwarning') or """
-        Next step is the import of the public keys from the instructors of the course.
+    gpgimportwarning = """
+        Next step is the import of the public keys of the course instructors.
         This is necessary to correctly show your progress.
         Press <Enter> to continue or Q <Enter> to abort:  """
     response = input(gpgimportwarning)
     if response and response in "Qq":
         b.critical("Abort.")
-    r.import_gpg_keys(metadata['instructors'])
+    r.import_gpg_keys(student.course_metadata['instructors'])
 
 
 def prepare_submission_file(course: sdrl.course.Course, root: str, 

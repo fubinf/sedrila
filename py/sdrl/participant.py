@@ -13,9 +13,16 @@ class Student:
     course_url: str  # SeDriLa homepage URL minus the '/index.html' part
     student_name: str
     student_id: str
-    partner_student_name: str
-    partner_student_id: str
+    student_gituser: str
+    partner_gituser: str
     metadata_url: str  # where to get JSON config
+    student_yaml_prompt_defaults = dict(
+        course_url="URL of course homepage: ",
+        student_name="Your full name (givenname familyname): ",
+        student_id="Your student ID: ",
+        student_gituser="Your git account name (git username): ",
+        partner_gituser="Your partner's git account name (or empty if you work alone): ",
+    )
 
     def __init__(self, rootdir='.'):
         self.root = rootdir
@@ -80,13 +87,24 @@ class Student:
             b.critical(f"JSON format error at '{url}'")
         return metadata
 
-    @staticmethod
-    def prompts(pdict):
-        pdict.setdefault('student_name', "Name")
-        pdict.setdefault('student_id', "ID")
-        pdict.setdefault('partner_student_name', "Partner's name")
-        pdict.setdefault('partner_student_id', "Partner's ID")
-        return pdict
+    @classmethod
+    def build_participant_file(cls):
+        b.info(f"Your following inputs will populate the file '{c.PARTICIPANT_FILE}'.")
+        # --- obtain course metadata:
+        course_url = os.path.dirname(input("Course URL: "))
+        course = Student.get_course_metadata(course_url)
+        # --- obtain prompts for all further attributes:
+        prompts = course.get('student_yaml_attributes', {})  # noqa
+        for key, prompt in cls.student_yaml_prompt_defaults.items():
+            if key not in prompts:
+                prompts[key] = prompt
+        participant_data = dict(course_url=course_url)
+        for value in prompts:
+            participant_data[value] = input(prompts[value])
+        b.spit_yaml(c.PARTICIPANT_FILE, participant_data)
+        b.info(f"Wrote '{c.PARTICIPANT_FILE}'.")
+        b.info("If you made any mistake, correct it with an editor now.")
+        b.info("Then commit the file and push the commit.")
 
     def _adjust_root(self):
         # grant students some slack. if they are calling from inside a working dir, it's fine.
