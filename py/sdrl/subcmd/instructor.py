@@ -48,7 +48,7 @@ def execute(pargs: argparse.Namespace):
         os.chdir("..")
         return
     student = sdrl.participant.Student()
-    course = sdrl.course.CourseSI(configdict=student.metadatadict, context=student.metadata_url)
+    course = sdrl.course.CourseSI(configdict=student.course_metadata, context=student.course_metadata_url)
     commits = git.commits_of_local_repo(reverse=True)
     r.compute_student_work_so_far(course, commits)
     entries, workhours_total, timevalue_total = r.student_work_so_far(course)

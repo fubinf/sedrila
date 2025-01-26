@@ -16,7 +16,6 @@ class Student:
     student_id: str
     student_gituser: str
     partner_gituser: str
-    metadata_url: str  # where to get JSON config
     student_yaml_prompt_defaults = dict(
         course_url="URL of course homepage: ",
         student_name="Your full name (givenname familyname): ",
@@ -49,12 +48,15 @@ class Student:
             self.course_url = self.course_url[:-len(homepage_explicitname)]  # leave only directory path
         if not self.course_url.endswith("/"):
             self.course_url += "/"  # make sure directory path ends with slash
-        self.metadata_url = f"{self.course_url}{c.METADATA_FILE}"
 
     @functools.cached_property
-    def metadatadict(self) -> b.StrAnyDict:
-        return self.get_metadata(self.course_url)
-    
+    def course_metadata(self) -> b.StrAnyDict:
+        return self.get_course_metadata(self.course_url)
+
+    @property
+    def course_metadata_url(self) -> b.StrAnyDict:
+        return self.get_course_metadata_url(self.course_url)
+
     @property
     def participantfile_path(self) -> str:
         return os.path.join(self.root, c.PARTICIPANT_FILE)
@@ -69,10 +71,10 @@ class Student:
         result.partner_student_id = "-"
         return result
 
-    @staticmethod    
-    def get_metadata(course_url: str) -> b.StrAnyDict:
+    @classmethod    
+    def get_course_metadata(cls, course_url: str) -> b.StrAnyDict:
         FILE_URL_PREFIX = 'file://'
-        url = os.path.join(course_url, c.METADATA_FILE)
+        url = cls.get_course_metadata_url(course_url)
         try:
             if url.startswith(FILE_URL_PREFIX):
                 jsontext = b.slurp(url[len(FILE_URL_PREFIX):])
@@ -87,6 +89,10 @@ class Student:
             metadata = dict()
             b.critical(f"JSON format error at '{url}'")
         return metadata
+
+    @classmethod    
+    def get_course_metadata_url(cls, course_url: str) -> str:
+        return os.path.join(course_url, c.METADATA_FILE)
 
     @classmethod
     def build_participant_file(cls):

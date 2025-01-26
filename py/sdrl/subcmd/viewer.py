@@ -181,7 +181,7 @@ class Context:
         course_set = set((wd.metadata.course_url for wd in self.workdirs if hasattr(wd.metadata, 'course_url')))
         if len(course_set) > 1:
             b.critical(f"All work dirs must come from the same course. I found several: {course_set}")
-        self.course = sdrl.course.CourseSI(configdict=student1.metadatadict, context=student1.metadata_url)
+        self.course = sdrl.course.CourseSI(configdict=student1.course_metadata, context=student1.course_metadata_url)
         self.is_instructor = args.instructor
         macroexpanders.register_macros(self.course)  # noqa
 

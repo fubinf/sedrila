@@ -108,7 +108,7 @@ def collect_events(repodirs: list[str]) -> list[repo.Event]:
         student_username = os.path.basename(repodir)
         with contextlib.chdir(repodir):
             student = sdrl.participant.Student()
-            course_json = student.get_metadata(student.course_url)
+            course_json = student.get_course_metadata(student.course_url)
             course = sdrl.course.CourseSI(course_json, student_username)
             commits = git.commits_of_local_repo()
             this_batch = repo.event_list(course, student_username, commits)

@@ -54,7 +54,7 @@ def execute(pargs: ap_sub.Namespace):
     b.info(f"Webserver starts. Visit 'http://localhost:{pargs.port}/'. Terminate with Ctrl-C.")
     b.set_register_files_callback(lambda s: None)  # in case student .md files contain weird macro calls
     student = sdrl.participant.Student()
-    course = sdrl.course.CourseSI(configdict=student.metadatadict, context=student.metadata_url)
+    course = sdrl.course.CourseSI(configdict=student.course_metadata, context=student.course_metadata_url)
     basedir = os.path.basename(os.getcwd())
     macroexpanders.register_macros(course)  # noqa
     server = SedrilaServer(('', pargs.port), SedrilaHTTPRequestHandler,
