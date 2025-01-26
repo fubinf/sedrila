@@ -109,12 +109,10 @@ class Workdir:
 
     @functools.cached_property
     def metadata(self) -> sdrl.participant.Student:
-        participantfile_path = os.path.join(self.topdir, c.PARTICIPANT_FILE)
-        if os.path.isfile(participantfile_path):
+        try:
             return sdrl.participant.Student(self.topdir)
-        else:
-            b.warning(f"'{participantfile_path}' not found, using dummy student description instead.")
-            return sdrl.participant.Student.dummy_participant()
+        except FileNotFoundError:
+            b.critical(f"{self.topdir}: '{c.PARTICIPANT_FILE}' not found.")
 
     @functools.cached_property
     def submission(self) -> set[str]:

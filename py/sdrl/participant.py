@@ -61,16 +61,6 @@ class Student:
     def participantfile_path(self) -> str:
         return os.path.join(self.root, c.PARTICIPANT_FILE)
     
-    @staticmethod
-    def dummy_participant() -> 'Student':
-        """Pseudo-Student with no root and no course_url/metadata_url."""
-        result = Student()
-        result.student_name = "N.N."
-        result.student_id = "some_id"
-        result.partner_student_name = "-"
-        result.partner_student_id = "-"
-        return result
-
     @classmethod    
     def get_course_metadata(cls, course_url: str) -> b.StrAnyDict:
         FILE_URL_PREFIX = 'file://'
