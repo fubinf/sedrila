@@ -9,6 +9,7 @@ import sdrl.constants as c
 
 
 class Student:
+    PROMPT_CONFIG_ATTR = 'student_yaml_attribute_prompts'
     root: str  # where PARTICIPANT_FILE lives
     course_url: str  # SeDriLa homepage URL minus the '/index.html' part
     student_name: str
@@ -94,7 +95,7 @@ class Student:
         course_url = os.path.dirname(input("Course URL: "))
         course = Student.get_course_metadata(course_url)
         # --- obtain prompts for all further attributes:
-        prompts = course.get('student_yaml_attributes', {})  # noqa
+        prompts = course.get(cls.PROMPT_CONFIG_ATTR, {})  # noqa
         for key, prompt in cls.student_yaml_prompt_defaults.items():
             if key not in prompts:
                 prompts[key] = prompt

@@ -101,6 +101,14 @@ About the entries:
   Special generation logic for SECTION and HINT is hardwired into sedrila,
   but WARNING, NOTICE, and INSTRUCTOR all follow the same logic and you can introduce further
   such macros if you want -- this is the reason why those three are all uppercase in sedrila.yaml.
+- `student_yaml_attribute_prompts`: Optional dictionary of pairs of attribute name and prompt to be used
+  for interactively populating the `student.yaml` student identification file 
+  during the `sedrila student --init` command.
+  The required attributes `course_url, student_name, student_id, student_gituser, partner_gituser`
+  have default prompts, which you can overwrite here.
+  (Exception: `course_url` cannot be overwritten, because the value is needed to make the customized prompts
+  available in the first place.)
+  You can add optional attributes.
 - `instructors`: The source of truth for who can give students credit 
   for their work. A list of dictionaries, each of which has the following entries:  
   `nameish`: the personal name or nickname of the instructor so students know who they can talk to,  
