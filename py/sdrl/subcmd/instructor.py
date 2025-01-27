@@ -1,8 +1,11 @@
 import argparse
+import contextlib
 import os
 import re
 import subprocess as sp
 import time
+
+import blessed
 
 import base as b
 import git
@@ -12,29 +15,75 @@ import sdrl.interactive as i
 import sdrl.participant
 import sdrl.repo as r
 
-meaning = """Help instructors evaluate a student's submission of several finished tasks.
+meaning = """Help instructors evaluate students' submissions of several finished tasks.
 """
 
 
 def add_arguments(subparser):
-    subparser.add_argument('repo_url', action=RepoUrlAction,
+    subparser.add_argument('workdir', nargs='*',
                            help="where to find student input")
-    subparser.add_argument('--get', default="True", action=argparse.BooleanOptionalAction,
-                           help="pull or clone student repo")
-    subparser.add_argument('--check', default="True", action=argparse.BooleanOptionalAction,
-                           help="perform actual checking via interactive mode or subshell")
-    subparser.add_argument('--put', default="True", action=argparse.BooleanOptionalAction,
-                           help="commit and push to student repo")
-    subparser.add_argument('--interactive', action=argparse.BooleanOptionalAction,
-                           help="open interactive terminal interface to approve or reject tasks")
-    subparser.add_argument('--override', action='store_true',
-                           help="allow overriding of previous faulty gradings")
     subparser.add_argument('--log', default="INFO", choices=b.loglevels.keys(),
                            help="Log level for logging to stdout (default: INFO)")
 
 
 def execute(pargs: argparse.Namespace):
     b.set_loglevel(pargs.log)
+    # ----- make sure directories exist:
+    for workdir in pargs.workdir:
+        if not os.path.isdir(workdir):
+            b.critical(f"directory '{workdir}' does not exist.")
+    # ----- menu-based command loop:
+    term = blessed.Terminal()
+    context = Context(pargs)
+    menu = "\n>>> p:pull v:viewer e:edit u:push q:quit   "
+    cmds = dict(p=cmd_pull, v=cmd_viewer, e=cmd_edit, u=cmd_push)
+    while True:
+        print(menu)
+        with term.cbreak():
+            cmdkey = term.inkey()
+        mycmd = cmds.get(cmdkey)
+        if mycmd:
+            mycmd(context)
+        elif str(cmdkey) == "q":
+            break
+
+
+class Context:
+    pargs: argparse.Namespace
+    students: sdrl.participant.Students  # attr may not yet be present
+
+    def __init__(self, pargs: argparse.Namespace):
+        self.pargs = pargs
+
+
+def cmd_pull(ctx: Context):
+    b.info("----- Pull student repos")
+    yesses = b.yesses("Pull '%s'?", ctx.pargs.workdir, yes_if_1=True)
+    for yes, workdir in zip(yesses, ctx.pargs.workdir):
+        if yes:
+            b.info(f"pulling '{workdir}':")
+            with contextlib.chdir(workdir):
+                git.pull()
+        else:
+            b.info(f"Not pulling '{workdir}'.")
+
+
+def cmd_viewer(ctx: Context):
+    b.info("----- Start viewer")
+    ...
+
+
+def cmd_edit(ctx: Context):
+    b.info(f"----- Edit '{c.PARTICIPANT_FILE}' files")
+    ...
+
+
+def cmd_push(ctx: Context):
+    b.info("----- Push student repos")
+    ...
+
+
+def _xxx_oldstuff(pargs):
     home_fallback = "."
     if os.environ.get(c.REPOS_HOME_VAR) is None:
         b.warning(f"Environment variable {c.REPOS_HOME_VAR} is not set. "
@@ -90,42 +139,6 @@ def allow_grading(course, opentasks, entry: r.ReportEntry, override: bool) -> bo
             (not task.is_accepted or opentasks[entry.taskname].endswith(c.SUBMISSION_ACCEPT_MARK)))
 
 
-def checkout_student_repo(repo_url, home, pull=True):
-    """Pulls or clones student repo and changes into its directory."""
-    inrepo = os.path.isdir(".git") and os.path.isfile("student.yaml")
-    if inrepo:
-        username = os.path.basename(os.getcwd())
-    else:
-        username = git.username_from_repo_url(repo_url)
-        os.chdir(home)
-    if os.path.exists(username) or inrepo:
-        if not inrepo:
-            os.chdir(username)
-        b.info(f"**** pulling repo in existing directory '{os.getcwd()}'")
-        if pull:
-            if repo_url:
-                existing = git.remote_url()
-                if repo_url != existing:
-                    print(repo_url)
-                    print(existing)
-                    b.error("user repo with other url already present. please resolve manually. aborting")
-                    return False
-            git.pull()
-        else:
-            b.warning("not pulling user repo, relying on existing state")
-    else:
-        if not pull:
-            b.warning("attempted to grade non-existing user without pulling.")
-            b.warning("ignore and clone regardless.")
-        git.clone(repo_url, username)
-        if os.path.exists(username):
-            os.chdir(username)
-        else:
-            b.critical(f"directory '{username}' not found")
-        b.info(f"**** cloned repo into new directory '{os.getcwd()}'")
-    return True
-
-
 def read_submission_file() -> dict[str, str]:
     return b.slurp_yaml(c.SUBMISSION_FILE)
 
@@ -163,8 +176,7 @@ def call_instructor_cmd(course: sdrl.course.Course, cmd: str,  # noqa
                         pargs: argparse.Namespace = None, iteration: int = 0):
     """Calls user-set command as indicated by environment variables"""
     if iteration == 0:
-        b.info(f"Will now call the command given in the {c.REPO_USER_CMD_VAR} environment variable or else")
-        b.info(f"the command given in the SHELL environment variable or else '{c.REPO_USER_CMD_DEFAULT}'.")
+        b.info(f"Will now call the command given in the SHELL environment variable or else '{c.REPO_USER_CMD_DEFAULT}'.")
         b.info(f"The resulting command in your case will be:\n  '{cmd}'")
         subshell_exit_info()
         b.info(f"Please change status of tasks in {c.SUBMISSION_FILE} to either {c.SUBMISSION_ACCEPT_MARK}\n"

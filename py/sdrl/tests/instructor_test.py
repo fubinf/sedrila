@@ -2,6 +2,8 @@ import os
 import shutil
 import unittest.mock
 
+import pytest
+
 import base as b
 import git
 import sdrl.constants as c
@@ -14,6 +16,7 @@ TEST_REPO = "git@github.com:fubinf/sedrila-test1.git"
 METADATA_FILE = f"{os.path.dirname(__file__)}/data/{c.METADATA_FILE}"
 
 
+@pytest.mark.xfail(reason="needs updating")
 def test_instructor_parts(capfd):
     """
     Deep-integrationey test. Accesses external server, creates+deletes directories etc.

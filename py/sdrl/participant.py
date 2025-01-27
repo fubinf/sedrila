@@ -51,7 +51,7 @@ class Student:
         return self.get_course_metadata(self.course_url)
 
     @property
-    def course_metadata_url(self) -> b.StrAnyDict:
+    def course_metadata_url(self) -> str:
         return self.get_course_metadata_url(self.course_url)
 
     @property
@@ -107,3 +107,7 @@ class Student:
         participantfile_found_one_level_higher = os.path.isfile(os.path.join('..', self.participantfile_path))
         if not participantfile_found and root_is_relative_path and participantfile_found_one_level_higher:
             self.root = ".."  # use PARTICIPANT_FILE from superdir
+
+
+class Students:
+    ...
