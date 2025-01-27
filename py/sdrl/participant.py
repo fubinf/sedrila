@@ -10,19 +10,19 @@ import sdrl.constants as c
 
 class Student:
     PROMPT_CONFIG_ATTR = 'student_yaml_attribute_prompts'
-    root: str  # where PARTICIPANT_FILE lives
-    course_url: str  # SeDriLa homepage URL minus the '/index.html' part
-    student_name: str
-    student_id: str
-    student_gituser: str
-    partner_gituser: str
-    student_yaml_prompt_defaults = dict(
+    STUDENT_YAML_PROMPT_DEFAULTS = dict(
         course_url="URL of course homepage: ",
         student_name="Your full name (givenname familyname): ",
         student_id="Your student ID: ",
         student_gituser="Your git account name (git username): ",
         partner_gituser="Your partner's git account name (or empty if you work alone): ",
     )
+    root: str  # where PARTICIPANT_FILE lives
+    course_url: str  # SeDriLa homepage URL minus the '/index.html' part
+    student_name: str
+    student_id: str
+    student_gituser: str
+    partner_gituser: str
 
     def __init__(self, rootdir='.'):
         self.root = rootdir
@@ -32,17 +32,14 @@ class Student:
         except FileNotFoundError:
             b.critical(f"cannot read '{c.PARTICIPANT_FILE}'")
         try:
-            self.course_url = data['course_url']  # noqa
-            assert isinstance(self.course_url, str)
-            self.student_name = data['student_name']
-            assert isinstance(self.student_name, str)
+            self.course_url = str(data['course_url'])  # noqa
+            self.student_name = str(data['student_name'])
             self.student_id = str(data['student_id'])
-            self.partner_student_name = data['partner_student_name']
-            assert isinstance(self.partner_student_name, str)
-            self.partner_student_id = str(data['partner_student_id'])
+            self.student_gituser = str(data['student_gituser'])
+            self.partner_gituser = str(data['partner_gituser'])
         except KeyError:
-            b.critical(f"malformed file '{c.PARTICIPANT_FILE}': must contain strings "
-                       "course_url, student_name, student_id, partner_student_name, partner_student_id.")
+            b.critical(f"malformed file '{c.PARTICIPANT_FILE}': must contain strings " +
+                       str([key for key in self.STUDENT_YAML_PROMPT_DEFAULTS]))
         homepage_explicitname = "index.html"
         if self.course_url.endswith(f"/{homepage_explicitname}"):
             self.course_url = self.course_url[:-len(homepage_explicitname)]  # leave only directory path
@@ -92,8 +89,8 @@ class Student:
         course = Student.get_course_metadata(course_url)
         # --- obtain prompts for all further attributes:
         prompts = course.get(cls.PROMPT_CONFIG_ATTR, {})  # noqa
-        for key, prompt in cls.student_yaml_prompt_defaults.items():
-            if key not in prompts:
+        for key, prompt in cls.STUDENT_YAML_PROMPT_DEFAULTS.items():
+            if key not in prompts and key != "course_url":
                 prompts[key] = prompt
         participant_data = dict(course_url=course_url)
         for value in prompts:
