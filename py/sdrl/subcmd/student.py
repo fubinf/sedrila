@@ -66,6 +66,13 @@ def init():
 
 def prepare_submission_file(course: sdrl.course.Course, root: str, 
                             entries: tg.Sequence[r.ReportEntry], interactive: bool = False):
+    student = sdrl.participant.Student('.')
+    repo_url = git.origin_remote_of_local_repo()
+    gituser = git.username_from_repo_url(repo_url)
+    if gituser != student.student_gituser:
+        b.warning(f"The username extracted from your git repo url, '{gituser}' is different from")
+        b.warning(f"the student_gituser in your {c.PARTICIPANT_FILE} file, '{student.student_gituser}'. "
+                  "This smells like trouble.")
     if interactive:
         entries = sorted(entries, key=lambda e: e.taskpath)  # sort by chapter+taskgroup
         entries = i.select_entries(entries)
@@ -79,7 +86,9 @@ def prepare_submission_file(course: sdrl.course.Course, root: str,
     b.info(f"1. Commit it with commit message '{c.SUBMISSION_COMMIT_MSG}'. Push it.")
     b.info(f"2. Then send the following to your instructor by email:")
     b.info(f"  Subject: Please check submission")
-    b.info(f"  sedrila instructor {git.origin_remote_of_local_repo()}")
+    # b.info(f"  git clone {repo_url} {username}")  # the git server's "access was granted" email should be enough
+    b.info(f"  sedrila instructor {gituser} {student.partner_gituser}")
+    b.info("Leave out your partner's git_username if you are not submitting concurrently.")
     show_instructors(course)
 
 
