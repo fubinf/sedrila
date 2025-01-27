@@ -6,6 +6,7 @@ import re
 import time
 import typing as tg
 
+import blessed
 import requests
 import rich
 import rich.progress
@@ -24,6 +25,7 @@ register_files_callback: tg.Callable[[str], None]
 OStr = tg.Optional[str]
 StrAnyDict = dict[str, tg.Any]  # JSON or YAML structure
 StrStrDict = dict[str, str]  # flat, string-only JSON or YAML structure
+T = tg.TypeVar('T')
 
 
 def set_loglevel(level: str):
@@ -192,6 +194,36 @@ def caller(how_far_up: int = 1) -> str:
 
 def plural_s(number, value="s") -> str:
     return value if number != 1 else ""
+
+
+def yesses(template: str, candidates: tg.Iterable[T], yes_if_1=False) -> list[T]:
+    """yesses("Want to %s?", ['eat','drink']) asks two yes/no questions and returns the item or None for each."""
+    term = blessed.Terminal()
+    result = []
+    automatic_char = None  # if not None, assume all subsequent input chars to be this
+    if yes_if_1:
+        candidates = list(candidates)
+        if len(candidates) == 1:
+            return candidates
+    for cand in candidates:
+        print(template % str(cand), "  (y,n,Y,N,?)\t", end='', flush=True)
+        with term.cbreak():
+            response = automatic_char or term.inkey()
+        if str(response) == 'y':
+            result.append(cand)
+        elif str(response) == 'n':
+            result.append(None)
+        elif str(response) == 'Y':
+            result.append(cand)
+            automatic_char = 'y'
+        elif str(response) == 'N':
+            result.append(None)
+            automatic_char = 'n'
+        else:
+            print("  y:yes n:no Y:yes-to-all N:no-to-all")
+            continue
+        print(str(response))
+    return result
 
 
 def Table() -> rich.table.Table:
