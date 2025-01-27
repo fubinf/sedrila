@@ -131,7 +131,6 @@ About the entries:
   `{userlist_commas}`: The list of usernames, separated by a comma.  
   `{userlist_spaces}`: The list of usernames, separated by a space.  
   `{userlist_quotes_spaces}`: The list of usernames, each enclosed in double quotes, separated by a space.
-- `init_data`: The prompts presented to the student in the dialog of `sedrila student --init`.
 - `allowed_attempts`: Students have a maximum number of times they can present a task
   until it must be accepted by the instructor, called the `allowed_attempts` of that task.
   If the task gets rejected that many times, it will never be accepted later on, i.e.,
