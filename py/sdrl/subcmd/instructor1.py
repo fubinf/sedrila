@@ -210,8 +210,9 @@ def validate_submission_file(course: sdrl.course.Course, filename: str) -> bool:
 
 def commit_and_push(filename: str):
     assert filename == c.SUBMISSION_FILE  # our only purpose here, the arg is for clarity
-    git.commit(*[filename], msg=f"{c.SUBMISSION_FILE} checked", signed=True)
-    git.push()
+    if b.yesses("Commit and push %s", [c.SUBMISSION_FILE])[0]:
+        git.commit(*[filename], msg=f"{c.SUBMISSION_FILE} checked", signed=True)
+        git.push()
 
 
 class RepoUrlAction(argparse.Action):  # allow repo_url to be optional without --
