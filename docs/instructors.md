@@ -4,9 +4,9 @@
 
 All commands assume a Bash shell.
 The sedrila tool assumes a Unix environment.
-Under Windows, use WSL.
+Under Windows, use WSL. `sedrila` does not work natively in Windows.
 
-### Set up `gpg`
+### 1.1 Set up `gpg`
 
 - Install `sedrila`
 - Install `gpg`:  
@@ -24,7 +24,7 @@ Under Windows, use WSL.
   you need to enter it again.  
   [HREF::https://superuser.com/questions/624343/keep-gnupg-credentials-cached-for-entire-user-session]
 
-### Make entry in `sedrila.yaml`
+### 1.2 Make entry in `sedrila.yaml`
 
 - Send the course organizer your `instructor` entry for your course's `sedrila.yaml`.
   Find a copy of `sedrila.yaml` at `https://courseserver.example.org/path/course/sedrila.yaml`
@@ -34,10 +34,12 @@ Under Windows, use WSL.
   The beginning and end line markers for the pubkey are optional.
 
 
-### Set up your workstation
+### 1.3 Set up your workstation
 
 Those steps are quality of life aspects only. You can use sedrila without having done this if you
 are in an environment where they might cause any issues, even though there shouldn't be any.
+
+#### 1.3.1a Old version (soon to be removed, to be used with `instructor1`)
 
 - During your work as instructor of a sedrila course, 
   you need a directory tree into which you will clone and checkout the git repositories
@@ -57,8 +59,40 @@ are in an environment where they might cause any issues, even though there shoul
 - By default, sedrila will spawn a subshell for you to work in during grading. If you want to use
   another command than that, set `SEDRILA_INSTRUCTOR_COMMAND` environment variable accordingly.
 
+#### 1.3.1b New version 
+
+- During your work as instructor of a sedrila course, 
+  you need a directory tree into which you will clone and checkout the git repositories
+  of all participating students.
+  If you work for several such courses, their student directories need to be kept separate.
+  Therefore, create a single root-level directory called as you like (e.g. `sedrila/`)
+  and create a per-course top-level directory within it, named after the month in which the
+  course started (e.g. `2026-04/` for a course starting in April 2026).
+- When you call `sedrila instructor`, you need to be in one of these directories.
+- Extend your `.bashrc` (or rather `.bash_profile`, if you have one) to set the
+  environment variable `EDITOR` to point to the text editor you want to use when 
+  `sedrila` starts one. Example: `EDITOR=/usr/bin/emacs`.
+
+
+### 1.4 Receiving the student repos
+
+- The SeDriLa needs to tell the students to create a git repo on some git server
+  and provide read and push rights to each instructor named in the course.
+- When they do this, the git server will send you an email message with a link to the repo,
+  typically also containing instructions how to clone the repo.
+  DO NOT FOLLOW THOSE INSTRUCTIONS AS THEY STAND!
+- For use with `sedrila`, we need to clone the repos into a working directory that is
+  named according to the students' git username (not the repo name as would be the default;
+  those repos will mostly have similar names).  
+  So instead of `git clone git@github.com:myaccount/mysedrilacourse.git`  
+  do a `git clone git@github.com:myaccount/mysedrilacourse.git myaccount`  
+- You need to perform these clone operations manually before you can work on those students' repos
+  using `sedrila`.
+
 
 ## 2. Checking a submission  
+
+### 2.1a Old version (soon to be removed, to be used with `instructor1`)
 
 1. Generally speaking, checking a submission is conceptually split into three steps, each of which 
 can be skipped via corresponding arguments to `sedrila instructor`.
@@ -101,3 +135,26 @@ count as ACCEPT instead.
 There is an `--override` argument that will make the interactive mode only show
 previous tasks and will automatically add the required prefix. This will also
 work as an argument in the subshell, i.e. `sedrila --override` will work.
+
+### 2.1b New version
+
+Call `sedrila instructor student1 student2`,
+where `student1` and `student2` are two students' git usernames
+and therefore also the names of directories in the course-level top directory
+in which the call needs to be made.  
+You can call `sedrila` with any number of directories theoretically,
+but the ideal case is two, where these students form a work pair and make
+corresponding submissions at the same time.
+Working with more than four directories at once is hardly practical.
+
+- When `sedrila` starts, it will ask, for each directory, whether it should `git pull` the repo.
+  Usually your answer is yes if there is a fresh submission, but perhaps no upon continueing calls later.
+- `sedrila` provides a simple menu-driven command loop for calling various tools for
+  marking submission items as accepted or rejected: 
+    - the `sedrila viewer` (used in the browser and usually the nicest choice once 
+      accept/reject functionality will be implemented which right now it is not)
+    - interactive dialog in the terminal
+    - the text editor of your choice
+- When you are done, select `push` to commit and push some or all of the submissions.
+
+(Some details from the above Old version are also relevant for the New version.)
