@@ -41,4 +41,7 @@ if __name__ == "__main__":
             print(str(ex))
             pdb.post_mortem()
     else:
-        main()  # normal life
+        try:
+            main()  # normal life
+        except KeyboardInterrupt:
+            pass  # quit silently
