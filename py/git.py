@@ -35,10 +35,8 @@ def commit(*filenames, msg, **kwargs):
     os.system(f"git commit {'-S ' if signed else ''}-m'{msg}'")
 
 
-def commits_of_local_repo(reverse=False, with_insertions_deletions=False) -> tg.Sequence[Commit]:
+def commits_of_local_repo(reverse=False) -> tg.Sequence[Commit]:
     """Returns all commits in youngest-first order (like git log), or reversed."""
-    if with_insertions_deletions:
-        return commits_of_local_repo_with_insertions_deletions(reverse)
     gitcmd = ["git", "log", f"--format=format:{LOG_FORMAT}"]
     gitrun = sp.run(gitcmd, capture_output=True, encoding='utf8', text=True)
     result = []
@@ -46,35 +44,6 @@ def commits_of_local_repo(reverse=False, with_insertions_deletions=False) -> tg.
         hash_, email, tstamp, fngrprnt, subj = tuple(line.split(LOG_FORMAT_SEPARATOR))
         c = Commit(hash_, email, dt.datetime.fromtimestamp(int(tstamp), tz=dt.timezone.utc),
                    fngrprnt, subj)
-        result.append(c)
-    return list(reversed(result)) if reverse else result
-
-
-def commits_of_local_repo_with_insertions_deletions(reverse=False):
-    gitcmd = ["git", "log", f"--format=format:{LOG_FORMAT}", "--shortstat"]
-    # produces a 3-line block per commit:
-    # d0ac3d8 author@domain       1725618158              Testabgrenzung.md: feedback to question the need for this task again at the end
-    #  1 file changed, 2 insertions(+), 1 deletion(-)
-    # 
-    # where line 1 is TAB-delimited, line2 is text in varying formats, and line3 is empty.
-    gitrun = sp.run(gitcmd, capture_output=True, encoding='utf8', text=True)
-    result = []
-    for block in gitrun.stdout.split('\n\n'):
-        print("#####", block, block.split('\n'))
-        lines = block.split('\n')  # infoline, statline, emptyline
-        hash_, email, tstamp, fngrprnt, subj = tuple(lines[0].split(LOG_FORMAT_SEPARATOR))
-        mm = re.search(r'((?P<files>\d+) file.+)?((?P<insertions>\d+) insertion.+)?((?P<deletions>\d+) deletion)?',
-                       lines[1])
-        if mm:
-            files = int(mm.group("files")) if mm.group("files") else 0
-            insertions = int(mm.group("insertions")) if mm.group("insertions") else 0
-            deletions = int(mm.group("deletions")) if mm.group("deletions") else 0
-        else:
-            files = insertions = deletions = 0
-        c = Commit(hash_, email, 
-                   dt.datetime.fromtimestamp(int(tstamp), tz=dt.timezone.utc),
-                   fngrprnt, subj,
-                   files, insertions, deletions)
         result.append(c)
     return list(reversed(result)) if reverse else result
 
@@ -108,7 +77,7 @@ def pull(silent=False):
             pull_output = sp.check_output("git pull --ff-only", 
                                           stderr=sp.STDOUT, shell=True).decode('utf8')
         except sp.CalledProcessError as err:
-            print(err.stdout)
+            print(err.stdout)  # TODO 2: or should we terminate with b.critical()?
     else:
         os.system("git pull --ff-only")
 
