@@ -43,29 +43,23 @@ The files lists in `pyproject.toml` must be corrected.
 
 ### 1.2 `instructor`: Handling instructors' trees of student repos
 
-- Process `SEDRILA_INSTRUCTOR_COURSE_URLS` as described in the instructor documentation.
-- `sedrila instructor` should keep a JSON file `student_course_urls.json` that maps student usernames
-  to the course URL first seen for that student, because if a student ever changed
-  the URL in the `student.yaml`, prior signed commits of instructors might become 
-  invalid semantically if the new course has a different set of tasks.  
-  The map is added to when a `student.yaml` is first seen
-  and checked against at each later time.  
-  Note that a student taking part a second time, with a fresh repo,
-  might require manual editing of that JSON file to remove that entry.
-- Better yet, there could be an option `sedrial instructor --allow-repo2` that 
-  performs that editing automatically
-  and also checks that the new repo contains no instructor-signed commits.
-- Command `sedrila instructor --clean-up-repos-home`
-  to clean up instructor work directory trees-of-trees
-  by deleting all level-1 subtrees in which the `student.yaml`
-  has a `course_url` that is not mentioned in the 
-  `SEDRILA_INSTRUCTOR_COURSE_URLS`environment variable.
-  This option should ask a safety question before starting to work.
-- Add `sedrila instructor --http` which presents the local directory tree to localhost as follows:
-    - Show directory, each file is a hyperlink, including `..` (except in the starting directory)
-    - *.md files get rendered as Markdown
-    - *.txt files get shown verbatim
-    - *.py file contents are Markdown-rendered as a Python code block. Ditto for other languages.
+- Remove  `REPOS_HOME_VAR`, `REPO_USER_CMD_VAR`, `REPO_USER_CMD_DEFAULT`
+  and their values' mentions in the documentation.
+- Add `participants_file` (a CSV file) to `sedrila.yaml`, 
+  export its `student_id` and `student_gituser` columns to the website's `/instructor/participants.json`, and 
+  use it to warn upon submissions from students not admitted to the course.
+- Reject submissions where `course_url` is different from what it was in that repo's first accepted submission.
+- after filtering, create `submission.yaml` backup copy and then use that.
+  Do not overwrite it upon subsequent calls!
+  Move it back only upon push.
+- `viewer`: add accepting/rejecting tasks
+- Do we really need the terminal version then? It's a headache!
+
+
+### 1.3 `student`
+
+- Is the menu command loop a good idea for `student` as well?
+- At least provide a viewer that can select available tasks for submission.
 
 
 ## 2. Development process: TODO-handling during development
