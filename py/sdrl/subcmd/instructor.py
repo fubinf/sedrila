@@ -70,8 +70,16 @@ def cmd_edit(ctx: sdrl.participant.Context):
 
 
 def cmd_push(ctx: sdrl.participant.Context):
-    b.info("----- Push student repos")
-    ...
+    b.info("----- Commit and push student repos")
+    yesses = b.yesses("Commit & Push '%s'?", ctx.students)
+    for yes, workdir in zip(yesses, ctx.students):
+        if yes:
+            b.info(f"Committing and pushing '{workdir}/{c.SUBMISSION_FILE}'")
+            with contextlib.chdir(workdir):
+                git.commit(*[c.SUBMISSION_FILE], msg=f"{c.SUBMISSION_FILE} checked", signed=True)
+                git.push()
+        else:
+            b.info(f"Not committing '{workdir}/{c.SUBMISSION_FILE}'.")
 
 
 def pull_some_repos(workdirs: tg.Iterable[str]):
