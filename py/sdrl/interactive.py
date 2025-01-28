@@ -73,7 +73,7 @@ def select_entries(entries: tg.Sequence[r.ReportEntry]) -> tg.Sequence[r.ReportE
     """Return only those entries the user interactively keeps checked."""
     selected = {entry.taskname: True for entry in entries}
     filter_entries(entries, selected, None, None)
-    return [entry for entry in entries if selected[entry]]
+    return [entry for entry in entries if selected[entry.taskname]]
 
 
 def grade_entries(entries: list[r.ReportEntry], course_url: str, override: bool, filter_method=filter_entries
