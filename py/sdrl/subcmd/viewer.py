@@ -7,11 +7,7 @@ viewer TODO 2 list:
 - add accept/reject logic to viewer 
 """
 import base64
-import functools
-import itertools
 import os
-import pathlib
-import re
 import subprocess
 
 import argparse_subcommand as ap_sub
@@ -46,7 +42,7 @@ g0QiEb4faPnc3d19MqYYJqJNKBSjXUByK5VKngZaTNSWw8ND1Go1MZgdZyQToGxyOy0dmoZMJoPp
 6WlEo1HJ4JJNKCDQVb21tcWPz8/PSCQSks0neQ98fD3q++TkJJ6enng1Cx8hUmUYqAUEIlxQl5eX
 OD8/l4r7fn5gAmRGuvvJiPTxMWgMTGBQwI95QwJDBX5dgT/hoVUQturVFQAAAABJRU5ErkJggg=="""
 favicon32x32_png = base64.b64decode(favicon32x32_png_base64)
-context: 'Context'  # global data
+get_context = sdrl.participant.get_context  # abbreviation
 
 
 def add_arguments(subparser: ap_sub.ArgumentParser):
@@ -54,8 +50,8 @@ def add_arguments(subparser: ap_sub.ArgumentParser):
                            help=f"webserver will listen on this port (default: {DEFAULT_PORT})")
     subparser.add_argument('--instructor', '-i', action='store_true', default=False,
                            help="generate task links to the instructor versions (not the student versions)")
-    subparser.add_argument('dir', type=str, nargs='*',
-                           help="short relative path of student workdir to be browsed")
+    subparser.add_argument('workdir', type=str, nargs='*',
+                           help="short relative paths of student workdirs to be browsed")
 
 
 def execute(pargs: ap_sub.Namespace):
@@ -63,178 +59,21 @@ def execute(pargs: ap_sub.Namespace):
     pargs.workdir = [wd.rstrip('/') for wd in pargs.workdir]  # make names canonical
     if not pargs.workdir:
         pargs.workdir = ['.']
+    if pargs.instructor:
+        context = sdrl.participant.make_context(pargs, pargs.workdir, sdrl.participant.Student, 
+                                                with_submission=True, show_size=True, is_instructor=True)
+    else:
+        context = sdrl.participant.make_context(pargs, pargs.workdir, sdrl.participant.StudentS, 
+                                                with_submission=False, show_size=False, is_instructor=False)
+    run_viewer(context)
+
+
+def run_viewer(ctx: sdrl.participant.Context):
     b.set_register_files_callback(lambda s: None)  # in case student .md files contain weird macro calls
-    global context
-    context = Context(pargs)
-    # dump()
-    # b.critical("STOP.")
-    b.info(f"Webserver starts. Visit 'http://localhost:{pargs.port}/'. Terminate with Ctrl-C.")
-    try:
-        bottle.run(host='localhost', port=pargs.port, debug=DEBUG, reloader=DEBUG)
-    except KeyboardInterrupt:
-        print("  sedrila viewer terminated.")
-
-
-def dump():
-    global context
-    for wd in context.workdirs:
-        stud = wd.metadata
-        b.info(f"\n===== {stud.root}: {stud.student_name}")
-        print(f"--Paths:\t{list(wd.pathset)[:3]}...{list(wd.pathset)[-3:]} ({len(wd.pathset)} total)")
-        print(f"--{c.SUBMISSION_FILE}:\t{wd.submission} ({len(wd.submission)} total)")
-        print(f"--submission_re:\t{wd.submission_re.pattern}")
-        print(f"--submission files:\t{list(wd.submission_pathset)[:3]}...{list(wd.submission_pathset)[-3:]} "
-              f"({len(wd.submission_pathset)} total)")
-    b.info(f"\n===== Context")
-    print(sorted(context.submission_pathset))
-
-
-class Workdir:
-    """Represents and handles one student working directory. Its top is the root of the virtual file system."""
-    topdir: str  # name of workdir as given on commandline
-
-    def __init__(self, topdir: str):
-        self.topdir = topdir = topdir.rstrip('/')  # avoid trouble with non-canonical names
-        if not os.path.exists(topdir):
-            b.critical(f"'{topdir}' does not exist.")
-        elif not os.path.isdir(topdir):
-            b.critical(f"'{topdir}' must be a directory.")
-        b.info(f"'{self.topdir}':\t{len(self.pathset)} files\t{len(self.submission)} submissions")
-
-    @functools.cached_property
-    def pathset(self) -> set[str]:
-        """file pathnames within topdir"""
-        raw_pathlist = (str(p) for p in pathlib.Path(self.topdir).glob('**/*')
-                        if '/.git/' not in str(p) and p.is_file())
-        start = len(self.topdir)  # index after 'topdir/' in each path, except it includes the slash
-        return set((p[start:] for p in raw_pathlist))
-
-    @functools.cached_property
-    def metadata(self) -> sdrl.participant.Student:
-        try:
-            return sdrl.participant.Student(self.topdir)
-        except FileNotFoundError:
-            b.critical(f"{self.topdir}: '{c.PARTICIPANT_FILE}' not found.")
-
-    @functools.cached_property
-    def submission(self) -> set[str]:
-        """tasknames from c.SUBMISSION_FILE (or empty if none)"""
-        submissionfile_path = os.path.join(self.topdir, c.SUBMISSION_FILE)
-        if not os.path.isfile(submissionfile_path):
-            b.warning(f"'{submissionfile_path}' not found, using an empty set of submissions instead.")
-            return set()
-        submission_yaml = b.slurp_yaml(submissionfile_path)
-        return set(submission_yaml.keys())
-
-    @functools.cached_property
-    def submission_pathset(self) -> set[str]:
-        """paths with names matching submitted tasks"""
-        return self._submission_pathset_and_remaining_submissions[0]
-
-    @functools.cached_property
-    def _submission_pathset_and_remaining_submissions(self) -> tuple[set[str], set[str]]:
-        """paths with names matching submitted tasks & this"""
-        paths_matched, submissions_matched = set(), set()
-        for p in self.pathset:
-            mm = self.submission_re.search(p)
-            if mm:
-                paths_matched.add(p)
-                submissions_matched.add(mm.group())
-        remaining_submissions = self.submission - submissions_matched
-        return paths_matched, remaining_submissions
-
-    @functools.cached_property
-    def submission_re(self) -> re.Pattern:
-        """regexp matching the name of any submitted task"""
-        items_re = '|'.join([re.escape(item) for item in sorted(self.submission)])
-        return re.compile(f"\\b{items_re}\\b")  # match task names only as words or multiwords
-
-    @functools.cached_property
-    def submissions_remaining(self) -> set[str]:
-        """submissions not matched by paths"""
-        return self._submission_pathset_and_remaining_submissions[1]
-
-    def exists(self, path: str) -> bool:
-        return path in self.pathset
-
-    def actualpath(self, path: str) -> str:
-        """Turns the absolute virtual path into a physical path."""
-        assert path[0] == '/'
-        return os.path.join(self.topdir, path[1:])
-
-    def actualsize(self, path: str) -> int:
-        return pathlib.Path(self.actualpath(path)).stat().st_size
-
-
-class Context:
-    """The virtual filesystem that is being browsed: the merged union of the student Workdirs."""
-    # cssfile: b.OStr  # TODO 2: argument of --cssfile
-    course: sdrl.course.CourseSI
-    is_instructor: bool
-    workdirs: list[Workdir]  # list of student dirs, forming implicit pairs (0, 1), (2, 3), ...
-    
-    def __init__(self, args: ap_sub.Namespace):
-        self.workdirs = [Workdir(topdir) for topdir in args.dir]
-        student1 = self.workdirs[0].metadata
-        if not hasattr(student1, 'course_url'):
-            b.critical(f"'{args.dir[0]}' must have a {c.PARTICIPANT_FILE}, because we need a course URL")
-        course_set = set((wd.metadata.course_url for wd in self.workdirs if hasattr(wd.metadata, 'course_url')))
-        if len(course_set) > 1:
-            b.critical(f"All work dirs must come from the same course. I found several: {course_set}")
-        self.course = sdrl.course.CourseSI(configdict=student1.course_metadata, context=student1.course_metadata_url)
-        self.is_instructor = args.instructor
-        macroexpanders.register_macros(self.course)  # noqa
-
-    @functools.cached_property
-    def course_url(self) -> str:
-        return self.workdirs[0].metadata.course_url
-
-    @functools.cached_property
-    def pathset(self) -> set[str]:
-        """file pathnames present in any Workdir"""
-        return set(itertools.chain.from_iterable((wd.pathset for wd in self.workdirs)))
-
-    @functools.cached_property
-    def submission(self) -> set[str]:
-        """union of submitted tasknames"""
-        return set(itertools.chain.from_iterable((wd.submission for wd in self.workdirs)))
-
-    @functools.cached_property
-    def submission_pathset(self) -> set[str]:
-        """union of submission_pathsets"""
-        return set(itertools.chain.from_iterable((wd.submission_pathset for wd in self.workdirs)))
-
-    @functools.cached_property
-    def submission_re(self) -> re.Pattern:
-        """regexp matching the name of any submitted task"""
-        items_re = '|'.join([re.escape(item) for item in sorted(self.submission)])
-        return re.compile(f"\\b({items_re})\\b")  # match task names only as words or multiwords
-
-    @functools.cached_property
-    def submissions_remaining(self) -> set[str]:
-        """submissions not matched (in at least one Workdir) by paths"""
-        return set(itertools.chain.from_iterable((wd.submissions_remaining for wd in self.workdirs)))
-
-    def ls(self, dirname: str) -> tuple[set[str], set[str]]:
-        """dirs, files = ls("/some/dir/")  somewhat like the Unix ls command"""
-        assert dirname.endswith('/')
-        dirs, files = set(), set()
-        start = len(dirname)  # index of 'local' (within dirname) part of pathname
-        for path in self.pathset:
-            if not path.startswith(dirname):  # not our business
-                continue
-            localpath = path[start:]
-            slashpos = localpath.find("/")
-            slash_found = slashpos > -1
-            if slash_found:
-                dirs.add(localpath[:slashpos+1])  # adding it again makes no difference
-            else:
-                files.add(localpath)
-        return dirs, files
-
-    def workdir(self, workdirname: str) -> Workdir:
-        candidates = [wd for wd in self.workdirs if wd.topdir == workdirname]
-        return candidates[0]  # rightfully crash for nonexisting name
+    macroexpanders.register_macros(ctx.course)  # noqa
+    port = getattr(ctx.pargs, 'port', DEFAULT_PORT)
+    b.info(f"Webserver starts. Visit 'http://localhost:{port}/'. Terminate with Ctrl-C.")
+    bottle.run(host='localhost', port=port, debug=DEBUG, reloader=False)
 
 
 basepage_html = """<!DOCTYPE html>
@@ -275,7 +114,6 @@ tr.odd {
 
 @bottle.route("/")
 def serve_root():
-    global context
     body = "%s\n\n%s\n\n%s" % (
         html_for_submissionrelated_files(),
         html_for_remaining_submissions(),
@@ -283,7 +121,7 @@ def serve_root():
     )
     pagetext = basepage_html.format(
         title=f"viewer",
-        csslinks=html_for_csslinks(context.course_url),
+        csslinks=html_for_csslinks(get_context().course_url),
         body=body
     )
     return pagetext
@@ -303,10 +141,9 @@ def serve_css():
 
 @bottle.route("<mypath:path>/")
 def serve_directory(mypath: str):
-    global context
     pagetext = basepage_html.format(
         title=f"viewer",
-        csslinks=html_for_csslinks(context.course_url),
+        csslinks=html_for_csslinks(get_context().course_url),
         body=html_for_directorylist(f"{mypath}/")
     )
     return pagetext
@@ -319,16 +156,15 @@ def serve_vfile(mypath: str):
     body = html_for_file(f"{mypath}")
     pagetext = basepage_html.format(
         title=f"viewer",
-        csslinks=html_for_csslinks(context.course_url),
+        csslinks=html_for_csslinks(get_context().course_url),
         body=body
     )
     return pagetext
 
 
 def handle_rawfile(mypath: str, workdir: str):
-    global context
-    wd = context.workdir(workdir)
-    return bottle.static_file(wd.actualpath(mypath), root='.')
+    wd = get_context().students[workdir]
+    return bottle.static_file(wd.path_actualpath(mypath), root='.')
 
 
 def html_for_breadcrumb(path: str) -> str:
@@ -359,8 +195,7 @@ def html_for_csslinks(course_url: str) -> str:
 
 def html_for_directorylist(mypath, breadcrumb=True) -> str:
     """A page listing the directories and files under mypath in the virtual filesystem."""
-    global context
-    dirs, files = context.ls(mypath)
+    dirs, files = get_context().ls(mypath)
     lines = [html_for_breadcrumb(mypath) if breadcrumb else ""]  # noqa
     lines.append(f"<h1 {CSS}>Contents of '{mypath}'</h1>")
     lines.append(f"<h2 {CSS}>Subdirectories</h2>")
@@ -390,7 +225,6 @@ def html_for_file(mypath) -> str:
     Page body showing each Workdir's version (if existing) of file mypath, and pairwise diffs where possible.
     We create this as a Markdown page, then render it.
     """
-    global context
     SRC = 'src'
     BINARY = 'binary'
     MISSING = 'missing'
@@ -413,7 +247,7 @@ def html_for_file(mypath) -> str:
         elif suffix == '.prot':
             lines.append(macroexpanders.prot_html(content))
         elif not suffix or suffix[1:] in binaryfile_suffixes:
-            lines.append(f"<a href='?raw={workdir.topdir}'>{workdir.actualpath(mypath)}</a>")
+            lines.append(f"<a href='?raw={workdir.topdir}'>{workdir.path_actualpath(mypath)}</a>")
             kinds.append(BINARY)
             return
         else:  # any other suffix: assume this is a sourcefile 
@@ -426,14 +260,14 @@ def html_for_file(mypath) -> str:
         kinds.append(SRC)
 
     def append_diff():
-        prevdir = context.workdirs[idx-1]  # previous workdir
+        prevdir = get_context().studentlist[idx-1]  # previous workdir
         toc.append(f"<a href='#diff-{prevdir.topdir}-{workdir.topdir}'>diff</a>  ")
         lines.append(f"<h2 id='diff-{prevdir.topdir}-{workdir.topdir}' {CSS}"
                      f">{idx-1}/{idx}. diff {prevdir.topdir}/{workdir.topdir}</h2>")
         if kinds[-2:] != [SRC, SRC]:
             lines.append("No diff shown. It requires two source files, which we do not have here.")
             return
-        diff_output = diff_files(prevdir.actualpath(mypath), workdir.actualpath(mypath))
+        diff_output = diff_files(prevdir.path_actualpath(mypath), workdir.path_actualpath(mypath))
         lines.append("\n```diff")
         lines.append(diff_output)
         lines.append("```")
@@ -442,10 +276,10 @@ def html_for_file(mypath) -> str:
     kinds = []  # which files are SRC, BINARY, or MISSING
     lines = []  # noqa, some entries will be entire file contents, not single lines
     toc = []
-    for idx, workdir in enumerate(context.workdirs):
+    for idx, workdir in enumerate(get_context().studentlist):
         toc.append(f"<a href='#{workdir.topdir}'>{idx}. {workdir.topdir}</a>  ")
         lines.append(f"<h2 id='{workdir.topdir}' {CSS}>{idx}. {workdir.topdir}: {filename}</h2>")
-        if not workdir.exists(mypath):
+        if not workdir.path_exists(mypath):
             lines.append(f"(('{mypath}' does not exist in '{workdir.topdir}'))")
             kinds.append(MISSING)
         else:
@@ -465,19 +299,18 @@ def html_for_file(mypath) -> str:
 
 def html_for_file_existence(mypath: str) -> str:
     """One or more table column entries with file existence markers for each file or file pair."""
-    global context
     BEGIN = f'<td {CSS}>'
     END = '</td>'
     MISSING = '-- '
     entries = [BEGIN]
-    for idx, wd in enumerate(context.workdirs):
-        if wd.exists(mypath):
+    for idx, wd in enumerate(get_context().studentlist):
+        if wd.path_exists(mypath):
             entries.append(f"{str(idx)} ")
         else:
             entries.append(MISSING)
         if idx % 2 == 1:  # finish a pair
             if entries[-1] != MISSING and entries[-2] != MISSING:  # both files are present
-                size_even, size_odd = prev_wd.actualsize(mypath), wd.actualsize(mypath)  # noqa
+                size_even, size_odd = prev_wd.path_actualsize(mypath), wd.path_actualsize(mypath)  # noqa
                 if size_even > 1.5*size_odd:
                     sign = ">>"
                 elif size_even > size_odd:
@@ -505,14 +338,13 @@ def html_for_remaining_submissions() -> str:
     def html_for_remainingness(subm: str) -> str:
         MISSING = '-- '
         parts = []
-        for idx2, wd in enumerate(context.workdirs):
+        for idx2, wd in enumerate(get_context().studentlist):
             parts.append(f"{str(idx2)} " if subm in wd.submissions_remaining else MISSING)    
         return ''.join(parts)
 
-    global context
     lines = [f"<h1 {CSS}>Submissions not covered above</h1>", 
              f"<table {CSS}>"]
-    for idx, submission in enumerate(sorted(context.submissions_remaining)):
+    for idx, submission in enumerate(sorted(get_context().submissions_remaining)):
         lines.append(f"{tr_tag(idx)}"
                      f"<td {CSS}>{submission}</td>"
                      f"<td {CSS}>{html_for_remainingness(submission)}</td>"
@@ -523,10 +355,9 @@ def html_for_remaining_submissions() -> str:
 
 
 def html_for_submissionrelated_files() -> str:
-    global context
     lines = [f"<h1 {CSS}>Files with submission-related names</h1>", 
              f"<table {CSS}>"]
-    for idx, mypath in enumerate(sorted(context.submission_pathset)):
+    for idx, mypath in enumerate(sorted(get_context().submission_pathset)):
         lines.append(f"{tr_tag(idx)}"
                      f"<td {CSS}><a href='{mypath}'>{mypath}</a></td>"
                      f"{html_for_file_existence(mypath)}"
@@ -537,7 +368,7 @@ def html_for_submissionrelated_files() -> str:
 
 
 def html_for_tasklink(str_with_taskname: str) -> str:
-    global context
+    context = get_context()
     mm = context.submission_re.search(str_with_taskname)
     instructorpart = "instructor/" if context.is_instructor else ""
     return f"<a href='{context.course_url}{instructorpart}{mm.group()}.html'>task</a>" if mm else ""
