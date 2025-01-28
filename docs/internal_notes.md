@@ -73,3 +73,21 @@ so that the build can proceed type-by-type forwards through that ordering.
 `directory.py` therefore maintains a directory of all entries accessible separately for each type.
 
 The method-level design of the build is documented at the top of `elements.py`.
+
+
+## Layering
+
+Import dependencies between modules should obey the following layering, 
+from lowest to highest:
+
+- Layer 0 (basic modules): `base`
+- Layer 1 (domain-independent modules): `cache`, `git`
+- Layer 2 (domain model):
+    - 2.1 basic parts: `sdrl.constants`, `sdrl.html`
+    - 2.2 technology-centric parts: `sdrl.repo`, `sdrl.interactive`, `sdrl.macros`, `sdrl.markdown`, `sdrl.argparser`
+    - 2.3 authoring: `sdrl.macroexpanders`, `sdrl.replacements`, `sdrl.glossary`
+    - 2.4 build mechanism: `sdrl.elements`, `sdrl.directory`, `sdrl.partbuilder`
+- Layer 3 (integration layer): `sdrl.course`, `sdrl.participant`
+- Layer 4 (control layer, main business logic): `sdrl.subcmd.*`
+
+TODO 3: use deply for actual checks of correct layering
