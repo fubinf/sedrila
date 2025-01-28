@@ -54,19 +54,21 @@ def add_arguments(subparser: ap_sub.ArgumentParser):
                            help=f"webserver will listen on this port (default: {DEFAULT_PORT})")
     subparser.add_argument('--instructor', '-i', action='store_true', default=False,
                            help="generate task links to the instructor versions (not the student versions)")
-    subparser.add_argument('dir', type=str, nargs='+',
+    subparser.add_argument('dir', type=str, nargs='*',
                            help="short relative path of student workdir to be browsed")
 
 
 def execute(pargs: ap_sub.Namespace):
     b.set_loglevel('INFO')
+    pargs.workdir = [wd.rstrip('/') for wd in pargs.workdir]  # make names canonical
+    if not pargs.workdir:
+        pargs.workdir = ['.']
     b.set_register_files_callback(lambda s: None)  # in case student .md files contain weird macro calls
     global context
     context = Context(pargs)
     # dump()
     # b.critical("STOP.")
     b.info(f"Webserver starts. Visit 'http://localhost:{pargs.port}/'. Terminate with Ctrl-C.")
-    b.warning("Incomplete development version.")
     try:
         bottle.run(host='localhost', port=pargs.port, debug=DEBUG, reloader=DEBUG)
     except KeyboardInterrupt:
