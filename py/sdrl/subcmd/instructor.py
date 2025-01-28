@@ -4,6 +4,7 @@ import os
 import re
 import subprocess as sp
 import time
+import typing as tg
 
 import blessed
 
@@ -14,6 +15,7 @@ import sdrl.course
 import sdrl.interactive as i
 import sdrl.participant
 import sdrl.repo as r
+import sdrl.subcmd.viewer as viewer
 
 meaning = """Help instructors evaluate students' submissions of several finished tasks.
 """
@@ -28,38 +30,54 @@ def add_arguments(subparser):
 
 def execute(pargs: argparse.Namespace):
     b.set_loglevel(pargs.log)
-    # ----- make sure directories exist:
-    for workdir in pargs.workdir:
-        if not os.path.isdir(workdir):
-            b.critical(f"directory '{workdir}' does not exist.")
+    pargs.workdir = [wd.rstrip("/") for wd in pargs.workdir]  # make names canonical
+    # ----- prepare:
+    try:
+        for workdir in pargs.workdir:
+            if not os.path.isdir(workdir):
+                b.critical(f"directory '{workdir}' does not exist.")
+        pull_some_repos(pargs.workdir)
+        context = sdrl.participant.make_context(pargs, pargs.workdir, sdrl.participant.Student, 
+                                                with_submission=True, show_size=True)
+    except KeyboardInterrupt:
+        print("  Bye.")
+        return  # quit
     # ----- menu-based command loop:
     term = blessed.Terminal()
-    context = Context(pargs)
-    menu = "\n>>> p:pull v:viewer e:edit u:push q:quit   "
-    cmds = dict(p=cmd_pull, v=cmd_viewer, e=cmd_edit, u=cmd_push)
-    while True:
-        print(menu)
-        with term.cbreak():
-            cmdkey = term.inkey()
-        mycmd = cmds.get(cmdkey)
-        if mycmd:
-            mycmd(context)
-        elif str(cmdkey) == "q":
-            break
+    menu = "\n>>> v:viewer e:edit u:push q:quit   "
+    cmds = dict(v=cmd_viewer, e=cmd_edit, u=cmd_push)
+    try:
+        while True:
+            print(menu)
+            with term.cbreak():
+                cmdkey = term.inkey()
+            mycmd = cmds.get(cmdkey)
+            if mycmd:
+                mycmd(context)
+            elif str(cmdkey) == "q":
+                break
+    except KeyboardInterrupt:
+        pass  # just quit
+
+def cmd_viewer(ctx: sdrl.participant.Context):
+    b.info("----- Start viewer")
+    viewer.run_viewer(sdrl.participant.get_context())
 
 
-class Context:
-    pargs: argparse.Namespace
-    students: sdrl.participant.Students  # attr may not yet be present
-
-    def __init__(self, pargs: argparse.Namespace):
-        self.pargs = pargs
+def cmd_edit(ctx: sdrl.participant.Context):
+    b.info(f"----- Edit '{c.PARTICIPANT_FILE}' files")
+    ...
 
 
-def cmd_pull(ctx: Context):
+def cmd_push(ctx: sdrl.participant.Context):
+    b.info("----- Push student repos")
+    ...
+
+
+def pull_some_repos(workdirs: tg.Iterable[str]):
     b.info("----- Pull student repos")
-    yesses = b.yesses("Pull '%s'?", ctx.pargs.workdir, yes_if_1=True)
-    for yes, workdir in zip(yesses, ctx.pargs.workdir):
+    yesses = b.yesses("Pull '%s'?", workdirs, yes_if_1=True)
+    for yes, workdir in zip(yesses, workdirs):
         if yes:
             b.info(f"pulling '{workdir}':")
             with contextlib.chdir(workdir):
@@ -68,34 +86,7 @@ def cmd_pull(ctx: Context):
             b.info(f"Not pulling '{workdir}'.")
 
 
-def cmd_viewer(ctx: Context):
-    b.info("----- Start viewer")
-    ...
-
-
-def cmd_edit(ctx: Context):
-    b.info(f"----- Edit '{c.PARTICIPANT_FILE}' files")
-    ...
-
-
-def cmd_push(ctx: Context):
-    b.info("----- Push student repos")
-    ...
-
-
 def _xxx_oldstuff(pargs):
-    home_fallback = "."
-    if os.environ.get(c.REPOS_HOME_VAR) is None:
-        b.warning(f"Environment variable {c.REPOS_HOME_VAR} is not set. "
-                  "Assume current directory as student workdirs directory")
-        if pargs.repo_url and os.path.isfile(c.PARTICIPANT_FILE):
-            b.warning("It looks like you are already inside a student dir. Assuming parent directory instead.")
-            home_fallback = ".."
-    home = os.environ.get(c.REPOS_HOME_VAR) or home_fallback
-    checkout_success = checkout_student_repo(pargs.repo_url, home, pargs.get)
-    if not pargs.put and not pargs.check or not checkout_success:
-        os.chdir("..")
-        return
     student = sdrl.participant.Student()
     course = sdrl.course.CourseSI(configdict=student.course_metadata, context=student.course_metadata_url)
     commits = git.commits_of_local_repo(reverse=True)
