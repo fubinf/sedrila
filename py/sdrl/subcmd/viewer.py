@@ -24,7 +24,7 @@ import sdrl.participant
 
 meaning = """Specialized webserver for locally viewing contents of one or more student repo work directories."""
 CSS = "class='viewer'"  # to be included in HTML tags
-DEBUG = True  # TODO 1: turn off debug for release
+DEBUG = False  # TODO 1: turn off debug for release
 DEFAULT_PORT = '8077'
 FAVICON_URL = "/favicon-32x32.png"
 VIEWER_CSS_URL = "/viewer.css"

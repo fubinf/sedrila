@@ -1,6 +1,6 @@
 """
 Generate the website with incremental build.
-See the architecture sketch in README.
+See the architecture sketch in docs/internal_notes.md.
 TODO:
 - 
 - use sedrila2.yaml, force titles to be in topmatter

@@ -1,10 +1,24 @@
 # sedrila CHANGELOG
 
 
-## Version 2.5.0 (upcoming)
-- `viewer1`: exact copy of `viewer`, while a new viewer is being implemented
-- `viewer`: incomplete new viewer that can browse several directory trees at once
+## Version 2.5.1 (upcoming)
 - ...
+
+
+## Version 2.5.0 beta (upcoming)
+- `viewer`: completely new viewer that can browse several directory trees at once and will
+  mark most files that pertain to some task given in `submission.yaml`.
+- `student`: Five fields are now mandatory in `student.yaml` (in order to support `viewer` and `instructor`):
+  `course_url`, `student_fullname`, `student_id`, `student_gituser`, `partner_gituser`; 
+  the latter (and only the latter) may be empty. 
+- `instructor1`: is what `instructor` was formerly, while `instructor` is being re-designed.
+- `instructor`: is now a menu-driven interactive command and can also work on several student workdirs at once.
+  So far, it can only perform pull, viewer, and commit&push, but has no actual task-marking functionality.
+  INCOMPLETE.
+- `student` and `instructor1` are prone to have defects, but `viewer` is useful.
+- Documentation "General ideas" now describes the four different directory hierarchies involved.
+- Documentation "Architecture" now specifies module layers.
+- Ctrl-C now always terminates without a stack trace.
 
 
 ## Version 2.4.0 (2025-01-13)
