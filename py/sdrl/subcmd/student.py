@@ -34,23 +34,22 @@ def execute(pargs: argparse.Namespace):
         init()
         return
     student = sdrl.participant.Student()
-    course = sdrl.course.CourseSI(configdict=student.course_metadata, context=student.course_metadata_url)
     commits = git.commits_of_local_repo(reverse=True)
-    r.compute_student_work_so_far(course, commits)
-    entries, workhours_total, timevalue_total = r.student_work_so_far(course)
+    r.compute_student_work_so_far(student.course, commits)
+    entries, workhours_total, timevalue_total = r.student_work_so_far(student.course)
     if pargs.submission:
         entries = [entry for entry in entries 
-                   if course.task(entry.taskname).remaining_attempts]  # without final rejections
-        prepare_submission_file(course, student.root, entries, pargs.interactive)
+                   if student.course.task(entry.taskname).remaining_attempts]  # without final rejections
+        prepare_submission_file(student.course, student.topdir, entries, pargs.interactive)
     elif pargs.import_keys:
-        r.import_gpg_keys(course.instructors)
+        r.import_gpg_keys(student.course.instructors)
     else:
-        report_student_work_so_far(course, entries, workhours_total, timevalue_total)
+        report_student_work_so_far(student.course, entries, workhours_total, timevalue_total)
 
 
 def init():
-    sdrl.participant.Student.build_participant_file()
-    student = sdrl.participant.Student()
+    sdrl.participant.StudentS.build_participant_file()
+    student = sdrl.participant.StudentS()
     if not(student.course_metadata.get('instructors')):
         b.warning("No information about instructors present. Skipping key import.")
         return
@@ -66,7 +65,7 @@ def init():
 
 def prepare_submission_file(course: sdrl.course.Course, root: str, 
                             entries: tg.Sequence[r.ReportEntry], interactive: bool = False):
-    student = sdrl.participant.Student('.')
+    student = sdrl.participant.StudentS()
     repo_url = git.origin_remote_of_local_repo()
     gituser = git.username_from_repo_url(repo_url)
     if gituser != student.student_gituser:
