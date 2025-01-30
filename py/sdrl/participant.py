@@ -98,6 +98,7 @@ class Student:
 
     @functools.cached_property
     def course_with_work(self) -> sdrl.course.CourseSI:
+        """Set task.is_accepted and task.rejections values in course."""
         with contextlib.chdir(self.topdir):
             b.info(f"reading commit history in '{self.topdir}'")
             commits = git.commits_of_local_repo(reverse=True)
@@ -114,11 +115,16 @@ class Student:
 
     @functools.cached_property
     def pathset(self) -> set[str]:
-        """file pathnames within root dir"""
+        """file pathnames within topdir"""
+        if self.topdir == '.':
+            # pathlib.Path.glob() optimizes './' away, hence we need two versions of the logic
+            raw_pathlist = (str(p) for p in pathlib.Path('.').glob('**/*')
+                            if not str(p).startswith('.git/') and p.is_file())
+            return {f"/{path}" for path in raw_pathlist}
         raw_pathlist = (str(p) for p in pathlib.Path(self.topdir).glob('**/*')
                         if '/.git/' not in str(p) and p.is_file())
-        start = len(self.topdir)  # index after 'root/' in each path, except it includes the slash
-        return set((p[start:] for p in raw_pathlist))
+        slashpos = len(self.topdir)  # index after topdir in each path
+        return set((p[slashpos:] for p in raw_pathlist))
 
     @property
     def submissionfile_path(self) -> str:
@@ -140,9 +146,7 @@ class Student:
 
     @functools.cached_property
     def submission_re(self) -> re.Pattern:
-        """regexp matching the name of any submitted task"""
-        items_re = '|'.join([re.escape(item) for item in sorted(self.submission)])
-        return re.compile(f"\\b{items_re}\\b")  # match task names only as words or multiwords
+        return _submission_re(self)
 
     @functools.cached_property
     def submissions_remaining(self) -> set[str]:
@@ -211,6 +215,9 @@ class Student:
     def save_submission(self):
         b.spit_yaml(self.submission_backup_path, self.submission)
 
+    def submission_find_taskname(self, path: str) -> str:
+        return _submission_find_taskname(self, path)
+
 
 class StudentS(Student):
     """
@@ -276,9 +283,9 @@ class Context:
         return set(itertools.chain.from_iterable((wd.pathset for wd in self.studentlist)))
 
     @functools.cached_property
-    def submission(self) -> set[str]:
+    def submission_tasknames(self) -> set[str]:
         """union of submitted tasknames"""
-        return set(itertools.chain.from_iterable((wd.submission for wd in self.studentlist)))
+        return set(itertools.chain.from_iterable((wd.submission_tasknames for wd in self.studentlist)))
 
     @functools.cached_property
     def submission_pathset(self) -> set[str]:
@@ -287,9 +294,7 @@ class Context:
 
     @functools.cached_property
     def submission_re(self) -> re.Pattern:
-        """regexp matching the name of any submitted task"""
-        items_re = '|'.join([re.escape(item) for item in sorted(self.submission)])
-        return re.compile(f"\\b({items_re})\\b")  # match task names only as words or multiwords
+        return _submission_re(self)
 
     @functools.cached_property
     def submissions_remaining(self) -> set[str]:
@@ -313,6 +318,9 @@ class Context:
                 files.add(localpath)
         return dirs, files
 
+    def submission_find_taskname(self, path: str) -> str:
+        return _submission_find_taskname(self, path)
+
 
 def make_context(pargs: ap_sub.Namespace, dirs: list[str], student_class: type[Student], 
                  with_submission: bool, show_size=False, is_instructor=False):
@@ -324,3 +332,18 @@ def make_context(pargs: ap_sub.Namespace, dirs: list[str], student_class: type[S
 def get_context() -> Context:
     global _context
     return _context
+
+
+def _submission_find_taskname(studentoid, path: str) -> str:
+    """Return longest taskname found in path or '' if none is found."""
+    mm = studentoid.submission_re.search(path)
+    return mm.group() if mm else ""
+
+
+def _submission_re(studentoid) -> re.Pattern:
+    """regexp matching the name of any submitted task for a Context or Student."""
+    longest_first = sorted(sorted(studentoid.submission_tasknames), key=len, reverse=True)  # decreasing specificity
+    items_re = '|'.join([re.escape(item) for item in longest_first])  # noqa, item has the right type
+    return re.compile(f"\\b({items_re})\\b")  # match task names only as words or multiwords
+
+
