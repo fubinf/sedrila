@@ -44,7 +44,7 @@ def run(ctx: sdrl.participant.Context):
     b.set_register_files_callback(lambda s: None)  # in case student .md files contain weird macro calls
     macroexpanders.register_macros(ctx.course)  # noqa
     b.info(f"Webserver starts. Visit 'http://localhost:{ctx.pargs.port}/'. Terminate with Ctrl-C.")
-    bottle.run(host='localhost', port=ctx.pargs.port, debug=DEBUG, reloader=False)
+    bottle.run(host='localhost', port=ctx.pargs.port, debug=DEBUG, reloader=False, quiet=True)
 
 
 basepage_html = """<!DOCTYPE html>
