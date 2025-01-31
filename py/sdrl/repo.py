@@ -103,19 +103,22 @@ def submission_checked_commits(instructors: tg.Sequence[tg.Mapping[str, str]],
                                commits: tg.Sequence[git.Commit]) -> list[git.Commit]:
     """The properly instructor-signed Commits of finished submission checks."""
     try:
-        allowed_signers = [b.as_fingerprint(instructor['keyfingerprint'])
-                           for instructor in instructors]
+        allowed_signers = {b.as_fingerprint(instructor['keyfingerprint'])
+                           for instructor in instructors}
     except KeyError:
-        allowed_signers = []  # silence linter warning
+        allowed_signers = set()  # silence linter warning
         b.critical("missing 'keyfingerprint' in configuration")
     result = []
     for commit in commits:
         b.debug(f"commit.subject, fpr: {commit.subject}, {commit.key_fingerprint}")
         right_subject = re.match(c.SUBMISSION_CHECKED_COMMIT_MSG, commit.subject) is not None
-        right_signer = commit.key_fingerprint and b.as_fingerprint(commit.key_fingerprint) in allowed_signers  
-        if right_subject and right_signer:
+        if right_subject and is_allowed_signer(commit, allowed_signers):
             result.append(commit)
     return result
+
+
+def is_allowed_signer(commit: git.Commit, allowed_signers: set[str]) -> bool:
+    return commit.key_fingerprint and b.as_fingerprint(commit.key_fingerprint) in allowed_signers  
 
 
 def taskcheck_entries_from_commits(instructor_commits: list[git.Commit]) -> tg.Sequence[TaskCheckEntry]:
@@ -130,7 +133,7 @@ def taskcheck_entries_from_commits(instructor_commits: list[git.Commit]) -> tg.S
     return result
 
 
-def work_entries_from_commits(commits: list[git.Commit]) -> tg.Sequence[WorkEntry]:
+def work_entries_from_commits(commits: tg.Iterable[git.Commit]) -> tg.Sequence[WorkEntry]:
     """
     Collect the individual entries for all commits conforming to the worktime format.
     """

@@ -3,15 +3,11 @@ import os
 import shutil
 import unittest.mock
 
-import pytest
-
 import base as b
 import git
 import sdrl.constants as c
 import sdrl.course
 import sdrl.participant
-import sdrl.repo as r
-import sdrl.subcmd.instructor as sut  # system under test
 
 import tests.testbase as tb
 
@@ -26,14 +22,11 @@ student_gituser: mestudent
 partner_gituser: ""
 """
 
-def test_instructor_parts(capfd):
+def test_participant(capfd):
     """
-    Tests sdrl.repo, sdrl.participant, sdrl.instructor.
+    Tests sdrl.repo, sdrl.participant.
     Deep-integrationey test: Accesses external server, creates+deletes directories etc.
-    sut.execute() is not well-suited for testing, so we test its constituent parts here.
-    Not pretty due to the redundancy, but does the job OK.
     """
-    # TODO 2: Move to participant_test.py. Kick out parts of repo_test.py?
     with tb.TempDirEnvironContextMgr(**{c.REPO_USER_CMD_VAR: "echo SEDRILA_INSTRUCTOR_COMMAND was called"}) as mgr:
         os.environ[c.REPOS_HOME_VAR] = mgr.newdir  # will not be unpatched; not a problem
         
