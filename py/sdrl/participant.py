@@ -43,14 +43,16 @@ class Student:
         partner_gituser="Your partner's git account name (or empty if you work alone): ",
     )
     topdir: str  # where PARTICIPANT_FILE lives
+    is_instructor: bool
     course_url: str  # SeDriLa homepage URL minus the '/index.html' part
     student_name: str
     student_id: str
     student_gituser: str
     partner_gituser: str
 
-    def __init__(self, rootdir='.', with_submission=False):
+    def __init__(self, rootdir: str, is_instructor: bool):
         self.topdir = rootdir = rootdir.rstrip('/')
+        self.is_instructor = is_instructor
         if not os.path.exists(rootdir):
             b.critical(f"'{rootdir}' does not exist.")
         elif not os.path.isdir(rootdir):
@@ -76,13 +78,11 @@ class Student:
         if not self.course_url.endswith("/"):
             self.course_url += "/"  # make sure directory path ends with slash
         # ----- read c.SUBMISSION_FILE:
-        if not with_submission or not os.path.isfile(self.submissionfile_path):
+        if not os.path.isfile(self.submissionfile_path):
             self.submission = dict()
             return
         self.submission = b.slurp_yaml(self.submissionfile_path)
         self.filter_submission()
-        if self.is_writable:
-            self.save_submission()
 
     @functools.cached_property
     def course(self) -> sdrl.course.CourseSI:
@@ -129,10 +129,6 @@ class Student:
     @property
     def submissionfile_path(self) -> str:
         return os.path.join(self.topdir, c.SUBMISSION_FILE)
-
-    @property
-    def submission_backup_path(self) -> str:
-        return os.path.join(self.topdir, '..', c.SUBMISSION_FILE)
 
     @functools.cached_property
     def submission_pathset(self) -> set[str]:
@@ -212,8 +208,17 @@ class Student:
     def get_course_metadata_url(cls, course_url: str) -> str:
         return os.path.join(course_url, c.METADATA_FILE)
 
-    def save_submission(self):
-        b.spit_yaml(self.submission_backup_path, self.submission)
+    def move_to_next_state(self, taskname: str, taskstatus: str) -> str:
+        """Cycles (1 step) through possible taskstates in self.submisson and in c.PARTICIPANT_FILE."""
+        if self.is_instructor:
+            states = [c.SUBMISSION_CHECK_MARK, c.SUBMISSION_ACCEPT_MARK, c.SUBMISSION_REJECT_MARK]
+        else:
+            states = [c.SUBMISSION_NONCHECK_MARK, c.SUBMISSION_CHECK_MARK]
+        newidx = (states.index(taskstatus) + 1) % len(states)  # use next (or first if unknown), wrap around at the end
+        newstate = states[newidx]
+        self.submission[taskname] = newstate
+        b.spit_yaml(self.submissionfile_path, self.submission)
+        return newstate
 
     def submission_find_taskname(self, path: str) -> str:
         return _submission_find_taskname(self, path)
@@ -255,12 +260,12 @@ class Context:
     is_instructor: bool
 
     def __init__(self, pargs: ap_sub.Namespace, dirs: list[str], student_class: type[Student], 
-                 with_submission: bool, show_size: bool, is_instructor: bool):
+                 is_instructor: bool, with_submission: bool, show_size: bool):
         self.pargs = pargs
         self.students = collections.OrderedDict()
         self.is_instructor = is_instructor
         for workdir in dirs:
-            self.students[workdir] = student = student_class(workdir, with_submission)
+            self.students[workdir] = student = student_class(workdir, is_instructor)
             if show_size:
                 len_submissions = f"\t{len(student.submission)} submissions" if with_submission else ""
                 b.info(f"'{student.topdir}':\t{len(student.pathset)} files{len_submissions}")
