@@ -112,10 +112,6 @@ class Student:
         return self.course
 
     @property
-    def is_writable(self) -> bool:
-        return True
-
-    @property
     def participantfile_path(self) -> str:
         return os.path.join(self.topdir, c.PARTICIPANT_FILE)
 
@@ -178,6 +174,25 @@ class Student:
     def path_exists(self, path: str) -> bool:
         return path in self.pathset
 
+    @classmethod
+    def build_participant_file(cls):
+        b.info(f"Your following inputs will populate the file '{c.PARTICIPANT_FILE}'.")
+        # --- obtain course metadata:
+        course_url = os.path.dirname(input("Course URL: "))
+        course = Student.get_course_metadata(course_url)
+        # --- obtain prompts for all further attributes:
+        prompts = course.get(cls.PROMPT_CONFIG_ATTR, {})  # noqa
+        for key, prompt in cls.STUDENT_YAML_PROMPT_DEFAULTS.items():
+            if key not in prompts and key != "course_url":
+                prompts[key] = prompt
+        participant_data = dict(course_url=course_url)
+        for value in prompts:
+            participant_data[value] = input(prompts[value])
+        b.spit_yaml(c.PARTICIPANT_FILE, participant_data)
+        b.info(f"Wrote '{c.PARTICIPANT_FILE}'.")
+        b.info("If you made any mistake, correct it with an editor now.")
+        b.info("Then commit the file and push the commit.")
+
     def filter_submission(self):
         """Kick out non-existing and rejected-for-good tasks and emit warnings."""
         submission1 = dict(**self.submission)  # constant copy (we will delete entries)
@@ -227,48 +242,19 @@ class Student:
         return _submission_find_taskname(self, path)
 
 
-class StudentS(Student):
-    """
-    Non-writable (wrt c.SUBMISSION_FILE) variant of Student.
-    This class is used by student (hence the S in the name) and possibly viewer.
-    """
-    @property
-    def is_writable(self) -> bool:
-        return False
-
-    @classmethod
-    def build_participant_file(cls):
-        b.info(f"Your following inputs will populate the file '{c.PARTICIPANT_FILE}'.")
-        # --- obtain course metadata:
-        course_url = os.path.dirname(input("Course URL: "))
-        course = Student.get_course_metadata(course_url)
-        # --- obtain prompts for all further attributes:
-        prompts = course.get(cls.PROMPT_CONFIG_ATTR, {})  # noqa
-        for key, prompt in cls.STUDENT_YAML_PROMPT_DEFAULTS.items():
-            if key not in prompts and key != "course_url":
-                prompts[key] = prompt
-        participant_data = dict(course_url=course_url)
-        for value in prompts:
-            participant_data[value] = input(prompts[value])
-        b.spit_yaml(c.PARTICIPANT_FILE, participant_data)
-        b.info(f"Wrote '{c.PARTICIPANT_FILE}'.")
-        b.info("If you made any mistake, correct it with an editor now.")
-        b.info("Then commit the file and push the commit.")
-
-
 class Context:
     pargs: ap_sub.Namespace
     students: collections.OrderedDict[str, Student]
     studentlist: list[Student]
     is_instructor: bool
 
-    def __init__(self, pargs: ap_sub.Namespace, dirs: list[str], student_class: type[Student], 
+    def __init__(self, pargs: ap_sub.Namespace, dirs: list[str], 
                  is_instructor: bool, with_submission: bool, show_size: bool):
         self.pargs = pargs
         self.students = collections.OrderedDict()
         self.is_instructor = is_instructor
         for workdir in dirs:
-            self.students[workdir] = student = student_class(workdir, is_instructor)
+            self.students[workdir] = student = Student(workdir, is_instructor)
             if show_size:
                 len_submissions = f"\t{len(student.submission)} submissions" if with_submission else ""
                 b.info(f"'{student.topdir}':\t{len(student.pathset)} files{len_submissions}")
@@ -330,10 +316,10 @@ class Context:
         return _submission_find_taskname(self, path)
 
 
-def make_context(pargs: ap_sub.Namespace, dirs: list[str], student_class: type[Student], 
+def make_context(pargs: ap_sub.Namespace, dirs: list[str], 
                  with_submission: bool, show_size=False, is_instructor=False):
     global _context
-    _context = Context(pargs, dirs, student_class, with_submission, show_size, is_instructor)
+    _context = Context(pargs, dirs, with_submission, show_size, is_instructor)
     return _context
 
 
