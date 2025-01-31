@@ -74,7 +74,7 @@ class Student:
             self.student_name = str(data['student_name'])
             self.student_id = str(data['student_id'])
             self.student_gituser = str(data['student_gituser'])
-            self.partner_gituser = str(data['partner_gituser'])
+            self.partner_gituser = str(data['partner_gituser'] or "")
         except KeyError:
             b.critical(f"malformed file '{self.participantfile_path}': must contain strings " +
                        str([key for key in self.STUDENT_YAML_PROMPT_DEFAULTS]))

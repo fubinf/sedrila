@@ -2,12 +2,10 @@
 import base64
 import os
 import subprocess
-import typing as tg
 
 import bottle  # https://bottlepy.org/docs/dev/
 
 import base as b
-import sdrl.constants as c
 import sdrl.argparser
 import sdrl.course
 import sdrl.macros as macros
@@ -135,7 +133,8 @@ document.querySelectorAll('.sedrila-replace').forEach(t => {
 
 @bottle.route("/")
 def serve_root():
-    body = "%s\n\n%s\n\n%s" % (
+    body = "%s\n\n%s\n\n%s\n\n%s" % (
+        html_for_student_table(),
         html_for_submissionrelated_files(),
         html_for_remaining_submissions(),
         html_for_directorylist("/", breadcrumb=False),
@@ -413,6 +412,21 @@ def html_for_remaining_submissions() -> str:
                      f"<td {CSS}>{submission}</td>"
                      f"<td {CSS}>{html_for_remainingness(submission)}</td>"
                      f"<td {CSS}>{html_for_tasklink(submission)}</td>"
+                     f"</tr>")
+    lines.append("</table>")
+    return "\n".join(lines)
+
+
+def html_for_student_table() -> str:
+    lines = [f"<table {CSS}>"]
+    lines.append(f"{tr_tag(-1)}<td {CSS}><b>student_name</b></td><td {CSS}><b>student_id</b></td>"
+                 f"<td {CSS}><b>student_gituser</b></td><td {CSS}><b>partner_gituser</b></td>")
+    for idx, stud in enumerate(get_context().studentlist):
+        lines.append(f"{tr_tag(idx)}"
+                     f"<td {CSS}>{stud.student_name}</td>"
+                     f"<td {CSS}>{stud.student_id}</td>"
+                     f"<td {CSS}>{stud.student_gituser}</td>"
+                     f"<td {CSS}>{stud.partner_gituser or '--'}</td>"
                      f"</tr>")
     lines.append("</table>")
     return "\n".join(lines)
