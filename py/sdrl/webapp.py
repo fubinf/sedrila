@@ -81,11 +81,24 @@ tr.odd {
     background-color: #ddd;
 }
 
-span.accept {
+span.NONCHECK, span.CHECK, span.ACCEPT, span.REJECT {
+    padding: 0.5ex;
+    border-radius: 0.3ex;
+}
+
+span.CHECK {
+    color: #111;
+    background-color: #f7dc6f;
+}
+
+span.NONCHECK {
+}
+
+span.ACCEPT {
     background-color: #9c0;
 }
 
-span.reject {
+span.REJECT {
     color: #eee;
     background-color: #c00;
 }
@@ -147,14 +160,11 @@ def serve_sedrila_replace():
     student, taskname = ctx.studentlist[idx], data['id']
     taskstatus = student.submission[taskname]  # get task accept/reject status
     classes = set(data['cssclass'].split(' '))
-    states = states_instructor = [c.SUBMISSION_CHECK_MARK, c.SUBMISSION_ACCEPT_MARK, c.SUBMISSION_REJECT_MARK]
-    allclasses = set(states)
+    allclasses = set(student.possible_submission_states)
     newstatus = student.move_to_next_state(taskname, taskstatus)
-    student.submission[taskname] = newstatus
     classes = (classes - allclasses)
     classes.add(newstatus)
     data['cssclass'] = ' '.join(classes)
-    data['text'] = f"{idx}!" if newstatus == c.SUBMISSION_REJECT_MARK else f"{idx}"
     return data
 
 
@@ -340,7 +350,8 @@ def html_for_file_existence(mypath: str) -> str:
         if wd.path_exists(mypath):
             taskname = wd.submission_find_taskname(mypath)
             if taskname:
-                entries.append(f"<span id='{taskname}' data-index={idx} class='sedrila-replace'>{idx}</span>")
+                entries.append(f"<span id='{taskname}' data-index={idx} class='sedrila-replace'>"
+                               f"{wd.student_gituser}</span>")
             else:
                 entries.append(str(idx))
         else:

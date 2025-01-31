@@ -44,6 +44,7 @@ class Student:
     )
     topdir: str  # where PARTICIPANT_FILE lives
     is_instructor: bool
+    possible_submission_states = list[str]
     course_url: str  # SeDriLa homepage URL minus the '/index.html' part
     student_name: str
     student_id: str
@@ -53,6 +54,11 @@ class Student:
     def __init__(self, rootdir: str, is_instructor: bool):
         self.topdir = rootdir = rootdir.rstrip('/')
         self.is_instructor = is_instructor
+        if is_instructor:
+            self.possible_submission_states = [c.SUBMISSION_CHECK_MARK, 
+                                               c.SUBMISSION_ACCEPT_MARK, c.SUBMISSION_REJECT_MARK]
+        else:
+            self.possible_submission_states = [c.SUBMISSION_NONCHECK_MARK, c.SUBMISSION_CHECK_MARK]
         if not os.path.exists(rootdir):
             b.critical(f"'{rootdir}' does not exist.")
         elif not os.path.isdir(rootdir):
@@ -209,15 +215,12 @@ class Student:
         return os.path.join(course_url, c.METADATA_FILE)
 
     def move_to_next_state(self, taskname: str, taskstatus: str) -> str:
-        """Cycles (1 step) through possible taskstates in self.submisson and in c.PARTICIPANT_FILE."""
-        if self.is_instructor:
-            states = [c.SUBMISSION_CHECK_MARK, c.SUBMISSION_ACCEPT_MARK, c.SUBMISSION_REJECT_MARK]
-        else:
-            states = [c.SUBMISSION_NONCHECK_MARK, c.SUBMISSION_CHECK_MARK]
+        """Cycle (1 step) through possible taskstates in self.submisson and in c.PARTICIPANT_FILE."""
+        states = self.possible_submission_states
         newidx = (states.index(taskstatus) + 1) % len(states)  # use next (or first if unknown), wrap around at the end
         newstate = states[newidx]
-        self.submission[taskname] = newstate
-        b.spit_yaml(self.submissionfile_path, self.submission)
+        self.submission[taskname] = newstate  # change state in memory
+        b.spit_yaml(self.submissionfile_path, self.submission)  # change state in persistent copy
         return newstate
 
     def submission_find_taskname(self, path: str) -> str:
