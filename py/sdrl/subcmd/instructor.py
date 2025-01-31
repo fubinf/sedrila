@@ -15,7 +15,7 @@ import sdrl.course
 import sdrl.interactive as i
 import sdrl.participant
 import sdrl.repo as r
-import sdrl.subcmd.viewer as viewer
+import sdrl.webapp
 
 meaning = """Help instructors evaluate students' submissions of several finished tasks.
 """
@@ -24,6 +24,10 @@ meaning = """Help instructors evaluate students' submissions of several finished
 def add_arguments(subparser):
     subparser.add_argument('workdir', nargs='*',
                            help="where to find student input")
+    subparser.add_argument('--op', default="", choices=OP_CMDS.keys(),
+                           help="Perform one operation non-interactively")
+    subparser.add_argument('--port', '-p', type=int, default=sdrl.webapp.DEFAULT_PORT,
+                           help=f"webapp will listen on this port (default: {sdrl.webapp.DEFAULT_PORT})")
     subparser.add_argument('--log', default="INFO", choices=b.loglevels.keys(),
                            help="Log level for logging to stdout (default: INFO)")
 
@@ -36,22 +40,31 @@ def execute(pargs: argparse.Namespace):
         for workdir in pargs.workdir:
             if not os.path.isdir(workdir):
                 b.critical(f"directory '{workdir}' does not exist.")
-        pull_some_repos(pargs.workdir)
-        context = sdrl.participant.make_context(pargs, pargs.workdir, sdrl.participant.Student, 
-                                                with_submission=True, show_size=True)
+        if pargs.op == "pull":
+            context = pargs.workdir
+        else:
+            if not pargs.op:
+                pull_some_repos(pargs.workdir)
+            context = sdrl.participant.make_context(pargs, pargs.workdir, sdrl.participant.Student, 
+                                                    with_submission=True, show_size=True)
     except KeyboardInterrupt:
         print("  Bye.")
         return  # quit
-    # ----- menu-based command loop:
+    # ----- execute:
+    if pargs.op:
+        OP_CMDS[pargs.op](context)  # execute one command via lookup table, with duck-typed arg
+    else:
+        run_command_loop(context)
+
+
+def run_command_loop(context):
     term = blessed.Terminal()
-    menu = "\n>>> v:viewer e:edit u:push q:quit   "
-    cmds = dict(v=cmd_viewer, e=cmd_edit, u=cmd_push)
     try:
         while True:
-            print(menu)
+            print(MENU)
             with term.cbreak():
                 cmdkey = term.inkey()
-            mycmd = cmds.get(cmdkey)
+            mycmd = MENU_CMDS.get(cmdkey)
             if mycmd:
                 mycmd(context)
             elif str(cmdkey) == "q":
@@ -59,13 +72,15 @@ def execute(pargs: argparse.Namespace):
     except KeyboardInterrupt:
         pass  # just quit
 
-def cmd_viewer(ctx: sdrl.participant.Context):
-    b.info("----- Start viewer")
-    viewer.run_viewer(sdrl.participant.get_context())
+
+def cmd_webapp(ctx: sdrl.participant.Context):
+    b.info("----- Start webapp to accept/reject submissions")
+    sdrl.webapp.run(ctx)
 
 
 def cmd_edit(ctx: sdrl.participant.Context):
     b.info(f"----- Edit '{c.PARTICIPANT_FILE}' files")
+    b.error("(not yet implemented)")
     ...
 
 
@@ -92,6 +107,11 @@ def pull_some_repos(workdirs: tg.Iterable[str]):
                 git.pull()
         else:
             b.info(f"Not pulling '{workdir}'.")
+
+
+MENU = "\n>>> w:webapp e:edit u:push q:quit   "
+MENU_CMDS = dict(w=cmd_webapp, e=cmd_edit, u=cmd_push)
+OP_CMDS = dict(pull=pull_some_repos, webapp=cmd_webapp, edit=cmd_edit)
 
 
 def _xxx_oldstuff(pargs):
