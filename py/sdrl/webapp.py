@@ -72,7 +72,7 @@ h1.viewer, h2.viewer, h3.viewer {
 }
 
 td.viewer {
-  padding: 0.3ex 1em;
+  padding: 0.3ex 1ex;
 }
 
 tr.even {}
@@ -150,9 +150,8 @@ def serve_sedrila_replace():
       <span id="mytaskname" data-index=0 class="sedrila-replace someclass">sometext</span> 
     When clicked, javascript will produce a POST request with a JSON body like so:
       { id: "mytaskname", index: 0, cssclass: "sedrila-replace someclass", text: "sometext" }
-    This routine will respond with a JSON body like so:
-      { class: "sedrila-replace1 newclass", text: "newtext" }
-    and will call the state change function on the context.
+    This routine will call the state change function on the context and respond with a JSON body like so:
+      { cssclass: "sedrila-replace newclass", text: "newtext" }
     """
     data = bottle.request.json
     ctx = get_context()
@@ -261,6 +260,12 @@ def html_for_directorylist(mypath, breadcrumb=True) -> str:
     return body
 
 
+def html_for_editable_cell(idx, student, taskname):
+    return (f"<span id='{taskname}' data-index={idx} "
+            f"class='sedrila-replace {student.submission[taskname]}'>"
+            f"{student.student_gituser}</span>")
+
+
 def html_for_file(mypath) -> str:
     """
     Page body showing each Workdir's version (if existing) of file mypath, and pairwise diffs where possible.
@@ -340,26 +345,26 @@ def html_for_file(mypath) -> str:
 
 def html_for_file_existence(mypath: str) -> str:
     """One or more table column entries with file existence markers for each file or file pair."""
+    def file_exists_at(idx: int) -> bool:
+        return context.studentlist[idx].path_exists(mypath)
+    
     BEGIN = f'<td {CSS}>'
     END = '</td>'
     MISSING = '-- '
-    entries = [BEGIN]
+    entries = []
     context = sdrl.participant.get_context()
     for idx, wd in enumerate(context.studentlist):
         wd: sdrl.participant.Student  # type hint
         if wd.path_exists(mypath):
             taskname = wd.submission_find_taskname(mypath)
             if taskname:
-                entries.append(f"<span id='{taskname}' data-index={idx} class='sedrila-replace'>"
-                               f"{wd.student_gituser}</span>")
+                entries.append(f"{BEGIN}{html_for_editable_cell(idx, wd, taskname)}{END}")
             else:
-                entries.append(str(idx))
+                entries.append(f"{BEGIN}{wd.student_gituser}{END}")
         else:
-            entries.append(MISSING)
-        entries.append(END)
-        entries.append(BEGIN)
+            entries.append(f"{BEGIN}{MISSING}{END}")
         if idx % 2 == 1:  # finish a pair
-            if entries[-1] != MISSING and entries[-2] != MISSING:  # both files are present
+            if file_exists_at(idx) and file_exists_at(idx-1):
                 size_even, size_odd = prev_wd.path_actualsize(mypath), wd.path_actualsize(mypath)  # noqa
                 if size_even > 1.5 * size_odd:
                     sign = ">>"
@@ -373,14 +378,12 @@ def html_for_file_existence(mypath: str) -> str:
                     sign = "<"
                 else:
                     assert False
-                last = entries.pop()
-                entries.append(f" {sign} ")
-                entries.append(last)
-            entries.append(END)
-            entries.append(BEGIN)
+            else:
+                sign = ""
+            last = entries.pop()
+            entries.append(f"{BEGIN}{sign}{END}")
+            entries.append(last)
         prev_wd = wd
-    if entries[-1] == BEGIN:  # repair the end
-        entries.pop()
     return ''.join(entries)
 
 
@@ -398,7 +401,9 @@ def html_for_remaining_submissions() -> str:
         MISSING = '-- '
         parts = []
         for idx2, wd in enumerate(get_context().studentlist):
-            parts.append(f"{str(idx2)} " if subm in wd.submissions_remaining else MISSING)
+            parts.append("<td {CSS}>")
+            parts.append(f"{html_for_editable_cell(idx2, wd, subm)} " if subm in wd.submissions_remaining else MISSING)
+            parts.append("</td>")
         return ''.join(parts)
 
     lines = [f"<h1 {CSS}>Submissions not covered above</h1>",
