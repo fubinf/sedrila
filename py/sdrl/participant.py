@@ -249,14 +249,14 @@ class Context:
     is_instructor: bool
 
     def __init__(self, pargs: ap_sub.Namespace, dirs: list[str], 
-                 is_instructor: bool, with_submission: bool, show_size: bool):
+                 is_instructor: bool, show_size: bool):
         self.pargs = pargs
         self.students = collections.OrderedDict()
         self.is_instructor = is_instructor
         for workdir in dirs:
             self.students[workdir] = student = Student(workdir, is_instructor)
             if show_size:
-                len_submissions = f"\t{len(student.submission)} submissions" if with_submission else ""
+                len_submissions = f"\t{len(student.submission)} submissions" if student.submission else ""
                 b.info(f"'{student.topdir}':\t{len(student.pathset)} files{len_submissions}")
         self.studentlist = list(self.students.values())
         course_urls_set = {s.course_url for s in self.students.values()}
@@ -317,9 +317,9 @@ class Context:
 
 
 def make_context(pargs: ap_sub.Namespace, dirs: list[str], 
-                 with_submission: bool, show_size=False, is_instructor=False):
+                 show_size=False, is_instructor=False):
     global _context
-    _context = Context(pargs, dirs, with_submission, show_size, is_instructor)
+    _context = Context(pargs, dirs, show_size, is_instructor)
     return _context
 
 

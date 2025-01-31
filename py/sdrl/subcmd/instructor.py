@@ -45,8 +45,7 @@ def execute(pargs: argparse.Namespace):
         else:
             if not pargs.op:
                 pull_some_repos(pargs.workdir)
-            context = sdrl.participant.make_context(pargs, pargs.workdir, sdrl.participant.Student, 
-                                                    with_submission=True, show_size=True)
+            context = sdrl.participant.make_context(pargs, pargs.workdir, show_size=True)
     except KeyboardInterrupt:
         print("  Bye.")
         return  # quit
@@ -91,7 +90,7 @@ def cmd_push(ctx: sdrl.participant.Context):
         if yes:
             b.info(f"Committing and pushing '{workdir}/{c.SUBMISSION_FILE}'")
             with contextlib.chdir(workdir):
-                git.commit(*[c.SUBMISSION_FILE], msg=f"{c.SUBMISSION_FILE} checked", signed=True)
+                git.commit(*[c.SUBMISSION_FILE], msg=c.SUBMISSION_CHECKED_COMMIT_MSG, signed=True)
                 git.push()
         else:
             b.info(f"Not committing '{workdir}/{c.SUBMISSION_FILE}'.")

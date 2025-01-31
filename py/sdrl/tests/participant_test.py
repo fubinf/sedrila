@@ -46,7 +46,7 @@ def test_participant(capfd):
         #     os.system("git log|cat")
         
         # ----- test Context:
-        ctx = sdrl.participant.make_context(None, ["studentdir"], with_submission=True, show_size=True)
+        ctx = sdrl.participant.make_context(None, ["studentdir"], show_size=True)
         student = ctx.studentlist[0]  # there is only one
         assert ctx.submission_tasknames == {'Task1'}
         assert student.submission_tasknames == {'Task1'}
@@ -65,7 +65,7 @@ def test_participant(capfd):
         submission = dict(Task1=c.SUBMISSION_CHECK_MARK, Task2=c.SUBMISSION_CHECK_MARK)
         filename = os.path.join(student.topdir, c.SUBMISSION_FILE)
         b.spit_yaml(filename, submission)
-        ctx = sdrl.participant.make_context(None, ["studentdir"], with_submission=True, show_size=True)
+        ctx = sdrl.participant.make_context(None, ["studentdir"], show_size=True)
         student = ctx.studentlist[0]  # now with the above submission file
         print("#1:", student.submission)
         while True: # horrible logic here, but natural in the webapp:
@@ -88,7 +88,7 @@ def test_participant(capfd):
             print("all_signers_allowed:", commit)
             return True
         with unittest.mock.patch('sdrl.repo.is_allowed_signer', new=all_signers_allowed):  # believe everything
-            ctx = sdrl.participant.make_context(None, ["studentdir"], with_submission=True, show_size=True)
+            ctx = sdrl.participant.make_context(None, ["studentdir"], show_size=True)
         student = ctx.studentlist[0]  # there is only one
         print("#4:", student.submission)
         task1, task2 = student.course_with_work.task('Task1'), student.course_with_work.task('Task2')
