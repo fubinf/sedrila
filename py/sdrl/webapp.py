@@ -14,26 +14,37 @@ import sdrl.markdown as md
 import sdrl.participant
 
 meaning = """Specialized webserver for locally viewing contents of one or more student repo work directories."""
-CSS = "class='viewer'"  # to be included in HTML tags
-DEBUG = False  # TODO 1: turn off debug for release
+CSS = "class='sview'"  # to be included in HTML tags
+DEBUG = False  # turn off debug for release
 DEFAULT_PORT = '8077'
 FAVICON_URL = "/favicon-32x32.png"
-VIEWER_CSS_URL = "/viewer.css"
-VIEWER_JS_URL = "/script.js"
+WEBAPP_CSS_URL = "/webapp.css"
+WEBAPP_JS_URL = "/script.js"
 SEDRILA_REPLACE_URL = "/sedrila-replace.action"
-favicon32x32_png_base64 = """iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACqklEQVRYR+1Wv0t6cRQ9CiloQikk
-RlpBU5BQDhlitTgouAoZDg0NmX9Is0MSQlMaItTSIIiDRBERgQ4OCuqgLUkikSD98Mu98Pp+Lc33
-pOg7eEHkwefec965597Pk+3t7bXxiyEbEhgq8N8qMDMzA6PRiNfXV7y9vUEmk0Eul/M/xcXFBdrt
-vwNkMBgwNzfHZymHgs7Tr1qtolQqdZ21nlMwMTEBvV4Pu90OjUbDyZVKBTc3NwxcKBQ6CIyPj4NI
-jI2NcQ5FNptFsVjEw8MD7u/vpREQTi8vL2N9fZ0fCfTk5OTLrUGqeb1eNJtN7O/vv6vRK6nvHqC3
-39nZYelbrRaCwSDL3CtWVlawurqKq6srpNPpviuuLwGqsLGxAZPJxMVisRjK5XLPwj6fj1txcHCA
-RqPxPQTMZjOcTicXu729RTKZ7Fp4dHQUfr+fDRePx/uC0wFRCigUCgQCAYyMjODx8RGhUKjDgALS
-0tISHA4HTk9Pkc/nv48AVXK73Zifn+eiR0dHPFofg1ql0+nYfF/55N88UQpQwuzsLDweD+fSKKZS
-qQ58lUqF3d1dXF9fizKfkCyaAE0B9Zf63K0Ni4uLLH84HEa9Xhclv2gPCNXW1tZgtVq7toHkpzg+
-PhYNLpmAVqvF9vb2pzao1WqW/+zsDLlc7ucIUOXNzU1MTU11tMFiscBms7H5Xl5efpbAwsICXC4X
-g0QiEb4faPnc3d19MqYYJqJNKBSjXUByK5VKngZaTNSWw8ND1Go1MZgdZyQToGxyOy0dmoZMJoPp
-6WlEo1HJ4JJNKCDQVb21tcWPz8/PSCQSks0neQ98fD3q++TkJJ6enng1Cx8hUmUYqAUEIlxQl5eX
-OD8/l4r7fn5gAmRGuvvJiPTxMWgMTGBQwI95QwJDBX5dgT/hoVUQturVFQAAAABJRU5ErkJggg=="""
+favicon32x32_png_base64 = """iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAE0ElEQVRYR8VXR0hdWxTdzxI1OrAG
+K1ZQbDGoOFBEUOyiYsUKtmAdOPslIPzPR2fB2CAqqFgRLAiCJEKcKIgogi3YosFGdKCiEcvLXSf/
+XN597z6/+RCz4Q3eOfusvc/a7VxFTU2NjpGR0W9KpbKciGyE32PIvmCk6evXr/8o6urq/hCM//0Y
+VmVsvFLU1tbuPeLN1X04gAPKX3R7Zlbx+vVr5e3tLd3c3JAQiu+LCgXp6uqSnp4eYe/6+lrWxydP
+npCVlRU7e3h4KKsDLENDQ6bDbWBNX1+fdHR0SPH582elnZ0dO3x3d8eM48dlcnKSZmdnZcHDw8Mp
+ICCAATc0NNDV1ZWGHi5RXV0tYuKSHB9OK3p6epShoaHEneAIu7u7tLy8TJubm3R6eqoBDJCysjIy
+MTFhexMTEzQ/Py/rqKenJ7148YLs7e3F/fPzcxofHyeWA8bGxvTy5UtGC5e+vj769OmT1vRwcHCg
+rKwscX9vb4+6urq06iOkpaWlBFuQ7u5uEtj/7gAW4uLiyNvb+0HUQykyMpLdSlVaW1vp+PhYqxP5
++flkbW1Nqs6KDjg5OVFGRoZ4GLcHC3IC+svLy8XbcJ3p6WmamprS6kBVVRUJTU8SLtEBgFZUVNDT
+p08ZABISiXV5eakB6OjoSJmZmRrryJWWlhaxmlQVLC0tqbCwkOE2NjbSxcUF25b0gaioKPLz8xPP
+IUkWFxc1DHG99fV1srGxkTDR29tLOzs7GmeCgoIoLCyM5ZUqsxIH1MOwsbFBg4ODEjDULpgClaOj
+o8yBwMBAUQcOw3F1yc3NJVtbW3r37h3Nzc2J2xIHAI7Y8jCgCb1580ZS387OzpSens6aE/ZMTU2p
+oKBABEQvQOjQG7igVFGykObmZjo7O5N3AKvR0dH0/PlzUQG3XFlZEf/HxsaSj48Pra2t0fDwMFvn
+2c2V1M+gWlA1BwcH1NHRISFHYxa4uLhQWlqaqATjAISglkE/WuvIyAitrq6ydX9/f4qIiBDPqIcO
+jIE5VAgqRVU0HICRyspKMjAwYHqgFFQjHK6urpSamirSz2cEQobQIYQQ1UwHDvCA29bWRl++fLnf
+AewmJCQQ2ieXgYEB2traovj4ePLy8pLQz3VSUlLIzc1NPMOTDTjAOzk5obdv30qM44/sOHZ3d6ek
+pCRReWFhgd6/f89uggmoSj9XUj+zv79PnZ2dlJiYSB4eHjQzM0MfPnx4mAOYCehamGQQZC1ulJyc
+rEE/R1TND77W3t5OOTk5zGnMCbRgddH6IFGnFLFDN0PigQE5UW9kMIjax+RramqS7ZBaHfD19aWY
+mBgNOyg9lKCcYKTjxuqCMY1xLSdaHUBmo+RUHye8+Wh7IcFASUkJmZmZSWz19/fT9vb2jzkA7ezs
+bMkj4j76OXpISAgFBweLxoSnNytjlOYPMQBlPkD4wfvo5zq4PVjgsrS0RGNjY7LGsXjvq9jCwoKK
+iorY4YfQz63k5eWxIQUZGhqijx8//j8HcKq4uJjMzc3ZPOAtWSvavxt4qOLBioFUX1+v9VX9nwxA
+4dmzZ6z3Hx0dEeL5EEH7BQN4oKAD3ie//sNEeJTiQ9H6ITf7CTrs0+xPAfivnwD+EMhXCnyeCzH+
+XdDG5/ljMXEg2GrE5/k3AZpcXaA5fbgAAAAASUVORK5CYII="""
+# created using https://favicon.io/favicon-generator/, Vollkorn 800, size 130
 favicon32x32_png = base64.b64decode(favicon32x32_png_base64)
 get_context = sdrl.participant.get_context  # abbreviation
 
@@ -52,15 +63,15 @@ basepage_html = """<!DOCTYPE html>
   <meta charset="utf-8">
   {resources}
  </head>
- <body class='viewer'>
+ <body class='sview'>
   {body}
   {script}
  </body>
 </html>
 """
 
-viewer_css = """
-h1.viewer, h2.viewer, h3.viewer {
+webapp_css = """
+h1.sview, h2.sview, h3.sview {
   font-family: sans-serif;
   width: 100%;
   background-color: var(--main-color);
@@ -69,7 +80,7 @@ h1.viewer, h2.viewer, h3.viewer {
   box-sizing: border-box;
 }
 
-td.viewer {
+td.sview {
   padding: 0.3ex 1ex;
 }
 
@@ -102,7 +113,7 @@ span.REJECT {
 }
 """
 
-viewer_js = """
+webapp_js = """
 function sedrila_replace() {
     const span = this;
     const data = { 
@@ -139,7 +150,7 @@ def serve_root():
         html_for_remaining_submissions(),
         html_for_directorylist("/", breadcrumb=False),
     )
-    return html_for_page("viewer", body)
+    return html_for_page("sedrila", body)
 
 
 @bottle.route(SEDRILA_REPLACE_URL, method="POST")
@@ -172,16 +183,16 @@ def serve_favicon():
     return favicon32x32_png
 
 
-@bottle.route(VIEWER_CSS_URL)
+@bottle.route(WEBAPP_CSS_URL)
 def serve_css():
     bottle.response.content_type = 'text/css'
-    return viewer_css
+    return webapp_css
 
 
-@bottle.route(VIEWER_JS_URL)
+@bottle.route(WEBAPP_JS_URL)
 def serve_js():
     bottle.response.content_type = 'text/javascript'
-    return viewer_js
+    return webapp_js
 
 
 @bottle.route("<mypath:path>/")
@@ -206,7 +217,7 @@ def handle_rawfile(mypath: str, workdir: str):
 
 
 def html_for_breadcrumb(path: str) -> str:
-    parts = [f"<nav {CSS}><a href='/'>viewer</a>:"]
+    parts = [f"<nav {CSS}><a href='/'>sedrila</a>:"]
     slashpos = path.find("/", 0)
     assert slashpos == 0
     nextslashpos = path.find("/", slashpos + 1)
@@ -228,7 +239,7 @@ def html_for_resources(course_url: str) -> str:
             f'<link href="{course_url}/sedrila.css" rel="stylesheet">\n'
             f'<link href="{course_url}/local.css" rel="stylesheet">\n'
             f'<link href="{course_url}/codehilite.css" rel="stylesheet">\n'
-            f'<link href="{VIEWER_CSS_URL}" rel="stylesheet">\n'
+            f'<link href="{WEBAPP_CSS_URL}" rel="stylesheet">\n'
             )
 
 
@@ -337,7 +348,7 @@ def html_for_file(mypath) -> str:
                 f"<h1 {CSS}>{mypath}</h1>\n"
                 f"{the_toc}\n"
                 f"{the_lines}")
-    macros.switch_part("viewer")
+    macros.switch_part("webapp")
     mddict = md.render_markdown(mypath, filename, markdown, b.Mode.STUDENT, dict())
     return mddict['html']
 
@@ -391,7 +402,7 @@ def html_for_page(title: str, body: str) -> str:
         title=title,
         resources=html_for_resources(get_context().course_url),
         body=body,
-        script=f"<script src='{VIEWER_JS_URL}'></script>"
+        script=f"<script src='{WEBAPP_JS_URL}'></script>"
     )
 
 
@@ -454,7 +465,7 @@ def html_for_tasklink(str_with_taskname: str) -> str:
 
 def tr_tag(idx: int) -> str:
     color = "even" if idx % 2 == 0 else "odd"
-    return f"<tr class='viewer {color}'>"
+    return f"<tr class='sview {color}'>"
 
 
 def diff_files(path1: str, path2: str) -> str:
