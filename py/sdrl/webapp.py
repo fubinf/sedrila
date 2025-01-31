@@ -144,30 +144,18 @@ def serve_sedrila_replace():
     data = bottle.request.json
     ctx = get_context()
     idx = data['index']
-    print(f"sedrila_replace({data})")
     student, taskname = ctx.studentlist[idx], data['id']
     taskstatus = student.submission[taskname]  # get task accept/reject status
     classes = set(data['cssclass'].split(' '))
-    statemachine = {c.SUBMISSION_CHECK_MARK: 'check', c.SUBMISSION_ACCEPT_MARK: 'accept',
-                    c.SUBMISSION_REJECT_MARK: 'reject'}
-    cycle = list(statemachine.keys())
-    allclasses = set(statemachine.values())
-    newstatus = next_within(taskstatus, cycle)
+    states = states_instructor = [c.SUBMISSION_CHECK_MARK, c.SUBMISSION_ACCEPT_MARK, c.SUBMISSION_REJECT_MARK]
+    allclasses = set(states)
+    newstatus = student.move_to_next_state(taskname, taskstatus)
     student.submission[taskname] = newstatus
     classes = (classes - allclasses)
-    classes.add(statemachine[newstatus])
+    classes.add(newstatus)
     data['cssclass'] = ' '.join(classes)
     data['text'] = f"{idx}!" if newstatus == c.SUBMISSION_REJECT_MARK else f"{idx}"
-    print(f"  -->  {data}")
     return data
-
-
-T = tg.TypeVar('T')
-
-
-def next_within(val: T, cycle: tg.Sequence[T]) -> T:
-    which = (cycle.index(val) + 1) % len(cycle)  # use next, wrap around at the end
-    return cycle[which]
 
 
 @bottle.route(FAVICON_URL)
