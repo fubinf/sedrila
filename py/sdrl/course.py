@@ -37,7 +37,7 @@ class Task(el.Part):
     assumes: list[str] = []  # tasknames: This knowledge is assumed to be present
     requires: list[str] = []  # tasknames: These specific results will be reused here
     workhours: float = 0.0  # time student has worked on this according to commit msgs
-    is_accepted: bool = False  # whether instructor has ever marked it 'accept'
+    is_accepted: bool = False  # whether instructor has ever marked it 'accept', set in repo.py
     rejections: int = 0  # how often instructor has marked it 'reject'
 
     taskgroup: 'Taskgroup'  # where the task belongs

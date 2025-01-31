@@ -15,8 +15,8 @@ import sdrl.course as course
 import sdrl.macros as macros
 import sdrl.subcmd.author as author
 
-INPUTDIR = "py/sdrl/tests/input"  # where test data is copied from
-OUTPUTDIR = "py/sdrl/tests/output"  # where it and the test outputs go
+INPUTDIR = "py/sdrl/tests/authordir"  # where test data is copied from
+OUTPUTDIR = "py/sdrl/tests/author_tmp"  # where it and the test outputs go
 
 expected_output1 = """../out/myarchive.zip
 ../out/instructor/itree.zip

@@ -40,6 +40,9 @@ The logic for computing `sedrila_libdir` in `courses.py` must be adapted.
 `SedrilaArgParser.get_version()` must be adapted.
 The files lists in `pyproject.toml` must be corrected.
 
+Also: Perhaps use deply for checking the layer structure described in internal_notes.md:
+https://github.com/vashkatsi/deply
+
 
 ### 1.2 `instructor`: Handling instructors' trees of student repos
 

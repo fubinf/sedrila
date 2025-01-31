@@ -5,7 +5,7 @@
 - ...
 
 
-## Version 2.5.0 beta (upcoming)
+## Version 2.5.0 beta (2025-01-28)
 - `viewer`: completely new viewer that can browse several directory trees at once and will
   mark most files that pertain to some task given in `submission.yaml`.
 - `student`: Five fields are now mandatory in `student.yaml` (in order to support `viewer` and `instructor`):
