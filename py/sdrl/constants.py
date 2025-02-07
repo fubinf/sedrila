@@ -18,10 +18,13 @@ REPO_USER_CMD_DEFAULT = "/bin/bash"  # fallback only if $SHELL is not set
 SUBMISSION_FILE = "submission.yaml"
 SUBMISSION_COMMIT_MSG = "submission.yaml"
 SUBMISSION_CHECKED_COMMIT_MSG = "submission.yaml checked"
-SUBMISSION_CHECK_MARK = "CHECK"  # beware when renaming: there are same-named CSS styles
-SUBMISSION_NONCHECK_MARK = "NONCHECK"
-SUBMISSION_ACCEPT_MARK = "ACCEPT"
-SUBMISSION_REJECT_MARK = "REJECT"
+# These are for fresh submission / checked submission / resulting task status:
+# (beware when renaming: there are same-named CSS styles)
+SUBMISSION_CHECK_MARK = "CHECK"  # please check / not checked / -- 
+SUBMISSION_NONCHECK_MARK = "NONCHECK"  # do not check / -- / never checked
+SUBMISSION_ACCEPT_MARK = "ACCEPT"  # -- / accepted / accepted
+SUBMISSION_REJECT_MARK = "REJECT"  # -- / rejected / rejected forever
+SUBMISSION_REJECTOID_MARK = "REJECTOID"  # -- / -- / rejected but can be submitted again
 SUBMISSION_OVERRIDE_PREFIX = "OVERRIDE_"
 SUBMISSION_NONTASK_MARK = "NO_SUCH_TASKNAME"
 SEDRILA_COMMAND_ENV = "SEDRILA_COMMAND"

@@ -50,6 +50,17 @@ class Task(el.Part):
         return hash(self.name)
 
     @property
+    def acceptance_state(self) -> str:
+        if self.is_accepted:  # acceptance trumps possible rejection
+            return c.SUBMISSION_ACCEPT_MARK
+        elif self.remaining_attempts <= 0:
+            return c.SUBMISSION_REJECT_MARK
+        elif self.rejections > 0:
+            return c.SUBMISSION_REJECTOID_MARK
+        else:
+            return c.SUBMISSION_NONCHECK_MARK
+
+    @property
     def allowed_attempts(self) -> int:
         course = self.taskgroup.chapter.course
         return int(course.allowed_attempts_base + course.allowed_attempts_hourly*self.timevalue)
@@ -66,6 +77,10 @@ class Task(el.Part):
     @property
     def sourcefile(self) -> str:
         return f"{self.course.chapterdir}/{self.taskgroup.chapter.name}/{self.taskgroup.name}/{self.name}.md"
+
+    @property
+    def time_earned(self) -> float:
+        return self.timevalue if self.is_accepted else 0.0
 
     def from_json(self, task: b.StrAnyDict) -> 'Task':
         """Initializer used in student and instructor mode. Ignores all additional attributes."""

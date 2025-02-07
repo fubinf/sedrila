@@ -23,6 +23,7 @@ FAVICON_URL = "/favicon-32x32.png"
 WEBAPP_CSS_URL = "/webapp.css"
 WEBAPP_JS_URL = "/script.js"
 SEDRILA_REPLACE_URL = "/sedrila-replace.action"
+WORK_REPORT_URL = "/work.report"
 favicon32x32_png_base64 = """iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAE0ElEQVRYR8VXR0hdWxTdzxI1OrAG
 K1ZQbDGoOFBEUOyiYsUKtmAdOPslIPzPR2fB2CAqqFgRLAiCJEKcKIgogi3YosFGdKCiEcvLXSf/
 XN597z6/+RCz4Q3eOfusvc/a7VxFTU2NjpGR0W9KpbKciGyE32PIvmCk6evXr/8o6urq/hCM//0Y
@@ -91,7 +92,7 @@ tr.odd {
     background-color: #ddd;
 }
 
-span.NONCHECK, span.CHECK, span.ACCEPT, span.REJECT {
+span.NONCHECK, span.CHECK, span.ACCEPT, span.REJECT, span.REJECTOID {
     padding: 0.5ex;
     border-radius: 0.3ex;
 }
@@ -113,6 +114,11 @@ span.ACCEPT {
 span.REJECT {
     color: #eee;
     background-color: #c00;
+}
+
+span.REJECTOID {
+    color: #111;
+    background-color: orange;
 }
 """
 
@@ -156,6 +162,12 @@ def serve_root():
         html_for_directorylist(ctx, "/", breadcrumb=False),
     )
     return html_for_page("sedrila", ctx.course_url, body)
+
+
+@bottle.route(WORK_REPORT_URL)
+def serve_work_report():
+    ctx = sdrl.participant.get_context()
+    return html_for_page("work report", ctx.course_url, html_for_work_report(ctx))
 
 
 @bottle.route(SEDRILA_REPLACE_URL, method="POST")
@@ -491,6 +503,60 @@ def html_for_tasklink(str_with_taskname: str, find_taskname_func: tg.Callable[[s
     taskname = find_taskname_func(str_with_taskname)
     instructorpart = "instructor/" if is_instructor else ""
     return f"<a href='{course_url}{instructorpart}{taskname}.html'>task</a>" if taskname else ""
+
+
+def html_for_work_report(ctx: sdrl.participant.Context) -> str:
+    tasks = [(task.path, task.name) for task in ctx.course.taskdict.values()]
+    elems = [f"<h1 {CSS}>Tasks with time worked (w) or earned (e)</h1>\n",
+             f"<p>Colors for time earned: ",
+             f"<span class='{c.SUBMISSION_ACCEPT_MARK}'>Accepted</span>, "
+             f"<span class='{c.SUBMISSION_REJECTOID_MARK}'>Rejected (resubmittable)</span>, "
+             f"<span class='{c.SUBMISSION_REJECT_MARK}'>Rejected (final)</span>"
+             f"</p>\n",
+             f"<table {CSS}>\n",
+             f"<thead {CSS}>\n",
+             "<tr {CSS}>",
+             f"<th></th>",
+             ''.join((f"<th colspan=2>{s.student_gituser}</th>" for s in ctx.studentlist)),
+             f"</tr>",
+             "<tr {CSS}>",
+             f"<th>Task</th>",
+             ''.join(("<th>w</th><th>e</th>" for _ in ctx.studentlist)),
+             f"</tr>",
+             f"</thead>\n"]
+    idx = 0
+    for taskpath, taskname in sorted(tasks):
+        # ----- make sure this task belongs into the report:
+        workhours = [s.course.task(taskname).workhours for s in ctx.studentlist]
+        states = [s.course.task(taskname).acceptance_state for s in ctx.studentlist]
+        is_relevant = sum(workhours) > 0.0 or any((s != c.SUBMISSION_NONCHECK_MARK for s in states))
+        if not is_relevant:
+            continue  # nothing interesting would be in this row
+        # ----- produce general part of row:
+        idx += 1
+        elems.append(tr_tag(idx))
+        elems.append(f"<td {CSS}>{taskpath}</td>")
+        # ----- produce student-specific parts of row:
+        for stud in ctx.studentlist:
+            task = stud.course.task(taskname)
+            elems.append(f"<td {CSS}>{round(task.workhours, 2) if task.workhours else ''}</td>")
+            if task.acceptance_state != c.SUBMISSION_NONCHECK_MARK:
+                time_earned = round(task.time_earned, 2)
+                elems.append(f"<td {CSS}><span class='{task.acceptance_state}'>{time_earned}</span></td>")
+            else:
+                elems.append(f"<td {CSS}></td>")
+        elems.append("</tr>\n")
+    elems.append(f"<thead {CSS}>")
+    elems.append("<tr>")
+    elems.append("<th>Total:</th>")
+    for stud in ctx.studentlist:
+        workhours_total = sum([t.workhours for t in stud.course.taskdict.values()])
+        time_earned_total = sum([t.time_earned for t in stud.course.taskdict.values()])
+        elems.append(f"<th>{round(workhours_total, 2)}</th><th>{round(time_earned_total, 2)}</th>")
+    elems.append("</tr>")
+    elems.append("</thead>")
+    elems.append("</table>\n")
+    return ''.join(elems)
 
 
 def tr_tag(idx: int) -> str:
