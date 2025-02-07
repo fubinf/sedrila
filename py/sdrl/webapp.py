@@ -2,6 +2,7 @@
 import base64
 import os
 import subprocess
+import typing as tg
 
 import bottle  # https://bottlepy.org/docs/dev/
 
@@ -46,7 +47,6 @@ iorY4YfQz63k5eWxIQUZGhqijx8//j8HcKq4uJjMzc3ZPOAtWSvavxt4qOLBioFUX1+v9VX9nwxA
 XdDG5/ljMXEg2GrE5/k3AZpcXaA5fbgAAAAASUVORK5CYII="""
 # created using https://favicon.io/favicon-generator/, Vollkorn 800, size 130
 favicon32x32_png = base64.b64decode(favicon32x32_png_base64)
-get_context = sdrl.participant.get_context  # abbreviation
 
 
 def run(ctx: sdrl.participant.Context):
@@ -101,6 +101,7 @@ span.CHECK {
 }
 
 span.NONCHECK {
+    background-color: lightblue;
 }
 
 span.ACCEPT {
@@ -144,13 +145,15 @@ document.querySelectorAll('.sedrila-replace').forEach(t => {
 
 @bottle.route("/")
 def serve_root():
-    body = "%s\n\n%s\n\n%s\n\n%s" % (
-        html_for_student_table(),
-        html_for_submissionrelated_files(),
-        html_for_remaining_submissions(),
-        html_for_directorylist("/", breadcrumb=False),
+    ctx = sdrl.participant.get_context()
+    body = "%s\n\n%s\n\n%s\n\n%s\n\n%s" % (
+        html_for_student_table(ctx.studentlist),
+        html_for_instructions(ctx.is_instructor),
+        html_for_submissionrelated_files(ctx, ctx.submission_pathset),
+        html_for_remaining_submissions(ctx, ctx.submissions_remaining),
+        html_for_directorylist(ctx, "/", breadcrumb=False),
     )
-    return html_for_page("sedrila", body)
+    return html_for_page("sedrila", ctx.course_url, body)
 
 
 @bottle.route(SEDRILA_REPLACE_URL, method="POST")
@@ -164,7 +167,7 @@ def serve_sedrila_replace():
       { cssclass: "sedrila-replace newclass", text: "newtext" }
     """
     data = bottle.request.json
-    ctx = get_context()
+    ctx = sdrl.participant.get_context()
     idx = data['index']
     student, taskname = ctx.studentlist[idx], data['id']
     taskstatus = student.submission[taskname]  # get task accept/reject status
@@ -198,22 +201,24 @@ def serve_js():
 @bottle.route("<mypath:path>/")
 def serve_directory(mypath: str):
     title = f"D:{os.path.basename(mypath)}"
-    body = html_for_directorylist(f"{mypath}/")
-    return html_for_page(title, body)
+    context = sdrl.participant.get_context()
+    body = html_for_directorylist(context, f"{mypath}/")
+    return html_for_page(title, context.course_url, body)
 
 
 @bottle.route("<mypath:path>")
 def serve_vfile(mypath: str):
+    context = sdrl.participant.get_context()
     if bottle.request.query.raw:  # ...?raw=workdirname
-        return handle_rawfile(mypath, bottle.request.query.raw)
+        student = context.students[bottle.request.query.raw]
+        return handle_rawfile(student, mypath)
     title = f"F:{os.path.basename(mypath)}"
-    body = html_for_file(f"{mypath}")
-    return html_for_page(title, body)
+    body = html_for_file(context.studentlist, mypath)
+    return html_for_page(title, context.course_url, body)
 
 
-def handle_rawfile(mypath: str, workdir: str):
-    wd = get_context().students[workdir]
-    return bottle.static_file(wd.path_actualpath(mypath), root='.')
+def handle_rawfile(student: sdrl.participant.Student, mypath: str):
+    return bottle.static_file(student.path_actualpath(mypath), root='.')
 
 
 def html_for_breadcrumb(path: str) -> str:
@@ -234,49 +239,42 @@ def html_for_breadcrumb(path: str) -> str:
     return f"{''.join(parts)}</nav>"
 
 
-def html_for_resources(course_url: str) -> str:
-    return (f'<link rel="icon" type="image/png" sizes="16x16 32x32" href="{FAVICON_URL}">\n'
-            f'<link href="{course_url}/sedrila.css" rel="stylesheet">\n'
-            f'<link href="{course_url}/local.css" rel="stylesheet">\n'
-            f'<link href="{course_url}/codehilite.css" rel="stylesheet">\n'
-            f'<link href="{WEBAPP_CSS_URL}" rel="stylesheet">\n'
-            )
-
-
-def html_for_directorylist(mypath, breadcrumb=True) -> str:
+def html_for_directorylist(ctx: sdrl.participant.Context, mypath, breadcrumb=True) -> str:
     """A page listing the directories and files under mypath in the virtual filesystem."""
-    dirs, files = get_context().ls(mypath)
+    dirs, files = ctx.ls(mypath)
     lines = [html_for_breadcrumb(mypath) if breadcrumb else ""]  # noqa
     lines.append(f"<h1 {CSS}>Contents of '{mypath}'</h1>")
     lines.append(f"<h2 {CSS}>Subdirectories</h2>")
     lines.append(f"<table {CSS}>")
     for idx, mydir in enumerate(sorted(dirs)):
+        tasklink = html_for_tasklink(mydir, ctx.submission_find_taskname, ctx.course_url, ctx.is_instructor)
         lines.append(f"{tr_tag(idx)}"
                      f"<td {CSS}><a href='{mydir}'>{mydir}</a></td>"
-                     f"<td {CSS}>{html_for_tasklink(mydir)}</td>"
+                     f"<td {CSS}>{tasklink}</td>"
                      f"</tr>")
     lines.append("</table>")
     lines.append(f"<h2 {CSS}>Files</h2>")
     lines.append(f"<table {CSS}>")
     for idx, file in enumerate(sorted(files)):
         filepath = os.path.join(mypath, file)
+        tasklink = html_for_tasklink(filepath, ctx.submission_find_taskname, ctx.course_url, ctx.is_instructor)
         lines.append(f"{tr_tag(idx)}"
                      f"<td {CSS}><a href='{filepath}'>{file}</a></td>"
-                     f"{html_for_file_existence(filepath)}"
-                     f"<td {CSS}>{html_for_tasklink(filepath)}</td>"
+                     f"{html_for_file_existence(ctx.studentlist, filepath)}"
+                     f"<td {CSS}>{tasklink}</td>"
                      f"</tr>")
     lines.append("</table>")
     body = "\n".join(lines)
     return body
 
 
-def html_for_editable_cell(idx, student, taskname):
+def html_for_editable_cell(idx: int, student: sdrl.participant.Student, taskname: str) -> str:
     return (f"<span id='{taskname}' data-index={idx} "
             f"class='sedrila-replace {student.submission[taskname]}'>"
             f"{student.student_gituser}</span>")
 
 
-def html_for_file(mypath) -> str:
+def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
     """
     Page body showing each Workdir's version (if existing) of file mypath, and pairwise diffs where possible.
     We create this as a Markdown page, then render it.
@@ -316,7 +314,7 @@ def html_for_file(mypath) -> str:
         kinds.append(SRC)
 
     def append_diff():
-        prevdir = get_context().studentlist[idx - 1]  # previous workdir
+        prevdir = studentlist[idx - 1]  # previous workdir
         toc.append(f"<a href='#diff-{prevdir.topdir}-{workdir.topdir}'>diff</a>  ")
         lines.append(f"<h2 id='diff-{prevdir.topdir}-{workdir.topdir}' {CSS}"
                      f">{idx - 1}/{idx}. diff {prevdir.topdir}/{workdir.topdir}</h2>")
@@ -332,7 +330,7 @@ def html_for_file(mypath) -> str:
     kinds = []  # which files are SRC, BINARY, or MISSING
     lines = []  # noqa, some entries will be entire file contents, not single lines
     toc = []
-    for idx, workdir in enumerate(get_context().studentlist):
+    for idx, workdir in enumerate(studentlist):
         toc.append(f"<a href='#{workdir.topdir}'>{idx}. {workdir.topdir}</a>  ")
         lines.append(f"<h2 id='{workdir.topdir}' {CSS}>{idx}. {workdir.topdir}: {filename}</h2>")
         if not workdir.path_exists(mypath):
@@ -353,17 +351,16 @@ def html_for_file(mypath) -> str:
     return mddict['html']
 
 
-def html_for_file_existence(mypath: str) -> str:
+def html_for_file_existence(studentlist: list[sdrl.participant.Student], mypath: str) -> str:
     """One or more table column entries with file existence markers for each file or file pair."""
     def file_exists_at(idx: int) -> bool:
-        return context.studentlist[idx].path_exists(mypath)
+        return studentlist[idx].path_exists(mypath)
     
     BEGIN = f'<td {CSS}>'
     END = '</td>'
     MISSING = '-- '
     entries = []
-    context = sdrl.participant.get_context()
-    for idx, wd in enumerate(context.studentlist):
+    for idx, wd in enumerate(studentlist):
         wd: sdrl.participant.Student  # type hint
         if wd.path_exists(mypath):
             taskname = wd.submission_find_taskname(mypath)
@@ -400,17 +397,17 @@ def html_for_file_existence(mypath: str) -> str:
 def html_for_page(title: str, body: str) -> str:
     return basepage_html.format(
         title=title,
-        resources=html_for_resources(get_context().course_url),
+        resources=html_for_resources(course_url),
         body=body,
         script=f"<script src='{WEBAPP_JS_URL}'></script>"
     )
 
 
-def html_for_remaining_submissions() -> str:
+def html_for_remaining_submissions(ctx: sdrl.participant.Context, submissions_remaining: set[str]) -> str:
     def html_for_remainingness(subm: str) -> str:
         MISSING = '-- '
         parts = []
-        for idx2, wd in enumerate(get_context().studentlist):
+        for idx2, wd in enumerate(ctx.studentlist):
             parts.append("<td {CSS}>")
             parts.append(f"{html_for_editable_cell(idx2, wd, subm)} " if subm in wd.submissions_remaining else MISSING)
             parts.append("</td>")
@@ -418,21 +415,31 @@ def html_for_remaining_submissions() -> str:
 
     lines = [f"<h1 {CSS}>Submissions not covered above</h1>",
              f"<table {CSS}>"]
-    for idx, submission in enumerate(sorted(get_context().submissions_remaining)):
+    for idx, submission in enumerate(sorted(submissions_remaining)):
+        tasklink = html_for_tasklink(submission, ctx.submission_find_taskname, ctx.course_url, ctx.is_instructor)
         lines.append(f"{tr_tag(idx)}"
                      f"<td {CSS}>{submission}</td>"
                      f"<td {CSS}>{html_for_remainingness(submission)}</td>"
-                     f"<td {CSS}>{html_for_tasklink(submission)}</td>"
+                     f"<td {CSS}>{tasklink}</td>"
                      f"</tr>")
     lines.append("</table>")
     return "\n".join(lines)
 
 
-def html_for_student_table() -> str:
+def html_for_resources(course_url: str) -> str:
+    return (f'<link rel="icon" type="image/png" sizes="16x16 32x32" href="{FAVICON_URL}">\n'
+            f'<link href="{course_url}/sedrila.css" rel="stylesheet">\n'
+            f'<link href="{course_url}/local.css" rel="stylesheet">\n'
+            f'<link href="{course_url}/codehilite.css" rel="stylesheet">\n'
+            f'<link href="{WEBAPP_CSS_URL}" rel="stylesheet">\n'
+            )
+
+
+def html_for_student_table(studentlist: list[sdrl.participant.Student]) -> str:
     lines = [f"<table {CSS}>"]
     lines.append(f"{tr_tag(-1)}<td {CSS}><b>student_name</b></td><td {CSS}><b>student_id</b></td>"
                  f"<td {CSS}><b>student_gituser</b></td><td {CSS}><b>partner_gituser</b></td>")
-    for idx, stud in enumerate(get_context().studentlist):
+    for idx, stud in enumerate(studentlist):
         lines.append(f"{tr_tag(idx)}"
                      f"<td {CSS}>{stud.student_name}</td>"
                      f"<td {CSS}>{stud.student_id}</td>"
@@ -443,24 +450,25 @@ def html_for_student_table() -> str:
     return "\n".join(lines)
 
 
-def html_for_submissionrelated_files() -> str:
+def html_for_submissionrelated_files(ctx: sdrl.participant.Context, submission_pathset: set[str]) -> str:
     lines = [f"<h1 {CSS}>Files with submission-related names</h1>",
              f"<table {CSS}>"]
-    for idx, mypath in enumerate(sorted(get_context().submission_pathset)):
+    for idx, mypath in enumerate(sorted(submission_pathset)):
+        tasklink = html_for_tasklink(mypath, ctx.submission_find_taskname, ctx.course_url, ctx.is_instructor)
         lines.append(f"{tr_tag(idx)}"
                      f"<td {CSS}><a href='{mypath}'>{mypath}</a></td>"
-                     f"{html_for_file_existence(mypath)}"
-                     f"<td {CSS}>{html_for_tasklink(mypath)}</td>"
+                     f"{html_for_file_existence(ctx.studentlist, mypath)}"
+                     f"<td {CSS}>{tasklink}</td>"
                      f"</tr>")
     lines.append("</table>")
     return "\n".join(lines)
 
 
-def html_for_tasklink(str_with_taskname: str) -> str:
-    context = get_context()
-    taskname = context.submission_find_taskname(str_with_taskname)
-    instructorpart = "instructor/" if context.is_instructor else ""
-    return f"<a href='{context.course_url}{instructorpart}{taskname}.html'>task</a>" if taskname else ""
+def html_for_tasklink(str_with_taskname: str, find_taskname_func: tg.Callable[[str], str],
+                      course_url: str, is_instructor: bool) -> str:
+    taskname = find_taskname_func(str_with_taskname)
+    instructorpart = "instructor/" if is_instructor else ""
+    return f"<a href='{course_url}{instructorpart}{taskname}.html'>task</a>" if taskname else ""
 
 
 def tr_tag(idx: int) -> str:
