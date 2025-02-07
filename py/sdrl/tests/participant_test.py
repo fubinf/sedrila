@@ -1,3 +1,4 @@
+import argparse
 import contextlib
 import os
 import shutil
@@ -22,6 +23,7 @@ student_gituser: mestudent
 partner_gituser: ""
 """
 
+
 def test_participant(capfd):
     """
     Tests sdrl.repo, sdrl.participant.
@@ -29,6 +31,7 @@ def test_participant(capfd):
     """
     with tb.TempDirEnvironContextMgr(**{c.REPO_USER_CMD_VAR: "echo SEDRILA_INSTRUCTOR_COMMAND was called"}) as mgr:
         os.environ[c.REPOS_HOME_VAR] = mgr.newdir  # will not be unpatched; not a problem
+        empty = argparse.Namespace()
         
         # ----- test clone:
         b._testmode_reset()
@@ -46,7 +49,7 @@ def test_participant(capfd):
         #     os.system("git log|cat")
         
         # ----- test Context:
-        ctx = sdrl.participant.make_context(None, ["studentdir"], show_size=True)
+        ctx = sdrl.participant.make_context(empty, ["studentdir"], is_instructor=False, show_size=True)
         student = ctx.studentlist[0]  # there is only one
         assert ctx.submission_tasknames == {'Task1'}
         assert student.submission_tasknames == {'Task1'}
@@ -65,10 +68,10 @@ def test_participant(capfd):
         submission = dict(Task1=c.SUBMISSION_CHECK_MARK, Task2=c.SUBMISSION_CHECK_MARK)
         filename = os.path.join(student.topdir, c.SUBMISSION_FILE)
         b.spit_yaml(filename, submission)
-        ctx = sdrl.participant.make_context(None, ["studentdir"], show_size=True)
+        ctx = sdrl.participant.make_context(empty, ["studentdir"], is_instructor=True)
         student = ctx.studentlist[0]  # now with the above submission file
         print("#1:", student.submission)
-        while True: # horrible logic here, but natural in the webapp:
+        while True:  # horrible logic here, but natural in the webapp:
             state = student.move_to_next_state('Task1', student.submission['Task1'])
             if state == c.SUBMISSION_ACCEPT_MARK:
                 break
@@ -88,7 +91,7 @@ def test_participant(capfd):
             print("all_signers_allowed:", commit)
             return True
         with unittest.mock.patch('sdrl.repo.is_allowed_signer', new=all_signers_allowed):  # believe everything
-            ctx = sdrl.participant.make_context(None, ["studentdir"], show_size=True)
+            ctx = sdrl.participant.make_context(empty, ["studentdir"], is_instructor=True)
         student = ctx.studentlist[0]  # there is only one
         print("#4:", student.submission)
         task1, task2 = student.course_with_work.task('Task1'), student.course_with_work.task('Task2')
