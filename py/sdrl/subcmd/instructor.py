@@ -1,19 +1,13 @@
 import argparse
 import contextlib
 import os
-import re
-import subprocess as sp
-import time
 import typing as tg
-
-import blessed
 
 import base as b
 import git
 import sdrl.constants as c
 import sdrl.course
 import sdrl.participant
-import sdrl.repo as r
 import sdrl.webapp
 
 meaning = """Help instructors evaluate students' submissions of several finished tasks.
@@ -52,23 +46,12 @@ def execute(pargs: argparse.Namespace):
     if pargs.op:
         OP_CMDS[pargs.op](context)  # execute one command via lookup table, with duck-typed arg
     else:
-        run_command_loop(context)
+        run_command_loop(context, MENU, MENU_HELP, MENU_CMDS)
 
 
-def run_command_loop(context):
-    term = blessed.Terminal()
-    try:
-        while True:
-            print(MENU)
-            with term.cbreak():
-                cmdkey = term.inkey()
-            mycmd = MENU_CMDS.get(cmdkey)
-            if mycmd:
-                mycmd(context)
-            elif str(cmdkey) == "q":
-                break
-    except KeyboardInterrupt:
-        pass  # just quit
+def run_command_loop(context, menu: str, helptext: str, cmds: dict[str, tg.Callable]):
+    import sdrl.subcmd.student
+    sdrl.subcmd.student.run_command_loop(context, menu, helptext, cmds)
 
 
 def cmd_webapp(ctx: sdrl.participant.Context):
@@ -108,4 +91,5 @@ def pull_some_repos(workdirs: tg.Iterable[str]):
 
 MENU = "\n>>> w:webapp e:edit c:commit+push q:quit   "
 MENU_CMDS = dict(w=cmd_webapp, e=cmd_edit, c=cmd_commit_and_push)
+MENU_HELP = ""
 OP_CMDS = dict(pull=pull_some_repos, webapp=cmd_webapp, edit=cmd_edit, commit_and_push=cmd_commit_and_push)
