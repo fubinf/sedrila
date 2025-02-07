@@ -8,6 +8,7 @@ import bottle  # https://bottlepy.org/docs/dev/
 
 import base as b
 import sdrl.argparser
+import sdrl.constants as c
 import sdrl.course
 import sdrl.macros as macros
 import sdrl.macroexpanders as macroexpanders
@@ -101,6 +102,7 @@ span.CHECK {
 }
 
 span.NONCHECK {
+    color: #111;
     background-color: lightblue;
 }
 
@@ -147,8 +149,8 @@ document.querySelectorAll('.sedrila-replace').forEach(t => {
 def serve_root():
     ctx = sdrl.participant.get_context()
     body = "%s\n\n%s\n\n%s\n\n%s\n\n%s" % (
-        html_for_student_table(ctx.studentlist),
         html_for_instructions(ctx.is_instructor),
+        html_for_student_table(ctx.studentlist),
         html_for_submissionrelated_files(ctx, ctx.submission_pathset),
         html_for_remaining_submissions(ctx, ctx.submissions_remaining),
         html_for_directorylist(ctx, "/", breadcrumb=False),
@@ -394,7 +396,27 @@ def html_for_file_existence(studentlist: list[sdrl.participant.Student], mypath:
     return ''.join(entries)
 
 
-def html_for_page(title: str, body: str) -> str:
+def html_for_instructions(is_instructor: bool):
+    """Explain how to use interactively what html_for_editable_cell() generates."""
+    result = [
+        "<ul>",
+        " <li>Browse files and directories of one or more file trees</li>",
+        " <li>Cycle through the following states by clicking the colored cells "
+        f"for existing entries of '{c.SUBMISSION_FILE}':<br>"]
+    if is_instructor:
+        states = [("Please check", c.SUBMISSION_CHECK_MARK),
+                  ("Accepted", c.SUBMISSION_ACCEPT_MARK),
+                  ("Rejected", c.SUBMISSION_REJECT_MARK), ]
+    else:
+        states = [("Submit", c.SUBMISSION_CHECK_MARK),
+                  ("Do not submit", c.SUBMISSION_NONCHECK_MARK), ]
+    explanations = [f"<span class='{state}'>{text}</span>" for text, state in states]
+    result.append(', '.join(explanations))
+    result.append("</li></ul>")
+    return '\n'.join(result)
+
+
+def html_for_page(title: str, course_url: str, body: str) -> str:
     return basepage_html.format(
         title=title,
         resources=html_for_resources(course_url),
