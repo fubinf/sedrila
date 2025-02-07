@@ -1,7 +1,6 @@
 import argparse
 import contextlib
 import os
-import typing as tg
 import readline  # noqa, is active automatically for input()
 
 import blessed
@@ -15,7 +14,6 @@ import sdrl.repo as r
 import sdrl.webapp
 
 
-
 meaning = """Reports on course execution so far or prepares submission to instructor."""
 
 
@@ -26,18 +24,6 @@ def add_arguments(subparser):
                            help="start initialization for student repo directory")
     subparser.add_argument('--op', default="", choices=OP_CMDS.keys(),
                            help="Perform one operation non-interactively")
-    subparser.add_argument('--port', '-p', type=int, default=sdrl.webapp.DEFAULT_PORT,
-                           help=f"webapp will listen on this port (default: {sdrl.webapp.DEFAULT_PORT})")
-    subparser.add_argument('--log', default="INFO", choices=b.loglevels.keys(),
-                           help="Log level for logging to stdout (default: INFO)")
-
-def add_arguments1(subparser):
-    subparser.add_argument('--submission', action='store_true',
-                           help=f"generate {c.SUBMISSION_FILE} with possible tasks to be checked by instructor")
-    subparser.add_argument('--interactive', default="True", action=argparse.BooleanOptionalAction,
-                           help="open interactive terminal interface to select tasks to submit")
-    subparser.add_argument('--import-keys', action='store_true',
-                           help="(re)import all public gpg keys for the given course")
     subparser.add_argument('--port', '-p', type=int, default=sdrl.webapp.DEFAULT_PORT,
                            help=f"webapp will listen on this port (default: {sdrl.webapp.DEFAULT_PORT})")
     subparser.add_argument('--log', default="INFO", choices=b.loglevels.keys(),
@@ -181,33 +167,6 @@ MENU_HELP = f"""
 """
 MENU_CMDS = dict(p=cmd_prepare, w=cmd_webapp, e=cmd_edit, c=cmd_commit, u=cmd_push)
 OP_CMDS = dict(prepare=cmd_prepare, webapp=cmd_webapp, edit=cmd_edit)
-
-
-def report_student_work_so_far(course: sdrl.course.Course, entries: tg.Sequence[r.ReportEntry],
-                               workhours_total: float, timevalue_total: float, out=None):
-    b.info("Your work so far:")
-    table = b.Table()
-    table.add_column("Taskname")
-    table.add_column("Workhours", justify="right")
-    table.add_column("Timevalue", justify="right")
-    table.add_column("reject/accept")
-    entries = sorted(entries, key=lambda e: e.taskpath)  # sort by chapter+taskgroup
-    for taskname, taskpath, workhours, timevalue, rejections, accepted in entries:
-        task = course.taskdict[taskname]
-        ra_string = (c.INTERACT_ACCEPT_SYMBOL + " ") if task.is_accepted else ""
-        if task.rejections > 0:
-            ra_string += f"{c.INTERACT_REJECT_SYMBOL * task.rejections}"
-            remaining = task.remaining_attempts
-            allowed = task.allowed_attempts
-            ra_string += f" ({remaining} of {allowed} remain)" if not task.is_accepted else ""
-            if not remaining:
-                ra_string = f"{c.SUBMISSION_REJECT_MARK} (after {allowed} attempt{b.plural_s(allowed)})"
-        table.add_row(taskpath, "%4.2f" % workhours, "%4.2f" % timevalue, ra_string)
-        if out is not None:
-            out.append((taskname, "%4.2f" % workhours, "%4.2f" % timevalue, ra_string))
-    # table.add_section()
-    table.add_row("[b]=TOTAL[/b]", "[b]%6.2f[/b]" % workhours_total, "[b]%6.2f[/b]" % timevalue_total, "")
-    b.rich_print(table)
 
 
 def _show_instructors(course, with_gitaccount=False):
