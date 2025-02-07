@@ -232,7 +232,10 @@ class Student:
     def move_to_next_state(self, taskname: str, taskstatus: str) -> str:
         """Cycle (1 step) through possible taskstates in self.submisson and in c.PARTICIPANT_FILE."""
         states = self.possible_submission_states
-        newidx = (states.index(taskstatus) + 1) % len(states)  # use next (or first if unknown), wrap around at the end
+        try:
+            newidx = (states.index(taskstatus) + 1) % len(states)  # use next, wrap around at the end
+        except ValueError:
+            return taskstatus  # ignore call if taskstatus is not a possible state
         newstate = states[newidx]
         self.submission[taskname] = newstate  # change state in memory
         self.save_submission()

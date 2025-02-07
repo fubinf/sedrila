@@ -14,13 +14,13 @@ Under Windows, use WSL. `sedrila` does not work natively in Windows.
   For other platforms, see [GnuPG downloads](https://gnupg.org/download/index.html).
 - Generate key: `gpg --full-generate-key`  
   Use the name and email that the students should get to see.
-  Make sure, the key does not expire during the course for which you intend to use it.
+  Make sure, the key does not expire during the courses for which you intend to use it.
   The simplest approach is to generate a key that never expires.
 - List keys: `gpg --list-keys`    
   Note down the key fingerprint of your public key.
   This is the 40-digit hex string shown next to your email address. 
 - Export public key:  `gpg --armor --export <keyfingerprint>`  
-- Set a useful timeout (e.g. 4 hours) how long `gpg-agent` should keep the passphrase before
+- Set a useful timeout (e.g. 12 hours) how long `gpg-agent` should keep the passphrase before
   you need to enter it again.  
   [HREF::https://superuser.com/questions/624343/keep-gnupg-credentials-cached-for-entire-user-session]
 
@@ -36,7 +36,7 @@ Under Windows, use WSL. `sedrila` does not work natively in Windows.
 
 ### 1.3 Set up your workstation
 
-Those steps are quality of life aspects only. You can use sedrila without having done this if you
+Those steps are quality-of-life aspects only. You can use sedrila without having done this if you
 are in an environment where they might cause any issues, even though there shouldn't be any.
 
 #### 1.3.1a Old version (soon to be removed, to be used with `instructor1`)
