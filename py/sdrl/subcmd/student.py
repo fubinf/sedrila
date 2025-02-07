@@ -2,6 +2,7 @@ import argparse
 import contextlib
 import os
 import readline  # noqa, is active automatically for input()
+import typing as tg
 
 import blessed
 
@@ -52,7 +53,7 @@ def execute(pargs: argparse.Namespace):
     if pargs.op:
         OP_CMDS[pargs.op](context)  # execute one command via lookup table, with duck-typed arg
     else:
-        run_command_loop(context)
+        run_command_loop(context, menu=MENU, helptext=MENU_HELP, cmds=MENU_CMDS)
 
 
 def init(workdirs: list[str]):
@@ -73,18 +74,20 @@ def init(workdirs: list[str]):
     r.import_gpg_keys(student.course_metadata['instructors'])
 
 
-def run_command_loop(context):
+def run_command_loop(context, menu: str, helptext: str, cmds: dict[str, tg.Callable]):
     term = blessed.Terminal()
     try:
         while True:
-            print(MENU)
+            print(menu)
             with term.cbreak():
                 cmdkey = term.inkey()
-            mycmd = MENU_CMDS.get(cmdkey)
+            mycmd = cmds.get(cmdkey)
             if mycmd:
                 mycmd(context)
             elif str(cmdkey) == "q":
                 break
+            else:
+                print(helptext)
     except KeyboardInterrupt:
         pass  # just quit
 
