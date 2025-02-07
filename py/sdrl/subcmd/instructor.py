@@ -12,7 +12,6 @@ import base as b
 import git
 import sdrl.constants as c
 import sdrl.course
-import sdrl.interactive as i
 import sdrl.participant
 import sdrl.repo as r
 import sdrl.webapp
@@ -45,7 +44,7 @@ def execute(pargs: argparse.Namespace):
         else:
             if not pargs.op:
                 pull_some_repos(pargs.workdir)
-            context = sdrl.participant.make_context(pargs, pargs.workdir, show_size=True)
+            context = sdrl.participant.make_context(pargs, pargs.workdir, is_instructor=True, show_size=True)
     except KeyboardInterrupt:
         print("  Bye.")
         return  # quit
@@ -83,7 +82,7 @@ def cmd_edit(ctx: sdrl.participant.Context):
     ...
 
 
-def cmd_push(ctx: sdrl.participant.Context):
+def cmd_commit_and_push(ctx: sdrl.participant.Context):
     b.info("----- Commit and push student repos")
     yesses = b.yesses("Commit & Push '%s'?", ctx.students)
     for yes, workdir in zip(yesses, ctx.students):
@@ -108,37 +107,9 @@ def pull_some_repos(workdirs: tg.Iterable[str]):
             b.info(f"Not pulling '{workdir}'.")
 
 
-MENU = "\n>>> w:webapp e:edit u:push q:quit   "
-MENU_CMDS = dict(w=cmd_webapp, e=cmd_edit, u=cmd_push)
-OP_CMDS = dict(pull=pull_some_repos, webapp=cmd_webapp, edit=cmd_edit)
-
-
-def _xxx_oldstuff(pargs):
-    student = sdrl.participant.Student()
-    course = sdrl.course.CourseSI(configdict=student.course_metadata, context=student.course_metadata_url)
-    commits = git.commits_of_local_repo(reverse=True)
-    r.compute_student_work_so_far(course, commits)
-    entries, workhours_total, timevalue_total = r.student_work_so_far(course)
-    opentasks = rewrite_submission_file(course, c.SUBMISSION_FILE)
-    entries = [entry for entry in entries if allow_grading(course, opentasks, entry, pargs.override)]
-    entries = sorted(entries, key=lambda e: e.taskpath)  # sort by chapter+taskgroup
-    if not pargs.check:
-        b.info("Don't run check, just prepare commit")
-    elif not entries:
-        b.info("No tasks to check found. Assuming check already done. Preparing commit.")
-    elif pargs.interactive:
-        rejections = i.grade_entries(entries, student.course_url, pargs.override)
-        if rejections is None:
-            b.info("Nothing selected, nothing to do")
-            return
-        b.spit_yaml(c.SUBMISSION_FILE, r.submission_file_entries(entries, rejections, pargs.override))
-        subshell_exit_info(reminder=True)
-    else:
-        call_instructor_cmd(course, instructor_cmd(), pargs, iteration=0)
-    if pargs.put:
-        validate_submission_file(course, c.SUBMISSION_FILE)
-        commit_and_push(c.SUBMISSION_FILE)
-    os.chdir("..")
+MENU = "\n>>> w:webapp e:edit c:commit+push q:quit   "
+MENU_CMDS = dict(w=cmd_webapp, e=cmd_edit, c=cmd_commit_and_push)
+OP_CMDS = dict(pull=pull_some_repos, webapp=cmd_webapp, edit=cmd_edit, commit_and_push=cmd_commit_and_push)
 
 
 def allow_grading(course, opentasks, entry: r.ReportEntry, override: bool) -> bool:
