@@ -235,14 +235,19 @@ class Student:
         newidx = (states.index(taskstatus) + 1) % len(states)  # use next (or first if unknown), wrap around at the end
         newstate = states[newidx]
         self.submission[taskname] = newstate  # change state in memory
-        b.spit_yaml(self.submissionfile_path, self.submission)  # change state in persistent copy
+        self.save_submission()
         return newstate
+
+    def save_submission(self):
+        """Write self.submission to c.SUBMISSION_FILE"""
+        b.spit_yaml(self.submissionfile_path, self.submission)  # change state in persistent copy
 
     def submission_find_taskname(self, path: str) -> str:
         return _submission_find_taskname(self, path)
 
 
 class Context:
+    # TODO 2: add cached_property is_gpg_available()
     pargs: ap_sub.Namespace
     students: collections.OrderedDict[str, Student]
     studentlist: list[Student]
@@ -316,10 +321,10 @@ class Context:
         return _submission_find_taskname(self, path)
 
 
-def make_context(pargs: ap_sub.Namespace, dirs: list[str], 
-                 show_size=False, is_instructor=False):
+def make_context(pargs: ap_sub.Namespace, dirs: list[str], *, is_instructor: bool, 
+                 show_size=False):
     global _context
-    _context = Context(pargs, dirs, show_size, is_instructor)
+    _context = Context(pargs, dirs, is_instructor=is_instructor, show_size=show_size)
     return _context
 
 
@@ -339,5 +344,3 @@ def _submission_re(studentoid) -> re.Pattern:
     longest_first = sorted(sorted(studentoid.submission_tasknames), key=len, reverse=True)  # decreasing specificity
     items_re = '|'.join([re.escape(item) for item in longest_first])  # noqa, item has the right type
     return re.compile(f"\\b({items_re})\\b")  # match task names only as words or multiwords
-
-
