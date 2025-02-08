@@ -23,6 +23,8 @@ def add_arguments(subparser):
                            help="where to find student input")
     subparser.add_argument('--init', action='store_true',
                            help="start initialization for student repo directory")
+    subparser.add_argument('--import-keys', action='store_true',
+                           help="Import instructors' public keys into GPG.")
     subparser.add_argument('--op', default="", choices=OP_CMDS.keys(),
                            help="Perform one operation non-interactively")
     subparser.add_argument('--port', '-p', type=int, default=sdrl.webapp.DEFAULT_PORT,
@@ -40,6 +42,8 @@ def execute(pargs: argparse.Namespace):
     if pargs.init:
         init(pargs.workdir)
         return
+    elif getattr(pargs, 'import-keys', None):
+        import_keys(pargs.workdir)
     # ----- prepare:
     try:
         for workdir in pargs.workdir:
@@ -72,6 +76,16 @@ def init(workdirs: list[str]):
     if response and response in "Qq":
         b.critical("Abort.")
     r.import_gpg_keys(student.course_metadata['instructors'])
+
+
+def import_keys(workdirs: list[str]):
+    if workdirs:
+        b.critical("--import-keys can only be called without an explicit argument from within a working directory")
+    student = sdrl.participant.Student('.', is_instructor=False)
+    instructors = student.course_metadata.get('instructors')
+    if not instructors:
+        b.critical("No information about instructors present in course.")
+    r.import_gpg_keys(instructors)
 
 
 def run_command_loop(context, menu: str, helptext: str, cmds: dict[str, tg.Callable]):
