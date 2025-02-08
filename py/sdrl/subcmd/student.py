@@ -42,8 +42,9 @@ def execute(pargs: argparse.Namespace):
     if pargs.init:
         init(pargs.workdir)
         return
-    elif getattr(pargs, 'import-keys', None):
+    elif pargs.import_keys:
         import_keys(pargs.workdir)
+        return
     # ----- prepare:
     try:
         for workdir in pargs.workdir:
@@ -61,8 +62,8 @@ def execute(pargs: argparse.Namespace):
 
 
 def init(workdirs: list[str]):
-    if workdirs:
-        b.critical("--init can only be called without an explicit argument from within a working directory")
+    if workdirs != ['.']:
+        b.critical("'--init' can only be called without an explicit argument from within a working directory")
     sdrl.participant.Student.build_participant_file()
     student = sdrl.participant.Student('.', is_instructor=False)
     if not(student.course_metadata.get('instructors')):
@@ -79,12 +80,13 @@ def init(workdirs: list[str]):
 
 
 def import_keys(workdirs: list[str]):
-    if workdirs:
-        b.critical("--import-keys can only be called without an explicit argument from within a working directory")
+    if workdirs != ['.']:
+        b.critical("'--import-keys' can only be called without an explicit argument from within a working directory")
     student = sdrl.participant.Student('.', is_instructor=False)
     instructors = student.course_metadata.get('instructors')
     if not instructors:
         b.critical("No information about instructors present in course.")
+    b.info("importing instructors' public keys")
     r.import_gpg_keys(instructors)
 
 
