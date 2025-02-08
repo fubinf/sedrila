@@ -23,8 +23,8 @@ so you need to tell them those.
 
 The command `sedrila student --init` in your project folder will create
 a file calles `student.yaml` with the relevant information.
-You will be prompted for a course url which you can copy from your
-browser and paste it without any changes made to it.
+You will be prompted for a course url which you can copy/paste from your
+browser.
 
 Afterwards, you will be prompted for the necessary information to allow
 instructors to grade you.
@@ -78,12 +78,12 @@ commits apart from others like a request for grading.
 commit. 
 If you finished the task, this can be left empty. 
 If the task is still incomplete, describe what you did that is new in this commit.
+A precision of five or ten minutes will be good enough.
+(An additional long commit message after an empty line is possible as well.) 
 
-Decimal hours are possible as well:
-
-`%SomeTask 2.75h description words`
-
-This entry means 2 hours and 45 minutes.
+Beware: Decimal hours are possible as well, but are not recommended. 
+`%SomeTask 2.75h description words` would mean 2 hours and 45 minutes,
+so make sure you get the colon right or else your data will be distorted.
 When `sedrila` creates a work time report for you, it will use decimal hours.
 
 
@@ -96,25 +96,35 @@ task separately would be too inefficient.
 
 In order to describe which tasks the instructor should check, you need to prepare
 a file, called `submission.yaml` containing the list of tasks to be checked.
-In fact, if you obeyed the commit convention described above, `sedrila` is going
-to prepare that file for you by collecting the names of all tasks you have 
+In fact, if you obeyed the commit convention described above, `sedrila` can
+prepare that file for you by collecting the names of all tasks you have 
 recorded times for (and that are not yet accepted).
+To do this, either call 
+`sedrila student --op prepare` or call `sedrila student` and choose 'prepare' in the menu.
+
 All you need to do then is kick out entries that
 are not yet submission-ready.
+To do this, either edit file `submission.yaml` with any text editor 
+or call `sedrila student --op webapp` and do it in the browser.
+(The webapp is convenient for inspecting the submission-readiness of tasks where you are not
+sure whether they have been completed or not.)
 
 The instructor will use that same file to record which of your submitted tasks
 are accepted and to record feedback explaining what's wrong with those that are rejected.
+To send your submissions to the instructor, 
+you need to commit `submission.yaml` with the appropriate commit message,
+push that commit (and those of your previous work), and send the instructor
+an email in a certain format.
 
-To create the draft version of `submission.yaml`, call
-
-`sedrila student --submission`
-
-The command output will explain the next steps.
+To do this, either first call `sedrila student --op commit`, 
+then `sedrila student --op push`, then follow the instructions shown.
+Or just call `sedrila student` and perform those two commands from the menu.
 
 
 ## 5. How to see what you have done so far
 
-Call `sedrila student` in order to see a list of the tasks you have submitted so far,
+Call `sedrila student --op webapp` in order to view the "work report", 
+a list of the tasks you have submitted so far,
 the associated timevalues, and possibly the sum of the associated actual work times.
 The work times are available only insofar as you have used the commit message format
 described in 3.2 above.
