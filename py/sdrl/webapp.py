@@ -258,7 +258,7 @@ def html_for_directorylist(ctx: sdrl.participant.Context, mypath, breadcrumb=Tru
     dirs, files = ctx.ls(mypath)
     lines = [html_for_breadcrumb(mypath) if breadcrumb else ""]  # noqa
     lines.append(f"<h1 {CSS}>Contents of '{mypath}'</h1>")
-    lines.append(f"<h2 {CSS}>Subdirectories</h2>")
+    lines.append(f"<h2 id='subdirectories'{CSS}>Subdirectories</h2>")
     lines.append(f"<table {CSS}>")
     for idx, mydir in enumerate(sorted(dirs)):
         tasklink = html_for_tasklink(mydir, ctx.submission_find_taskname, ctx.course_url, ctx.is_instructor)
@@ -267,7 +267,7 @@ def html_for_directorylist(ctx: sdrl.participant.Context, mypath, breadcrumb=Tru
                      f"<td {CSS}>{tasklink}</td>"
                      f"</tr>")
     lines.append("</table>")
-    lines.append(f"<h2 {CSS}>Files</h2>")
+    lines.append(f"<h2 id='files' {CSS}>Files</h2>")
     lines.append(f"<table {CSS}>")
     for idx, file in enumerate(sorted(files)):
         filepath = os.path.join(mypath, file)
@@ -412,7 +412,12 @@ def html_for_instructions(is_instructor: bool):
     """Explain how to use interactively what html_for_editable_cell() generates."""
     result = [
         "<ul>",
-        " <li>Browse files and directories of one or more file trees</li>",
+        " <li>Browse <a href='#subdirectories'>directories</a>, "
+        "<a href='#files'>files</a>, "
+        "<a href='#submissions'>submitted tasks</a>, "
+        "<a href='#submissionrelated'>submission-related files</a>, or "
+        f"the <a href='{WORK_REPORT_URL}'>work report</a> "
+        "of one or more student file trees.</li>",
         " <li>Cycle through the following states by clicking the colored cells "
         f"for existing entries of '{c.SUBMISSION_FILE}':<br>"]
     if is_instructor:
@@ -447,7 +452,7 @@ def html_for_remaining_submissions(ctx: sdrl.participant.Context, submissions_re
             parts.append("</td>")
         return ''.join(parts)
 
-    lines = [f"<h1 {CSS}>Submissions not covered above</h1>",
+    lines = [f"<h1 id='submissions' {CSS}>Submissions not covered above</h1>",
              f"<table {CSS}>"]
     for idx, submission in enumerate(sorted(submissions_remaining)):
         tasklink = html_for_tasklink(submission, ctx.submission_find_taskname, ctx.course_url, ctx.is_instructor)
@@ -485,7 +490,7 @@ def html_for_student_table(studentlist: list[sdrl.participant.Student]) -> str:
 
 
 def html_for_submissionrelated_files(ctx: sdrl.participant.Context, submission_pathset: set[str]) -> str:
-    lines = [f"<h1 {CSS}>Files with submission-related names</h1>",
+    lines = [f"<h1 id='submissionrelated' {CSS}>Files with submission-related names</h1>",
              f"<table {CSS}>"]
     for idx, mypath in enumerate(sorted(submission_pathset)):
         tasklink = html_for_tasklink(mypath, ctx.submission_find_taskname, ctx.course_url, ctx.is_instructor)
