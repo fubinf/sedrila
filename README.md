@@ -46,23 +46,16 @@ https://github.com/vashkatsi/deply
 
 ### 1.2 `instructor`: Handling instructors' trees of student repos
 
-- Remove  `REPOS_HOME_VAR`, `REPO_USER_CMD_VAR`, `REPO_USER_CMD_DEFAULT`
-  and their values' mentions in the documentation.
 - Add `participants_file` (a CSV file) to `sedrila.yaml`, 
   export its `student_id` and `student_gituser` columns to the website's `/instructor/participants.json`, and 
   use it to warn upon submissions from students not admitted to the course.
 - Reject submissions where `course_url` is different from what it was in that repo's first accepted submission.
-- after filtering, create `submission.yaml` backup copy and then use that.
-  Do not overwrite it upon subsequent calls!
-  Move it back only upon push.
-- `viewer`: add accepting/rejecting tasks
-- Do we really need the terminal version then? It's a headache!
+
 
 
 ### 1.3 `student`
 
-- Is the menu command loop a good idea for `student` as well?
-- At least provide a viewer that can select available tasks for submission.
+- ...
 
 
 ## 2. Development process: TODO-handling during development

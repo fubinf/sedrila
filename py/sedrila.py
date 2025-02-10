@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-import os
 import sys
 
 import base as b
-import sdrl.constants as c
 import sdrl.argparser
 import sdrl.subcmd  # this is where the subcommands will be found
 
@@ -14,14 +12,7 @@ def main():  # uses sys.argv
         b.critical("sedrila does not run directly on Windows. Please use WSL.")
     parser = sdrl.argparser.SedrilaArgParser(description="-")  # description is set lazily
     parser.scan("sdrl.subcmd.*")
-    if os.environ.get(c.SEDRILA_COMMAND_ENV) and (len(sys.argv) < 2 or sys.argv[1].startswith("--")):
-        print(f"Using existing environment var {c.SEDRILA_COMMAND_ENV}")
-        input = os.environ.get(c.SEDRILA_COMMAND_ENV)
-        if len(sys.argv) >= 2:
-            input += " ".join(sys.argv[1:])
-        args = parser.parse_args(input.split(" "))
-    else:
-        args = parser.parse_args()
+    args = parser.parse_args()
     try:
         parser.execute_subcommand(args)
     except b.CritialError:

@@ -29,8 +29,7 @@ def test_participant(capfd):
     Tests sdrl.repo, sdrl.participant.
     Deep-integrationey test: Accesses external server, creates+deletes directories etc.
     """
-    with tb.TempDirEnvironContextMgr(**{c.REPO_USER_CMD_VAR: "echo SEDRILA_INSTRUCTOR_COMMAND was called"}) as mgr:
-        os.environ[c.REPOS_HOME_VAR] = mgr.newdir  # will not be unpatched; not a problem
+    with tb.TempDirEnvironContextMgr() as mgr:
         empty = argparse.Namespace()
         
         # ----- test clone:
