@@ -54,6 +54,41 @@ is based on the following ideas:
   No such mechanism is implemented so far, though.
 
 
+## Instructors student work acceptance process architecture
+
+This process occurs between a student having submitted work and the
+instructor pushing the results of their work checking.
+The context is the instructor's copy of a student repo.
+For the constants, see `sdrl.constants`.
+There are four process states:
+
+- SUBMISSION_STATE_FRESH 
+  is when SUBMISSION_FILE stems from a commit using SUBMISSION_COMMIT_MSG.
+  Its entries are untrusted and need to be checked/filtered before use.
+- SUBMISSION_STATE_CHECKING
+  is when entries have been filtered.
+  SUBMISSION_FILE is guaranteed to have git 'modified' state.
+  Its entries are now trusted.
+  Initially, only valid SUBMISSION_CHECK_MARK entries are left;
+  later, these are turned into SUBMISSION_ACCEPT_MARK/SUBMISSION_REJECT_MARK.
+  In extraordinary cases, the instructor may add additional entries manually.
+- SUBMISSION_STATE_CHECKED
+  is when SUBMISSION_FILE has been deposited in an instructor-signed SUBMISSION_CHECKED_COMMIT_MSG commit.
+  Once that commit has been pushed, the instructor's work is complete.
+  A git pull is then needed for starting the next round.
+- SUBMISSION_STATE_OTHER is when none of the above match.
+  SUBMISSION_FILE is missing or does not come from a SUBMISSION_COMMIT_MSG commit.
+  sedrila will print appropriate warnings.
+
+The `instructor` command will ensure an orderly progression through these states.
+A possible complication is when students send their work to multiple instructors
+and two or more check it.
+Then the later one may either find the repo in state SUBMISSION_STATE_CHECKED after pull
+(just as if the student had not performed any new work at all)
+or may run into conflict when attempting to push.
+The simplest approach for handling that conflict is to discard the second instructor commit.
+
+
 ## Incremental build architecture
 
 The authoring system of sedrila implements a fine-grained incremental build:
