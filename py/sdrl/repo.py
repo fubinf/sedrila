@@ -3,8 +3,10 @@ Logic for handling information coming from git repos:
 effort commits, submissions, submission checks.
 Knows about the respective format conventions.
 """
+import contextlib
 import datetime as dt
 import enum
+import os.path
 import re
 import subprocess as sp
 import typing as tg
@@ -115,6 +117,34 @@ def submission_checked_commits(instructors: tg.Sequence[tg.Mapping[str, str]],
         if right_subject and is_allowed_signer(commit, allowed_signers):
             result.append(commit)
     return result
+
+
+def submission_state(workdir: str, instructor_fingerprints: set[str]) -> str:
+    """Determines which of SUBMISSION_STATE_FRESH/CHECKING/CHECKED/OTHER applies to the repo in workdir."""
+    with contextlib.chdir(workdir):
+        # ----- make sure c.SUBMISSION_FILE exists:
+        if not os.path.exists(c.SUBMISSION_FILE):
+            b.warning(f"'{workdir}': file '{c.SUBMISSION_FILE}' does not exist.")
+            return c.SUBMISSION_STATE_OTHER
+        # ----- check for case CHECKING:
+        if sgit.is_modified(c.SUBMISSION_FILE):
+            return c.SUBMISSION_STATE_CHECKING
+        # ----- check for case FRESH:
+        regexp = '|'.join((re.escape(c.SUBMISSION_COMMIT_MSG), re.escape(c.SUBMISSION_CHECKED_COMMIT_MSG)))
+        commit = sgit.find_most_recent_commit(regexp)
+        print("### most recent:", repr(commit))
+        if not commit:  # c.SUBMISSION_FILE was never checked in correctly
+            b.warning(f"'{workdir}': No commit found with message  '{c.SUBMISSION_COMMIT_MSG}'.")
+            return c.SUBMISSION_STATE_OTHER
+        if commit.subject == c.SUBMISSION_COMMIT_MSG:
+            return c.SUBMISSION_STATE_FRESH
+        # ----- check for case CHECKED:
+        assert commit.subject == c.SUBMISSION_CHECKED_COMMIT_MSG
+        if commit.key_fingerprint in instructor_fingerprints:
+            return c.SUBMISSION_STATE_CHECKED
+        # ----- the final remaining case of OTHER:
+        b.warning(f"'{workdir}': Commit with message  '{c.SUBMISSION_CHECKED_COMMIT_MSG}' is not signed by instructor.")
+        return c.SUBMISSION_STATE_OTHER
 
 
 def is_allowed_signer(commit: sgit.Commit, allowed_signers: set[str]) -> bool:

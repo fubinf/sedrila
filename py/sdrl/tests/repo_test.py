@@ -1,4 +1,5 @@
 # pytest tests. Some of them work on Linux only (just like sedrila overall).
+# Creates a git repo and GPG key from scratch.
 
 import os
 import re
@@ -30,19 +31,22 @@ def make_commit(*args, **kwargs):
     os.system(f"git config user.email {user}@example.org")
     for message in args:
         gitcmd = f"git commit {'-S' if signed else ''} --allow-empty -m'{message}'"
+        print("###", gitcmd)
         os.system(with_env(gitcmd))
 
 
-def request_grading(*args):
+def request_grading(key_fingerprint, *args):
     b.spit_yaml(c.SUBMISSION_FILE, {task: c.SUBMISSION_CHECK_MARK for task in args})
     os.system(f"git add '{c.SUBMISSION_FILE}'")
-    make_commit(f"please check {c.SUBMISSION_FILE}")
+    make_commit(c.SUBMISSION_COMMIT_MSG)
+    assert r.submission_state('.', {key_fingerprint}) == c.SUBMISSION_STATE_FRESH
 
 
-def grade(grades, signed=True):
+def grade(key_fingerprint, grades, signed=True):
     b.spit_yaml(c.SUBMISSION_FILE, grades)
     os.system(f"git add '{c.SUBMISSION_FILE}'")
-    make_commit(f"{c.SUBMISSION_FILE} checked", user=INSTRUCTOR_USER, signed=signed)
+    make_commit(c.SUBMISSION_CHECKED_COMMIT_MSG, user=INSTRUCTOR_USER, signed=signed)
+    assert r.submission_state('.', {key_fingerprint}) == c.SUBMISSION_STATE_CHECKED
 
 
 def with_env(command):
@@ -67,7 +71,7 @@ def create_gpg_key() -> str:
     os.system(with_env(f"gpg --quick-gen-key --batch --pinentry-mode loopback --passphrase '' "
                        f"{GIT_USER} default default never"))
     fpr_output = subprocess.check_output(with_env("gpg --fingerprint --with-colons"), shell=True)
-    print("create_gpg_key:", fpr_output)
+    # print("create_gpg_key:", fpr_output)
     fpr_lines = [line.decode("ASCII") for line in fpr_output.splitlines() if line.startswith(b"fpr:")]
     mm = re.search(r"fpr:+([\dA-F]+)", fpr_lines[0])
     assert mm
@@ -75,12 +79,14 @@ def create_gpg_key() -> str:
 
 
 def test_student_work_so_far():
-    def preparations():
+    def preparations(key_fingerprint):
+        assert r.submission_state('.', set()) == c.SUBMISSION_STATE_OTHER
         make_commit("hello", "%A 3.25h", "%A 0:45h"),
-        request_grading("A")
-        grade({"A": f"{c.SUBMISSION_REJECT_MARK}"})
-        request_grading("A")
-        grade({"A": f"{c.SUBMISSION_REJECT_MARK}  some comment about the problem"})
+        assert r.submission_state('.', {key_fingerprint}) == c.SUBMISSION_STATE_OTHER
+        request_grading(key_fingerprint, "A")
+        grade(key_fingerprint, {"A": f"{c.SUBMISSION_REJECT_MARK}"})
+        request_grading(key_fingerprint, "A")
+        grade(key_fingerprint, {"A": f"{c.SUBMISSION_REJECT_MARK}  some comment about the problem"})
 
     def assertions(course):
         # subprocess.run("/bin/bash", shell=True)
@@ -107,10 +113,10 @@ def run_inside_repo(preparations, assertions, coursemodifications=None):
         b.spit_json(c.METADATA_FILE, course_json)  # final course config
         init_repo()
         os.system(f"git config user.signingkey {fingerprint}")
-        preparations()
+        preparations(fingerprint)
         # ----- initialize application environment:
         course = sdrl.course.CourseSI(configdict=b.slurp_json(c.METADATA_FILE), context=c.METADATA_FILE)
-        commits = sgit.commits_of_local_repo(reverse=True)
+        commits = sgit.commits_of_local_repo(chronological=True)
         r._accumulate_student_workhours_per_task(commits, course)
         hashes = r.submission_checked_commits(course.instructors, commits)
         print("hashes:", hashes)

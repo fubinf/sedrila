@@ -110,7 +110,7 @@ def collect_events(repodirs: list[str]) -> list[repo.Event]:
             student = sdrl.participant.Student()
             course_json = student.get_course_metadata(student.course_url)
             course = sdrl.course.CourseSI(course_json, student_username)
-            commits = sgit.commits_of_local_repo()
+            commits = sgit.commits_of_local_repo(chronological=True)
             this_batch = repo.event_list(course, student_username, commits)
             result.extend(this_batch)
             numcommits.append(len(this_batch))

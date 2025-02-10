@@ -1,4 +1,7 @@
-"""Simple technical base operations for handling git repos."""
+"""
+Simple technical base operations for handling git repos.
+Some of it built scruffily by calling git directly, other parts using the GitPython library.
+"""
 import datetime as dt
 import getpass
 import os
@@ -18,11 +21,11 @@ class Commit(tg.NamedTuple):
     hash: str  # %h
     author_email: str  # %ae
     author_date: dt.datetime  # converted from %at
-    key_fingerprint: str  # %GF
-    subject: str  # %s
+    key_fingerprint: str  # %GF if proper %G? else "-"
+    subject: str  # %s (first line of commit msg)
 
 
-def add(filename: str):
+def git_add(filename: str):
     os.system(f"git add {filename}")    
 
 
@@ -32,24 +35,24 @@ def clone(repo_url: str, targetdir: str):
 
 def make_commit(*filenames, msg, **kwargs):
     for filename in filenames:
-        add(filename)
+        git_add(filename)
     signed = kwargs.pop('signed', False)
     os.system(f"git commit {'-S ' if signed else ''}-m'{msg}'")
 
 
-def commits_of_local_repo(reverse=False) -> tg.Sequence[Commit]:
-    """Returns all commits in youngest-first order (like git log), or reversed."""
+def commits_of_local_repo(*, chronological: bool) -> tg.Sequence[Commit]:
+    """Returns all commits in youngest-first order (like git log), or reversed (if chronological)."""
     gitcmd = ["git", "log", f"--format=format:{LOG_FORMAT}"]
     gitrun = sp.run(gitcmd, capture_output=True, encoding='utf8', text=True)
     result = []
     for line in gitrun.stdout.split('\n'):
         hash_, email, tstamp, fngrprnt, goodness, subj = tuple(line.split(LOG_FORMAT_SEPARATOR))
-        if goodness not in "GXY":  # accept good sigs G, expired sigs X, expired keys Y
+        if fngrprnt and goodness not in "GXY":  # accept good sigs G, expired sigs X, expired keys Y
             fngrprnt = "-"  # treat as unsigned
         c = Commit(hash_, email, dt.datetime.fromtimestamp(int(tstamp), tz=dt.timezone.utc),
                    fngrprnt, subj)
         result.append(c)
-    return list(reversed(result)) if reverse else result
+    return list(reversed(result)) if chronological else result
 
 
 def contents_of_file_version(refid: str, filename: str, encoding=None) -> tg.AnyStr:
@@ -63,6 +66,23 @@ def contents_of_file_version(refid: str, filename: str, encoding=None) -> tg.Any
 def discard_commits(howmany: int):
     os.system(f"git reset --hard HEAD~{howmany}")
 
+
+def find_most_recent_commit(regexp: str) -> tg.Optional[Commit]:
+    gitlog = commits_of_local_repo(chronological=False)
+    for commit in gitlog:
+        if re.fullmatch(regexp, commit.subject):
+            return commit
+    return None
+
+
+def is_modified(file: str) -> bool:
+    """git status: Whether file's content differs from that in the index."""
+    repo = git.Repo(odbt=git.GitCmdObjectDB)
+    diff = repo.head.commit.diff(other=None, paths=[file])  # diff HEAD vs. working copy
+    for _ in diff:  # diff has length 0 or 1
+        return True  # if length 1
+    return False
+    
 
 def origin_remote_of_local_repo() -> str:
     """The local repo's 'origin' remote, which we assume to exist and to be the relevant remote."""
