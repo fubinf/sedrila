@@ -1,7 +1,7 @@
 import unittest.mock
 
 import base as b
-import git
+import sgit
 
 
 def test_get_commits():

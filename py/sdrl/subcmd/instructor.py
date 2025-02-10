@@ -4,7 +4,7 @@ import os
 import typing as tg
 
 import base as b
-import git
+import sgit
 import sdrl.constants as c
 import sdrl.course
 import sdrl.participant

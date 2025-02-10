@@ -7,7 +7,7 @@ import subprocess
 import pytest
 
 import base as b
-import git
+import sgit
 import sdrl.constants as c
 import sdrl.course
 import sdrl.repo as r
