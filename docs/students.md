@@ -84,10 +84,31 @@ A precision of five or ten minutes will be good enough.
 Beware: Decimal hours are possible as well, but are not recommended. 
 `%SomeTask 2.75h description words` would mean 2 hours and 45 minutes,
 so make sure you get the colon right or else your data will be distorted.
-When `sedrila` creates a work time report for you, it will use decimal hours.
+When `sedrila` creates a work time report for you, it will use decimal hours.>
 
 
-## 4. How to prepare a submission
+## 4. How to view your work
+
+Call `sedrila student --op webapp` in order to browse your working directory.
+Just follow the on-screen instructions.
+The webapp shows the directory tree and individual files.
+A breadcrumb navigation is shown at the top.
+
+For the file links:  
+    - `*.md` files will be rendered as Markdown.
+    - `*.py`, `*.html`, `*.js`, `*.java` files and many other kinds with known syntax 
+      will be rendered with syntax highlighting.
+    - `*.html` files will additionally have a link to show the file as an HTML page.
+    - `*.prot` command protocol plaintext files will be rendered in color, 
+      with highlighting of prompts and commands.
+      The highlighting will work only if you use the prescribed prompt format as described
+      in some task of your SeDriLa course.
+
+You can use the `--port` option to make the webserver use a different port than the
+default one.
+
+
+## 5. How to prepare a submission
 
 When you show your work to an instructor, you will usually not show the results
 for only a single task, but several.
@@ -121,9 +142,9 @@ then `sedrila student --op push`, then follow the instructions shown.
 Or just call `sedrila student` and perform those two commands from the menu.
 
 
-## 5. How to see what you have done so far
+# 6. The work report
 
-Call `sedrila student --op webapp` in order to view the "work report", 
+`sedrila student --op webapp` can also show the "work report", 
 a list of the tasks you have submitted so far,
 the associated timevalues, and possibly the sum of the associated actual work times.
 The work times are available only insofar as you have used the commit message format
