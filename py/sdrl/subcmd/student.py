@@ -152,7 +152,7 @@ def cmd_commit(ctx: sdrl.participant.Context):
         if yes:
             b.info(f"Committing '{workdir}/{c.SUBMISSION_FILE}'")
             with contextlib.chdir(workdir):
-                sgit.commit(*[c.SUBMISSION_FILE], msg=c.SUBMISSION_COMMIT_MSG, signed=True)
+                sgit.make_commit(*[c.SUBMISSION_FILE], msg=c.SUBMISSION_COMMIT_MSG, signed=True)
         else:
             b.info(f"Not committing '{workdir}/{c.SUBMISSION_FILE}'.")
 

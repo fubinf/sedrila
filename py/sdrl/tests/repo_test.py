@@ -24,7 +24,7 @@ def init_repo():
     os.system("git config user.name 'SeDriLa Dummy'")
 
 
-def commit(*args, **kwargs):
+def make_commit(*args, **kwargs):
     signed = kwargs.pop('signed', False)
     user = kwargs.pop('user', "user")
     os.system(f"git config user.email {user}@example.org")
@@ -36,13 +36,13 @@ def commit(*args, **kwargs):
 def request_grading(*args):
     b.spit_yaml(c.SUBMISSION_FILE, {task: c.SUBMISSION_CHECK_MARK for task in args})
     os.system(f"git add '{c.SUBMISSION_FILE}'")
-    commit(f"please check {c.SUBMISSION_FILE}")
+    make_commit(f"please check {c.SUBMISSION_FILE}")
 
 
 def grade(grades, signed=True):
     b.spit_yaml(c.SUBMISSION_FILE, grades)
     os.system(f"git add '{c.SUBMISSION_FILE}'")
-    commit(f"{c.SUBMISSION_FILE} checked", user=INSTRUCTOR_USER, signed=signed)
+    make_commit(f"{c.SUBMISSION_FILE} checked", user=INSTRUCTOR_USER, signed=signed)
 
 
 def with_env(command):
@@ -76,7 +76,7 @@ def create_gpg_key() -> str:
 
 def test_student_work_so_far():
     def preparations():
-        commit("hello", "%A 3.25h", "%A 0:45h"),
+        make_commit("hello", "%A 3.25h", "%A 0:45h"),
         request_grading("A")
         grade({"A": f"{c.SUBMISSION_REJECT_MARK}"})
         request_grading("A")

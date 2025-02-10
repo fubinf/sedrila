@@ -83,7 +83,7 @@ def test_participant(capfd):
         print("#3:", student.submission)
         assert student.submission['Task2'] == c.SUBMISSION_REJECT_MARK  # ditto in submission.yaml
         with contextlib.chdir(student.topdir):  # make unsigned commit, we will mock the signature check
-            sgit.commit(*[c.SUBMISSION_FILE], msg=c.SUBMISSION_CHECKED_COMMIT_MSG, signed=False)
+            sgit.make_commit(*[c.SUBMISSION_FILE], msg=c.SUBMISSION_CHECKED_COMMIT_MSG, signed=False)
         
         # ----- check result of accepting/rejecting:
         def all_signers_allowed(commit, allowed_signers):

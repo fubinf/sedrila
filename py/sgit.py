@@ -30,7 +30,7 @@ def clone(repo_url: str, targetdir: str):
     os.system(f"git clone {repo_url} {targetdir}")
 
 
-def commit(*filenames, msg, **kwargs):
+def make_commit(*filenames, msg, **kwargs):
     for filename in filenames:
         add(filename)
     signed = kwargs.pop('signed', False)
