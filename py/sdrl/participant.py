@@ -107,7 +107,7 @@ class Student:
         """Set task.is_accepted and task.rejections values in course."""
         with contextlib.chdir(self.topdir):
             b.info(f"reading commit history in '{self.topdir}'")
-            commits = git.commits_of_local_repo(reverse=True)
+            commits = sgit.commits_of_local_repo(reverse=True)
             r.compute_student_work_so_far(self.course, commits)
         return self.course
 

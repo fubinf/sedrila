@@ -110,7 +110,7 @@ def run_inside_repo(preparations, assertions, coursemodifications=None):
         preparations()
         # ----- initialize application environment:
         course = sdrl.course.CourseSI(configdict=b.slurp_json(c.METADATA_FILE), context=c.METADATA_FILE)
-        commits = git.commits_of_local_repo(reverse=True)
+        commits = sgit.commits_of_local_repo(reverse=True)
         r._accumulate_student_workhours_per_task(commits, course)
         hashes = r.submission_checked_commits(course.instructors, commits)
         print("hashes:", hashes)

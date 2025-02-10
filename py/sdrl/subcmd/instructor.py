@@ -71,8 +71,8 @@ def cmd_commit_and_push(ctx: sdrl.participant.Context):
         if yes:
             b.info(f"Committing and pushing '{workdir}/{c.SUBMISSION_FILE}'")
             with contextlib.chdir(workdir):
-                git.commit(*[c.SUBMISSION_FILE], msg=c.SUBMISSION_CHECKED_COMMIT_MSG, signed=True)
-                git.push()
+                sgit.commit(*[c.SUBMISSION_FILE], msg=c.SUBMISSION_CHECKED_COMMIT_MSG, signed=True)
+                sgit.push()
         else:
             b.info(f"Not committing '{workdir}/{c.SUBMISSION_FILE}'.")
 
@@ -84,7 +84,7 @@ def pull_some_repos(workdirs: tg.Iterable[str]):
         if yes:
             b.info(f"pulling '{workdir}':")
             with contextlib.chdir(workdir):
-                git.pull()
+                sgit.pull()
         else:
             b.info(f"Not pulling '{workdir}'.")
 

@@ -36,7 +36,7 @@ def test_participant(capfd):
         b._testmode_reset()
         os.mkdir("instructordir")
         os.chdir("instructordir")
-        git.clone(TEST_REPO, "studentdir")
+        sgit.clone(TEST_REPO, "studentdir")
         assert "Cloning into" in capfd.readouterr().err
         with open("studentdir/student.yaml", 'wt') as f:
             f.write(student_yaml)
@@ -83,7 +83,7 @@ def test_participant(capfd):
         print("#3:", student.submission)
         assert student.submission['Task2'] == c.SUBMISSION_REJECT_MARK  # ditto in submission.yaml
         with contextlib.chdir(student.topdir):  # make unsigned commit, we will mock the signature check
-            git.commit(*[c.SUBMISSION_FILE], msg=c.SUBMISSION_CHECKED_COMMIT_MSG, signed=False)
+            sgit.commit(*[c.SUBMISSION_FILE], msg=c.SUBMISSION_CHECKED_COMMIT_MSG, signed=False)
         
         # ----- check result of accepting/rejecting:
         def all_signers_allowed(commit, allowed_signers):

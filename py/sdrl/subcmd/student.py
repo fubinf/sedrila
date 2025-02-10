@@ -152,7 +152,7 @@ def cmd_commit(ctx: sdrl.participant.Context):
         if yes:
             b.info(f"Committing '{workdir}/{c.SUBMISSION_FILE}'")
             with contextlib.chdir(workdir):
-                git.commit(*[c.SUBMISSION_FILE], msg=c.SUBMISSION_COMMIT_MSG, signed=True)
+                sgit.commit(*[c.SUBMISSION_FILE], msg=c.SUBMISSION_COMMIT_MSG, signed=True)
         else:
             b.info(f"Not committing '{workdir}/{c.SUBMISSION_FILE}'.")
 
@@ -164,7 +164,7 @@ def cmd_push(ctx: sdrl.participant.Context):
         if yes:
             b.info(f"Pushing '{workdir}/{c.SUBMISSION_FILE}' etc.")
             with contextlib.chdir(workdir):
-                git.push()
+                sgit.push()
         else:
             b.info(f"Not pushing '{workdir}/{c.SUBMISSION_FILE}'.")
     b.info(f"Now send the following to your instructor by email:")

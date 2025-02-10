@@ -33,13 +33,13 @@ class Event(tg.NamedTuple):
 
 
 class TaskCheckEntry(tg.NamedTuple):
-    commit: git.Commit
+    commit: sgit.Commit
     taskname: str
     tasknote: str
 
 
 class WorkEntry(tg.NamedTuple):
-    commit: git.Commit
+    commit: sgit.Commit
     taskname: str
     timevalue: float
 
@@ -68,7 +68,7 @@ def import_gpg_keys(instructors: tg.Sequence[b.StrAnyDict]):
         sp.run(["gpg", "--import"], input=instructor['pubkey'], encoding='ascii')
 
 
-def event_list(course: sdrl.course.Course, student_username: str, commits: tg.Sequence[git.Commit]) -> list[Event]:
+def event_list(course: sdrl.course.Course, student_username: str, commits: tg.Sequence[sgit.Commit]) -> list[Event]:
     result = []
     instructor_commits = submission_checked_commits(course.instructors, commits)
     for tc_entry in taskcheck_entries_from_commits(instructor_commits):
@@ -87,7 +87,7 @@ def event_list(course: sdrl.course.Course, student_username: str, commits: tg.Se
     return result
 
 
-def compute_student_work_so_far(course: sdrl.course.Course, commits: tg.Sequence[git.Commit]):
+def compute_student_work_so_far(course: sdrl.course.Course, commits: tg.Sequence[sgit.Commit]):
     """
     Obtain per-task worktimes from student commits and 
     per-task timevalues from submission checked commits.
@@ -100,7 +100,7 @@ def compute_student_work_so_far(course: sdrl.course.Course, commits: tg.Sequence
 
 
 def submission_checked_commits(instructors: tg.Sequence[tg.Mapping[str, str]],
-                               commits: tg.Sequence[git.Commit]) -> list[git.Commit]:
+                               commits: tg.Sequence[sgit.Commit]) -> list[sgit.Commit]:
     """The properly instructor-signed Commits of finished submission checks."""
     try:
         allowed_signers = {b.as_fingerprint(instructor['keyfingerprint'])
@@ -117,23 +117,23 @@ def submission_checked_commits(instructors: tg.Sequence[tg.Mapping[str, str]],
     return result
 
 
-def is_allowed_signer(commit: git.Commit, allowed_signers: set[str]) -> bool:
+def is_allowed_signer(commit: sgit.Commit, allowed_signers: set[str]) -> bool:
     return commit.key_fingerprint and b.as_fingerprint(commit.key_fingerprint) in allowed_signers  
 
 
-def taskcheck_entries_from_commits(instructor_commits: list[git.Commit]) -> tg.Sequence[TaskCheckEntry]:
+def taskcheck_entries_from_commits(instructor_commits: list[sgit.Commit]) -> tg.Sequence[TaskCheckEntry]:
     """
     Collect the individual entries for all 'submission.yaml checked' commits.
     """
     result = []
     for commit in instructor_commits:
-        checks = yaml.safe_load(git.contents_of_file_version(commit.hash, c.SUBMISSION_FILE, encoding='utf8'))
+        checks = yaml.safe_load(sgit.contents_of_file_version(commit.hash, c.SUBMISSION_FILE, encoding='utf8'))
         for taskname, tasknote in checks.items():
             result.append(TaskCheckEntry(commit, taskname, tasknote))
     return result
 
 
-def work_entries_from_commits(commits: tg.Iterable[git.Commit]) -> tg.Sequence[WorkEntry]:
+def work_entries_from_commits(commits: tg.Iterable[sgit.Commit]) -> tg.Sequence[WorkEntry]:
     """
     Collect the individual entries for all commits conforming to the worktime format.
     """
@@ -226,7 +226,7 @@ def _accumulate_timevalues_and_attempts(checked_entries: tg.Sequence[TaskCheckEn
             pass  # unmodified entry: instructor has not checked it
 
 
-def _accumulate_student_workhours_per_task(commits: tg.Iterable[git.Commit], course: sdrl.course.Course):
+def _accumulate_student_workhours_per_task(commits: tg.Iterable[sgit.Commit], course: sdrl.course.Course):
     """Reflect the workentries data in the course data structure."""
     for commit in commits:
         parts = _parse_taskname_workhours(commit.subject)

@@ -1,5 +1,4 @@
-"""Technical operations for reading information from git repos."""
-import dataclasses
+"""Simple technical base operations for handling git repos."""
 import datetime as dt
 import getpass
 import os
@@ -7,10 +6,13 @@ import re
 import subprocess as sp
 import typing as tg
 
+import git
+
 import base as b
 
 LOG_FORMAT_SEPARATOR = '\t'
 LOG_FORMAT = "%h%x09%ae%x09%at%x09%GF%x09%s"  # see notes at attributes of Commit or git help log "Pretty Formats"
+
 
 class Commit(tg.NamedTuple):
     hash: str  # %h

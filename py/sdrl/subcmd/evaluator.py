@@ -22,7 +22,7 @@ import pandas
 import pandas as pd
 
 import base as b
-import git
+import sgit
 import sdrl.constants as c
 import sdrl.course
 import sdrl.participant
@@ -85,7 +85,7 @@ def pull_all_repos(do_pull: bool) -> list[str]:
     for repodir in repodir_list:
         with contextlib.chdir(repodir):
             if do_pull:
-                git.pull(silent=True)
+                sgit.pull(silent=True)
                 next(progressbar)
             if os.path.isfile(c.PARTICIPANT_FILE):  # skip repos without a declared identity
                 result.append(repodir)
@@ -110,7 +110,7 @@ def collect_events(repodirs: list[str]) -> list[repo.Event]:
             student = sdrl.participant.Student()
             course_json = student.get_course_metadata(student.course_url)
             course = sdrl.course.CourseSI(course_json, student_username)
-            commits = git.commits_of_local_repo()
+            commits = sgit.commits_of_local_repo()
             this_batch = repo.event_list(course, student_username, commits)
             result.extend(this_batch)
             numcommits.append(len(this_batch))
