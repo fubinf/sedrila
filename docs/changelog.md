@@ -1,7 +1,22 @@
 # sedrila CHANGELOG
 
 
-## Version 2.5.1 (upcoming)
+## Version 2.6.1 (upcoming)
+- ...
+
+## Version 2.6.0 (2025-02-10)
+- `instructor1` removed.
+- `viewer` removed. This functionality is now covered by the 'webapp' function of
+  `student` and `instructor`.
+- `student`: completely rewritten. Except for `--init` and `--import-keys`, the usual form of use is now
+  menu-driven, with operations 'prepare', 'webapp', 'edit', 'commit', and 'push'.
+  The webapp also shows a) a list of tasks (based on contents of 'submission.yaml' and commit messages)
+  and allows selecting/unselecting them for submission, and b) the report on work done so far.  
+  The previous terminal-based task selection and work report were removed.
+- `instructor`: rewritten, to make it analogous to `student`.  
+  Here, the webapp allows clicking on usernames near files or tasks in order to accept/reject/keepneutral
+  the corresponding task. Each such change is reflected in `submission.yaml` immediately.  
+  The work report is available here as well.
 - ...
 
 
