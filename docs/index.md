@@ -17,6 +17,4 @@ The sedrila tool supports three user groups:
 - [Students](students.md):
   submit finished tasks; compute status tables of submissions and time value earned.
 
-[Viewers](viewer.md) are instructors or students who browse a directory tree of solution files.  
-
 [changelog](changelog.md)
