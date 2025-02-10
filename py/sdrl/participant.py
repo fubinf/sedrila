@@ -229,6 +229,11 @@ class Student:
     def get_course_metadata_url(cls, course_url: str) -> str:
         return os.path.join(course_url, c.METADATA_FILE)
 
+    @classmethod    
+    def get_course_url(cls, student_file: str) -> str:
+        student_metadata = b.slurp_yaml(student_file)
+        return student_metadata['course_url']
+
     def move_to_next_state(self, taskname: str, taskstatus: str) -> str:
         """Cycle (1 step) through possible taskstates in self.submisson and in c.PARTICIPANT_FILE."""
         states = self.possible_submission_states

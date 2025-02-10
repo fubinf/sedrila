@@ -132,7 +132,6 @@ def submission_state(workdir: str, instructor_fingerprints: set[str]) -> str:
         # ----- check for case FRESH:
         regexp = '|'.join((re.escape(c.SUBMISSION_COMMIT_MSG), re.escape(c.SUBMISSION_CHECKED_COMMIT_MSG)))
         commit = sgit.find_most_recent_commit(regexp)
-        print("### most recent:", repr(commit))
         if not commit:  # c.SUBMISSION_FILE was never checked in correctly
             b.warning(f"'{workdir}': No commit found with message  '{c.SUBMISSION_COMMIT_MSG}'.")
             return c.SUBMISSION_STATE_OTHER
