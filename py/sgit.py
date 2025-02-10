@@ -26,7 +26,9 @@ class Commit(tg.NamedTuple):
 
 
 def git_add(filename: str):
-    os.system(f"git add {filename}")    
+    cmd = f"git add {filename}"    
+    b.info(cmd)
+    os.system(cmd)    
 
 
 def clone(repo_url: str, targetdir: str):
@@ -37,7 +39,9 @@ def make_commit(*filenames, msg, **kwargs):
     for filename in filenames:
         git_add(filename)
     signed = kwargs.pop('signed', False)
-    os.system(f"git commit {'-S ' if signed else ''}-m'{msg}'")
+    cmd = f"git commit {'-S' if signed else ''} -m '{msg}'"
+    b.info(cmd)
+    os.system(cmd)
 
 
 def commits_of_local_repo(*, chronological: bool) -> tg.Sequence[Commit]:

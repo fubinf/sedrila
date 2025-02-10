@@ -8,6 +8,7 @@ import sgit
 import sdrl.constants as c
 import sdrl.course
 import sdrl.participant
+import sdrl.repo as r
 import sdrl.webapp
 
 meaning = """Help instructors evaluate students' submissions of several finished tasks.
@@ -33,12 +34,8 @@ def execute(pargs: argparse.Namespace):
         for workdir in pargs.workdir:
             if not os.path.isdir(workdir):
                 b.critical(f"directory '{workdir}' does not exist.")
-        if pargs.op == "pull":
-            context = pargs.workdir
-        else:
-            if not pargs.op:
-                pull_some_repos(pargs.workdir)
-            context = sdrl.participant.make_context(pargs, pargs.workdir, is_instructor=True, show_size=True)
+            prepare_workdir(workdir)
+        context = sdrl.participant.make_context(pargs, pargs.workdir, is_instructor=True, show_size=True)
     except KeyboardInterrupt:
         print("  Bye.")
         return  # quit
@@ -77,19 +74,31 @@ def cmd_commit_and_push(ctx: sdrl.participant.Context):
             b.info(f"Not committing '{workdir}/{c.SUBMISSION_FILE}'.")
 
 
-def pull_some_repos(workdirs: tg.Iterable[str]):
-    b.info("----- Pull student repos")
-    yesses = b.yesses("Pull '%s'?", workdirs, yes_if_1=True)
-    for yes, workdir in zip(yesses, workdirs):
-        if yes:
-            b.info(f"pulling '{workdir}':")
-            with contextlib.chdir(workdir):
-                sgit.pull()
-        else:
-            b.info(f"Not pulling '{workdir}'.")
+def prepare_workdir(workdir: str):
+    b.info(f"----- Prepare '{workdir}'")
+    with contextlib.chdir(workdir):
+        # ----- obtain instructor key fingerprints:
+        if not os.path.isfile(c.PARTICIPANT_FILE):
+            b.critical(f"'{workdir}': '{c.PARTICIPANT_FILE}' is missing.")
+        S = sdrl.participant.Student  # abbrev
+        course = S.get_course_metadata(S.get_course_url(c.PARTICIPANT_FILE))
+        key_fingerprints = { i.get('keyfingerprint', '') for i in course.get('instructors', [])}
+        key_fingerprints.discard('')  # empty entry would mean unsigned commits are considered instructor-signed
+        # ----- consider pulling:
+        state = r.submission_state('.', key_fingerprints)
+        if state == c.SUBMISSION_STATE_CHECKED:
+            b.info(f"--- Pulling repo")
+            sgit.pull()
+        # ----- consider filtering:
+        state = r.submission_state('.', key_fingerprints)
+        if state == c.SUBMISSION_STATE_FRESH:
+            b.info(f"--- Filtering '{c.SUBMISSION_FILE}'")
+            submission = {k:v for k, v in b.slurp_yaml(c.SUBMISSION_FILE).items()
+                          if v == c.SUBMISSION_CHECK_MARK}
+            b.spit_yaml(c.SUBMISSION_FILE, submission)
 
 
 MENU = "\n>>> w:webapp e:edit c:commit+push q:quit   "
 MENU_CMDS = dict(w=cmd_webapp, e=cmd_edit, c=cmd_commit_and_push)
 MENU_HELP = ""
-OP_CMDS = dict(pull=pull_some_repos, webapp=cmd_webapp, edit=cmd_edit, commit_and_push=cmd_commit_and_push)
+OP_CMDS = dict(webapp=cmd_webapp, edit=cmd_edit, commit_and_push=cmd_commit_and_push)

@@ -152,7 +152,7 @@ def cmd_commit(ctx: sdrl.participant.Context):
         if yes:
             b.info(f"Committing '{workdir}/{c.SUBMISSION_FILE}'")
             with contextlib.chdir(workdir):
-                sgit.make_commit(*[c.SUBMISSION_FILE], msg=c.SUBMISSION_COMMIT_MSG, signed=True)
+                sgit.make_commit(c.SUBMISSION_FILE, msg=c.SUBMISSION_COMMIT_MSG)
         else:
             b.info(f"Not committing '{workdir}/{c.SUBMISSION_FILE}'.")
 
@@ -191,6 +191,8 @@ OP_CMDS = dict(prepare=cmd_prepare, webapp=cmd_webapp, edit=cmd_edit)
 def _show_instructors(course, with_gitaccount=False):
     b.info("The instructors for this course are:")
     for instructor in course.instructors:
+        if not instructor.get('keyfingerprint', None):
+            continue  # makes no sense to send to someone who cannot sign
         b.info(f"  {instructor['nameish']} <{instructor['email']}>")
         if with_gitaccount:
             b.info(f"     git account: {instructor['gitaccount']}")
