@@ -11,7 +11,7 @@ import git
 import base as b
 
 LOG_FORMAT_SEPARATOR = '\t'
-LOG_FORMAT = "%h%x09%ae%x09%at%x09%GF%x09%s"  # see notes at attributes of Commit or git help log "Pretty Formats"
+LOG_FORMAT = "%h%x09%ae%x09%at%x09%GF%x09%G?%x09%s"  # see notes at attributes of Commit or git help log "Pretty Formats"
 
 
 class Commit(tg.NamedTuple):
@@ -43,7 +43,9 @@ def commits_of_local_repo(reverse=False) -> tg.Sequence[Commit]:
     gitrun = sp.run(gitcmd, capture_output=True, encoding='utf8', text=True)
     result = []
     for line in gitrun.stdout.split('\n'):
-        hash_, email, tstamp, fngrprnt, subj = tuple(line.split(LOG_FORMAT_SEPARATOR))
+        hash_, email, tstamp, fngrprnt, goodness, subj = tuple(line.split(LOG_FORMAT_SEPARATOR))
+        if goodness not in "GXY":  # accept good sigs G, expired sigs X, expired keys Y
+            fngrprnt = "-"  # treat as unsigned
         c = Commit(hash_, email, dt.datetime.fromtimestamp(int(tstamp), tz=dt.timezone.utc),
                    fngrprnt, subj)
         result.append(c)
