@@ -296,7 +296,7 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
     SRC = 'src'
     BINARY = 'binary'
     MISSING = 'missing'
-    binaryfile_suffixes = ('pdf', 'zip')  # TODO 2: what else?
+    binaryfile_suffixes = ('gif', 'ico', 'jpg', 'pdf', 'png', 'zip')  # TODO 2: what else?
     suffix2lang = dict(  # see https://pygments.org/languages/  TODO 2: always just use the suffix?
         c="c", cc="c++", cpp="c++", cs="csharp",
         go="golang",
@@ -309,15 +309,15 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
     frontname, suffix = os.path.splitext(filename)
 
     def append_one_file():
+        if not suffix or suffix[1:] in binaryfile_suffixes:
+            lines.append(f"<a href='?raw={workdir.topdir}'>{workdir.path_actualpath(mypath)}</a>")
+            kinds.append(BINARY)
+            return
         content = b.slurp(f"{workdir.topdir}{mypath}")
         if suffix == '.md':
             lines.append(content)
         elif suffix == '.prot':
             lines.append(macroexpanders.prot_html(content))
-        elif not suffix or suffix[1:] in binaryfile_suffixes:
-            lines.append(f"<a href='?raw={workdir.topdir}'>{workdir.path_actualpath(mypath)}</a>")
-            kinds.append(BINARY)
-            return
         else:  # any other suffix: assume this is a sourcefile 
             language = suffix2lang.get(suffix[1:], "")
             if language == 'html':
