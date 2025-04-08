@@ -1,8 +1,12 @@
 # sedrila CHANGELOG
 
 
-## Version 2.6.1 (upcoming)
+## Version 2.6.2 (upcoming)
 - ...
+
+## Version 2.6.1 (2025-04-08)
+- `student`: refuse to run if the work directory given does not contain a `.git` subdir.
+- `student`: if `student.yaml` is missing, mention `--init`.
 
 ## Version 2.6.0 (2025-02-10)
 - `instructor1` removed.
