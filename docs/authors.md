@@ -769,26 +769,34 @@ The following rules are suggestions for how to achieve these properties.
 
 - Names consist of letters, digits, dashes, and underscores.
   No other characters are allowed.
-- In particular, names cannot contain spaces. Take this one seriously.
+- In particular, names cannot contain spaces. _Take this one seriously._
 - Chapter names should be short: single nouns, capitalized.
 - Taskgroup names should be simple nouns or compound nouns.
-  Compound names can be written in one word (e.g. in German),
-  with dashes, or in CamelCase fashion.
+  Compound names can be written in one word (e.g. in German) or
+  with dashes.
 - Generic names such as "Basics" are hardly ever a good idea: Basics _of what_?
-- Task names are more flexible.
-  Prefer names that are all-lowercase, using dashes to separate words,
-  whereever this appears sufficiently natural, but capitalize if necessary.  
-  Use underscores where this is natural for technical reasons (e.g. because
+- Task names are more flexible.  
+  (1) For non-technical task names, prefer names that are natural and respect the language's capitalization rules,
+  using dashes to separate words.  
+  (2) For technical task names that serve as filenames of programming language files,
+  obey the conventions of the respective language, at least when entire groups of such tasks occur.
+  (3) For tasks that would have overly generic names (e.g. "Output"),
+  use a suitable prefix, for instance
+  the common programming language filename suffix (e.g. "py-Output" or "py_output")
+  or the topic of the task group (e.g. "Unix-Output")
+- Use underscores only where this is required or at least natural for technical reasons (e.g. because
   there will be program source files of this name and dashes are not allowed for them).
+  Our usual task name word separator is the dash.
 - Make sure tasknames are interpretable without seeing the name of the taskgroup
-  they belong to. This will often imply using a fixed prefix for all tasks in a group.
+  they belong to. This will often imply using a fixed prefix or suffix for all tasks in a group.
 - Consider using task names with different capizalization if that reflects the spelling 
   of an existing thing discussed in that Task (e.g. SQL-WHERE, JavaScript)
 - If a task or taskgroup is split into a sequence of consecutive, strongly connected pieces,
-  prefer a single appended digit to make this visible.
-- Do not use number prefixes to enforce a certain task ordering:
+  prefer a single appended digit if you want to make this visible.
+- Do _not_ use prefixes to enforce a certain task ordering:
   Either the tasks have dependencies that create an ordering
   or the default alphabetical ordering ought to be fine.
+
 
 ## 2. Calling `sedrila`
 
