@@ -64,10 +64,9 @@ class Student:
         elif not os.path.isdir(rootdir):
             b.critical(f"'{rootdir}' must be a directory.")
         # ----- read c.PARTICIPANT_FILE:
-        try:
-            data = b.slurp_yaml(self.participantfile_path)
-        except FileNotFoundError:
-            b.critical(f"cannot read '{self.participantfile_path}'")
+        if not os.path.isfile(self.participantfile_path):
+            b.critical(f"'{self.participantfile_path}' is missing. Have you called sedrila student --init?")
+        data = b.slurp_yaml(self.participantfile_path)
         # ----- interpret contents:
         try:
             self.course_url = str(data['course_url'])  # noqa
