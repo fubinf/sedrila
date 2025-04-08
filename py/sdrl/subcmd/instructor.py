@@ -16,7 +16,7 @@ meaning = """Help instructors evaluate students' submissions of several finished
 
 
 def add_arguments(subparser):
-    subparser.add_argument('workdir', nargs='*',
+    subparser.add_argument('workdir', nargs='+',
                            help="where to find student input")
     subparser.add_argument('--op', default="", choices=OP_CMDS.keys(),
                            help="Perform one operation non-interactively")
