@@ -38,6 +38,13 @@ def execute(pargs: argparse.Namespace):
     if not pargs.workdir:
         pargs.workdir = ['.']
     pargs.workdir = [wd.rstrip("/") for wd in pargs.workdir]  # make names canonical
+    # ----- make sure we are at top level:
+    for workdir in pargs.workdir:
+        if not os.path.isdir(workdir):
+            b.critical(f"directory '{workdir}' does not exist.")
+        gitdir = os.path.join(workdir, '.git')
+        if not os.path.isdir(gitdir):
+            b.critical(f"directory '{gitdir}' not found. This is not a proper working directory.")
     # ----- --init:
     if pargs.init:
         init(pargs.workdir)
@@ -47,9 +54,6 @@ def execute(pargs: argparse.Namespace):
         return
     # ----- prepare:
     try:
-        for workdir in pargs.workdir:
-            if not os.path.isdir(workdir):
-                b.critical(f"directory '{workdir}' does not exist.")
         context = sdrl.participant.make_context(pargs, pargs.workdir, is_instructor=False, show_size=True)
     except KeyboardInterrupt:
         print("  Bye.")
