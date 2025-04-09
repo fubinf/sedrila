@@ -39,6 +39,8 @@ class Directory:
 
     def make_the(self, mytype: type, name: str, **kwargs) -> 'sdrl.elements.Element':
         """Instantiate object and store it in the directory. Must be a new entry."""
+        if self.cache == None:
+            return None
         the_dict = self._getdict(mytype)
         if name in the_dict:
             b.debug(f"make_the: overwriting internal entry {mytype.__name__}({name}) from {b.caller(1)}")
@@ -65,6 +67,8 @@ class Directory:
         the_dict[name] = instance
 
     def build(self):
+        if self.cache == None:
+            return
         alldicts = ((mytype, self._getdict(mytype)) for mytype in self.managed_types)
         for thistype, thisdict in alldicts:
             b.debug(f"building all Elements of type {thistype.__name__}")
