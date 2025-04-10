@@ -8,11 +8,9 @@ TODO:
 """
 import argparse
 import datetime as dt
-import fileinput
 import json
 import os
 import os.path
-import re
 import typing as tg
 
 import base as b
@@ -41,71 +39,23 @@ def add_arguments(subparser: argparse.ArgumentParser):
                            help="Print task volume reports")
     subparser.add_argument('--clean', action='store_const', const=True, default=False,
                            help="purge cache and perform a complete build")
-    subparser.add_argument('--rename', metavar="source", default=None,
-                           help="rename task from given source to target with all references in mind")
-    subparser.add_argument('target',
-                           help=f"Directory to which output will be written or new name of task")
+    subparser.add_argument('targetdir',
+                           help=f"Directory to which output will be written.")
 
 
 def execute(pargs: argparse.Namespace):
     b.set_loglevel(pargs.log)
-    if pargs.rename:
-        prepare_rename(pargs)
-    targetdir_s = pargs.target
-    targetdir_i = _targetdir_i(pargs.target)
+    targetdir_s = pargs.targetdir
+    targetdir_i = _targetdir_i(pargs.targetdir)
     prepare_directories(targetdir_s, targetdir_i)
-    coursebuilder = create_and_build_course(pargs, targetdir_i, targetdir_s)
-    if pargs.rename:
-        for taskname, task in coursebuilder.taskdict.items():
-            #if pargs.sourcefile in task.assumes or pargs.sourcefile in task.requires:
-            with fileinput.FileInput(task.sourcefile, inplace=True) as file:
-                header = True
-                for line in file:
-                    if header and line == "---":
-                        header = False
-                    if not header:
-                        print(line, end='')
-                        continue
-                    if pargs.sourcefile in line and any(line.startswith(header + ":") for header in ["assumes", "requires"]):
-                        headers = re.split(r':\s*', line, 1)
-                        values = re.split(r',\s*', headers[1].strip())
-                        print(headers[0] + ": " + ", ".join([pargs.targetfile if v == pargs.sourcefile else v for v in values]))
-                    else:
-                        print(line, end='')
-        os.rename(os.path.join(pargs.sourcedir, pargs.sourcefile + ".md"), os.path.join(pargs.targetdir, pargs.targetfile + ".md"))
+    create_and_build_course(pargs, targetdir_i, targetdir_s)
     b.finalmessage()
 
-def prepare_rename(pargs):
-    slashpos = pargs.rename.rfind("/")
-    sourcefile = pargs.rename[slashpos+1:]
-    sourcedir = pargs.rename[:max(0, slashpos)]
-    slashpos = pargs.target.rfind("/")
-    targetfile = pargs.target[slashpos+1:]
-    targetdir = pargs.target[:max(0, slashpos)]
-
-    if not "/" in pargs.rename:
-        for dirpath, _, filenames in os.walk("ch"):
-            if sourcefile + ".md" in filenames:
-                sourcedir = dirpath
-                break
-    if not "/" in pargs.target:
-        targetdir = sourcedir
-
-    pargs.sourcefile = sourcefile
-    pargs.sourcedir = sourcedir
-    pargs.targetfile = targetfile
-    pargs.targetdir = targetdir
-    pargs.target = None
-    pargs.stage = "draft"
 
 def create_and_build_course(pargs, targetdir_i, targetdir_s) -> sdrl.course.Coursebuilder:
     # ----- prepare build:
-    the_cache = None
-    if targetdir_s:
-        the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=pargs.clean)
-        b.set_register_files_callback(the_cache.set_file_dirty)
-    else:
-        b.set_register_files_callback(lambda _: None)
+    the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=pargs.clean)
+    b.set_register_files_callback(the_cache.set_file_dirty)
     directory = dir.Directory(the_cache)
     the_course = sdrl.course.Coursebuilder(
         configfile=pargs.config, context=pargs.config, include_stage=pargs.include_stage,
@@ -114,8 +64,6 @@ def create_and_build_course(pargs, targetdir_i, targetdir_s) -> sdrl.course.Cour
     prepare_itree_zip(the_course)
     macroexpanders.register_macros(the_course)
     directory.build()
-    if not targetdir_s:
-        return the_course
     # ----- build special files:
     b.spit(os.path.join(targetdir_s, c.METADATA_FILE), json.dumps(the_course.as_json(), indent=2))
     generate_htaccess(the_course)
@@ -139,8 +87,6 @@ def generate_htaccess(course: sdrl.course.Coursebuilder):
 
 
 def prepare_directories(targetdir_s: str, targetdir_i: str):
-    if not targetdir_s:
-        return
     # ----- create from scratch if needed:
     if not os.path.exists(targetdir_s):
         os.mkdir(targetdir_s)
@@ -221,6 +167,4 @@ def purge_all_but(dir: str, files: set[str], exception: tg.Optional[str] = None)
 
 
 def _targetdir_i(targetdir_s):
-    if not targetdir_s:
-        return None
     return os.path.join(targetdir_s, c.AUTHOR_OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR)
