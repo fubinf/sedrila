@@ -57,26 +57,23 @@ def execute(pargs: argparse.Namespace):
     coursebuilder = create_and_build_course(pargs, targetdir_i, targetdir_s)
     if pargs.rename:
         for taskname, task in coursebuilder.taskdict.items():
+            #if pargs.sourcefile in task.assumes or pargs.sourcefile in task.requires:
             with fileinput.FileInput(task.sourcefile, inplace=True) as file:
                 header = True
                 for line in file:
                     if header and line == "---":
                         header = False
-                    if header and pargs.sourcefile in line and any(line.startswith(header + ":") for header in ["assumes", "requires"]):
+                    if not header:
+                        print(line, end='')
+                        continue
+                    if pargs.sourcefile in line and any(line.startswith(header + ":") for header in ["assumes", "requires"]):
                         headers = re.split(r':\s*', line, 1)
                         values = re.split(r',\s*', headers[1].strip())
                         print(headers[0] + ": " + ", ".join([pargs.targetfile if v == pargs.sourcefile else v for v in values]))
                     else:
-                        print(re.sub(r'\[(PARTREF(?:|TITLE|MANUAL))::([^:\]]+)(::[^\]]*)?\]', replace_macro_call(pargs.sourcefile, pargs.targetfile, task.sourcefile), line), end='')
+                        print(line, end='')
         os.rename(os.path.join(pargs.sourcedir, pargs.sourcefile + ".md"), os.path.join(pargs.targetdir, pargs.targetfile + ".md"))
     b.finalmessage()
-
-def replace_macro_call(source, target, taskfile):
-    def f(matchobj):
-        if matchobj.group(2) == source:
-            return f'[{matchobj.group(1)}::{target}{matchobj.group(3) if matchobj.group(3) else ""}]'
-        return matchobj.group(0)
-    return f
 
 def prepare_rename(pargs):
     slashpos = pargs.rename.rfind("/")
@@ -93,11 +90,6 @@ def prepare_rename(pargs):
                 break
     if not "/" in pargs.target:
         targetdir = sourcedir
-
-    if sourcefile.endswith(".md"):
-        sourcefile = sourcefile[:-3]
-    if targetfile.endswith(".md"):
-        targetfile = targetfile[:-3]
 
     pargs.sourcefile = sourcefile
     pargs.sourcedir = sourcedir
