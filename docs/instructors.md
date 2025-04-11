@@ -27,7 +27,8 @@ Under Windows, use WSL. `sedrila` does not work natively in Windows.
 ### 1.2 Make entry in `sedrila.yaml`
 
 - Send the course organizer your `instructor` entry for your course's `sedrila.yaml`.
-  Find a copy of `sedrila.yaml` at `https://courseserver.example.org/path/course/sedrila.yaml`
+  See the `instructors` part of your course's equivalent of
+  `https://courseserver.example.org/path/course/course.json`
   to see what such an entry looks like.
 - In that entry, `gitaccount` is your username in the git service used in the course
   and `webaccount` is your username on the webserver serving the course content.
