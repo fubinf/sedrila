@@ -335,122 +335,149 @@ import os
 import re
 import shutil
 import fileinput
-from pathlib import Path
-from typing import List
+import pathlib
+from typing import List  # !not needed
+
+import base as b
+
 
 def rename_part(chapterdir, altdir, itreedir, old_partname, new_partname):
-    for root in (chapterdir, altdir, itreedir):
-        _rename_part_files_and_dirs(root, old_partname, new_partname)
-        _rewrite_md_files(root, old_partname, new_partname, _prefix(root))
-        _rewrite_prot_files(root, old_partname, new_partname, _prefix(root))
+    # !Here, _prefix() does not work and all three calls should look alike:
+    # for root in (chapterdir, altdir, itreedir):
+    #     _rename_part_files_and_dirs(root, old_partname, new_partname)
+    #     _rewrite_md_files(root, old_partname, new_partname, _prefix(root))
+    #     _rewrite_prot_files(root, old_partname, new_partname, _prefix(root))
+    for root, logprefix in ((chapterdir, "C:"), (altdir, "A:"), (itreedir, "I:")):
+        _rename_part_files_and_dirs(root, old_partname, new_partname, logprefix)
+        _rewrite_md_files(root, old_partname, new_partname, logprefix)
+        _rewrite_prot_files(root, old_partname, new_partname, logprefix)
 
 
-def _rename_part_files_and_dirs(root, old, new):
-    """Rename any directory or file named 'old' to 'new'"""
+# def _rename_part_files_and_dirs(root, old, new):  # !logprefix missing
+def _rename_part_files_and_dirs(root: str, oldname: str, newname: str, logprefix: str):
+    """Rename any directory or file named old to new, keeping the file suffix."""
     for dirpath, dirnames, filenames in os.walk(root, topdown=False):
         for name in filenames:
             base, ext = os.path.splitext(name)
-            if base == old:
+            if base == oldname:
                 old_path = os.path.join(dirpath, name)
-                new_path = os.path.join(dirpath, new + ext)
+                new_path = os.path.join(dirpath, newname + ext)
                 shutil.move(old_path, new_path)
-                print(f"{_prefix(root)}Renamed file: {old_path} -> {new_path}")
+                # print(f"{_prefix(root)}Renamed file: {old_path} -> {new_path}")  # !breaks prescribed format
+                b.warning(f"{logprefix}{old_path}")
+                b.info(f"{logprefix}{new_path}")
 
         for name in dirnames:
-            if name == old:
+            if name == oldname:
                 old_path = os.path.join(dirpath, name)
-                new_path = os.path.join(dirpath, new)
+                new_path = os.path.join(dirpath, newname)
                 shutil.move(old_path, new_path)
-                print(f"{_prefix(root)}Renamed dir: {old_path} -> {new_path}")
+                # print(f"{_prefix(root)}Renamed dir: {old_path} -> {new_path}")  # !breaks prescribed format
+                b.warning(f"{logprefix}{old_path}")
+                b.info(f"{logprefix}{new_path}")
 
 
-def _rewrite_md_files(root, old, new, prefix):
-    for path in Path(root).rglob("*.md"):
+def _rewrite_md_files(root: str, oldname: str, newname: str, logprefix: str):
+    for path in pathlib.Path(root).rglob("*.md"):
         in_header = True
-        modified = False
+        modified = False  # !not used
         with fileinput.input(files=[path], inplace=True, backup='.bak') as f:
             for line in f:
                 orig_line = line
                 if in_header:
                     if line.strip() == "---":
                         in_header = False
-                    line = _replace_in_header(line, old, new)
+                    line = _replace_in_header(line, oldname, newname)
                 else:
-                    line = _replace_macros(line, old, new)
+                    line = _replace_macros(line, oldname, newname)
                 if line != orig_line:
-                    print(f"{prefix}{path}", file=b.warning)
-                    print(f"{prefix}{orig_line.rstrip()}", file=b.warning)
-                    print(f"{prefix}{line.rstrip()}", file=b.info)
-                    modified = True
+                    # !passes a function to file= :
+                    # print(f"{logprefix}{path}", file=b.warning)
+                    # print(f"{logprefix}{orig_line.rstrip()}", file=b.warning)
+                    # print(f"{logprefix}{line.rstrip()}", file=b.info)
+                    b.warning(f"{logprefix}{path}")
+                    b.warning(f"{logprefix}{orig_line.rstrip()}")
+                    b.info(f"{logprefix}{line.rstrip()}")
+                    modified = True  # !not used
                 print(line, end='')
 
 
-def _rewrite_prot_files(root, old, new, prefix):
-    word_pat = re.compile(rf'\b{re.escape(old)}\b')
-    path_pat = re.compile(rf'(?<!\w){re.escape(old)}(?!\w)')
-    for path in Path(root).rglob("*.prot"):
+def _rewrite_prot_files(root: str, oldname: str, newname: str, logprefix: str):
+    word_pat = re.compile(rf'\b{re.escape(oldname)}\b')
+    path_pat = re.compile(rf'(?<!\w){re.escape(oldname)}(?!\w)')
+    for path in pathlib.Path(root).rglob("*.prot"):
         bare_hits = []
         with fileinput.input(files=[path], inplace=True, backup='.bak') as f:
             for line in f:
                 orig_line = line
                 if word_pat.search(line) and not re.search(r'[/\.\-_]', line):
                     bare_hits.append(line.rstrip())
-                    print(line, end='')
+                    # print(line, end='')  # !masses of unwanted output
                     continue
-                line = path_pat.sub(new, line)
+                line = path_pat.sub(newname, line)
                 if line != orig_line:
-                    print(f"{prefix}{path}", file=b.warning)
-                    print(f"{prefix}{orig_line.rstrip()}", file=b.warning)
-                    print(f"{prefix}{line.rstrip()}", file=b.info)
+                    # !passes a function to file= :
+                    # print(f"{logprefix}{path}", file=b.warning)
+                    # print(f"{logprefix}{orig_line.rstrip()}", file=b.warning)
+                    # print(f"{logprefix}{line.rstrip()}", file=b.info)
+                    b.warning(f"{logprefix}{path}")
+                    b.warning(f"{logprefix}{orig_line.rstrip()}")
+                    b.info(f"{logprefix}{line.rstrip()}")
                 print(line, end='')
 
         if bare_hits:
-            print(f"{prefix}{path}", file=b.warning)
-            for l in bare_hits:
-                print(f"{prefix}{l}", file=b.warning)
+            # !passes a function to file= :
+            # print(f"{prefix}{path}", file=b.warning)
+            b.warning(f"{logprefix}{path}")
+            for line in bare_hits:
+                # print(f"{prefix}{line}", file=b.warning)
+                b.warning(f"{logprefix}{line}")
 
 
-def _replace_in_header(line, old, new):
+def _replace_in_header(line: str, oldname: str, newname: str):
     for key in ['assumes:', 'requires:']:
         if line.strip().startswith(key):
-            parts = line[len(key):].split(',')
-            parts = [p.strip() for p in parts]
-            replaced = [new if p.endswith(old) else p for p in parts]
+            parts = [p.strip() for p in line[len(key):].split(',')]
+            # !endswith() matches too often:
+            # replaced = [new if p.endswith(old) else p for p in parts]
+            replaced = [newname if p == oldname else p for p in parts]
             return f"{key} {', '.join(replaced)}\n"
     return line
 
 
-def _replace_macros(line, old, new):
-    line = re.sub(rf"\[PARTREF::({old})\]", rf"[PARTREF::{new}]", line)
-    line = re.sub(rf"\[PARTREFTITLE::({old})\]", rf"[PARTREFTITLE::{new}]", line)
-    line = re.sub(rf"\[PARTREFMANUAL::({old})::", rf"[PARTREFMANUAL::{new}::", line)
-    line = re.sub(rf"\[TREEREF::({old}\.[^\]]+)\]", lambda m: f"[TREEREF::{m.group(1).replace(old, new)}]", line)
-    line = re.sub(rf"\[TREEREF::({old}/[^\]]+)\]", lambda m: f"[TREEREF::{m.group(1).replace(old, new)}]", line)
-    line = re.sub(rf"\[TREEREF::/([^/]+)/([^/]+)/{old}/", rf"[TREEREF::/\1/\2/{new}/", line)
+def _replace_macros(line: str, oldname: str, newname: str):
+    line = re.sub(rf"\[PARTREF::({oldname})\]", rf"[PARTREF::{newname}]", line)
+    line = re.sub(rf"\[PARTREFTITLE::({oldname})\]", rf"[PARTREFTITLE::{newname}]", line)
+    line = re.sub(rf"\[PARTREFMANUAL::({oldname})::", rf"[PARTREFMANUAL::{newname}::", line)
+    line = re.sub(rf"\[TREEREF::({oldname}\.[^\]]+)\]", lambda m: f"[TREEREF::{m.group(1).replace(oldname, newname)}]", line)
+    line = re.sub(rf"\[TREEREF::({oldname}/[^\]]+)\]", lambda m: f"[TREEREF::{m.group(1).replace(oldname, newname)}]", line)
+    line = re.sub(rf"\[TREEREF::/([^/]+)/([^/]+)/{oldname}/", rf"[TREEREF::/\1/\2/{newname}/", line)
     return line
 
 
-def _prefix(path):
-    if 'chapterdir' in path:
-        return "C: "
-    if 'altdir' in path:
-        return "A: "
-    if 'itreedir' in path:
-        return "I: "
-    # Guess based on base name as fallback
-    name = os.path.basename(path.rstrip('/'))
-    if name == "chapterdir":
-        return "C: "
-    elif name == "altdir":
-        return "A: "
-    elif name == "itreedir":
-        return "I: "
-    return ""
+# !utterly broken function, a specific string 'chapterdir' etc. is never mentioned in the spec:
+# def _prefix(path):
+#     if 'chapterdir' in path:
+#         return "C: "
+#     if 'altdir' in path:
+#         return "A: "
+#     if 'itreedir' in path:
+#         return "I: "
+#     # Guess based on base name as fallback
+#     name = os.path.basename(path.rstrip('/'))
+#     if name == "chapterdir":
+#         return "C: "
+#     elif name == "altdir":
+#         return "A: "
+#     elif name == "itreedir":
+#         return "I: "
+#     return ""
 
 
-# Dummy logger to mimic b.warning / b.info
-class b:
-    @staticmethod
-    def warning(msg): print(msg)
-    @staticmethod
-    def info(msg): print(msg)
+# !nice idea, but never called correctly:
+# # Dummy logger to mimic b.warning / b.info
+# class b:
+#     @staticmethod
+#     def warning(msg): print(msg)
+#     @staticmethod
+#     def info(msg): print(msg)
