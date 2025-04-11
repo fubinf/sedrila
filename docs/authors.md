@@ -810,7 +810,7 @@ Both versions will by default exclude all tasks, taskgroups, and chapters that h
 
 ### 2.2 Options
 
-- To include those as well, add option `--include_stage minstage` where `minstage`
+- To include parts with `stage:` entry, add option `--include_stage minstage` where `minstage`
   is the lowest stage that should be included; all higher ones will be included as well.  
 - To obtain less detailed console output during the generation, use `--log WARNING`.  
 - The first run creates and fills the cache (which is stored in the instructor directory) 
@@ -819,6 +819,17 @@ Both versions will by default exclude all tasks, taskgroups, and chapters that h
 - To use an alternative configuration file, use something like `--config myconfig.yaml`.  
 - Option `--sums` generates reports about the volume of tasks per chapter,
   per difficulty, and per stage.
+- Option `--rename old_partname new_partname` shortcuts normal operation and only performs a
+  rename refactoring of the course content.
+  It will rename files or directories as appropriate (and occasionally beyond).
+  It will replace references in markdown files: 
+  `assumes:` and `requires:` headers as well as `PARTREF`, `INCLUDE`, `PROT`, and `TREEREF`
+  macro calls.
+  It will heuristically replace occurrences of `old_partname` in `new_partname.prot` files.
+  False positives are possible; make sure you inspect the protocol output on the terminal.
+  False negatives are likely, because other file types (such as program source files) are not modified.
+  Make sure you perform a full-text search in your IDE after the rename operation.
+  The option requires passing a dummy `targetdir` commandline argument which is not actually used.
 
 ### 2.3 Copying the build output
 

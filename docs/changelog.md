@@ -1,12 +1,15 @@
 # sedrila CHANGELOG
 
 
-## Version 2.6.2 (upcoming)
+## Version 2.7.0 (upcoming)
+- `author`: add `--rename old_partname new_partname` refactoring function.
 - ...
+
 
 ## Version 2.6.1 (2025-04-08)
 - `student`: refuse to run if the work directory given does not contain a `.git` subdir.
 - `student`: if `student.yaml` is missing, mention `--init`.
+
 
 ## Version 2.6.0 (2025-02-10)
 - `instructor1` removed.
@@ -21,7 +24,6 @@
   Here, the webapp allows clicking on usernames near files or tasks in order to accept/reject/keepneutral
   the corresponding task. Each such change is reflected in `submission.yaml` immediately.  
   The work report is available here as well.
-- ...
 
 
 ## Version 2.5.0 beta (2025-01-28)
