@@ -20,6 +20,7 @@ import sdrl.course
 import sdrl.elements as el
 import sdrl.directory as dir
 import sdrl.macroexpanders as macroexpanders
+import sdrl.rename
 
 
 meaning = """Creates and renders an instance of a SeDriLa course with incremental build.
@@ -39,12 +40,17 @@ def add_arguments(subparser: argparse.ArgumentParser):
                            help="Print task volume reports")
     subparser.add_argument('--clean', action='store_const', const=True, default=False,
                            help="purge cache and perform a complete build")
+    subparser.add_argument('--rename', nargs=2, metavar=("partname", "new_partname"),
+                           help="Rename files of part, macro calls in *.md. and part mentions in *.prot, then stop.")
     subparser.add_argument('targetdir',
                            help=f"Directory to which output will be written.")
 
 
 def execute(pargs: argparse.Namespace):
     b.set_loglevel(pargs.log)
+    if pargs.rename:
+        do_rename(pargs.config, pargs.rename[0], pargs.rename[1])
+        return
     targetdir_s = pargs.targetdir
     targetdir_i = _targetdir_i(pargs.targetdir)
     prepare_directories(targetdir_s, targetdir_i)
@@ -52,6 +58,12 @@ def execute(pargs: argparse.Namespace):
     b.finalmessage()
 
 
+def do_rename(configfile: str, old_partname: str, new_partname: str):
+    config = b.slurp_yaml(configfile)
+    chapterdir, altdir, itreedir = config['chapterdir'], config['altdir'], config['itreedir']
+    sdrl.rename.rename_part(chapterdir, altdir, itreedir, old_partname, new_partname)
+    
+    
 def create_and_build_course(pargs, targetdir_i, targetdir_s) -> sdrl.course.Coursebuilder:
     # ----- prepare build:
     the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=pargs.clean)

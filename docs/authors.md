@@ -59,11 +59,11 @@ About the entries:
 - `name`: Short title of the course to be used in the breadcrumb navigation.
 - `baseresourcedir` is optional and states where the few CSS and JavaScript files live. 
   Not defining a `baseresourcedir` means to use the built-in default files.  
-- `chapterdir`: Relative path of directory in which the course content lives.  
+- `chapterdir`: Relative path of directory in which the course content lives.
   The names of directories below `chapterdir` are the names of chapters (level 1)
-  and the names of taskgroups (level 2).  
+  and the names of taskgroups (level 2).
   Slugs are used for two purposes: as short names for identifying a part and
-  for the filenames in the generated HTML directory.  
+  for the filenames in the generated HTML directory.
   There are five part types: course, chapter, taskgroup, task, and glossary.
   For a task defined by file `abc.md`, the task name is `abc`.
 - `altdir`: Relative path of the alternate chapterdir.
@@ -73,10 +73,9 @@ About the entries:
   (typically targeted at instructors) in a non-public repository although the course
   overall lives in a public repository.
   That non-public repository would then be included in the overall course's working directory
-  by means of a git submodule and `altdir` would point there.  
-  Set it to same value as `chapterdir` if you do not (yet) need this functionality.  
+  by means of a git submodule and `altdir` would point there.
   See the `[INCLUDE]` macro for an explanation of how to use `altdir` content.
-- `itreedir`: Optional. Relative path of the instructor tree directory.
+- `itreedir`: Relative path of the instructor tree directory.
   This must be a directory with a name ending in `.zip`, say, `itree.zip`. 
   Its contents will be packaged into a ZIP file, which will be placed in the
   instructor subdirectory of the generated website.
