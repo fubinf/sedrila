@@ -94,22 +94,16 @@ def _process_markdown_files(collector: _Collector, oldname: str, newname: str):
     for filepath in collector.md_files:
         filecontents = b.slurp(filepath)
         lines = filecontents.split('\n')
-        in_header = True  # discriminate header part from body part
         replacements = 0  # discriminate files with changes from those without
         for i, line in enumerate(lines):
-            orig_line = line
-            if in_header:
-                if line.strip() == "---":
-                    in_header = False
-                line = _replace_requires_assumes(line, oldname, newname)
-                if line != orig_line:
-                    collector.record('headers_replaced', filepath, line) 
-            else:
-                line = _replace_macros(line, oldname, newname)
-                if line != orig_line:
-                    collector.record('macros_replaced', filepath, line)
-            if line != orig_line:
-                lines[i] = line
+            line2 = _replace_requires_assumes(line, oldname, newname)
+            if line2 != line:
+                collector.record('headers_replaced', filepath, line2) 
+            line3 = _replace_macros(line2, oldname, newname)
+            if line3 != line2:
+                collector.record('macros_replaced', filepath, line3)
+            if line3 != line:
+                lines[i] = line3
                 replacements += 1
         if replacements > 0:
             filecontents = '\n'.join(lines)
