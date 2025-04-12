@@ -18,7 +18,6 @@ Heuristic 'rename' refactoring on SeDriLa courses:
 import os
 import re
 import shutil
-import pathlib
 
 import base as b
 
@@ -117,8 +116,8 @@ def _process_markdown_files(collector: _Collector, oldname: str, newname: str):
 
 def _replace_requires_assumes(line: str, oldname: str, newname: str):
     # the partname is delimited by colon, blank, comma, or end-of-line:
-    regexp = rf'([:, ]){re.escape(oldname)}([, $])'
-    return re.sub(regexp, lambda m: fr"{m.group(1)}{newname}{m.group(2)}", line)
+    regexp = rf'^(requires:|assumes:)(.*[, ]|){re.escape(oldname)}([, ]|$)'
+    return re.sub(regexp, lambda m: fr"{m.group(1)}{m.group(2)}{newname}{m.group(3)}", line)
 
 
 def _replace_macros(line: str, oldname: str, newname: str):

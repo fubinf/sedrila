@@ -1,6 +1,22 @@
 import sdrl.rename 
 
 
+def test_replace_requires_assumes():
+    def r_ra(line):
+        return sdrl.rename._replace_requires_assumes(line, "ol-d", "new")
+
+    # ----- matches:
+    assert r_ra("assumes: ol-d") == "assumes: new"
+    assert r_ra("requires: a,  ol-d,b") == "requires: a,  new,b"
+    assert r_ra("requires:ol-d") == "requires:new"
+
+    # ----- non-matches:
+    assert r_ra(" assumes: ol-d") == " assumes: ol-d"
+    assert r_ra("assumes ol-d") == "assumes ol-d"
+    assert r_ra("assumes: aol-d") == "assumes: aol-d"
+    assert r_ra("assumes: ol-d-e") == "assumes: ol-d-e"
+
+    
 def test_replace_macros():
     def r_m(line):
         return sdrl.rename._replace_macros(line, "ol-d", "new")
