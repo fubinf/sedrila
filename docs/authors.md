@@ -821,15 +821,22 @@ Both versions will by default exclude all tasks, taskgroups, and chapters that h
   per difficulty, and per stage.
 - Option `--rename old_partname new_partname` shortcuts normal operation and only performs a
   rename refactoring of the course content.
+  It requires passing a dummy `targetdir` commandline argument which is not actually used.
   It will rename files or directories as appropriate (and occasionally beyond).
   It will replace references in markdown files: 
   `assumes:` and `requires:` headers as well as `PARTREF`, `INCLUDE`, `PROT`, and `TREEREF`
   macro calls.
   It will heuristically replace occurrences of `old_partname` in `new_partname.prot` files.
-  False positives are possible; make sure you inspect the protocol output on the terminal.
-  False negatives are likely, because other file types (such as program source files) are not modified.
-  Make sure you perform a full-text search in your IDE after the rename operation.
-  The option requires passing a dummy `targetdir` commandline argument which is not actually used.
+  Practical tips:
+
+    - False positives are possible; make sure you inspect the protocol output on the terminal.
+    - False negatives are likely, because other file types (such as program source files) are not modified.
+      Perform a full-text search in your IDE after the rename operation to find them.
+    - Start from a clean git state, so you can reset easily if things work out badly.
+    - Do not interrupt a rename operation. A wrong, but complete rename is often easy to revert;
+      a half-done one is probably not.
+    - Make sure you adjust your config file if chapter/taskgroup directories were renamed.
+    - After a rename, perform a build to check validity.
 
 ### 2.3 Copying the build output
 
