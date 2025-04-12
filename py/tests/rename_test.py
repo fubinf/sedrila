@@ -18,8 +18,10 @@ def test_replace_requires_assumes():
 
     
 def test_replace_macros():
+    def r_m3(line, oldname, newname):
+        return sdrl.rename._replace_macros(line, oldname, newname)
     def r_m(line):
-        return sdrl.rename._replace_macros(line, "ol-d", "new")
+        return r_m3(line, "ol-d", "new")
 
     # ----- matches:
     assert r_m("a [PARTREF::ol-d] b") == "a [PARTREF::new] b"
@@ -33,6 +35,7 @@ def test_replace_macros():
     assert r_m("[INCLUDE::ALT:/a/b/ol-d]") == "[INCLUDE::ALT:/a/b/new]"
     assert r_m("[TREEREF::ol-d/c]") == "[TREEREF::new/c]"
     assert r_m("[PROT::ALT:/a/b/ol-d]") == "[PROT::ALT:/a/b/new]"
+    assert r_m3("[PARTREF::abc_d_ef]", "abc_d_ef", "hijk") == "[PARTREF::hijk]"
     # ----- non-matches:
     assert r_m("[INCLUDE::ol-de]") == "[INCLUDE::ol-de]"
     assert r_m("[INCLUDE::a-ol-d]") == "[INCLUDE::a-ol-d]"
