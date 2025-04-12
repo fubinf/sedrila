@@ -71,6 +71,8 @@ def _rename_and_collect_across(root: str, oldname: str, newname: str, collector:
                 collector.dirs_renamed.append(new_filepath)
             elif dirname.startswith('.'):
                 skip_these.append(i)
+        for i in reversed(skip_these):  # make os.walk skip these subdirs 
+            del dirnames[i]
         # ----- rename matching files, collect files for processing:
         for filename in filenames:
             basename, suffix = os.path.splitext(filename)
