@@ -49,8 +49,10 @@ def add_arguments(subparser: argparse.ArgumentParser):
 def execute(pargs: argparse.Namespace):
     b.set_loglevel(pargs.log)
     if pargs.rename:
+        b.suppress_msg_duplicates(False)
         do_rename(pargs.config, pargs.rename[0], pargs.rename[1])
         return
+    b.suppress_msg_duplicates(True)
     targetdir_s = pargs.targetdir
     targetdir_i = _targetdir_i(pargs.targetdir)
     prepare_directories(targetdir_s, targetdir_i)

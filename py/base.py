@@ -17,6 +17,7 @@ import yaml
 starttime = time.time()
 num_errors = 0
 msgs_seen = set()
+_suppress_msg_duplicates = False
 loglevel = logging.ERROR
 loglevels = dict(DEBUG=logging.DEBUG, INFO=logging.INFO, WARNING=logging.WARNING,
                  ERROR=logging.ERROR, CRITICAL=logging.CRITICAL)
@@ -148,6 +149,11 @@ def slugify(value: str) -> str:
     return re.sub(r'[{}\s]+'.format(separator), separator, value)
 
 
+def suppress_msg_duplicates(suppression = True):
+    global _suppress_msg_duplicates
+    _suppress_msg_duplicates = suppression
+
+
 def debug(msg: str):
     if loglevel <= logging.DEBUG:
         rich_print(msg)
@@ -237,14 +243,16 @@ def get_progressbar(maxcount: int) -> tg.Iterator[rich.progress.ProgressType]:
 
 
 def rich_print(msg: str, enclose_in_tag: tg.Optional[str] = None, count=0):
-    """Print any message, but each one only once."""
-    global num_errors, msgs_seen
+    """Print any message, but if _suppress_msg_duplicates, print each one only once."""
+    global num_errors, msgs_seen, _suppress_msg_duplicates
+    if msg in msgs_seen and _suppress_msg_duplicates:
+        return
     if msg not in msgs_seen:
         msgs_seen.add(msg)
         num_errors += count
-        if enclose_in_tag:
-            msg = f"[{enclose_in_tag}]{msg}[/{enclose_in_tag}]"            
-        rich.print(msg)
+    if enclose_in_tag:
+        msg = f"[{enclose_in_tag}]{msg}[/{enclose_in_tag}]"            
+    rich.print(msg)
 
 
 def _process_params(msg: str, file: tg.Optional[str], file2: tg.Optional[str]):

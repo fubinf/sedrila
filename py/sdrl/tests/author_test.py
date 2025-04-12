@@ -248,6 +248,7 @@ def test_sedrila_author(capfd):
     # ----- run tests:
     myoutputdir = os.path.join("..", "out")  # during the test, we are in myinputdir
     with contextlib.chdir(myinputdir):
+        b.suppress_msg_duplicates(True)
         # --- step 1: create and check output as-is:
         course1, actual_output1 = call_sedrila_author("step 1: initial build", myoutputdir, catcher)
         check_output1(course1, actual_output1, expected_output1, errors=2)
