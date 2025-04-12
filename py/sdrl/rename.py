@@ -58,7 +58,7 @@ def rename_part(chapterdir, altdir, itreedir, old_partname, new_partname):
 
 
 def _rename_and_collect_across(root: str, oldname: str, newname: str, collector: _Collector):
-    for dirpath, dirnames, filenames in os.walk(root, topdown=False):
+    for dirpath, dirnames, filenames in os.walk(root, topdown=True):
         # ----- rename matching subdirs, skip invisible ones:
         skip_these: list[int] = []
         for i in range(len(dirnames)):
