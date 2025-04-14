@@ -115,8 +115,10 @@ def run_command_loop(context, menu: str, helptext: str, cmds: dict[str, tg.Calla
 def cmd_prepare(ctx: sdrl.participant.Context):
     for student in ctx.studentlist:
         b.info(f"----- Collect tasks for '{student.submissionfile_path}'")
+        current_submissions = list(student.submission.keys())
+        b.info(f"  filtering {len(current_submissions)} existing entries in {c.SUBMISSION_FILE}")
         # ----- keep only valid CHECK entries in submission:
-        for taskname in list(student.submission.keys()):  # work on a copy
+        for taskname in current_submissions:  # work on a copy
             task = student.course.task(taskname)
             if not task:
                 b.warning(f"'{taskname}' is not a valid task name. Ignored.")
@@ -124,11 +126,23 @@ def cmd_prepare(ctx: sdrl.participant.Context):
             is_a_check_entry = (student.submission[taskname] == c.SUBMISSION_CHECK_MARK)
             if not task or not eligible or not is_a_check_entry:
                 del student.submission[taskname]
+                if not task:
+                    b.warning(f"--- Not a task '{taskname}'")
+                elif task.is_accepted:
+                    b.warning(f"--- Task already accepted: '{taskname}'")
+                elif task.remaining_attempts <= 0:
+                    b.warning(f"--- Rejected too often, can not be submitted again: '{taskname}'")
+                elif not is_a_check_entry:
+                    pass  # remain silent
         # ----- add all eligible NONCHECK entries:
+        b.info(f"  adding all other eligible tasks (worktime, not accepted, attempts remaining):")
+        count = 0
         for taskname, task in student.course.taskdict.items():
             eligible = (task.workhours > 0 and task.remaining_attempts > 0 and not task.is_accepted)
             if eligible and taskname not in student.submission:
                 student.submission[taskname] = c.SUBMISSION_NONCHECK_MARK
+                count += 1
+        b.info(f"  {count} found")
         student.save_submission()
 
 

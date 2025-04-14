@@ -257,7 +257,9 @@ def _accumulate_timevalues_and_attempts(checked_entries: tg.Sequence[TaskCheckEn
 
 def _accumulate_student_workhours_per_task(commits: tg.Iterable[sgit.Commit], course: sdrl.course.Course):
     """Reflect the workentries data in the course data structure."""
+    num_commits = num_timeentries = 0
     for commit in commits:
+        num_commits += 1
         parts = _parse_taskname_workhours(commit.subject)
         if parts is None:  # this is no worktime commit
             continue
@@ -265,8 +267,10 @@ def _accumulate_student_workhours_per_task(commits: tg.Iterable[sgit.Commit], co
         if taskname in course.taskdict:
             task = course.taskdict[taskname]
             task.workhours += worktime
+            num_timeentries += 1
         else:
             b.warning(f"Commit '{commit.subject}': Task '{taskname}' does not exist. Entry ignored.")
+    b.info(f"read {num_commits} commit messages, found {num_timeentries} work time entries")
 
 
 def _parse_taskname_workhours(commit_msg: str) -> tg.Optional[tg.Tuple[str, float]]:  # taskname, workhours
