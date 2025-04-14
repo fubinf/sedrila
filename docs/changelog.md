@@ -2,8 +2,12 @@
 
 
 ## Version 2.7.0 (upcoming)
-- `author`: add `--rename old_partname new_partname` refactoring function.
 - ...
+
+
+## Version 2.6.2 (2025-04-14)
+- `author`: add `--rename old_partname new_partname` refactoring function.
+- `student`: FIX: sedrila student failed to read the commit history when submission.yaml was empty
 
 
 ## Version 2.6.1 (2025-04-08)
