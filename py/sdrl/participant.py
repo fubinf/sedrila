@@ -85,8 +85,8 @@ class Student:
         # ----- read c.SUBMISSION_FILE:
         if not os.path.isfile(self.submissionfile_path):
             self.submission = dict()
-            return
-        self.submission = b.slurp_yaml(self.submissionfile_path)
+        else:
+            self.submission = b.slurp_yaml(self.submissionfile_path)
         self.filter_submission()
 
     @functools.cached_property
@@ -196,6 +196,7 @@ class Student:
         """Kick out non-existing and rejected-for-good tasks and emit warnings."""
         submission1 = dict(**self.submission)  # constant copy (we will delete entries)
         file = self.submissionfile_path  # abbrev
+        dummy = self.course_with_work  # make sure we read the worktimes from repo. TODO 2: ugly!
         for taskname, status in submission1.items():
             task = self.course_with_work.task(taskname)
             if not task:
