@@ -51,7 +51,8 @@ def commits_of_local_repo(*, chronological: bool) -> tg.Sequence[Commit]:
     result = []
     for line in gitrun.stdout.split('\n'):
         hash_, email, tstamp, fngrprnt, goodness, subj = tuple(line.split(LOG_FORMAT_SEPARATOR))
-        if fngrprnt and goodness not in "GXY":  # accept good sigs G, expired sigs X, expired keys Y
+        if fngrprnt and goodness not in "GXYU":  
+            # accept good sigs G, expired sigs X, expired keys Y, unknown validity U
             fngrprnt = "-"  # treat as unsigned
         c = Commit(hash_, email, dt.datetime.fromtimestamp(int(tstamp), tz=dt.timezone.utc),
                    fngrprnt, subj)
