@@ -4,6 +4,8 @@
 ## Version 2.7.0 (upcoming)
 - ...
 
+## Version 2.6.3 (2025-04-29)
+- `instructor`/`student`: FIX: accept signatures with unknown validity
 
 ## Version 2.6.2 (2025-04-14)
 - `author`: add `--rename old_partname new_partname` refactoring function.
