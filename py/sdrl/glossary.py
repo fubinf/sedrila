@@ -1,4 +1,5 @@
 """Data structure, macros, and page generation for a glossary page (term dictionary and cross-reference)"""
+import re
 import typing as tg
 
 import base as b
@@ -123,7 +124,37 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         macros.register_macro("ENDTERM", 0, macros.MM.BLOCKEND, self._expand_endterm, redefine=True)
 
     def replace_toc_pseudomacrocall(self, markup: str) -> str:
-        return markup  # dummy implementation
+        pattern = r'\[TERM0?::([^]]+)\]'  # matches e.g. [TERM0::term] and [TERM::term|alt1|alt2]
+        if "[TOC]" not in markup:
+            return markup  # avoid unneeded subsequent work 
+        def sortkey(term: str) -> str:
+            """Ignore case and backquotes in term."""
+            return term.replace('`', '').casefold()
+        # --- collect term relationships and ordering violations:
+        main_terms = {}  # maps term to main term
+        prev_main_term = ""  # for checking alphabetical order
+        out_of_order_terms = []  # violations to be reported
+        for match in re.finditer(pattern, markup):
+            terms_str = match.group(1)
+            terms = [t.strip() for t in terms_str.split('|')]
+            main_term = terms[0]
+            if sortkey(main_term) < sortkey(prev_main_term):
+                out_of_order_terms.append(main_term)
+            prev_main_term = main_term
+            for term in terms:
+                main_terms[term] = main_term
+        if out_of_order_terms:
+            b.warning(f"Some glossary terms are not in alphabetical order: {', '.join(out_of_order_terms)}",
+                      file=self.sourcefile)
+        # ---- generate TOC:
+        toc_entries = ["<div class='glossary-toc'>"]
+        sorted_tuples = sorted(main_terms.items(), key=lambda t: sortkey(t[0]))
+        for term, main_term in sorted_tuples:
+            target = f"#{b.slugify(main_term)}"
+            toc_entries.append(f"  <a href='{target}'>{term}</a>")
+        toc_entries.append("</div>")
+        the_toc = "\n".join(toc_entries)
+        return markup.replace("[TOC]", the_toc)
 
     def _expand_termref(self, macrocall: macros.Macrocall) -> str:
         term = macrocall.arg1
