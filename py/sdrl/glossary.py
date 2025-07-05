@@ -100,13 +100,6 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
             for term in termreflist.value:
                 self.mentions(termreflist.part.name, term)
 
-    def render(self, mode: b.Mode):
-        """We render only once, because the glossary will not contain [INSTRUCTOR] calls."""
-        if not self.rendered_content:
-            self.register_macros_phase2()
-            mddict = md.render_markdown(self.sourcefile, self.name, self.content, mode, dict())
-            self.rendered_content, self.includefiles = (mddict['html'], mddict['includefiles'])
-    
     def report_issues(self):
         terms_explained = set(self.explainedby.keys())
         terms_mentioned = set(self.mentionedby.keys())
