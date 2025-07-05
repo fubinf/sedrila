@@ -44,7 +44,8 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         self.directory.make_the(el.Sourcefile, self.sourcefile)
         self.make_dependency(el.Topmatter, part=self)
         self.make_dependency(el.Glossarybody, part=self, includelist_class=el.IncludeList_s,
-                             switch_macros_op=self.register_macros_phase2)
+                             switch_macros_op=self.register_macros_phase2,
+                             expand_toc_op=self.replace_toc_pseudomacrocall)
         self.make_dependency(el.Toc, part=self)
 
     def check_existing_resource(self):
@@ -120,6 +121,9 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         macros.register_macro("TERM0", 1, macros.MM.INNER, self._expand_term0, redefine=True)
         macros.register_macro("TERM", 1, macros.MM.BLOCKSTART, self._expand_term, redefine=True)
         macros.register_macro("ENDTERM", 0, macros.MM.BLOCKEND, self._expand_endterm, redefine=True)
+
+    def replace_toc_pseudomacrocall(self, markup: str) -> str:
+        return markup  # dummy implementation
 
     def _expand_termref(self, macrocall: macros.Macrocall) -> str:
         term = macrocall.arg1

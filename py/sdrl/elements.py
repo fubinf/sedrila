@@ -308,13 +308,13 @@ class Body(Piece):  # abstract class
         # only during the next run, via the cache.
         includeslist = self.directory.get_the(includelist_class, self.name)
         macros.switch_part(self.name)
-        mddict = self.render(content, render_mode)
+        mddict = self.render(content.value, render_mode)
         html, includes, self.termrefs = (mddict['html'], mddict['includefiles'], mddict['termrefs'])
         self.handle_value_and_state(html)
         includeslist.handle_value_and_state(includes)
 
     def render(self, content: str, render_mode: b.Mode) -> dict:
-        return md.render_markdown(self.sourcefile, self.name, content.value, render_mode,
+        return md.render_markdown(self.sourcefile, self.name, content, render_mode,
                                   self.course.blockmacro_topmatter)
 
 
@@ -336,6 +336,7 @@ class Body_i(Body):
 class Glossarybody(Body):
     """Glossarypage content.  Byproduct: IncludeList_s."""
     switch_macros_op: tg.Callable
+    expand_toc_op: tg.Callable
 
     def __init__(self, name: str, **kwargs):
         super().__init__(name, **kwargs)
@@ -349,6 +350,10 @@ class Glossarybody(Body):
         self.switch_macros_op()        
         self.part.fill_mentionedbylists()  # noqa
         self.do_do_build(IncludeList_s, b.Mode.STUDENT)
+
+    def render(self, content: str, render_mode: b.Mode) -> dict:
+        extended_content = self.expand_toc_op(content)
+        return super().render(extended_content, render_mode)
 
 
 class Byproduct(Piece):  # abstract class
