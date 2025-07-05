@@ -80,7 +80,8 @@ def pull_all_repos(do_pull: bool) -> list[str]:
     if do_pull:
         b.info(f"pulling {len(repodir_list)} git repos")
         progressbar = b.get_progressbar(len(repodir_list))
-        os.remove(c.EVENTCACHE_FILENAME)  # cache would be invalid after pull
+        if os.path.isfile(c.EVENTCACHE_FILENAME):
+            os.remove(c.EVENTCACHE_FILENAME)  # cache would be invalid after pull
     result = []
     for repodir in repodir_list:
         with contextlib.chdir(repodir):
@@ -107,7 +108,7 @@ def collect_events(repodirs: list[str]) -> list[repo.Event]:
     for repodir in repodirs:
         student_username = os.path.basename(repodir)
         with contextlib.chdir(repodir):
-            student = sdrl.participant.Student()
+            student = sdrl.participant.Student('.', is_instructor=False)
             course_json = student.get_course_metadata(student.course_url)
             course = sdrl.course.CourseSI(course_json, student_username)
             commits = sgit.commits_of_local_repo(chronological=True)
@@ -116,7 +117,7 @@ def collect_events(repodirs: list[str]) -> list[repo.Event]:
             numcommits.append(len(this_batch))
         next(progressbar)
     quantiles = pd.Series(numcommits).quantile([0, 0.25, 0.5, 0.75, 1.0])
-    print("Quantiles of #commits:\n", quantiles)
+    print("Quantiles of #commits over repos:\n", quantiles)
     with open(c.EVENTCACHE_FILENAME, 'wb') as f:
         pickle.dump(result, f)
     print(len(result), "events found")
