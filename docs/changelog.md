@@ -4,6 +4,10 @@
 ## Version 2.7.0 (upcoming)
 - ...
 
+## Version 2.6.4 (2025-04-29)
+- FIX: `pyproject.toml` must declare `numpy<2`, although `pandas` (who needs this) correctly declares it.
+  Reason unclear.
+
 ## Version 2.6.3 (2025-04-29)
 - `instructor`/`student`: FIX: accept signatures with unknown validity
 
