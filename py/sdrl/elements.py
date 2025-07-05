@@ -308,11 +308,14 @@ class Body(Piece):  # abstract class
         # only during the next run, via the cache.
         includeslist = self.directory.get_the(includelist_class, self.name)
         macros.switch_part(self.name)
-        mddict = md.render_markdown(self.sourcefile, self.name, content.value, render_mode, 
-                                    self.course.blockmacro_topmatter)
+        mddict = self.render(content, render_mode)
         html, includes, self.termrefs = (mddict['html'], mddict['includefiles'], mddict['termrefs'])
         self.handle_value_and_state(html)
         includeslist.handle_value_and_state(includes)
+
+    def render(self, content: str, render_mode: b.Mode) -> dict:
+        return md.render_markdown(self.sourcefile, self.name, content.value, render_mode,
+                                  self.course.blockmacro_topmatter)
 
 
 class Body_s(Body):
