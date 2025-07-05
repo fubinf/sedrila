@@ -104,9 +104,9 @@ def pull(silent=False):
     if silent:
         try:
             pull_output = sp.check_output("git pull --ff-only", 
-                                          stderr=sp.STDOUT, shell=True).decode('utf8')
+                                          stderr=sp.STDOUT, text=True, shell=True)
         except sp.CalledProcessError as err:
-            print(err.stdout)  # TODO 2: or should we terminate with b.critical()?
+            print(f"{os.getcwd()}: {err.stdout}")  # TODO 2: or should we terminate with b.critical()?
     else:
         os.system("git pull --ff-only")
 
