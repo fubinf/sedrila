@@ -1,15 +1,23 @@
 # sedrila CHANGELOG
 
 
-## Version 2.7.0 (upcoming)
+## Version 2.8.0 (upcoming)
 - ...
+
+
+## Version 2.7.0 (2025-07-07)
+- `author`: In the glossary, `[TOC]` ignores headings and instead makes an alphabetical list of 
+  all term entries (main terms and synonyms).
+
 
 ## Version 2.6.4 (2025-04-29)
 - FIX: `pyproject.toml` must declare `numpy<2`, although `pandas` (who needs this) correctly declares it.
   Reason unclear.
 
+
 ## Version 2.6.3 (2025-04-29)
 - `instructor`/`student`: FIX: accept signatures with unknown validity
+
 
 ## Version 2.6.2 (2025-04-14)
 - `author`: add `--rename old_partname new_partname` refactoring function.

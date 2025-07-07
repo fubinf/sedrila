@@ -4,7 +4,7 @@
 # https://python-poetry.org/docs/pyproject/
 [tool.poetry]
 name = "sedrila"
-version = "2.6.4"
+version = "2.7.0"
 description = "Tool infrastructure for building and running \"self-driven lab\" courses"
 license = "MIT"
 authors = ["Lutz Prechelt <prechelt@inf.fu-berlin.de>"]
@@ -53,7 +53,7 @@ Jinja2 = "^3.1"
 Markdown = "^3.7"
 matplotlib = "^3.9"
 mdx_linkify = "^2.1"
-numpy = "<2"  # why needed? pandas 2.2 needs this, but declares it correctly!
+numpy = "<2"  # why needed? only pandas (2.2) needs this and declares it correctly!
 pandas = "^2.2"
 Pygments = "^2.17"
 PyYAML = "^6.0"
