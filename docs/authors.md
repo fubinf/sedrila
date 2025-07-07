@@ -652,7 +652,9 @@ Line structure and spaces are preserved.
 
 #### 1.9.5 `[TOC]`, `[DIFF]`
 
-- `[TOC]`: Generates a table of contents from the Markdown headings present in the file
+- `[TOC]`: Generates a table of contents from the Markdown headings present in the file.
+  For the glossary, ignores headings and instead makes an alphabetical list of all term entries 
+  (main terms and synonyms).
 - `[DIFF::level]` generates the task difficulty mark for the given level, from 1 (very simple) to 4 (difficult).
 
 
