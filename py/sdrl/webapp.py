@@ -3,6 +3,7 @@ import base64
 import os
 import subprocess
 import typing as tg
+import html
 
 import bottle  # https://bottlepy.org/docs/dev/
 
@@ -174,7 +175,7 @@ def serve_work_report():
 def serve_sedrila_replace():
     """
     On the HTML page, spots where the user can change the state are coded like so:
-      <span id="mytaskname" data-index=0 class="sedrila-replace someclass">sometext</span> 
+      <span id="mytaskname" data-index=0 class="sedrila-replace someclass">sometext</span>
     When clicked, javascript will produce a POST request with a JSON body like so:
       { id: "mytaskname", index: 0, cssclass: "sedrila-replace someclass", text: "sometext" }
     This routine will call the state change function on the context and respond with a JSON body like so:
@@ -214,7 +215,7 @@ def serve_js():
 
 @bottle.route("<mypath:path>/")
 def serve_directory(mypath: str):
-    title = f"D:{os.path.basename(mypath)}"
+    title = f"D:{html.escape(os.path.basename(mypath))}"
     context = sdrl.participant.get_context()
     body = html_for_directorylist(context, f"{mypath}/")
     return html_for_page(title, context.course_url, body)
@@ -226,7 +227,7 @@ def serve_vfile(mypath: str):
     if bottle.request.query.raw:  # ...?raw=workdirname
         student = context.students[bottle.request.query.raw]
         return handle_rawfile(student, mypath)
-    title = f"F:{os.path.basename(mypath)}"
+    title = f"F:{html.escape(os.path.basename(mypath))}"
     body = html_for_file(context.studentlist, mypath)
     return html_for_page(title, context.course_url, body)
 
@@ -242,14 +243,14 @@ def html_for_breadcrumb(path: str) -> str:
     nextslashpos = path.find("/", slashpos + 1)
     # ----- process path elements between slashes:
     while nextslashpos > 0:
-        parts.append(f" / <a href='{path[:nextslashpos + 1]}'>{path[slashpos + 1:nextslashpos]}</a>")
+        parts.append(f" / <a href='{html.escape(path[:nextslashpos + 1])}'>{html.escape(path[slashpos + 1:nextslashpos])}</a>")
         slashpos = nextslashpos
         nextslashpos = path.find("/", slashpos + 1)
     # ----- process last path element:
     if slashpos + 1 == len(path):
         parts.append(" /")  # dir path
     else:
-        parts.append(f" / <a href='{path}'>{path[slashpos + 1:]}</a>")  # file path
+        parts.append(f" / <a href='{html.escape(path)}'>{html.escape(path[slashpos + 1:])}</a>")  # file path
     return f"{''.join(parts)}</nav>"
 
 
@@ -257,13 +258,13 @@ def html_for_directorylist(ctx: sdrl.participant.Context, mypath, breadcrumb=Tru
     """A page listing the directories and files under mypath in the virtual filesystem."""
     dirs, files = ctx.ls(mypath)
     lines = [html_for_breadcrumb(mypath) if breadcrumb else ""]  # noqa
-    lines.append(f"<h1 {CSS}>Contents of '{mypath}'</h1>")
+    lines.append(f"<h1 {CSS}>Contents of '{html.escape(mypath)}'</h1>")
     lines.append(f"<h2 id='subdirectories'{CSS}>Subdirectories</h2>")
     lines.append(f"<table {CSS}>")
     for idx, mydir in enumerate(sorted(dirs)):
         tasklink = html_for_tasklink(mydir, ctx.submission_find_taskname, ctx.course_url, ctx.is_instructor)
         lines.append(f"{tr_tag(idx)}"
-                     f"<td {CSS}><a href='{mydir}'>{mydir}</a></td>"
+                     f"<td {CSS}><a href='{html.escape(mydir)}'>{html.escape(mydir)}</a></td>"
                      f"<td {CSS}>{tasklink}</td>"
                      f"</tr>")
     lines.append("</table>")
@@ -273,7 +274,7 @@ def html_for_directorylist(ctx: sdrl.participant.Context, mypath, breadcrumb=Tru
         filepath = os.path.join(mypath, file)
         tasklink = html_for_tasklink(filepath, ctx.submission_find_taskname, ctx.course_url, ctx.is_instructor)
         lines.append(f"{tr_tag(idx)}"
-                     f"<td {CSS}><a href='{filepath}'>{file}</a></td>"
+                     f"<td {CSS}><a href='{html.escape(filepath)}'>{html.escape(file)}</a></td>"
                      f"{html_for_file_existence(ctx.studentlist, filepath)}"
                      f"<td {CSS}>{tasklink}</td>"
                      f"</tr>")
@@ -283,9 +284,9 @@ def html_for_directorylist(ctx: sdrl.participant.Context, mypath, breadcrumb=Tru
 
 
 def html_for_editable_cell(idx: int, student: sdrl.participant.Student, taskname: str) -> str:
-    return (f"<span id='{taskname}' data-index={idx} "
-            f"class='sedrila-replace {student.submission[taskname]}'>"
-            f"{student.student_gituser}</span>")
+    return (f"<span id='{html.escape(taskname)}' data-index={idx} "
+            f"class='sedrila-replace {html.escape(student.submission[taskname])}'>"
+            f"{html.escape(student.student_gituser)}</span>")
 
 
 def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
@@ -310,7 +311,7 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
 
     def append_one_file():
         if not suffix or suffix[1:] in binaryfile_suffixes:
-            lines.append(f"<a href='?raw={workdir.topdir}'>{workdir.path_actualpath(mypath)}</a>")
+            lines.append(f"<a href='?raw={html.escape(workdir.topdir)}'>{html.escape(workdir.path_actualpath(mypath))}</a>")
             kinds.append(BINARY)
             return
         content = b.slurp(f"{workdir.topdir}{mypath}")
@@ -318,10 +319,10 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
             lines.append(content)
         elif suffix == '.prot':
             lines.append(macroexpanders.prot_html(content))
-        else:  # any other suffix: assume this is a sourcefile 
+        else:  # any other suffix: assume this is a sourcefile
             language = suffix2lang.get(suffix[1:], "")
             if language == 'html':
-                lines.append(f"<a href='?raw={workdir.topdir}'>view as HTML page</a>")
+                lines.append(f"<a href='?raw={html.escape(workdir.topdir)}'>view as HTML page</a>")
             lines.append(f"```{language}")
             lines.append(content.rstrip("\n"))
             lines.append(f"```")
@@ -329,9 +330,9 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
 
     def append_diff():
         prevdir = studentlist[idx - 1]  # previous workdir
-        toc.append(f"<a href='#diff-{prevdir.topdir}-{workdir.topdir}'>diff</a>  ")
-        lines.append(f"<h2 id='diff-{prevdir.topdir}-{workdir.topdir}' {CSS}"
-                     f">{idx - 1}/{idx}. diff {prevdir.topdir}/{workdir.topdir}</h2>")
+        toc.append(f"<a href='#diff-{html.escape(prevdir.topdir)}-{html.escape(workdir.topdir)}'>diff</a>  ")
+        lines.append(f"<h2 id='diff-{html.escape(prevdir.topdir)}-{html.escape(workdir.topdir)}' {CSS}"
+                     f">{idx - 1}/{idx}. diff {html.escape(prevdir.topdir)}/{html.escape(workdir.topdir)}</h2>")
         if kinds[-2:] != [SRC, SRC]:
             lines.append("No diff shown. It requires two source files, which we do not have here.")
             return
@@ -345,10 +346,10 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
     lines = []  # noqa, some entries will be entire file contents, not single lines
     toc = []
     for idx, workdir in enumerate(studentlist):
-        toc.append(f"<a href='#{workdir.topdir}'>{idx}. {workdir.topdir}</a>  ")
-        lines.append(f"<h2 id='{workdir.topdir}' {CSS}>{idx}. {workdir.topdir}: {filename}</h2>")
+        toc.append(f"<a href='#{html.escape(workdir.topdir)}'>{idx}. {html.escape(workdir.topdir)}</a>  ")
+        lines.append(f"<h2 id='{html.escape(workdir.topdir)}' {CSS}>{idx}. {html.escape(workdir.topdir)}: {html.escape(filename)}</h2>")
         if not workdir.path_exists(mypath):
-            lines.append(f"(('{mypath}' does not exist in '{workdir.topdir}'))")
+            lines.append(f"(('{html.escape(mypath)}' does not exist in '{html.escape(workdir.topdir)}'))")
             kinds.append(MISSING)
         else:
             append_one_file()
@@ -357,7 +358,7 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
     # ----- render:
     the_toc, the_lines = '\n'.join(toc), '\n'.join(lines)
     markdown = (f"{html_for_breadcrumb(mypath)}\n"
-                f"<h1 {CSS}>{mypath}</h1>\n"
+                f"<h1 {CSS}>{html.escape(mypath)}</h1>\n"
                 f"{the_toc}\n"
                 f"{the_lines}")
     macros.switch_part("webapp")
@@ -369,7 +370,7 @@ def html_for_file_existence(studentlist: list[sdrl.participant.Student], mypath:
     """One or more table column entries with file existence markers for each file or file pair."""
     def file_exists_at(idx: int) -> bool:
         return studentlist[idx].path_exists(mypath)
-    
+
     BEGIN = f'<td {CSS}>'
     END = '</td>'
     MISSING = '-- '
@@ -381,7 +382,7 @@ def html_for_file_existence(studentlist: list[sdrl.participant.Student], mypath:
             if taskname:
                 entries.append(f"{BEGIN}{html_for_editable_cell(idx, wd, taskname)}{END}")
             else:
-                entries.append(f"{BEGIN}{wd.student_gituser}{END}")
+                entries.append(f"{BEGIN}{html.escape(wd.student_gituser)}{END}")
         else:
             entries.append(f"{BEGIN}{MISSING}{END}")
         if idx % 2 == 1:  # finish a pair
@@ -457,7 +458,7 @@ def html_for_remaining_submissions(ctx: sdrl.participant.Context, submissions_re
     for idx, submission in enumerate(sorted(submissions_remaining)):
         tasklink = html_for_tasklink(submission, ctx.submission_find_taskname, ctx.course_url, ctx.is_instructor)
         lines.append(f"{tr_tag(idx)}"
-                     f"<td {CSS}>{submission}</td>"
+                     f"<td {CSS}>{html.escape(submission)}</td>"
                      f"<td {CSS}>{html_for_remainingness(submission)}</td>"
                      f"<td {CSS}>{tasklink}</td>"
                      f"</tr>")
@@ -467,9 +468,9 @@ def html_for_remaining_submissions(ctx: sdrl.participant.Context, submissions_re
 
 def html_for_resources(course_url: str) -> str:
     return (f'<link rel="icon" type="image/png" sizes="16x16 32x32" href="{FAVICON_URL}">\n'
-            f'<link href="{course_url}/sedrila.css" rel="stylesheet">\n'
-            f'<link href="{course_url}/local.css" rel="stylesheet">\n'
-            f'<link href="{course_url}/codehilite.css" rel="stylesheet">\n'
+            f'<link href="{html.escape(course_url)}/sedrila.css" rel="stylesheet">\n'
+            f'<link href="{html.escape(course_url)}/local.css" rel="stylesheet">\n'
+            f'<link href="{html.escape(course_url)}/codehilite.css" rel="stylesheet">\n'
             f'<link href="{WEBAPP_CSS_URL}" rel="stylesheet">\n'
             )
 
@@ -480,10 +481,10 @@ def html_for_student_table(studentlist: list[sdrl.participant.Student]) -> str:
                  f"<td {CSS}><b>student_gituser</b></td><td {CSS}><b>partner_gituser</b></td>")
     for idx, stud in enumerate(studentlist):
         lines.append(f"{tr_tag(idx)}"
-                     f"<td {CSS}>{stud.student_name}</td>"
-                     f"<td {CSS}>{stud.student_id}</td>"
-                     f"<td {CSS}>{stud.student_gituser}</td>"
-                     f"<td {CSS}>{stud.partner_gituser or '--'}</td>"
+                     f"<td {CSS}>{html.escape(stud.student_name)}</td>"
+                     f"<td {CSS}>{html.escape(stud.student_id)}</td>"
+                     f"<td {CSS}>{html.escape(stud.student_gituser)}</td>"
+                     f"<td {CSS}>{html.escape(stud.partner_gituser) or '--'}</td>"
                      f"</tr>")
     lines.append("</table>")
     return "\n".join(lines)
@@ -495,7 +496,7 @@ def html_for_submissionrelated_files(ctx: sdrl.participant.Context, submission_p
     for idx, mypath in enumerate(sorted(submission_pathset)):
         tasklink = html_for_tasklink(mypath, ctx.submission_find_taskname, ctx.course_url, ctx.is_instructor)
         lines.append(f"{tr_tag(idx)}"
-                     f"<td {CSS}><a href='{mypath}'>{mypath}</a></td>"
+                     f"<td {CSS}><a href='{html.escape(mypath)}'>{html.escape(mypath)}</a></td>"
                      f"{html_for_file_existence(ctx.studentlist, mypath)}"
                      f"<td {CSS}>{tasklink}</td>"
                      f"</tr>")
@@ -507,7 +508,7 @@ def html_for_tasklink(str_with_taskname: str, find_taskname_func: tg.Callable[[s
                       course_url: str, is_instructor: bool) -> str:
     taskname = find_taskname_func(str_with_taskname)
     instructorpart = "instructor/" if is_instructor else ""
-    return f"<a href='{course_url}{instructorpart}{taskname}.html'>task</a>" if taskname else ""
+    return f"<a href='{html.escape(course_url)}{instructorpart}{html.escape(taskname)}.html'>task</a>" if taskname else ""
 
 
 def html_for_work_report(ctx: sdrl.participant.Context) -> str:
@@ -522,7 +523,7 @@ def html_for_work_report(ctx: sdrl.participant.Context) -> str:
              f"<thead {CSS}>\n",
              "<tr {CSS}>",
              f"<th></th>",
-             ''.join((f"<th colspan=2>{s.student_gituser}</th>" for s in ctx.studentlist)),
+             ''.join((f"<th colspan=2>{html.escape(s.student_gituser)}</th>" for s in ctx.studentlist)),
              f"</tr>",
              "<tr {CSS}>",
              f"<th>Task</th>",
@@ -540,7 +541,7 @@ def html_for_work_report(ctx: sdrl.participant.Context) -> str:
         # ----- produce general part of row:
         idx += 1
         elems.append(tr_tag(idx))
-        elems.append(f"<td {CSS}>{taskpath}</td>")
+        elems.append(f"<td {CSS}>{html.escape(taskpath)}</td>")
         # ----- produce student-specific parts of row:
         for stud in ctx.studentlist:
             task = stud.course.task(taskname)
