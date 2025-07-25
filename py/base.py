@@ -4,6 +4,7 @@ import json
 import logging
 import re
 import time
+import os
 import typing as tg
 
 import blessed
@@ -253,6 +254,23 @@ def rich_print(msg: str, enclose_in_tag: tg.Optional[str] = None, count=0):
     if enclose_in_tag:
         msg = f"[{enclose_in_tag}]{msg}[/{enclose_in_tag}]"            
     rich.print(msg)
+
+
+def check_path(dirtypath: str):
+    """Check whether dirtypath is a valid path and abort if it isn't"""
+    whitelist = ["/", ".", "!", "$", "", "-", "_", "~", "%"]
+    if os.path.isabs(dirtypath):
+        critical(f"path '{dirtypath}' is an absolute path")
+    dot = False
+    for char in dirtypath:
+        if char in whitelist or char.isalnum():
+            if dot and char == ".":
+                critical(f"path '{dirtypath}' contains ..")
+            elif char == ".":
+                dot = True
+            elif dot: dot = False
+        else:
+            critical(f"path '{dirtypath}' contains forbidden character '{repr(char)}'")
 
 
 def _process_params(msg: str, file: tg.Optional[str], file2: tg.Optional[str]):
