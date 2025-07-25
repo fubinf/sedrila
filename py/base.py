@@ -258,7 +258,7 @@ def rich_print(msg: str, enclose_in_tag: tg.Optional[str] = None, count=0):
 
 def check_path(dirtypath: str):
     """Check whether dirtypath is a valid path and abort if it isn't"""
-    whitelist = ["/", ".", "!", "$", "", "-", "_", "~", "%"]
+    whitelist = ["/", ".", "!", "$", "-", "_"]
     if os.path.isabs(dirtypath):
         critical(f"path '{dirtypath}' is an absolute path")
     dot = False
