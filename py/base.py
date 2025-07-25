@@ -268,9 +268,10 @@ def check_path(dirtypath: str):
                 critical(f"path '{dirtypath}' contains ..")
             elif char == ".":
                 dot = True
-            elif dot: dot = False
+            elif dot:
+                dot = False
         else:
-            critical(f"path '{dirtypath}' contains forbidden character '{repr(char)}'")
+            critical(f"path '{dirtypath}' contains forbidden character {repr(char)}")
 
 
 def _process_params(msg: str, file: tg.Optional[str], file2: tg.Optional[str]):
