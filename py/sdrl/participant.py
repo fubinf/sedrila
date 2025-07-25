@@ -88,6 +88,7 @@ class Student:
         else:
             self.submission = b.slurp_yaml(self.submissionfile_path)
         self.filter_submission()
+        self.check_student_entries(data)
 
     @functools.cached_property
     def course(self) -> sdrl.course.CourseSI:
@@ -205,6 +206,17 @@ class Student:
             elif task.remaining_attempts < 0:
                 b.warning(f"{file}: '{taskname}' has remaining_attempts = {task.remaining_attempts}. Ignored.")
                 del self.submission[taskname]
+
+    def check_student_entries(self, data: dict):
+        """Check if student YAML entries contain control characters and emit warnings."""
+        entries = list(data.values()) + list(self.submission.items())
+        cc_found = []
+        for entry in entries:
+            for char in str(entry):
+                if ord(char) < 32:
+                    cc_found.append(repr(char))
+        if cc_found:
+            b.warning(f"{self.submissionfile_path} or {self.participantfile_path} contain control characters: {cc_found}.")
         
     @classmethod
     def get_course_metadata(cls, course_url: str) -> b.StrAnyDict:
