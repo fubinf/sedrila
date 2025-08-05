@@ -20,7 +20,7 @@ a:link {
 }
 
 a>code {
-    color: #3b8e1e;
+    color: var(--main-color);
     text-decoration: underline;
 }
 
@@ -461,10 +461,6 @@ summary {}
     
     .section-submission {
         background-color: #9c03;
-    }
-
-    a>code {
-        color: var(--main-color);
     }
 
     a:link {
