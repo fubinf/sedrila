@@ -20,8 +20,8 @@ a:link {
 }
 
 a>code {
-    background-color: rgba(255, 255, 255, 0.5);
     color: var(--main-color);
+    text-decoration: underline;
 }
 
 a:visited {
