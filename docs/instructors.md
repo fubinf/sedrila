@@ -65,12 +65,12 @@ Under Windows, use WSL. `sedrila` does not work natively in Windows.
   do a `git clone git@github.com:myaccount/mysedrilacourse.git myaccount`
 - You need to perform these clone operations manually before you can work on those students' repos
   using `sedrila`.  
-  If you are using GitLab, when a student adds you to their repo,
+  Suggestion: If you are using GitLab, when a student adds you to their repo,
   you will receive notification emails containing a string of the form
   `studentname / reponame`.
   Cloning becomes easy by copy/pasting this string onto your commandline as
   `clonesedrilarepo studentname / reponame`
-  and teaching your shell this procedure:
+  after you taught your shell this procedure:
   ```
   clonesedrilarepo() {
       gitserver=git@git.imp.fu-berlin.de  # replace this with yours
@@ -82,6 +82,22 @@ Under Windows, use WSL. `sedrila` does not work natively in Windows.
 
 
 ## 2. Checking a submission  
+
+### 2.1 The very first time
+
+Before you check your first submission for a given course, you need to import all
+instructors' public keys into your `gpg` so that sedrila can identify the 
+"submission.yaml checked" commits of all instructors, not only yourself.
+
+To do so, go to a student directory that contains a proper `student.yaml` file
+and call  
+`sedrila student --import-keys .`  
+This is the only time you will need to call `sedrila student` (as opposed to `sedrila instructor`).
+
+(On the next course, if the set of instructors is different, you can safely do the same routine again.
+`gpg` can cope with keys it already has imported previously.)
+
+### 2.2 Regular use
 
 Call `sedrila instructor student1` or  `sedrila instructor student1 student2`,
 where `student1` and `student2` are two students' git usernames

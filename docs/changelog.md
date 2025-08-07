@@ -2,6 +2,7 @@
 
 
 ## Version 2.9.0 (upcoming)
+- docs: Instructor documentation now explains when and how to import the other instructors' public keys.
 - ...
 
 
