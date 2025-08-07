@@ -21,8 +21,9 @@ Under Windows, use WSL. `sedrila` does not work natively in Windows.
   This is the 40-digit hex string shown next to your email address. 
 - Export public key:  `gpg --armor --export <keyfingerprint>`  
 - Set a useful timeout (e.g. 12 hours) how long `gpg-agent` should keep the passphrase before
-  you need to enter it again.  
-  [HREF::https://superuser.com/questions/624343/keep-gnupg-credentials-cached-for-entire-user-session]
+  you need to enter it again:  
+  https://superuser.com/questions/624343/keep-gnupg-credentials-cached-for-entire-user-session
+
 
 ### 1.2 Make entry in `sedrila.yaml`
 
@@ -61,9 +62,23 @@ Under Windows, use WSL. `sedrila` does not work natively in Windows.
   named according to the students' git username (not the repo name as would be the default;
   those repos will mostly have similar names).  
   So instead of `git clone git@github.com:myaccount/mysedrilacourse.git`  
-  do a `git clone git@github.com:myaccount/mysedrilacourse.git myaccount`  
+  do a `git clone git@github.com:myaccount/mysedrilacourse.git myaccount`
 - You need to perform these clone operations manually before you can work on those students' repos
-  using `sedrila`.
+  using `sedrila`.  
+  If you are using GitLab, when a student adds you to their repo,
+  you will receive notification emails containing a string of the form
+  `studentname / reponame`.
+  Cloning becomes easy by copy/pasting this string onto your commandline as
+  `clonesedrilarepo studentname / reponame`
+  and teaching your shell this procedure:
+  ```
+  clonesedrilarepo() {
+      gitserver=git@git.imp.fu-berlin.de  # replace this with yours
+      cmd="git clone $gitserver:$1/$3.git $1"
+      echo $cmd
+      $cmd
+  }
+  ```
 
 
 ## 2. Checking a submission  
