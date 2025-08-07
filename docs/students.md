@@ -22,24 +22,24 @@ The instructors need your name and student id in order to do their work,
 so you need to tell them those.
 
 The command `sedrila student --init` in your project folder will create
-a file calles `student.yaml` with the relevant information.
+a file called `student.yaml` with the relevant information.
 You will be prompted for a course url which you can copy/paste from your
 browser.
 
-Afterwards, you will be prompted for the necessary information to allow
+Afterward, you will be prompted for the necessary information to allow
 instructors to grade you.
 
 Committing work for a task works without this file being present, but
 making a submission only works if the file exists.
 
 After adding those information, it will import the gpg keys of the instructors.
-Technically, this step is optional and you will be prompted for continueing
-with it. However, since sedrila only considers gradings from instructors
-as valid, not doing this step will prevent sedrila from presenting your
-progress properly.
+Technically, this step is optional. You will be prompted before it is performed.
+However, since sedrila only considers gradings as valid that come from instructors
+you need to import the keys so that sedrila can recognize which gradings commits are
+coming from instructors.
 
 You can call `sedrila student --import-keys` at any time to import all keys
-associated with your course if you skipped it or need updates to them later.
+associated with your course if you skipped it or need different keys later.
 
 
 
@@ -142,7 +142,7 @@ then `sedrila student --op push`, then follow the instructions shown.
 Or just call `sedrila student` and perform those two commands from the menu.
 
 
-# 6. The work report
+## 6. The work report
 
 `sedrila student --op webapp` can also show the "work report", 
 a list of the tasks you have submitted so far,
