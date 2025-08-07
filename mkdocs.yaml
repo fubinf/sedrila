@@ -7,5 +7,6 @@ nav:
   - "User Guide for Course Authors": authors.md
   - "User Guide for Course Instructors": instructors.md
   - "User Guide for Students": students.md
+  - "Further commands": other.md
   - "Software architecture": internal_notes.md
   - "Changelog": changelog.md
