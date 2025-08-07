@@ -1,8 +1,13 @@
 # sedrila CHANGELOG
 
 
-## Version 2.8.0 (upcoming)
+## Version 2.9.0 (upcoming)
 - ...
+
+
+## Version 2.8.0 (2025-08-07)
+- `server`: small new command: A trivial personal webserver to be used by course authors
+  for viewing the current rendered version of the course.
 
 
 ## Version 2.7.0 (2025-07-07)
