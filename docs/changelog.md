@@ -2,8 +2,11 @@
 
 
 ## Version 2.9.0 (upcoming)
-- docs: Instructor documentation now explains when and how to import the other instructors' public keys.
 - ...
+
+## Version 2.8.1 (2025-08-15)
+- `instructor`: pull repo whenever workdir is clean
+- docs: Instructor documentation now explains when and how to import the other instructors' public keys.
 
 
 ## Version 2.8.0 (2025-08-07)
