@@ -86,7 +86,9 @@ def prepare_workdir(workdir: str):
         key_fingerprints.discard('')  # empty entry would mean unsigned commits are considered instructor-signed
         # ----- consider pulling:
         state = r.submission_state('.', key_fingerprints)
-        if state == c.SUBMISSION_STATE_CHECKED:
+        b.info(f"repo state: {state}")
+        if state != c.SUBMISSION_STATE_CHECKING:
+            # pulling in state CHECKING would fail because of non-clean workdir
             b.info(f"--- Pulling repo")
             sgit.pull()
         # ----- consider filtering:
