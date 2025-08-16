@@ -570,8 +570,12 @@ def tr_tag(idx: int) -> str:
 
 
 def diff_files(path1: str, path2: str) -> str:
-    b.check_path(path1)
-    b.check_path(path2)
+    problem1 = b.problem_with_path(path1)
+    problem2 = b.problem_with_path(path2)
+    if problem1:
+        return problem1
+    if problem2:
+        return problem2
     cmd = f"/usr/bin/diff '{path1}' '{path2}'"
     result = subprocess.run(cmd, shell=True, text=True, capture_output=True, check=False)
     if result.returncode == 0:
