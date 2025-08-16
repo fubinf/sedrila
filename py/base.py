@@ -256,8 +256,8 @@ def rich_print(msg: str, enclose_in_tag: tg.Optional[str] = None, count=0):
     rich.print(msg)
 
 
-def check_path(dirtypath: str):
-    """Check whether dirtypath is a valid path and abort if it isn't"""
+def problem_with_path(dirtypath: str) -> str:
+    """Returns an empty String if path is acceptable, an error message otherwise."""
     whitelist = ["/", ".", "!", "$", "-", "_"]
     if os.path.isabs(dirtypath):
         critical(f"path '{dirtypath}' is an absolute path")
@@ -271,7 +271,8 @@ def check_path(dirtypath: str):
             elif dot:
                 dot = False
         else:
-            critical(f"path '{dirtypath}' contains forbidden character {repr(char)}")
+            return f"Error: path '{dirtypath}' contains forbidden character {repr(char)}"
+    return ""
 
 
 def _process_params(msg: str, file: tg.Optional[str], file2: tg.Optional[str]):
