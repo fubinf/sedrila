@@ -209,15 +209,12 @@ class Student:
 
     def check_student_entries(self, data: dict):
         """Check if student YAML entries contain control characters and emit warnings."""
-        entries = list(data.values()) + list(self.submission.items())
-        cc_found = []
-        for entry in entries:
-            for char in str(entry):
+        entries = list(self.submission.items()) + list(data.items())
+        for k, v in entries:
+            for char in k + str(v):
                 if ord(char) < 32:
-                    cc_found.append(repr(char))
-        if cc_found:
-            b.warning(f"{self.submissionfile_path} or {self.participantfile_path} contain control characters: {cc_found}.")
-        
+                    b.warning(f"item: {(k, v)} in {self.submissionfile_path} contains control character: {repr(char)}.")
+
     @classmethod
     def get_course_metadata(cls, course_url: str) -> b.StrAnyDict:
         FILE_URL_PREFIX = 'file://'
