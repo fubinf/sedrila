@@ -260,12 +260,12 @@ def problem_with_path(dirtypath: str) -> str:
     """Returns an empty String if path is acceptable, an error message otherwise."""
     whitelist = ["/", ".", "!", "$", "-", "_"]
     if os.path.isabs(dirtypath):
-        critical(f"path '{dirtypath}' is an absolute path")
+        return f"Error: path '{dirtypath}' is an absolute path"
     dot = False
     for char in dirtypath:
         if char in whitelist or char.isalnum():
             if dot and char == ".":
-                critical(f"path '{dirtypath}' contains ..")
+                return f"Error: path '{dirtypath}' contains .."
             elif char == ".":
                 dot = True
             elif dot:
