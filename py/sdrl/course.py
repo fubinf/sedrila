@@ -680,6 +680,16 @@ class Taskgroupbuilder(sdrl.partbuilder.PartbuilderMixin, Taskgroup):
     def _init_from_file(self, context, chapter):
         self.make_std_dependencies(use_toc_of=self)
         self.find_zipdirs()
+        # ----- copy non-md files as resources:
+        taskgroup_dir = f"{self.course.chapterdir}/{self.chapter.name}/{self.name}"
+        for direntry in os.scandir(taskgroup_dir):
+            if direntry.name.endswith('.md') or not direntry.is_file():
+                continue  # we are interested in non-Markdown files only
+            self.directory.make_the(el.Sourcefile, direntry.path)
+            self.directory.make_the(el.CopiedFile, direntry.name, 
+                                    sourcefile=direntry.path,
+                                    targetdir_s=self.course.targetdir_s, 
+                                    targetdir_i=self.course.targetdir_i)
 
 
 class MetadataDerivation(el.Step):

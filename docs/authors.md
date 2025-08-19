@@ -715,7 +715,22 @@ if multiple files are involved, and still keep those files in an easily editable
 Use this for handsful of files. For large structures, apply separate repositories.
 
 
-### 1.13 Confidential contents: `altdir`, `itreedir`, `[TREEREF]`
+### 1.13 Other files and directories
+
+Subdirectories at the chapter level or taskgroup level that are not
+defined to be chapters or taskgroups in `sedrila.yaml` will simply be ignored.
+
+Subdirectories within a taskgroup directory can be used for holding
+INCLUDE files. Any file in them that is not used for `[INCLUDE]` will be ignored.
+
+Files within a taskgroup directory that are not `*.md` files
+will be copied to the target directory verbatim and with the same name.
+The target directory is a single, flat directory (with no subdirectories),
+so the name of such a file must be globally unique.
+It should therefore start with the taskgroup name or a task name.
+
+
+### 1.14 Confidential contents: `altdir`, `itreedir`, `[TREEREF]`
 
 The course for which sedrila was developed is an Open Educational Resource,
 i.e., its sources are public.
@@ -758,7 +773,7 @@ Just like with `[INCLUDE]`, pathnames can be relative or absolute, so
 which is useful for trees that pertain to several tasks.
 
 
-### 1.14 Naming conventions
+### 1.15 Naming conventions
 
 From the point of view of the `[PARTREF]` macro, the names of all parts
 are in one single namespace, so they must all be unique.

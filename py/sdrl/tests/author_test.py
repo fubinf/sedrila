@@ -87,6 +87,7 @@ expected_filelist1 = [
     'index.html', 'instructor',
     'local.css',
     'myarchive.zip',
+    'resource.txt',
     'sedrila.css', 'sidebar.js',
     'task111r+a.html', 'task112.html', 'task113.html', 'task121.html', 'task122.html', 'tg11.html', 'tg12.html', 
 ]
