@@ -53,5 +53,8 @@ def test_includefile_path():
     assert func("ALT:other") == "altdir/ch/chapter/group/other"
     assert func("ALT:/other2") == "altdir/ch/other2"
     assert func("ALT:") == "altdir/ch/chapter/group/task.md"
+    assert func("ITREE:other") == "altdir/itree.zip/chapter/group/other"
+    assert func("ITREE:/other2") == "altdir/itree.zip/other2"
+    assert func("ITREE:") == "altdir/itree.zip/chapter/group/task.md"
     assert func("other", itree_mode=True) == "altdir/itree.zip/chapter/group/other"
     assert func("/other2", itree_mode=True) == "altdir/itree.zip/other2"

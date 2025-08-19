@@ -9,8 +9,6 @@ import sdrl.course
 import sdrl.macros as macros
 import sdrl.markdown as md
 
-ALTDIR_KEYWORD = "ALT:"
-
 
 def register_macros(course: sdrl.course.Coursebuilder):
     MM = macros.MM
@@ -273,24 +271,29 @@ def expand_include(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocal
 
 def includefile_path(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocall, itree_mode=False) -> str:
     """
-    Normal mode constructs normal paths in chapterdir and those with prefix 'ALT:' in altdir.
-    itree mode constructs normal paths in itreedir and warns about 'ALT:' prefix if present.
+    Normal mode constructs normal paths in chapterdir, those with prefix 'ALT:' in altdir, and
+    those with prefix 'ITREE:' in itreedir
+    itree mode constructs normal paths in itreedir and warns about 'ALT:' or 'ITREE:' prefix if present.
     """
-    arg_re = r"(?P<alt>" + ALTDIR_KEYWORD + r")?(?P<slash>/)?(?P<incfile>.*)"
+    ALTDIR_KEYWORD = "ALT:"
+    ITREEDIR_KEYWORD = "ITREE:"
+    keyword_re = f"{ALTDIR_KEYWORD}|{ITREEDIR_KEYWORD}"
+    arg_re = r"(?P<kw>" + keyword_re + r")?(?P<slash>/)?(?P<incfile>.*)"
     mm = re.fullmatch(arg_re, macrocall.arg1)
-    is_alt = mm.group("alt") is not None
-    if is_alt and itree_mode:
-        b.warning(f"{macrocall.macrocall_text}: '{ALTDIR_KEYWORD}' prefix makes no sense here",
+    has_kw = mm.group("kw") is not None
+    basedir = {None: course.chapterdir, ALTDIR_KEYWORD: course.altdir, ITREEDIR_KEYWORD: course.itreedir}
+    if has_kw and itree_mode:
+        b.warning(f"{macrocall.macrocall_text}: '{mm.group('kw')}' prefix makes no sense here",
                   file=macrocall.filename)
-        is_alt = False  # ignore the prefix
+        has_kw = False  # ignore the prefix
     is_abs = mm.group("slash") is not None
     inc_filepath = mm.group("incfile")  # e.g. ../chapterlevel_includefile
     ctx_filepath = macrocall.filename  # e.g. ch/chapter/group/task.md
     ctx_dirpath = os.path.dirname(ctx_filepath)  # e.g. ch/chapter/group
     ctx_basename = os.path.basename(ctx_filepath)  # e.g. task.md
-    abs_topdir = (is_alt and course.altdir) or (itree_mode and course.itreedir) or course.chapterdir
+    abs_topdir = (itree_mode and course.itreedir) or basedir[mm.group("kw")]
     rel_dirpath = ctx_dirpath.replace(course.chapterdir, abs_topdir, 1)
-    # print(f"## {macrocall.arg1} -> alt:{is_alt}, abs:{is_abs}, inc:{inc_filepath}, ctx:{ctx_dirpath}, "
+    # print(f"## {macrocall.arg1} -> alt:{has_kw}, abs:{is_abs}, inc:{inc_filepath}, ctx:{ctx_dirpath}, "
     #       f"abs_topdir:{abs_topdir}, rel_dirpath:{rel_dirpath}")
     fullpath = os.path.join(abs_topdir if is_abs else rel_dirpath, inc_filepath or ctx_basename)
     return fullpath

@@ -2,6 +2,7 @@
 
 
 ## Version 2.10.0 (upcoming)
+- `author`: support `ITREE` prefix in [INCLUDE::ITREE:somefile]`
 - ...
 
 ## Version 2.9.0 (2025-08-19)

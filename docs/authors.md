@@ -609,15 +609,9 @@ into the Markdown input stream at this point.
 - You can also use absolute paths: `[INCLUDE::/_include/some-blurb.md]` will include a blurb used in
   many places that lives in a directory (in this case called `_include`) directly below the 
   configuration setting `chapterdir`.
-- `altdir` points to a separate directory tree that can live in a git submodule,
-  using a non-public repo to keep those files confidential in order to provide
-  detailed instructor information. Include such files with `[INCLUDE::ALT:filename_confid]`.
-  If this macro call lives in a file `<chapterdir>/chapter/group/task.md`,
-  it will refer to `altdir/chapter/group/filename_confid`.
-- A particularly useful idiom is `[INCLUDE::ALT:]` without any filename, which will include
-  `<altdir>/chapter/group/task.md` without the need to specify the task name redundantly.
-- We recommend to keep the `altdir` tree sparse and create only those files and directories 
-  that are actually needed.
+
+`[INCLUDE]` pathnames can use the prefixes `ALT:` or `ITREE:` to refer to other
+base directories; see 1.14 "Confindential contents" for details.
 
 
 #### 1.9.4 `[PROT]`
@@ -746,14 +740,16 @@ made part of the `[INSTRUCTOR]` sections of tasks by means of `[INCLUDE]`.
 For instance task `<chapterdir>/mychapter/mygroup/mytask.md` may have 
 `[INCLUDE::ALT:mytask.md]` as the body of its `[INSTRUCTOR]` block and that
 file would then contain the confidential instructor information.
+For a file named like the task file, you could even write `[INCLUDE::ALT:]` without any filename.
 
 The confidentiality can be provided by making the `altdir` a git submodule of the
 overall SeDriLa git repository and making the submodule repository non-public.
+We recommend to keep the `altdir` tree sparse and create only those files and directories 
+that are actually needed.
 
 Second, `itreedir` ("instructor tree directory") is to be used where including 
-the instructor information on the website is inconvenient, 
-e.g. because the information is not readily renderable in HTML
-or because the instructor needs to process it as a standalone file (e.g. run it as a program).
+the instructor information only on the website is inconvenient, 
+because the instructor needs to process it as a standalone file (e.g. run it as a program).
 The `itreedir` entry must point to a directory with a name ending with `.zip`
 which would typically be held in the same submodule together with `altdir`.
 
@@ -764,13 +760,15 @@ as needed.
 `[INSTRUCTOR]` blocks in tasks can refer to those files by mentioning their path
 in a call to macro `[TREEREF]`.
 
-`[TREEREF::mytaskhints.md]`, when called in `<chapterdir>/mychapter/mygroup/mytask.md`,
-refers to the file `<itreedir>/mychapter/mygroup/mytaskhints.md` and will render as
-`<span class="treeref-prefix"></span><span class="treeref">mychapter/mygroup/mytaskhints.md</span><span class="treeref-suffix"></span>`
+`[TREEREF::mytask.py]`, when called in `<chapterdir>/mychapter/mygroup/mytask.md`,
+refers to the file `<itreedir>/mychapter/mygroup/mytask.py` and will render as
+`<span class="treeref-prefix"></span><span class="treeref">mychapter/mygroup/mytask.py</span><span class="treeref-suffix"></span>`
 which can be formatted with appropriate CSS.  
 Just like with `[INCLUDE]`, pathnames can be relative or absolute, so 
-`[TREEREF::/mychapter/mygroup/mytaskhints.md]` is equivalent to the above,
+`[TREEREF::/mychapter/mygroup/mytask.py]` is equivalent to the above,
 which is useful for trees that pertain to several tasks.
+`[INCLUDE]` supports the prefix `ITREE` as well:
+`[INCLUDE::ITREE:mytask.py]`
 
 
 ### 1.15 Naming conventions
