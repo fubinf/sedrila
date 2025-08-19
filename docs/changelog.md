@@ -1,8 +1,12 @@
 # sedrila CHANGELOG
 
 
-## Version 2.9.0 (upcoming)
+## Version 2.10.0 (upcoming)
 - ...
+
+## Version 2.9.0 (2025-08-19)
+- `author`: taskgroup-level non-md files are now copied to targetdir verbatim (for images, downloads, etc.)
+- `instructor`, `student`: Defend against dangerous paths and control chars in student metadata 
 
 ## Version 2.8.1 (2025-08-15)
 - `instructor`: pull repo whenever workdir is clean
