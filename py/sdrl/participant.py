@@ -67,6 +67,7 @@ class Student:
         if not os.path.isfile(self.participantfile_path):
             b.critical(f"'{self.participantfile_path}' is missing. Have you called sedrila student --init?")
         data = b.slurp_yaml(self.participantfile_path)
+        b.validate_dict_unsurprisingness(self.participantfile_path, data)
         # ----- interpret contents:
         try:
             self.course_url = str(data['course_url'])  # noqa
@@ -87,8 +88,8 @@ class Student:
             self.submission = dict()
         else:
             self.submission = b.slurp_yaml(self.submissionfile_path)
+            b.validate_dict_unsurprisingness(self.submissionfile_path, self.submission)
         self.filter_submission()
-        self.check_student_entries(data)
 
     @functools.cached_property
     def course(self) -> sdrl.course.CourseSI:
@@ -206,14 +207,6 @@ class Student:
             elif task.remaining_attempts < 0:
                 b.warning(f"{file}: '{taskname}' has remaining_attempts = {task.remaining_attempts}. Ignored.")
                 del self.submission[taskname]
-
-    def check_student_entries(self, data: dict):
-        """Check if student YAML entries contain control characters and emit warnings."""
-        entries = list(self.submission.items()) + list(data.items())
-        for k, v in entries:
-            for char in k + str(v):
-                if ord(char) < 32:
-                    b.warning(f"item: {(k, v)} in {self.submissionfile_path} contains control character: {repr(char)}.")
 
     @classmethod
     def get_course_metadata(cls, course_url: str) -> b.StrAnyDict:

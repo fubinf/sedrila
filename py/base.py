@@ -3,6 +3,7 @@ import enum
 import json
 import logging
 import re
+import sys
 import time
 import os
 import typing as tg
@@ -256,6 +257,14 @@ def rich_print(msg: str, enclose_in_tag: tg.Optional[str] = None, count=0):
     rich.print(msg)
 
 
+def validate_dict_unsurprisingness(sourcefile: str, data: dict[str, str]):
+    """Emit warnings for YAML dict entries containing control chars."""
+    for k, v in data.items():
+        entry = f"{k}: {v}"
+        if any(not char.isprintable() for char in entry):
+            warning(f"control chars not allowed: {repr(entry)}", file=sourcefile)
+
+
 def problem_with_path(dirtypath: str) -> str:
     """Returns an empty String if path is acceptable, an error message otherwise."""
     whitelist = ["/", ".", "!", "$", "-", "_"]
@@ -265,7 +274,7 @@ def problem_with_path(dirtypath: str) -> str:
     for char in dirtypath:
         if char in whitelist or char.isalnum():
             if dot and char == ".":
-                return f"Error: path '{dirtypath}' contains .."
+                return f"Error: path '{dirtypath}' must not contain '..'"
             elif char == ".":
                 dot = True
             elif dot:
