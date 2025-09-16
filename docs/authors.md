@@ -717,7 +717,8 @@ defined to be chapters or taskgroups in `sedrila.yaml` will simply be ignored.
 Subdirectories within a taskgroup directory can be used for holding
 INCLUDE files. Any file in them that is not used for `[INCLUDE]` will be ignored.
 
-Files within a taskgroup directory that are not `*.md` files
+Files within a taskgroup directory that are not `*.md` files (such as images or 
+ready-made `*.tar.gz` download files)
 will be copied to the target directory verbatim and with the same name.
 The target directory is a single, flat directory (with no subdirectories),
 so the name of such a file must be globally unique.
