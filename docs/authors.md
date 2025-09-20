@@ -835,6 +835,17 @@ Both versions will by default exclude all tasks, taskgroups, and chapters that h
 - To use an alternative configuration file, use something like `--config myconfig.yaml`.  
 - Option `--sums` generates reports about the volume of tasks per chapter,
   per difficulty, and per stage.
+- Option `--check-links` validates all external HTTP/HTTPS links found in task markdown files.
+  It checks link accessibility, follows redirects, and generates detailed reports about broken links.
+  Reports are saved as JSON and Markdown files with timestamps for further analysis.
+  Supports custom validation rules via HTML comments in markdown files.
+  Particularly useful for testing links in beta-stage tasks before course publication.
+- Option `--link-statistics` generates comprehensive statistics about external links without actually 
+  checking their accessibility. This is faster than `--check-links` and provides insights 
+  into link distribution across domains and file types.
+- Option `--check-link [markdown_file]` allows checking links in a specific markdown file for 
+  development and debugging purposes. If no file is specified, it checks all ProPra course files.
+  Examples: `sedrila author --check-link ch/Sprachen/SQL/sql-basics.md /tmp/dummy`
 - Option `--rename old_partname new_partname` shortcuts normal operation and only performs a
   rename refactoring of the course content.
   It requires passing a dummy `targetdir` commandline argument which is not actually used.

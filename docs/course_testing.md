@@ -16,22 +16,68 @@ such automated testing.
 (Later on, it may be converted into some kind of user documentation or be removed.)
 
 
-## 1. Link checking
+## 1. Link checking COMPLETED
 
-One aspect of SeDriLa content checking is making sure that any hyperlinks to external resources
-work as expected.
+External link validation is fully integrated into `sedrila author` with three main options:
 
-Such checking should be integrated into `sedrila author`, to be activated by a new 
-option `--check-links`:
+- `--check-links`: Validates all external links with detailed reporting
+- `--link-statistics`: Fast link analysis without HTTP requests  
+- `--check-link [file]`: Single file testing for development
 
-- Link checking needs to follow redirects.
-- Not all links that work alright also result in HTTP 200 status.
-  `sedrila` should probably allow specifying a different (specifically expected for this particular link)
-  status code.
-- Not all links that work from a technical point of view will also still contain the
-  content the task designer expected it to contain.
-  `sedrila` should probably allow specifying a key text snipped that must be present in the response?
-  Or even require it?
+Key features:
+- Follows redirects and handles all HTTP status codes
+- Generates JSON and Markdown reports with timestamps
+- Supports custom validation rules via HTML comments
+- Provides comprehensive statistics and error categorization
+- For validating links in beta-stage tasks before course release
+
+### Usage Examples
+
+```bash
+# Full link validation with detailed reports
+sedrila author --check-links /tmp/output
+
+# Quick statistics without validation  
+sedrila author --link-statistics /tmp/output
+
+# Test single file (development/debugging)
+sedrila author --check-link ch/Sprachen/SQL/sql-basics.md /tmp/output
+
+# Include beta-stage tasks in link checking (recommended for pre-release validation)
+sedrila author --include_stage beta --check-links /tmp/output
+```
+
+### Custom Validation Rules
+
+You can specify custom validation rules for specific links using HTML comments:
+
+```markdown
+<!-- LINK_CHECK: status=302 -->
+[Redirect Link](https://example.com/redirect)
+
+<!-- LINK_CHECK: content="Expected Text" -->
+[Content Validation](https://example.com/page)
+
+<!-- LINK_CHECK: status=200, content="API Documentation", timeout=30 -->
+[API Docs](https://api.example.com/docs)
+
+<!-- LINK_CHECK: ignore_ssl=true -->
+[Self-signed Certificate](https://internal.example.com)
+```
+
+Supported parameters:
+- `status=CODE`: Expect specific HTTP status code
+- `content="TEXT"`: Require specific text in response body  
+- `timeout=SECONDS`: Custom timeout for this link
+- `ignore_ssl=true`: Skip SSL certificate validation
+
+### Additional Features
+
+The link checking system also supports:
+- Single file testing via `--check-link [markdown_file]` for development and debugging
+- Detailed JSON and Markdown reports with timestamps
+- Progress indicators during validation
+- Comprehensive error categorization and statistics
 
 
 ## 2. Program testing
