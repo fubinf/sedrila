@@ -9,4 +9,5 @@ nav:
   - "User Guide for Students": students.md
   - "Further commands": other.md
   - "Software architecture": internal_notes.md
+  - "soon: Course technical validation": course_testing.md
   - "Changelog": changelog.md
