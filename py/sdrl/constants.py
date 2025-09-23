@@ -1,4 +1,5 @@
-AUTHOR_ALTDIR_KEYWORD = "ALT:"
+AUTHOR_ALTDIR_PREFIX = "ALT:"
+AUTHOR_ITREEDIR_PREFIX = "ITREE:"
 AUTHOR_CONFIG_FILENAME = "sedrila.yaml"  # at top-level of source dir
 AUTHOR_GLOSSARY_BASENAME = "glossary"  # .md at top-level of chapterdir, .html in build directory
 AUTHOR_OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR = "instructor"

@@ -5,6 +5,7 @@ import re
 
 import base as b
 import html
+import sdrl.constants as c
 import sdrl.course
 import sdrl.macros as macros
 import sdrl.markdown as md
@@ -254,7 +255,7 @@ def expand_include(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocal
     fullfilename = includefile_path(course, macrocall)
     # print(f"## fullfilename: {fullfilename} ({macrocall.filename})")
     if not os.path.exists(fullfilename):
-        msgfunc = macrocall.warning if macrocall.arg1.startswith(ALTDIR_KEYWORD) else macrocall.error
+        msgfunc = macrocall.warning if macrocall.arg1.startswith(c.AUTHOR_ALTDIR_PREFIX) else macrocall.error
         msgfunc(f"file '{fullfilename}' does not exist")  # noqa
         return ""
     with open(fullfilename, "rt", encoding='utf8') as f:
@@ -275,13 +276,13 @@ def includefile_path(course: sdrl.course.Coursebuilder, macrocall: macros.Macroc
     those with prefix 'ITREE:' in itreedir
     itree mode constructs normal paths in itreedir and warns about 'ALT:' or 'ITREE:' prefix if present.
     """
-    ALTDIR_KEYWORD = "ALT:"
-    ITREEDIR_KEYWORD = "ITREE:"
-    keyword_re = f"{ALTDIR_KEYWORD}|{ITREEDIR_KEYWORD}"
+    keyword_re = f"{c.AUTHOR_ALTDIR_PREFIX}|{c.AUTHOR_ITREEDIR_PREFIX}"
     arg_re = r"(?P<kw>" + keyword_re + r")?(?P<slash>/)?(?P<incfile>.*)"
     mm = re.fullmatch(arg_re, macrocall.arg1)
     has_kw = mm.group("kw") is not None
-    basedir = {None: course.chapterdir, ALTDIR_KEYWORD: course.altdir, ITREEDIR_KEYWORD: course.itreedir}
+    basedir = {None: course.chapterdir, 
+               c.AUTHOR_ALTDIR_PREFIX: course.altdir, 
+               c.AUTHOR_ITREEDIR_PREFIX: course.itreedir}
     if has_kw and itree_mode:
         b.warning(f"{macrocall.macrocall_text}: '{mm.group('kw')}' prefix makes no sense here",
                   file=macrocall.filename)
