@@ -1,6 +1,6 @@
 # Internal technical notes
 
-## Requirements-level design decisions
+## 1. Requirements-level design decisions
 
 - We use YAML for handwritten structured data and JSON for machine-generated structured data.
 - We use Markdown as the main source language to keep authoring simple.
@@ -24,7 +24,7 @@
 - We use a student git repository for all solution transportation and bookkeeping.
 
 
-## Student work bookkeeping architecture
+## 2. Student work bookkeeping architecture
 
 In a nutshell, the bookkeeping of _actual_ work hours worked by a student 
 and of _"earned value"_ effort hours (called "timevalue") certified by an instructor
@@ -54,7 +54,7 @@ is based on the following ideas:
   No such mechanism is implemented so far, though.
 
 
-## Instructors student work acceptance process architecture
+## 3. Instructors student work acceptance process architecture
 
 This process occurs between a student having submitted work and the
 instructor pushing the results of their work checking.
@@ -89,7 +89,7 @@ or may run into conflict when attempting to push.
 The simplest approach for handling that conflict is to discard the second instructor commit.
 
 
-## Incremental build architecture
+## 4. Incremental build architecture
 
 The authoring system of sedrila implements a fine-grained incremental build:
 By means of a persistent cache, only those work steps will be performed upon a new call to
@@ -110,7 +110,7 @@ so that the build can proceed type-by-type forwards through that ordering.
 The method-level design of the build is documented at the top of `elements.py`.
 
 
-## Layering
+## 5. Layering
 
 Import dependencies between modules should obey the following layering, 
 from lowest to highest:
@@ -126,3 +126,29 @@ from lowest to highest:
 - Layer 4 (control layer, main business logic): `sdrl.subcmd.*`
 
 TODO 3: use deply for actual checks of correct layering
+
+
+## 6. Simplicity principles, style
+
+`sedrila` strives for simplicity in many ways.
+Here are some design rules that should be followed in this spirit:
+
+- Avoid introducing highly specialized functionality.
+  All features of `sedrila` should be used regularly.
+- Simple package structure: Since `sedrila` is not very large,
+  we prefer having a few larger modules (hundreds of lines) in a fairly flat structure
+  over scattering the functionality over many small modules in a deeply nested structure.
+- Do imports globally (at the top of the file, not in a function)
+  unless there are technical needs to do otherwise.
+- Import modules (entire files), not individual names from modules.
+  Whenever full module names become too cumbersome, introduce mnemonic abbreviations.
+  Reuse existing abbreviations consistently (e.g. `import datetime as dt`).
+- Emulate the style of existing code. 
+  We follow [PEP 8](https://peps.python.org/pep-0008/) in many, but not all respects.
+  For line length, use a soft limit of 100, hard limit of 120.
+  Strive to follow [PEP 20](https://peps.python.org/pep-0020/).
+- Write helpful comments; avoid comments stating only the obvious.
+- If you need a visual block structure in a long function, introduce blocks by a comment
+  ending in a colon, not by an empty line.
+  Existing code often uses the forms `# ----- abc:` for level 1 and `# --- defghi:` for lower levels.
+
