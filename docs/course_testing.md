@@ -1,5 +1,7 @@
 # `sedrila` test framework for SeDriLa courses
 
+*+This is work-in-progress. Inofficial. Changing heavily. Partly broken. Do not rely on anything here yet.**
+
 A SeDriLa course may deteriorate over time. Or be broken by a change to a task.
 A new task can be broken right from the start.
 
@@ -16,7 +18,7 @@ such automated testing.
 (Later on, it may be converted into some kind of user documentation or be removed.)
 
 
-## 1. Link checking COMPLETED
+## 1. Link checking
 
 External link validation is fully integrated into `sedrila author` with three main options:
 
