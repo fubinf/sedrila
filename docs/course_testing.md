@@ -20,33 +20,27 @@ such automated testing.
 
 ## 1. Link checking
 
-External link validation is fully integrated into `sedrila author` with three main options:
+External link validation is integrated into `sedrila author` using efficient HEAD requests with comprehensive reporting.
 
-- `--check-links`: Validates all external links with detailed reporting
-- `--link-statistics`: Fast link analysis without HTTP requests  
-- `--check-link [file]`: Single file testing for development
-
-Key features:
-- Follows redirects and handles all HTTP status codes
-- Generates JSON and Markdown reports with timestamps
+### Features:
+- `--check-links [file]`: Validates external links with detailed reporting
+- Uses HEAD requests by default, GET only when content validation is needed
+- Generates fixed-name reports for easy integration
+- Avoids duplicate URL checking for efficiency
 - Supports custom validation rules via HTML comments
-- Provides comprehensive statistics and error categorization
-- For validating links in beta-stage tasks before course release
+- Includes comprehensive statistics in reports
 
 ### Usage Examples
 
 ```bash
-# Full link validation with detailed reports
-sedrila author --check-links /tmp/output
-
-# Quick statistics without validation  
-sedrila author --link-statistics /tmp/output
+# Full link validation with detailed reports  
+sedrila author --check-links -- /tmp/output
 
 # Test single file (development/debugging)
-sedrila author --check-link ch/Sprachen/SQL/sql-basics.md /tmp/output
+sedrila author --check-links /path/to/file.md /tmp/output
 
 # Include beta-stage tasks in link checking (recommended for pre-release validation)
-sedrila author --include_stage beta --check-links /tmp/output
+sedrila author --include_stage beta --check-links -- /tmp/output
 ```
 
 ### Custom Validation Rules
@@ -54,32 +48,31 @@ sedrila author --include_stage beta --check-links /tmp/output
 You can specify custom validation rules for specific links using HTML comments:
 
 ```markdown
-<!-- LINK_CHECK: status=302 -->
-[Redirect Link](https://example.com/redirect)
+<!-- LINK_CHECK: status=404 -->
+[Expected 404](https://example.com/notfound)
 
 <!-- LINK_CHECK: content="Expected Text" -->
 [Content Validation](https://example.com/page)
 
-<!-- LINK_CHECK: status=200, content="API Documentation", timeout=30 -->
-[API Docs](https://api.example.com/docs)
-
-<!-- LINK_CHECK: ignore_ssl=true -->
-[Self-signed Certificate](https://internal.example.com)
+<!-- LINK_CHECK: status=302, timeout=30, ignore_ssl=true -->
+[Complex validation](https://redirect.example.com)
 ```
 
 Supported parameters:
 - `status=CODE`: Expect specific HTTP status code
-- `content="TEXT"`: Require specific text in response body  
+- `content="TEXT"`: Require specific text in response body (triggers GET request)
 - `timeout=SECONDS`: Custom timeout for this link
 - `ignore_ssl=true`: Skip SSL certificate validation
 
-### Additional Features
+The validation rule applies to the next link found and is then reset.
 
-The link checking system also supports:
-- Single file testing via `--check-link [markdown_file]` for development and debugging
-- Detailed JSON and Markdown reports with timestamps
-- Progress indicators during validation
-- Comprehensive error categorization and statistics
+### Output
+
+Reports are generated with fixed names for easy integration:
+- JSON report: `link_check_report.json`
+- Markdown report: `link_check_report.md`
+- For single files: `single_file_link_check_{filename}.json/md`
+- Console summary with integrated statistics
 
 
 ## 2. Program testing

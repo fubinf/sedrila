@@ -430,7 +430,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
             bool: True if all links are accessible, False if any failed
         """
         try:
-            from sdrl.quality.link_checker import LinkExtractor, LinkChecker, LinkCheckReporter
+            import sdrl.linkchecker as linkchecker
         except ImportError as e:
             b.error(f"Cannot import link checking modules: {e}")
             return False
@@ -438,7 +438,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         b.info("Starting external link validation...")
         
         # Extract links from all tasks
-        extractor = LinkExtractor()
+        extractor = linkchecker.LinkExtractor()
         all_links = []
         
         for task in self.taskdict.values():
@@ -455,143 +455,25 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         b.info(f"Found {len(all_links)} external links to validate")
         
         # Check all links
-        checker = LinkChecker()
+        checker = linkchecker.LinkChecker()
         results = checker.check_links(all_links, show_progress=show_progress)
         
         # Generate and display report
-        reporter = LinkCheckReporter()
+        reporter = linkchecker.LinkCheckReporter()
         reporter.print_summary(results)
         
-        # Save detailed reports
+        # Save detailed reports with fixed names
         if results:
-            timestamp = reporter.report_timestamp.strftime('%Y%m%d_%H%M%S')
-            
             # Save JSON report
-            json_file = f"link_check_report_{timestamp}.json"
-            reporter.generate_json_report(results, json_file)
+            reporter.generate_json_report(results)
             
             # Save Markdown report
-            md_file = f"link_check_report_{timestamp}.md"
-            reporter.generate_markdown_report(results, md_file)
-            
-            b.info(f"Reports saved with timestamp: {timestamp}")
+            reporter.generate_markdown_report(results)
         
         # Return success status
-        failed_results = LinkCheckReporter.get_failed_links(results)
+        failed_results = linkchecker.LinkCheckReporter.get_failed_links(results)
         return len(failed_results) == 0
 
-    def generate_link_statistics(self) -> None:
-        """Generate comprehensive statistics about external links without checking them."""
-        from sdrl.quality.link_checker import LinkExtractor, LinkCheckReporter, LinkStatistics
-        
-        # Extract links from all tasks
-        extractor = LinkExtractor()
-        all_links = []
-        
-        for task in self.taskdict.values():
-            if task.to_be_skipped:
-                continue  # Skip tasks that are marked to be skipped
-            
-            links = extractor.extract_links_from_file(task.sourcefile)
-            all_links.extend(links)
-        
-        if not all_links:
-            b.info("No external links found to analyze.")
-            return
-        
-        # Generate statistics without checking links
-        reporter = LinkCheckReporter()
-        stats = LinkStatistics()
-        stats.total_links = len(all_links)
-        
-        file_set = set()
-        files_with_links = set()
-        
-        for link in all_links:
-            # File tracking
-            file_set.add(link.source_file)
-            files_with_links.add(link.source_file)
-            
-            # Domain analysis
-            try:
-                from urllib.parse import urlparse
-                domain = urlparse(link.url).netloc.lower()
-                stats.domains[domain] = stats.domains.get(domain, 0) + 1
-            except:
-                stats.domains['invalid'] = stats.domains.get('invalid', 0) + 1
-            
-            # Link type analysis
-            stats.link_types[link.link_type] = stats.link_types.get(link.link_type, 0) + 1
-        
-        stats.total_files = len(file_set)
-        stats.files_with_links = len(files_with_links)
-        
-        # Print statistics report
-        b.info("=" * 60)
-        b.info("EXTERNAL LINK STATISTICS REPORT")
-        b.info("=" * 60)
-        b.info(f"Timestamp: {reporter.report_timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
-        b.info("")
-        
-        # Basic statistics
-        b.info("BASIC STATISTICS")
-        b.info(f"  Total links found: {stats.total_links}")
-        b.info(f"  Files with links: {stats.files_with_links}")
-        b.info(f"  Total files scanned: {stats.total_files}")
-        b.info("")
-        
-        # Link type distribution
-        if stats.link_types:
-            b.info("LINK TYPES")
-            for link_type, count in sorted(stats.link_types.items()):
-                percentage = (count / stats.total_links) * 100
-                b.info(f"  {link_type}: {count} ({percentage:.1f}%)")
-            b.info("")
-        
-        # Top domains
-        if stats.domains:
-            b.info("TOP DOMAINS")
-            sorted_domains = sorted(stats.domains.items(), key=lambda x: x[1], reverse=True)
-            for domain, count in sorted_domains[:15]:  # Top 15 domains
-                percentage = (count / stats.total_links) * 100
-                b.info(f"  {domain}: {count} links ({percentage:.1f}%)")
-            b.info("")
-        
-        # Save statistics report
-        timestamp = reporter.report_timestamp.strftime('%Y%m%d_%H%M%S')
-        stats_file = f"link_statistics_{timestamp}.json"
-        
-        import json
-        stats_data = {
-            "metadata": {
-                "timestamp": reporter.report_timestamp.isoformat(),
-                "total_links": stats.total_links,
-                "scan_mode": "statistics_only"
-            },
-            "statistics": {
-                "total_links": stats.total_links,
-                "total_files": stats.total_files,
-                "files_with_links": stats.files_with_links,
-                "domains": dict(stats.domains),
-                "link_types": dict(stats.link_types)
-            },
-            "links": [
-                {
-                    "url": link.url,
-                    "text": link.text,
-                    "source_file": link.source_file,
-                    "line_number": link.line_number,
-                    "link_type": link.link_type
-                }
-                for link in all_links
-            ]
-        }
-        
-        with open(stats_file, 'w', encoding='utf-8') as f:
-            json.dump(stats_data, f, indent=2, ensure_ascii=False)
-        
-        b.info(f"Statistics report saved to: {stats_file}")
-        b.info("=" * 60)
 
     def compute_taskorder(self):
         """

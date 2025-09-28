@@ -835,17 +835,39 @@ Both versions will by default exclude all tasks, taskgroups, and chapters that h
 - To use an alternative configuration file, use something like `--config myconfig.yaml`.  
 - Option `--sums` generates reports about the volume of tasks per chapter,
   per difficulty, and per stage.
-- Option `--check-links` validates all external HTTP/HTTPS links found in task markdown files.
-  It checks link accessibility, follows redirects, and generates detailed reports about broken links.
-  Reports are saved as JSON and Markdown files with timestamps for further analysis.
-  Supports custom validation rules via HTML comments in markdown files.
-  Particularly useful for testing links in beta-stage tasks before course publication.
-- Option `--link-statistics` generates comprehensive statistics about external links without actually 
-  checking their accessibility. This is faster than `--check-links` and provides insights 
-  into link distribution across domains and file types.
-- Option `--check-link [markdown_file]` allows checking links in a specific markdown file for 
-  development and debugging purposes. If no file is specified, it checks all ProPra course files.
-  Examples: `sedrila author --check-link ch/Sprachen/SQL/sql-basics.md /tmp/dummy`
+- Option `--check-links [markdown_file]` validates external HTTP/HTTPS links found in markdown files.
+  Without an argument, it checks all course files. With a file argument, it checks only that specific file.
+  Uses HEAD requests by default for efficiency, falling back to GET only when content validation is needed.
+  Generates fixed-name reports: `link_check_report.json` and `link_check_report.md` in the output directory.
+  Supports custom validation rules via HTML comments in markdown files (see examples below).
+  Avoids checking duplicate URLs and includes comprehensive statistics in the main report.
+  Examples: 
+  - `sedrila author --check-links -- /tmp/output` (check all course files)
+  - `sedrila author --check-links /path/to/file.md /tmp/output` (check specific file)
+
+#### 2.2.1 Link validation rules
+
+The link checker supports custom validation rules specified in HTML comments before links:
+
+```markdown
+<!-- LINK_CHECK: status=404 -->
+[Expected 404 Link](https://example.com/notfound)
+
+<!-- LINK_CHECK: content="API Documentation" -->
+[Must contain specific text](https://api.example.com/docs)
+
+<!-- LINK_CHECK: status=302, timeout=30, ignore_ssl=true -->
+[Complex validation](https://redirect.example.com)
+```
+
+Available rule parameters:
+- `status=N`: Expect specific HTTP status code (e.g., `status=404` for intentionally broken links)
+- `content="text"`: Verify page contains specific text (triggers GET request)
+- `timeout=N`: Use custom timeout in seconds
+- `ignore_ssl=true`: Skip SSL certificate validation
+
+The validation rule applies to the next link found and is then reset.
+This feature is particularly useful for testing links in beta-stage tasks.
 - Option `--rename old_partname new_partname` shortcuts normal operation and only performs a
   rename refactoring of the course content.
   It requires passing a dummy `targetdir` commandline argument which is not actually used.

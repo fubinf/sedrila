@@ -42,12 +42,8 @@ def add_arguments(subparser: argparse.ArgumentParser):
                            help="purge cache and perform a complete build")
     subparser.add_argument('--rename', nargs=2, metavar=("partname", "new_partname"),
                            help="Rename files of part, macro calls in *.md. and part mentions in *.prot, then stop.")
-    subparser.add_argument('--check-links', action='store_true',
-                           help="Check accessibility of external links in markdown files")
-    subparser.add_argument('--link-statistics', action='store_true',
-                           help="Generate detailed statistics about external links without checking them")
-    subparser.add_argument('--check-link', nargs='?', const='', metavar="markdown_file",
-                           help="Check links in a specific markdown file, or all ProPra files if no file specified")
+    subparser.add_argument('--check-links', nargs='?', const='all', metavar="markdown_file",
+                           help="Check accessibility of external links. Use without argument to check all course files, or specify a single markdown file to check")
     subparser.add_argument('targetdir',
                            help=f"Directory to which output will be written.")
 
@@ -65,41 +61,29 @@ def execute(pargs: argparse.Namespace):
     the_course = create_and_build_course(pargs, targetdir_i, targetdir_s)
     
     # Perform external link checking if requested
-    if hasattr(pargs, 'check_links') and pargs.check_links:
+    if hasattr(pargs, 'check_links') and pargs.check_links is not None:
         b.info("=" * 60)
-        links_ok = the_course.check_external_links(show_progress=True)
-        if not links_ok:
-            b.error("External link validation failed - some links are broken")
-            # Note: We don't exit with error code here to allow the build to complete
-            # Users can check the log output to see which links failed
-        b.info("=" * 60)
-    
-    # Generate link statistics if requested (without actual checking)
-    if hasattr(pargs, 'link_statistics') and pargs.link_statistics:
-        b.info("=" * 60)
-        the_course.generate_link_statistics()
-        b.info("=" * 60)
-    
-    # Check links in specific file or all ProPra files if requested
-    if hasattr(pargs, 'check_link') and pargs.check_link is not None:
-        if pargs.check_link:  # Specific file provided
-            test_single_markdown_file(pargs.check_link)
-        else:  # No file specified, check all ProPra files
-            b.info("=" * 60)
-            b.info("Checking links in all ProPra course files...")
+        if pargs.check_links == 'all':
+            # Check all course files
+            b.info("Checking links in all course files...")
             links_ok = the_course.check_external_links(show_progress=True)
             if not links_ok:
                 b.error("External link validation failed - some links are broken")
-            b.info("=" * 60)
-        return  # Exit early, don't continue with normal build
+                # Note: We don't exit with error code here to allow the build to complete
+                # Users can check the log output to see which links failed
+        else:
+            # Check specific file
+            test_single_markdown_file(pargs.check_links)
+        b.info("=" * 60)
+        if pargs.check_links != 'all':
+            return  # Exit early when checking single file, don't continue with normal build
     
     b.finalmessage()
 
 
 def test_single_markdown_file(filepath: str):
     """Test links in a single markdown file for development/debugging."""
-    import os
-    from sdrl.quality.link_checker import LinkExtractor, LinkChecker, LinkCheckReporter
+    import sdrl.linkchecker as linkchecker
     
     if not os.path.exists(filepath):
         b.error(f"File not found: {filepath}")
@@ -109,7 +93,7 @@ def test_single_markdown_file(filepath: str):
     b.info("=" * 60)
     
     # Extract links
-    extractor = LinkExtractor()
+    extractor = linkchecker.LinkExtractor()
     links = extractor.extract_links_from_file(filepath)
     
     b.info(f"Found {len(links)} links:")
@@ -128,7 +112,7 @@ def test_single_markdown_file(filepath: str):
             if rule_parts:
                 rule_info = f" [CUSTOM: {', '.join(rule_parts)}]"
         
-        b.info(f"  {i}. {link.url} ({link.link_type}){rule_info}")
+        b.info(f"  {i}. {link.url}{rule_info}")
     
     if not links:
         b.info("No external links found to test.")
@@ -139,33 +123,28 @@ def test_single_markdown_file(filepath: str):
     b.info("=" * 60)
     
     # Check links
-    checker = LinkChecker()
+    checker = linkchecker.LinkChecker()
     results = checker.check_links(links, show_progress=True)
     
     # Generate report
-    reporter = LinkCheckReporter()
+    reporter = linkchecker.LinkCheckReporter()
     reporter.print_summary(results)
     
     # Save detailed reports for single file testing
-    import os
-    from datetime import datetime
-    
-    # Get filename without path and extension for report naming
     filename = os.path.splitext(os.path.basename(filepath))[0]
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     # Save JSON report
-    json_filename = f"single_file_link_check_{filename}_{timestamp}.json"
+    json_filename = f"single_file_link_check_{filename}.json"
     reporter.generate_json_report(results, json_filename)
     b.info(f"JSON report saved: {json_filename}")
     
     # Save Markdown report
-    md_filename = f"single_file_link_check_{filename}_{timestamp}.md"
+    md_filename = f"single_file_link_check_{filename}.md"
     reporter.generate_markdown_report(results, md_filename)
     b.info(f"Markdown report saved: {md_filename}")
     
     # Return success status
-    failed_results = LinkCheckReporter.get_failed_links(results)
+    failed_results = linkchecker.LinkCheckReporter.get_failed_links(results)
     return len(failed_results) == 0
 
 
