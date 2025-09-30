@@ -1,5 +1,6 @@
 import collections
 import contextlib
+import enum
 import functools
 import itertools
 import json
@@ -24,6 +25,94 @@ _context: 'Context'  # global singleton, see make_context(), get_context()
 class PathsAndRemaining(tg.NamedTuple):
     paths_matched: set[str]
     remaining_tasks: set[str]
+
+class TaskState(enum.StrEnum):
+    # the task name is invalid
+    INVALID = "INVALID"
+
+    # task marked as check
+    CHECK = "CHECK"
+    # task marked as accept
+    ACCEPT = "ACCEPT"
+    # task marked as reject
+    REJECT = "REJECT"
+
+    # the task was accepted by the instructor in the past
+    ACCEPT_PAST = "ACCEPT_PAST"
+    # the task was rejected the maximum amount of times permitted
+    REJECT_FINAL = "REJECT_FINAL"
+
+class Task:
+    files: set[str] = set()
+    state: TaskState | None = None
+
+    def __init__(self): self.files = set()
+
+    # true if the task was registered
+    # via a commit / submission.yaml
+    @property
+    def is_registered(self) -> bool: return self.state is not None
+
+    @property
+    def is_checkable(self) -> bool:
+        """returns wether the task can be marked for submission or checked"""
+        return self.state in [None, TaskState.CHECK, TaskState.ACCEPT, TaskState.REJECT]
+
+    @property
+    def is_student_checkable(self) -> bool:
+        return self.state in [None, TaskState.CHECK, TaskState.REJECT]
+
+
+class Submission:
+    # the set of tasks that have a commit
+    _tasks: tg.Dict[str, Task] = {}
+
+    def _get_or_add_empty(self, name: str) -> Task:
+        self._add_empty_task(name)
+        return self._tasks[name]
+
+    def _add_empty_task(self, name: str):
+        if name not in self._tasks: self._tasks[name] = Task()
+
+    def _add_task_file(self, name: str, path: str):
+        self._add_empty_task(name)
+        self._tasks[name].files.add(path)
+
+    def _remove_if_empty(self, name: str):
+        task = self._tasks.get(name)
+        if not task: return
+        del self._tasks[name]
+
+    def task(self, name: str) -> Task | None: return self._tasks.get(name)
+
+    @functools.cached_property
+    def _task_items(self) -> tg.Iterable[tuple[str, Task]]:
+        return sorted(self._tasks.items())
+
+    @property
+    def candidates(self) -> tg.Iterable[tuple[str, Task]]:
+        return filter(lambda t: not t[1].is_registered, self._task_items)
+
+    @property
+    def to_check(self) -> tg.Iterable[tuple[str, Task]]:
+        return filter(lambda t: t[1].state == TaskState.CHECK, self._task_items)
+
+    @property
+    def accepted(self) -> tg.Iterable[tuple[str, Task]]:
+        return filter(lambda t: t[1].state == TaskState.ACCEPT, self._task_items)
+
+    @property
+    def rejected(self) -> tg.Iterable[tuple[str, Task]]:
+        return filter(lambda t: t[1].state == TaskState.REJECT, self._task_items)
+
+    @property
+    def submission_yaml(self) -> tg.Iterable[tuple[str, str]]:
+        return (
+            (name, str(t.state) if t.state else c.SUBMISSION_NONCHECK_MARK)
+            for name, t
+            in itertools.chain(self.to_check, self.accepted, self.rejected)
+        )
+
 
 
 class Student:
@@ -134,6 +223,43 @@ class Student:
         return os.path.join(self.topdir, c.SUBMISSION_FILE)
 
     @functools.cached_property
+    def submissions(self) -> Submission:
+        sub = Submission()
+
+        for taskname, task in self.course_with_work.taskdict.items():
+            sub._add_empty_task(taskname)
+            for p in filter(lambda p: taskname in p, self.pathset):
+                if p.endswith(f".{c.PATHSET_FILE_EXT}"):
+                    for sp in self._extract_meta_files(p):
+                        sub._add_task_file(taskname, sp)
+                # add everything else
+                else: sub._add_task_file(taskname, p)
+
+            if task.workhours <= 0 and not task.is_accepted and not task.allowed_attempts <= 0:
+                sub._remove_if_empty(taskname)
+
+        # assign states to tasks from submission yaml
+        for name, state in self.submission.items():
+            task = sub._get_or_add_empty(name)
+            if state == c.SUBMISSION_ACCEPT_MARK: task.state = TaskState.ACCEPT
+            elif state == c.SUBMISSION_REJECT_MARK: task.state = TaskState.REJECT
+            elif state == c.SUBMISSION_CHECK_MARK: task.state = TaskState.CHECK
+            # noncheck is the default state
+            # all tasks are implicitly noncheck
+            elif state == c.SUBMISSION_NONCHECK_MARK: task.state = None
+
+        # assign states to tasks from commits
+        cw = self.course_with_work
+        for name, task in sub._tasks.items():
+            cw_task = cw.task(name)
+            if not cw_task: task.state = TaskState.INVALID
+            elif cw_task.remaining_attempts < 0: task.state = TaskState.REJECT_FINAL
+            elif cw_task.is_accepted: task.state = TaskState.ACCEPT_PAST
+
+        return sub
+
+
+    @functools.cached_property
     def submission_pathset(self) -> set[str]:
         """paths with names matching submitted tasks"""
         return self._submission_pathset_and_remaining_submissions.paths_matched
@@ -159,10 +285,37 @@ class Student:
         for p in self.pathset:
             mm = self.submission_re.search(p)
             if mm:
-                paths_matched.add(p)
+                if p.endswith(f".{c.PATHSET_FILE_EXT}"):
+                    paths_matched.update(self._extract_meta_files(p))
+                else: paths_matched.add(p)
+
                 submissions_matched.add(mm.group())
         remaining_submissions = set(self.submission_tasknames) - submissions_matched
         return PathsAndRemaining(paths_matched, remaining_submissions)
+
+    def _extract_meta_files(self, path: str) -> set[str]:
+        """get all referenced file paths from a '.files' meta file"""
+        full_path = self.path_actualpath(path)
+
+        # got this from html_for_file
+        contents = b.slurp(full_path)
+
+        # as of now the file is keept quite simple:
+        # add paths with a nonempty line containing the path,
+        # relative to the directory the meta file is in
+        # '#' to comment
+        # no fancy patterns yet (but could be added easily)
+        paths = {
+            os.path.normpath(os.path.join("/", path, "../", p))
+            for p in map(str.strip, contents.splitlines())
+            if p != "" and not p.startswith("#")
+        }
+        files = set()
+        for p in paths: files.add(p)
+
+        return files
+    
+
 
     def path_actualpath(self, path: str) -> str:
         """Turns the absolute virtual path into a physical path."""
@@ -236,21 +389,16 @@ class Student:
         student_metadata = b.slurp_yaml(student_file)
         return student_metadata['course_url']
 
-    def move_to_next_state(self, taskname: str, taskstatus: str) -> str:
-        """Cycle (1 step) through possible taskstates in self.submisson and in c.PARTICIPANT_FILE."""
-        states = self.possible_submission_states
-        try:
-            newidx = (states.index(taskstatus) + 1) % len(states)  # use next, wrap around at the end
-        except ValueError:
-            return taskstatus  # ignore call if taskstatus is not a possible state
-        newstate = states[newidx]
-        self.submission[taskname] = newstate  # change state in memory
+    def set_state(self, taskname: str, new_state: TaskState) -> bool:
+        task = self.submissions.task(taskname)
+        if not task: return False
+        task.state = new_state if new_state != c.SUBMISSION_NONCHECK_MARK else None
         self.save_submission()
-        return newstate
+        return True
 
     def save_submission(self):
         """Write self.submission to c.SUBMISSION_FILE"""
-        b.spit_yaml(self.submissionfile_path, self.submission)  # change state in persistent copy
+        b.spit_yaml(self.submissionfile_path, dict(self.submissions.submission_yaml))
 
     def submission_find_taskname(self, path: str) -> str:
         return _submission_find_taskname(self, path)
@@ -285,6 +433,12 @@ class Context:
     @property
     def course_url(self) -> str:
         return self.studentlist[0].course_url
+
+    @functools.cached_property
+    def tasknames(self) -> set[str]:
+        return set(itertools.chain(*(
+            s.submissions._tasks.keys() for s in self.studentlist
+        )))
 
     @functools.cached_property
     def pathset(self) -> set[str]:
@@ -354,3 +508,4 @@ def _submission_re(studentoid) -> re.Pattern:
     longest_first = sorted(sorted(studentoid.submission_tasknames), key=len, reverse=True)  # decreasing specificity
     items_re = '|'.join([re.escape(item) for item in longest_first])  # noqa, item has the right type
     return re.compile(f"\\b({items_re})\\b")  # match task names only as words or multiwords
+
