@@ -868,6 +868,29 @@ Available rule parameters:
 
 The validation rule applies to the next link found and is then reset.
 This feature is particularly useful for testing links in beta-stage tasks.
+
+#### 2.2.2 Anti-crawling protection handling
+
+Some domains implement strict anti-crawling mechanisms that block automated requests while remaining fully accessible in browsers. The link checker handles these gracefully:
+
+**Trusted domains with anti-crawling protection:**
+- `linux.die.net` (Official Linux manual pages)
+- `baeldung.com` (Programming tutorials)
+- `labex.io` (Educational platform)
+- `cyberciti.biz` (Linux/Unix tutorials)
+- `code.visualstudio.com` (VS Code documentation)
+
+**Behavior:**
+- Returns actual HTTP status code (typically 403 Forbidden or 500)
+- Marks the link as **valid** (not an error)
+- Provides clear explanation in reports and console output
+- Dedicated reporting sections explain the anti-crawling protection
+
+**HTTP request strategy:**
+- **Default**: HEAD requests for efficiency and server-friendliness
+- **Exception**: GET requests only when content validation is required (`content=` parameter)
+- **Strict policy**: No automatic fallback to GET based on domain sensitivity
+
 - Option `--rename old_partname new_partname` shortcuts normal operation and only performs a
   rename refactoring of the course content.
   It requires passing a dummy `targetdir` commandline argument which is not actually used.

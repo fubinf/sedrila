@@ -13,7 +13,7 @@ from dataclasses import dataclass, asdict
 from datetime import datetime
 from urllib.parse import urlparse
 
-import requests
+import requests as req
 
 import base as b
 
@@ -144,7 +144,7 @@ class LinkChecker:
         self.max_retries = max_retries
         self.delay_between_requests = delay_between_requests
         self.delay_per_host = delay_per_host  # Additional delay when checking same host
-        self.session = requests.Session()
+        self.session = req.Session()
         self.host_last_request = {}  # Track last request time per host
         
         # Set browser-like headers to avoid triggering anti-crawling mechanisms
@@ -157,17 +157,6 @@ class LinkChecker:
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1'
         })
-        
-        # Domains that are sensitive to HEAD requests and should use GET instead
-        self.get_only_domains = {
-            'linux.die.net',
-            'labex.io', 
-            'cyberciti.biz',
-            'www.cyberciti.biz',
-            'baeldung.com',
-            'www.baeldung.com',
-            'code.visualstudio.com'  # Also getting 500 errors
-        }
         
         # Domains that require longer delays and special treatment
         self.strict_domains = {
@@ -207,9 +196,11 @@ class LinkChecker:
                     if link.validation_rule.expected_status in [301, 302, 303, 307, 308]:
                         follow_redirects = False
                 
-                # Determine request method based on domain and validation requirements
+                # Determine request method: use HEAD unless content checking is needed
+                # This strictly follows professor's requirement: "A link checker should use HEAD, not GET"
+                # Only exception: when explicit content validation is required (content= rule)
                 host = urlparse(link.url).netloc.lower()
-                use_get = (link.validation_rule and link.validation_rule.required_text) or host in self.get_only_domains
+                use_get = (link.validation_rule and link.validation_rule.required_text)
                 method = 'GET' if use_get else 'HEAD'
                 
                 # Add extra headers for strict domains
@@ -282,7 +273,7 @@ class LinkChecker:
                     redirect_url=redirect_url
                 )
                 
-            except requests.exceptions.Timeout:
+            except req.exceptions.Timeout:
                 if attempt == self.max_retries:
                     return LinkCheckResult(
                         link=link,
@@ -291,7 +282,7 @@ class LinkChecker:
                     )
                 time.sleep(1 * (attempt + 1))  # Exponential backoff
                 
-            except requests.exceptions.ConnectionError as e:
+            except req.exceptions.ConnectionError as e:
                 if attempt == self.max_retries:
                     return LinkCheckResult(
                         link=link,
@@ -300,7 +291,7 @@ class LinkChecker:
                     )
                 time.sleep(1 * (attempt + 1))
                 
-            except requests.exceptions.RequestException as e:
+            except req.exceptions.RequestException as e:
                 return LinkCheckResult(
                     link=link,
                     success=False,
@@ -338,16 +329,27 @@ class LinkChecker:
             # If we can't parse the URL, just use the general delay
             pass
     
+    def _create_unique_key(self, link: ExternalLink) -> str:
+        """Create a unique key for a link that includes URL and validation rules."""
+        validation_key = ""
+        if link.validation_rule:
+            rule = link.validation_rule
+            validation_key = f"|status:{rule.expected_status}|text:{rule.required_text}|ssl:{rule.ignore_ssl}|timeout:{rule.timeout}"
+        
+        return f"{link.url}{validation_key}"
+    
     def check_links(self, links: list[ExternalLink], show_progress: bool = True) -> list[LinkCheckResult]:
         """Check multiple links, avoiding duplicate URL checks."""
         if not links:
             return []
         
-        # Deduplicate URLs while preserving first occurrence with its validation rule
+        # Deduplicate URLs while considering validation rules
+        # URLs with different validation rules should be treated as separate checks
         url_to_link = {}
         for link in links:
-            if link.url not in url_to_link:
-                url_to_link[link.url] = link
+            unique_key = self._create_unique_key(link)
+            if unique_key not in url_to_link:
+                url_to_link[unique_key] = link
         
         unique_links = list(url_to_link.values())
         total_original_links = len(links)
@@ -380,10 +382,17 @@ class LinkChecker:
                 time.sleep(self.delay_between_requests)
         
         # Map results back to all original links (including duplicates)
-        url_to_result = {result.link.url: result for result in results}
+        # Create a mapping using the same unique key logic
+        unique_key_to_result = {}
+        for result in results:
+            unique_key = self._create_unique_key(result.link)
+            unique_key_to_result[unique_key] = result
+        
         all_results = []
         for link in links:
-            original_result = url_to_result[link.url]
+            unique_key = self._create_unique_key(link)
+            original_result = unique_key_to_result[unique_key]
+            
             # Create new result with the original link (preserving file/line info)
             all_results.append(LinkCheckResult(
                 link=link,
@@ -554,6 +563,14 @@ class LinkCheckReporter:
                 status_desc = self._get_status_description(status_code)
                 b.info(f"  {status_code} ({status_desc}): {count} ({percentage:.1f}%)")
             b.info("")
+            
+        # Whitelist explanation for 403/500 codes
+        if stats.whitelisted_links > 0:
+            b.info("ANTI-CRAWLING WHITELIST NOTE")
+            b.info(f"  {stats.whitelisted_links} links from trusted domains returned 403/500 but are actually accessible.")
+            b.info("  These sites block automation tools but work fine in browsers.")
+            b.info("  Status codes shown are actual server responses, not marked as errors.")
+            b.info("")
         
         # Error analysis
         if stats.error_types:
@@ -697,10 +714,17 @@ class LinkCheckReporter:
                     f.write(f"| {domain} | {count} | {percentage:.1f}% |\n")
                 f.write("\n")
             
-            # Whitelisted domains section
-            if stats.whitelisted_domains:
+            # Whitelisted domains section with detailed links
+            whitelisted_results = [r for r in results if r.success and r.error_message and "trusted domain" in r.error_message.lower()]
+            if whitelisted_results:
                 f.write("## Trusted Domains (Anti-Crawling Whitelist)\n\n")
+                f.write("**Important Note:** The links below returned 403/500 status codes but are actually accessible in browsers. ")
+                f.write("These sites implement anti-crawling mechanisms that block automated tools while remaining functional for human users. ")
+                f.write("The status codes shown are the actual server responses, but these links are NOT marked as errors.\n\n")
                 f.write("These domains are known to be valid but block automation tools:\n\n")
+                
+                # Summary table
+                f.write("### Summary\n\n")
                 f.write("| Domain | Links | Reason |\n")
                 f.write("|--------|-------|--------|\n")
                 domain_reasons = {
@@ -715,6 +739,31 @@ class LinkCheckReporter:
                 for domain, count in sorted(stats.whitelisted_domains.items(), key=lambda x: x[1], reverse=True):
                     reason = domain_reasons.get(domain, 'Trusted domain with strict anti-crawling')
                     f.write(f"| {domain} | {count} | {reason} |\n")
+                f.write("\n")
+                
+                # Detailed whitelisted links
+                f.write("### Whitelisted Links Details\n\n")
+                f.write("These specific links were marked as valid despite returning 403/500 errors. ")
+                f.write("**All these links are accessible in browsers** - the status codes reflect anti-crawling protection, not actual failures:\n\n")
+                f.write("| URL | Status | File | Line | Message |\n")
+                f.write("|-----|--------|------|------|----------|\n")
+                
+                # Group whitelisted results by domain
+                whitelisted_by_domain = defaultdict(list)
+                for result in whitelisted_results:
+                    domain = urlparse(result.link.url).netloc.lower()
+                    whitelisted_by_domain[domain].append(result)
+                
+                # Sort by domain, then by URL
+                for domain in sorted(whitelisted_by_domain.keys()):
+                    domain_results = sorted(whitelisted_by_domain[domain], key=lambda x: x.link.url)
+                    for result in domain_results:
+                        link = result.link
+                        status_code = result.status_code or "N/A"
+                        error_msg = result.error_message or ""
+                        # Truncate long URLs for readability
+                        url_display = link.url if len(link.url) <= 60 else link.url[:57] + "..."
+                        f.write(f"| {url_display} | {status_code} | {link.source_file} | {link.line_number} | {error_msg} |\n")
                 f.write("\n")
             
             # Failed links table (sorted by error type, then filename)

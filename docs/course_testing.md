@@ -66,13 +66,24 @@ Supported parameters:
 
 The validation rule applies to the next link found and is then reset.
 
+### Anti-Crawling Protection
+
+Some domains implement aggressive anti-crawling mechanisms that block automated tools while remaining accessible in browsers. The link checker handles this gracefully:
+
+- **Trusted domains**: `linux.die.net`, `baeldung.com`, `labex.io`, `cyberciti.biz`, `code.visualstudio.com`
+- **Behavior**: Returns actual HTTP status (403/500) but marks link as valid
+- **Reporting**: Clear explanation that these links are accessible despite status codes
+- **Console output**: Dedicated "ANTI-CRAWLING WHITELIST NOTE" section
+
 ### Output
 
 Reports are generated with fixed names for easy integration:
 - JSON report: `link_check_report.json`
 - Markdown report: `link_check_report.md`
-- For single files: `single_file_link_check_{filename}.json/md`
 - Console summary with integrated statistics
+- **Anti-crawling sections**: Dedicated reporting for whitelisted domains with explanations
+
+**Note**: Both single-file and full-course testing use the same fixed report names to prevent file accumulation.
 
 
 ## 2. Program testing

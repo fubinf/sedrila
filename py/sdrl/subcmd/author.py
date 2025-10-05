@@ -130,18 +130,13 @@ def test_single_markdown_file(filepath: str):
     reporter = linkchecker.LinkCheckReporter()
     reporter.print_summary(results)
     
-    # Save detailed reports for single file testing
-    filename = os.path.splitext(os.path.basename(filepath))[0]
+    # Save detailed reports for single file testing (using fixed names as per professor's suggestion)
     
     # Save JSON report
-    json_filename = f"single_file_link_check_{filename}.json"
-    reporter.generate_json_report(results, json_filename)
-    b.info(f"JSON report saved: {json_filename}")
+    reporter.generate_json_report(results)  # Uses default fixed name
     
-    # Save Markdown report
-    md_filename = f"single_file_link_check_{filename}.md"
-    reporter.generate_markdown_report(results, md_filename)
-    b.info(f"Markdown report saved: {md_filename}")
+    # Save Markdown report  
+    reporter.generate_markdown_report(results)  # Uses default fixed name
     
     # Return success status
     failed_results = linkchecker.LinkCheckReporter.get_failed_links(results)
