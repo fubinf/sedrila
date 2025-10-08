@@ -114,6 +114,89 @@ The first SeDriLa course, `propra-inf`, makes heavy use of command logs ("Komman
 (with validation performed by `sedrila author`)
 and execution logic for performing them and reporting when running `sedrila instructor`.
 
+#### Implementation for now
+
+Command protocol checking is now integrated into `sedrila` with two main components Validation and 
+Comparison:
+
+##### Annotation Syntax (for authors)
+
+Authors can add validation rules to their example protocol files using `@PROT_CHECK` annotations:
+
+```bash
+# @PROT_CHECK: command=exact, output=flexible
+$ ls -la
+total 16
+drwxr-xr-x 2 user user 4096 Jan 1 12:00 .
+-rw-r--r-- 1 user user  123 Jan 1 12:00 file.txt
+
+# @PROT_CHECK: command=regex, regex=echo.*test, output=skip
+$ echo "test message"
+test message
+
+# @PROT_CHECK: command=multi_variant, variants="pwd|ls", output=exact
+$ pwd
+/home/user
+```
+
+**Supported Command Types:**
+- `exact`: Require exact command match (default)
+- `regex`: Match command using regex pattern (requires `regex` parameter)
+- `multi_variant`: Allow multiple command variants (requires `variants` parameter)
+- `skip`: Skip command checking, mark for manual review
+
+**Supported Output Types:**
+- `exact`: Require exact output match (default)
+- `flexible`: Ignore whitespace differences and empty lines
+- `regex`: Match output using regex pattern (requires `regex` parameter)
+- `skip`: Skip output checking, mark for manual review
+
+**Additional Parameters:**
+- `regex="pattern"`: Regex pattern for command or output matching
+- `variants="cmd1|cmd2|cmd3"`: Pipe-separated list of acceptable command variants
+- `manual_note="message"`: Note for manual checking instructions
+
+##### Usage Examples
+
+Validate protocol annotations in author files:
+```bash
+# Validate all protocol files in course (searches both task directories and altdir)
+sedrila author --validate-protocols -- /tmp/output
+
+# Validate specific protocol file
+sedrila author --validate-protocols /path/to/file.prot /tmp/output
+
+# Note: Unlike --check-links, protocol validation automatically checks ALL files
+# regardless of task stage (no need for --include_stage flag)
+```
+
+Compare student and author protocol files:
+```bash
+# Compare student submission with author example
+sedrila instructor --check-protocols student.prot author.prot
+```
+
+##### Features
+
+- Validation: `sedrila author --validate-protocols` validates annotation syntax
+- Comparison: `sedrila instructor --check-protocols` compares student vs author files
+- Flexible Matching: Supports exact, regex, flexible, and multi-variant matching
+- Manual Review: Flags entries requiring instructor attention
+- Comprehensive Reports: JSON and Markdown reports with detailed results
+- Error Handling: Graceful handling of malformed files and missing annotations
+
+##### Implementation Details
+
+- Core module: `py/sdrl/protocolchecker.py`
+- Tests: `py/sdrl/tests/protocolchecker_test.py` (pytest format)
+- Demo: `example_protocol_demo.py`
+
+Run tests:
+```bash
+cd py
+python -m pytest sdrl/tests/protocolchecker_test.py -v
+```
+
 
 ### 2.2 Programs
 

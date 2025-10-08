@@ -16,10 +16,12 @@ meaning = """Help instructors evaluate students' submissions of several finished
 
 
 def add_arguments(subparser):
-    subparser.add_argument('workdir', nargs='+',
+    subparser.add_argument('workdir', nargs='*',  # Changed from '+' to '*' to make it optional
                            help="where to find student input")
     subparser.add_argument('--op', default="", choices=OP_CMDS.keys(),
                            help="Perform one operation non-interactively")
+    subparser.add_argument('--check-protocols', nargs=2, metavar=("student_prot", "author_prot"),
+                           help="Compare student protocol file with author protocol file")
     subparser.add_argument('--port', '-p', type=int, default=sdrl.webapp.DEFAULT_PORT,
                            help=f"webapp will listen on this port (default: {sdrl.webapp.DEFAULT_PORT})")
     subparser.add_argument('--log', default="INFO", choices=b.loglevels.keys(),
@@ -28,6 +30,16 @@ def add_arguments(subparser):
 
 def execute(pargs: argparse.Namespace):
     b.set_loglevel(pargs.log)
+    
+    # Handle protocol checking if requested
+    if hasattr(pargs, 'check_protocols') and pargs.check_protocols is not None:
+        check_protocol_files(pargs.check_protocols[0], pargs.check_protocols[1])
+        return  # Exit after protocol checking
+    
+    # Check if workdir is provided for normal instructor operations
+    if not pargs.workdir:
+        b.critical("workdir is required for normal instructor operations. Use --check-protocols for protocol comparison.")
+    
     pargs.workdir = [wd.rstrip("/") for wd in pargs.workdir]  # make names canonical
     # ----- prepare:
     try:
@@ -44,6 +56,45 @@ def execute(pargs: argparse.Namespace):
         OP_CMDS[pargs.op](context)  # execute one command via lookup table, with duck-typed arg
     else:
         run_command_loop(context, MENU, MENU_HELP, MENU_CMDS)
+
+
+def check_protocol_files(student_file: str, author_file: str):
+    """Compare student protocol file with author protocol file."""
+    try:
+        import sdrl.protocolchecker as protocolchecker
+    except ImportError as e:
+        b.error(f"Cannot import protocol checking modules: {e}")
+        return
+    
+    b.info("=" * 60)
+    b.info("Protocol File Comparison")
+    b.info(f"Student file: {student_file}")
+    b.info(f"Author file: {author_file}")
+    b.info("=" * 60)
+    
+    # Check if files exist
+    if not os.path.exists(student_file):
+        b.error(f"Student protocol file not found: {student_file}")
+        return
+    
+    if not os.path.exists(author_file):
+        b.error(f"Author protocol file not found: {author_file}")
+        return
+    
+    # Perform comparison
+    checker = protocolchecker.ProtocolChecker()
+    results = checker.compare_files(student_file, author_file)
+    
+    # Generate and display report
+    reporter = protocolchecker.ProtocolReporter()
+    reporter.print_summary(results, student_file, author_file)
+    
+    # Save detailed reports
+    if results:
+        reporter.generate_json_report(results)
+        reporter.generate_markdown_report(results)
+    
+    b.info("=" * 60)
 
 
 def run_command_loop(context, menu: str, helptext: str, cmds: dict[str, tg.Callable]):

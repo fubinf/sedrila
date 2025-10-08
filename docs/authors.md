@@ -844,6 +844,16 @@ Both versions will by default exclude all tasks, taskgroups, and chapters that h
   Examples: 
   - `sedrila author --check-links -- /tmp/output` (check all course files)
   - `sedrila author --check-links /path/to/file.md /tmp/output` (check specific file)
+- Option `--validate-protocols [prot_file]` validates protocol check annotations in `.prot` files.
+  Without an argument, it checks all protocol files in the course (searches both task directories and altdir). 
+  With a file argument, it checks only that specific file.
+  Validates `@PROT_CHECK` annotation syntax, ensuring proper parameter usage and regex validity.
+  This is useful for authors to verify their protocol annotations before students submit work.
+  **Important**: Validation checks all protocol files regardless of task stage (alpha, beta, etc.), 
+  as annotation syntax validation should work for all files.
+  Examples:
+  - `sedrila author --validate-protocols -- /tmp/output` (check all course protocol files)
+  - `sedrila author --validate-protocols /path/to/file.prot /tmp/output` (check specific file)
 
 #### 2.2.1 Link validation rules
 
@@ -890,6 +900,62 @@ Some domains implement strict anti-crawling mechanisms that block automated requ
 - **Default**: HEAD requests for efficiency and server-friendliness
 - **Exception**: GET requests only when content validation is required (`content=` parameter)
 - **Strict policy**: No automatic fallback to GET based on domain sensitivity
+
+#### 2.2.3 Protocol check annotations
+
+Protocol files (`.prot`) contain command-line execution logs. Authors can add `@PROT_CHECK` annotations
+to specify validation rules for comparing student submissions with expected examples.
+
+**Annotation syntax:**
+```bash
+# @PROT_CHECK: parameter1=value1, parameter2=value2
+user@host /path 10:00:00 1
+$ command
+output
+```
+
+**Command matching types:**
+- `command=exact` - Require exact command match (default)
+- `command=regex, regex="pattern"` - Match command using regex pattern
+- `command=multi_variant, variants="cmd1|cmd2|cmd3"` - Accept multiple command variants
+- `command=skip` - Skip command checking, mark for manual review
+
+**Output matching types:**
+- `output=exact` - Require exact output match (default)
+- `output=flexible` - Ignore whitespace differences and empty lines
+- `output=regex, regex="pattern"` - Match output using regex pattern
+- `output=skip` - Skip output checking, mark for manual review
+
+**Additional parameters:**
+- `regex="pattern"` - Regex pattern for command or output matching (required when using regex type)
+- `variants="cmd1|cmd2|cmd3"` - Pipe-separated list of acceptable command variants (required for multi_variant)
+- `manual_note="message"` - Note for manual checking instructions
+
+**Example annotations:**
+```bash
+# Accept different file names matching pattern
+# @PROT_CHECK: command=regex, regex=nc.*POST-form\.crlf, output=skip, manual_note="Check form fields"
+$ nc httpbin.org 80 <http-POST-form.crlf
+HTTP/1.1 200 OK
+...
+
+# Allow multiple correct commands
+# @PROT_CHECK: command=multi_variant, variants="pwd|echo $PWD", output=flexible
+$ pwd
+/home/user
+
+# Flexible output matching (ignore whitespace)
+# @PROT_CHECK: command=exact, output=flexible
+$ ls -la
+total 16
+drwxr-xr-x 2 user user 4096 Jan 1 12:00 .
+```
+
+**Important notes:**
+- Annotations must appear before the prompt line (before `user@host` line)
+- When `output=skip` is used, the entire check is skipped (including command checking) and marked for manual review
+- Protocol files typically include prompt lines in output, which differ between students and authors
+- For tasks with variable output (timestamps, IPs, etc.), use `output=skip` or `output=flexible`
 
 - Option `--rename old_partname new_partname` shortcuts normal operation and only performs a
   rename refactoring of the course content.

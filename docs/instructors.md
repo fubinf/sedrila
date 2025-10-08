@@ -108,6 +108,51 @@ but the ideal case is two, where these students form a work pair and make
 corresponding submissions at the same time.
 Working with more than four directories at once is hardly practical.
 
+### 2.3 Protocol checking
+
+For tasks that require command-line execution logs (`.prot` files), `sedrila` provides automated 
+protocol checking functionality. This helps instructors verify student submissions against 
+author-provided examples.
+
+**Basic usage:**
+```bash
+sedrila instructor --check-protocols student_file.prot author_file.prot
+```
+
+This compares a student's protocol file with the author's example and generates:
+- Console summary of passed/failed/manual-check-required entries
+- `protocol_check_report.md` - Human-readable Markdown report
+- `protocol_check_report.json` - Machine-readable JSON report with full command/output details
+
+**Example:**
+```bash
+sedrila instructor --check-protocols \
+  student-repo/taskname.prot \
+  course-repo/altdir/ch/Chapter/Taskgroup/taskname.prot
+```
+
+**Understanding the results:**
+
+The comparison checks each command entry based on author-defined rules (`@PROT_CHECK` annotations):
+- **Passed**: Command and output match according to rules
+- **Failed**: Command or output mismatch
+- **Manual check required**: Entries marked with `output=skip` or `command=skip`
+
+**Typical workflow:**
+
+1. Student submits their `.prot` file in their repository
+2. Run protocol comparison to get automated results
+3. Review the generated reports:
+   - Check failed entries for obvious errors
+   - Review manual-check entries using the JSON report (contains full student output)
+4. Provide feedback to student based on findings
+
+**Important notes:**
+- Tasks with variable output (HTTP responses, timestamps, etc.) typically use `output=skip`
+- Such entries will always be marked "manual check required" 
+- The JSON report contains complete student commands and outputs for manual verification
+- This feature complements (not replaces) the normal submission checking workflow
+
 - When `sedrila` starts, it will `git pull` the repo and remove all entries from 'submission.yaml'
   that do not say "CHECK", unless you have worked on the so-created 'submission.yaml' already
   and not committed that work.

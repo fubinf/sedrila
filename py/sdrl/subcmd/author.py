@@ -44,6 +44,8 @@ def add_arguments(subparser: argparse.ArgumentParser):
                            help="Rename files of part, macro calls in *.md. and part mentions in *.prot, then stop.")
     subparser.add_argument('--check-links', nargs='?', const='all', metavar="markdown_file",
                            help="Check accessibility of external links. Use without argument to check all course files, or specify a single markdown file to check")
+    subparser.add_argument('--validate-protocols', nargs='?', const='all', metavar="protocol_file",
+                           help="Validate protocol check annotations in .prot files. Use without argument to check all course protocol files, or specify a single .prot file to check")
     subparser.add_argument('targetdir',
                            help=f"Directory to which output will be written.")
 
@@ -78,7 +80,46 @@ def execute(pargs: argparse.Namespace):
         if pargs.check_links != 'all':
             return  # Exit early when checking single file, don't continue with normal build
     
+    # Perform protocol annotation validation if requested
+    if hasattr(pargs, 'validate_protocols') and pargs.validate_protocols is not None:
+        b.info("=" * 60)
+        if pargs.validate_protocols == 'all':
+            # Validate all course protocol files
+            b.info("Validating protocol annotations in all course files...")
+            protocols_ok = the_course.validate_protocol_annotations(show_progress=True)
+            if not protocols_ok:
+                b.error("Protocol annotation validation failed - some annotations are invalid")
+                # Note: We don't exit with error code here to allow the build to complete
+                # Users can check the log output to see which annotations failed
+        else:
+            # Validate specific file
+            validate_single_protocol_file(pargs.validate_protocols)
+        b.info("=" * 60)
+        if pargs.validate_protocols != 'all':
+            return  # Exit early when validating single file, don't continue with normal build
+    
     b.finalmessage()
+
+
+def validate_single_protocol_file(filepath: str):
+    """Validate protocol annotations in a single protocol file for development/debugging."""
+    try:
+        import sdrl.protocolchecker as protocolchecker
+    except ImportError as e:
+        b.error(f"Cannot import protocol checking modules: {e}")
+        return
+    
+    b.info(f"Validating protocol annotations in: {filepath}")
+    
+    validator = protocolchecker.ProtocolValidator()
+    errors = validator.validate_file(filepath)
+    
+    if not errors:
+        b.info("All protocol annotations are valid")
+    else:
+        b.error(f"Found {len(errors)} validation errors:")
+        for error in errors:
+            b.error(f"  {error}")
 
 
 def test_single_markdown_file(filepath: str):

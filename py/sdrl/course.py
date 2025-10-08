@@ -474,6 +474,72 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         failed_results = linkchecker.LinkCheckReporter.get_failed_links(results)
         return len(failed_results) == 0
 
+    def validate_protocol_annotations(self, show_progress: bool = True) -> bool:
+        """
+        Validate protocol check annotations in all protocol files.
+        
+        Returns:
+            bool: True if all annotations are valid, False if any failed
+        """
+        try:
+            import sdrl.protocolchecker as protocolchecker
+        except ImportError as e:
+            b.error(f"Cannot import protocol checking modules: {e}")
+            return False
+        
+        b.info("Starting protocol annotation validation...")
+        
+        # Find all .prot files in the course
+        # Protocol files are typically stored in altdir, not in the task directory
+        # Note: We check all tasks regardless of their to_be_skipped status,
+        # because validation should work for all protocol files regardless of stage
+        protocol_files = []
+        
+        for task in self.taskdict.values():
+            # Look for protocol files in both task directory and altdir
+            task_dir = os.path.dirname(task.sourcefile)
+            
+            # Calculate corresponding altdir path (where answer files are stored)
+            alt_task_dir = task_dir.replace(self.chapterdir, self.altdir, 1)
+            
+            # Search in both directories
+            for search_dir in [task_dir, alt_task_dir]:
+                if os.path.exists(search_dir):
+                    for file in os.listdir(search_dir):
+                        if file.endswith('.prot'):
+                            protocol_path = os.path.join(search_dir, file)
+                            # Avoid duplicates if both directories exist and have same files
+                            if protocol_path not in protocol_files:
+                                protocol_files.append(protocol_path)
+        
+        if not protocol_files:
+            b.info("No protocol files found to validate.")
+            return True
+        
+        if show_progress:
+            b.info(f"Found {len(protocol_files)} protocol files to validate")
+        
+        # Validate all protocol files
+        validator = protocolchecker.ProtocolValidator()
+        all_errors = []
+        
+        for prot_file in protocol_files:
+            if show_progress:
+                b.info(f"Validating: {prot_file}")
+            
+            errors = validator.validate_file(prot_file)
+            all_errors.extend(errors)
+        
+        # Report results
+        if not all_errors:
+            b.info("All protocol annotations are valid")
+            return True
+        else:
+            b.error(f"Found {len(all_errors)} validation errors:")
+            for error in all_errors:
+                b.error(f"  {error}")
+            return False
+
 
     def compute_taskorder(self):
         """
