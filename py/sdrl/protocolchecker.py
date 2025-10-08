@@ -64,10 +64,12 @@ class ProtocolExtractor:
     # Regex patterns for protocol format
     COMMAND_PATTERN = r'^\$\s+(.+)$'  # $ command only
     CHECK_ANNOTATION_PATTERN = r'^#\s*@PROT_CHECK:\s*(.+)$'
+    PROMPT_PATTERN = r'^\S+@\S+\s+\S+\s+\d{2}:\d{2}:\d{2}\s+\d+$'  # user@host /path HH:MM:SS seq
     
     def __init__(self):
         self.command_regex = re.compile(self.COMMAND_PATTERN)
         self.annotation_regex = re.compile(self.CHECK_ANNOTATION_PATTERN)
+        self.prompt_regex = re.compile(self.PROMPT_PATTERN)
     
     def extract_from_file(self, filepath: str) -> ProtocolFile:
         """Extract all command entries from a protocol file."""
@@ -97,6 +99,11 @@ class ProtocolExtractor:
             annotation_match = self.annotation_regex.match(line)
             if annotation_match:
                 pending_check_rule = self._parse_check_rule(annotation_match.group(1))
+                continue
+            
+            # Check for prompt line (user@host /path HH:MM:SS seq) - skip it
+            prompt_match = self.prompt_regex.match(line)
+            if prompt_match:
                 continue
             
             # Check for command line
