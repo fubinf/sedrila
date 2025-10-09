@@ -96,7 +96,8 @@ def compute_student_work_so_far(course: sdrl.course.Course, commits: tg.Sequence
     Store them in course.
     """
     _accumulate_student_workhours_per_task(commits, course)
-    instructor_commits = submission_checked_commits(course.instructors, commits)
+    all_instructors = course.instructors + course.former_instructors  # treated equally for now
+    instructor_commits = submission_checked_commits(all_instructors, commits)
     taskcheck_entries = taskcheck_entries_from_commits(instructor_commits)
     _accumulate_timevalues_and_attempts(taskcheck_entries, course)
 

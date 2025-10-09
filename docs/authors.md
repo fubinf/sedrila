@@ -120,6 +120,10 @@ About the entries:
   `keyfingerprint`: fingerprint of the GPG key by which the instructor will sign their commits,
   which shows up in git listings and is used by sedrila for signature validation,    
   `pubkey`: The GPG public key used for validate instructor signatures as a PGP PUBLIC KEY BLOCK.
+- `former_instructors` (optional): a second list just like `instructors`,
+  with the same structure and meaning of entries. 
+  The only difference is that the `former_instructors` will not be mentioned in the list of 
+  available instructors shown to students when they prepare a submission.
 - `htaccess_template`: In case you are using an Apache httpd webserver for serving
   the generated pages, sedrila can generate into the instructor part an `.htaccess` file
   that instructs Apache to serve those files to instructors only.
@@ -611,7 +615,7 @@ into the Markdown input stream at this point.
   configuration setting `chapterdir`.
 
 `[INCLUDE]` pathnames can use the prefixes `ALT:` or `ITREE:` to refer to other
-base directories; see 1.14 "Confindential contents" for details.
+base directories; see 1.14 "Confidential contents" for details.
 
 
 #### 1.9.4 `@INCLUDE_SNIPPET`

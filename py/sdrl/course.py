@@ -254,6 +254,7 @@ class Course(el.Part):
     namespace: dict[str, el.Part]  # partname -> part, for obtaining Parts in any of the logic
 
     instructors: list[b.StrAnyDict]
+    former_instructors: list[b.StrAnyDict]
     student_yaml_attribute_prompts: b.StrStrDict = dict()
     blockmacro_topmatter: b.StrStrDict = dict()
     allowed_attempts: str  # "2 + 0.5/h" or so, int+decimal, h is the task timevalue multiplier
@@ -314,10 +315,12 @@ class Course(el.Part):
                     configdict, self,
                     mustcopy_attrs=('title, name, instructors, allowed_attempts' +
                                     self.MUSTCOPY_ADDITIONAL),
-                    cancopy_attrs=('student_yaml_attribute_prompts' +
+                    cancopy_attrs=('former_instructors, student_yaml_attribute_prompts' +
                                    self.CANCOPY_ADDITIONAL),
                     mustexist_attrs='chapters',
                     report_extra=bool(self.MUSTCOPY_ADDITIONAL))
+        if self.former_instructors is None:
+            self.former_instructors = []
 
 
 class CourseSI(Course):
@@ -406,7 +409,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
     def as_json(self) -> b.StrAnyDict:
         result = dict(title=self.title,
                       name=self.name, breadcrumb_title=self.name,
-                      instructors=self.instructors,
+                      instructors=self.instructors, former_instructors=self.former_instructors,
                       student_yaml_attribute_prompts=getattr(self, 'student_yaml_attribute_prompts', dict()),
                       allowed_attempts=self.allowed_attempts,
                       chapters=[chapter.as_json() for chapter in self.chapters])

@@ -3,6 +3,8 @@
 
 ## Version 2.10.0 (upcoming)
 - `author`: support `ITREE` prefix in [INCLUDE::ITREE:somefile]`
+- `author`, `instructor`: introduced `former_instructors` config setting 
+  (like `instructors`, but not suggested to students upon submission preparation)
 - ...
 
 ## Version 2.9.0 (2025-08-19)
