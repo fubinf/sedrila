@@ -80,25 +80,25 @@ basepage_html = """<!DOCTYPE html>
 
 webapp_css = """
 :root {
-    --fu-blue: #004659;
-    --fu-blue-90: #195869;
-    --fu-blue-80: #336B7A;
-    --fu-blue-70: #4C7D8A;
-    --fu-blue-60: #66909B;
-    --fu-blue-50: #7FA2AC;
-    --fu-blue-40: #99B5BD;
-    --fu-blue-30: #B2C7CD;
-    --fu-blue-20: #CCDADE;
-    --fu-blue-10: #E5ECEE;
+    --wa-blue: #004659;
+    --wa-blue-90: #195869;
+    --wa-blue-80: #336B7A;
+    --wa-blue-70: #4C7D8A;
+    --wa-blue-60: #66909B;
+    --wa-blue-50: #7FA2AC;
+    --wa-blue-40: #99B5BD;
+    --wa-blue-30: #B2C7CD;
+    --wa-blue-20: #CCDADE;
+    --wa-blue-10: #E5ECEE;
 
-    --fu-black-50: #808080;
-    --fu-black-10: #E6E6E6;
+    --wa-black-50: #808080;
+    --wa-black-10: #E6E6E6;
 
-    --fu-skyblue: #00A4D1;
-    --fu-dark-olive: #58756A;
-    --fu-light-olive: #86B0A0;
-    --fu-orange: #E57050;
-    --fu-deep-red: #813353;
+    --wa-skyblue: #00A4D1;
+    --wa-dark-olive: #58756A;
+    --wa-light-olive: #86B0A0;
+    --wa-orange: #E57050;
+    --wa-deep-red: #813353;
 }
 
 li { padding: 0 !important; }
@@ -112,7 +112,7 @@ li { padding: 0 !important; }
     width: 100vw;
     display: grid;
     grid-template-columns: 30ch 1fr;
-    background-color: var(--fu-black-10);
+    background-color: var(--wa-black-10);
 }
 
 
@@ -130,17 +130,17 @@ main section {
 }
 
 .student-card {
-    background-color: var(--fu-blue-90);
+    background-color: var(--wa-blue-90);
     padding: 0.5rem;
-    color: var(--fu-black-10);
+    color: var(--wa-black-10);
     margin: 0.2rem 0;
 }
 
 #task-select {
     overflow-y: auto;
     position: relative;
-    color: var(--fu-black-10);
-    background-color: var(--fu-blue-70);
+    color: var(--wa-black-10);
+    background-color: var(--wa-blue-70);
 }
 
 #task-select a {
@@ -156,11 +156,11 @@ main section {
     position: sticky;
     display: block;
     top: 0;
-    background-color: var(--fu-blue);
+    background-color: var(--wa-blue);
 }
 
 #task-select .item {
-    /* border-top: 0.1rem solid var(--fu-blue); */
+    /* border-top: 0.1rem solid var(--wa-blue); */
     padding: 0.5rem 1rem;
 }
 
@@ -170,12 +170,12 @@ main section {
     top: 0;
     display: flex;
     gap: 0.2rem;
-    background-color: var(--fu-blue);
+    background-color: var(--wa-blue);
 }
 
 #files-bar .file {
     padding: 0.5rem 1rem;
-    background-color: var(--fu-blue-80);
+    background-color: var(--wa-blue-80);
 }
 
 #task-list {
@@ -213,20 +213,20 @@ main section {
 
 .task-link {
     display: block;
-    background-color: var(--fu-blue-90);
+    background-color: var(--wa-blue-90);
 }
 
 .task-link.selected {
-    background-color: var(--fu-blue-70);
+    background-color: var(--wa-blue-70);
 }
 
 a.file {
     text-decoration: none;
-    color: var(--fu-blue-20);
+    color: var(--wa-blue-20);
 }
 
 .file.selected {
-    background-color: var(--fu-blue-60);
+    background-color: var(--wa-blue-60);
 }
 
 .spacer-lg {
@@ -245,7 +245,7 @@ a.file {
     right: 0;
     padding: 1rem;
     margin: 1rem;
-    background-color: var(--fu-black-10);
+    background-color: var(--wa-black-10);
 }
 
 #task-main {
@@ -265,12 +265,12 @@ a.file {
 
 .action-button label {
     cursor: pointer;
-    background-color: var(--fu-blue-50);
+    background-color: var(--wa-blue-50);
     padding: 0.5rem 1rem;
 }
 
 .action-button label.active {
-    outline: 0.2rem solid var(--fu-blue-70);
+    outline: 0.2rem solid var(--wa-blue-70);
 }
 
 
