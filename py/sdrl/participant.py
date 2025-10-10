@@ -26,7 +26,7 @@ class PathsAndRemaining(tg.NamedTuple):
     paths_matched: set[str]
     remaining_tasks: set[str]
 
-class TaskState(enum.StrEnum):
+class SubmissionTaskState(enum.StrEnum):
     # the task name is invalid
     INVALID = "INVALID"
 
@@ -42,9 +42,9 @@ class TaskState(enum.StrEnum):
     # the task was rejected the maximum amount of times permitted
     REJECT_FINAL = "REJECT_FINAL"
 
-class Task:
+class SubmissionTask:
     files: set[str] = set()
-    state: TaskState | None = None
+    state: SubmissionTaskState | None = None
 
     def __init__(self): self.files = set()
 
@@ -56,23 +56,23 @@ class Task:
     @property
     def is_checkable(self) -> bool:
         """returns wether the task can be marked for submission or checked"""
-        return self.state in [None, TaskState.CHECK, TaskState.ACCEPT, TaskState.REJECT]
+        return self.state in [None, SubmissionTaskState.CHECK, SubmissionTaskState.ACCEPT, SubmissionTaskState.REJECT]
 
     @property
     def is_student_checkable(self) -> bool:
-        return self.state in [None, TaskState.CHECK, TaskState.REJECT]
+        return self.state in [None, SubmissionTaskState.CHECK, SubmissionTaskState.REJECT]
 
 
 class Submission:
     # the set of tasks that have a commit
-    _tasks: tg.Dict[str, Task] = {}
+    _tasks: tg.Dict[str, SubmissionTask] = {}
 
-    def _get_or_add_empty(self, name: str) -> Task:
+    def _get_or_add_empty(self, name: str) -> SubmissionTask:
         self._add_empty_task(name)
         return self._tasks[name]
 
     def _add_empty_task(self, name: str):
-        if name not in self._tasks: self._tasks[name] = Task()
+        if name not in self._tasks: self._tasks[name] = SubmissionTask()
 
     def _add_task_file(self, name: str, path: str):
         self._add_empty_task(name)
@@ -83,27 +83,27 @@ class Submission:
         if not task: return
         del self._tasks[name]
 
-    def task(self, name: str) -> Task | None: return self._tasks.get(name)
+    def task(self, name: str) -> SubmissionTask | None: return self._tasks.get(name)
 
     @functools.cached_property
-    def _task_items(self) -> tg.Iterable[tuple[str, Task]]:
+    def _task_items(self) -> tg.Iterable[tuple[str, SubmissionTask]]:
         return sorted(self._tasks.items())
 
     @property
-    def candidates(self) -> tg.Iterable[tuple[str, Task]]:
+    def candidates(self) -> tg.Iterable[tuple[str, SubmissionTask]]:
         return filter(lambda t: not t[1].is_registered, self._task_items)
 
     @property
-    def to_check(self) -> tg.Iterable[tuple[str, Task]]:
-        return filter(lambda t: t[1].state == TaskState.CHECK, self._task_items)
+    def to_check(self) -> tg.Iterable[tuple[str, SubmissionTask]]:
+        return filter(lambda t: t[1].state == SubmissionTaskState.CHECK, self._task_items)
 
     @property
-    def accepted(self) -> tg.Iterable[tuple[str, Task]]:
-        return filter(lambda t: t[1].state == TaskState.ACCEPT, self._task_items)
+    def accepted(self) -> tg.Iterable[tuple[str, SubmissionTask]]:
+        return filter(lambda t: t[1].state == SubmissionTaskState.ACCEPT, self._task_items)
 
     @property
-    def rejected(self) -> tg.Iterable[tuple[str, Task]]:
-        return filter(lambda t: t[1].state == TaskState.REJECT, self._task_items)
+    def rejected(self) -> tg.Iterable[tuple[str, SubmissionTask]]:
+        return filter(lambda t: t[1].state == SubmissionTaskState.REJECT, self._task_items)
 
     @property
     def submission_yaml(self) -> tg.Iterable[tuple[str, str]]:
@@ -241,9 +241,9 @@ class Student:
         # assign states to tasks from submission yaml
         for name, state in self.submission.items():
             task = sub._get_or_add_empty(name)
-            if state == c.SUBMISSION_ACCEPT_MARK: task.state = TaskState.ACCEPT
-            elif state == c.SUBMISSION_REJECT_MARK: task.state = TaskState.REJECT
-            elif state == c.SUBMISSION_CHECK_MARK: task.state = TaskState.CHECK
+            if state == c.SUBMISSION_ACCEPT_MARK: task.state = SubmissionTaskState.ACCEPT
+            elif state == c.SUBMISSION_REJECT_MARK: task.state = SubmissionTaskState.REJECT
+            elif state == c.SUBMISSION_CHECK_MARK: task.state = SubmissionTaskState.CHECK
             # noncheck is the default state
             # all tasks are implicitly noncheck
             elif state == c.SUBMISSION_NONCHECK_MARK: task.state = None
@@ -252,9 +252,9 @@ class Student:
         cw = self.course_with_work
         for name, task in sub._tasks.items():
             cw_task = cw.task(name)
-            if not cw_task: task.state = TaskState.INVALID
-            elif cw_task.remaining_attempts < 0: task.state = TaskState.REJECT_FINAL
-            elif cw_task.is_accepted: task.state = TaskState.ACCEPT_PAST
+            if not cw_task: task.state = SubmissionTaskState.INVALID
+            elif cw_task.remaining_attempts < 0: task.state = SubmissionTaskState.REJECT_FINAL
+            elif cw_task.is_accepted: task.state = SubmissionTaskState.ACCEPT_PAST
 
         return sub
 
@@ -389,7 +389,7 @@ class Student:
         student_metadata = b.slurp_yaml(student_file)
         return student_metadata['course_url']
 
-    def set_state(self, taskname: str, new_state: TaskState) -> bool:
+    def set_state(self, taskname: str, new_state: SubmissionTaskState) -> bool:
         task = self.submissions.task(taskname)
         if not task: return False
         task.state = new_state if new_state != c.SUBMISSION_NONCHECK_MARK else None

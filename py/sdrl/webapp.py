@@ -489,7 +489,7 @@ def serve_task(taskname: str, path: str | None = None):
     if path: path = "/" + path
     elif len(files) > 0: path = files[0]
 
-    def html_for_button(student_idx: int, state: str, task: sdrl.participant.Task) -> str:
+    def html_for_button(student_idx: int, state: str, task: sdrl.participant.SubmissionTask) -> str:
         return_file = f"<input type='hidden' name='return_file' value='{html.escape(path[1:])}'/>" if path else None
         return f"""
             <form class="action-button" action="{SEDRILA_UPDATE_URL}" method="POST"/>
@@ -511,8 +511,8 @@ def serve_task(taskname: str, path: str | None = None):
             {html_for_button(i, c.SUBMISSION_NONCHECK_MARK, t) if t.is_student_checkable and not is_instructor else ""}
             {html_for_button(i, c.SUBMISSION_ACCEPT_MARK, t) if is_instructor and t.is_checkable else ""}
             {html_for_button(i, c.SUBMISSION_REJECT_MARK, t) if is_instructor and t.is_checkable else ""}
-            {"REJECT_FINAL" if t.state == sdrl.participant.TaskState.REJECT_FINAL else ""}
-            {"ACCEPTED" if t.state == sdrl.participant.TaskState.ACCEPT_PAST else ""}
+            {"REJECT_FINAL" if t.state == sdrl.participant.SubmissionTaskState.REJECT_FINAL else ""}
+            {"ACCEPTED" if t.state == sdrl.participant.SubmissionTaskState.ACCEPT_PAST else ""}
         </div>
     """ for i, (s, t)
     in enumerate((s, s.submissions.task(taskname)) for s in ctx.studentlist)
@@ -772,11 +772,11 @@ def html_for_layout(title: str, content: str, selected: str | None = None) -> st
 
     state_classes = dict([
         (None, "task-unchecked"),
-        (sdrl.participant.TaskState.CHECK, "task-check"),
-        (sdrl.participant.TaskState.ACCEPT, "task-accept"),
-        (sdrl.participant.TaskState.REJECT, "task-reject"),
-        (sdrl.participant.TaskState.REJECT_FINAL, "task-reject final"),
-        (sdrl.participant.TaskState.ACCEPT_PAST, "task-accept past"),
+        (sdrl.participant.SubmissionTaskState.CHECK, "task-check"),
+        (sdrl.participant.SubmissionTaskState.ACCEPT, "task-accept"),
+        (sdrl.participant.SubmissionTaskState.REJECT, "task-reject"),
+        (sdrl.participant.SubmissionTaskState.REJECT_FINAL, "task-reject final"),
+        (sdrl.participant.SubmissionTaskState.ACCEPT_PAST, "task-accept past"),
     ])
 
     def indicator_for_students(taskname: str) -> str:
