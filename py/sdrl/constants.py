@@ -11,6 +11,7 @@ HTML_DIFFICULTY_SIGN = "&#x26ab;&#xfe0e;"  # &#x26ab; is an icon and always blac
 HTACCESS_FILE = ".htaccess"  # in instructor part of build directory
 METADATA_FILE = "course.json"  # at top-level of build directory
 PARTICIPANT_FILE = "student.yaml"
+PATHSET_FILE_EXT = "files" # extension of ".files" meta files
 SUBMISSION_FILE = "submission.yaml"
 SUBMISSION_COMMIT_MSG = "submission.yaml"
 SUBMISSION_CHECKED_COMMIT_MSG = "submission.yaml checked"

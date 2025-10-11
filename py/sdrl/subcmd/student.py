@@ -192,9 +192,8 @@ def cmd_push(ctx: sdrl.participant.Context):
     _show_instructors(ctx.course)
 
 
-MENU = "\n>>> p:prepare  w:webapp  e:edit  c:commit  u:push  q:quit  h:help  "
+MENU = "\n>>> w:webapp  e:edit  c:commit  u:push  q:quit  h:help  "
 MENU_HELP = f"""
-  prepare: create or update {c.SUBMISSION_FILE} for selecting/unselecting tasks via the webapp
   webapp:  view file tree(s) and course progress in browser, select tasks to be submitted
   edit:    manually edit  {c.SUBMISSION_FILE} to include tasks sedrila cannot recognize
   commit:  commit {c.SUBMISSION_FILE} with proper commit message for submission
@@ -202,8 +201,8 @@ MENU_HELP = f"""
   Can work on your work directory or on yours and your partner's if you put them side-by-side
   below the same parent directory.
 """
-MENU_CMDS = dict(p=cmd_prepare, w=cmd_webapp, e=cmd_edit, c=cmd_commit, u=cmd_push)
-OP_CMDS = dict(prepare=cmd_prepare, webapp=cmd_webapp, edit=cmd_edit)
+MENU_CMDS = dict(w=cmd_webapp, e=cmd_edit, c=cmd_commit, u=cmd_push)
+OP_CMDS = dict(webapp=cmd_webapp, edit=cmd_edit)
 
 
 def _show_instructors(course, with_gitaccount=False):

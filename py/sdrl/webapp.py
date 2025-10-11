@@ -1,9 +1,12 @@
 """Browse the virtual file system of a sdrl.participant.Context; see submissions and mark them."""
 import base64
+import itertools
 import os
+import pathlib
 import subprocess
 import typing as tg
 import html
+from urllib.parse import urlencode
 
 import bottle  # https://bottlepy.org/docs/dev/
 
@@ -24,7 +27,9 @@ FAVICON_URL = "/favicon-32x32.png"
 WEBAPP_CSS_URL = "/webapp.css"
 WEBAPP_JS_URL = "/script.js"
 SEDRILA_REPLACE_URL = "/sedrila-replace.action"
+SEDRILA_UPDATE_URL = "/sedrila-update.action"
 WORK_REPORT_URL = "/work.report"
+
 favicon32x32_png_base64 = """iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAE0ElEQVRYR8VXR0hdWxTdzxI1OrAG
 K1ZQbDGoOFBEUOyiYsUKtmAdOPslIPzPR2fB2CAqqFgRLAiCJEKcKIgogi3YosFGdKCiEcvLXSf/
 XN597z6/+RCz4Q3eOfusvc/a7VxFTU2NjpGR0W9KpbKciGyE32PIvmCk6evXr/8o6urq/hCM//0Y
@@ -74,6 +79,203 @@ basepage_html = """<!DOCTYPE html>
 """
 
 webapp_css = """
+:root {
+    --wa-blue: #004659;
+    --wa-blue-90: #195869;
+    --wa-blue-80: #336B7A;
+    --wa-blue-70: #4C7D8A;
+    --wa-blue-60: #66909B;
+    --wa-blue-50: #7FA2AC;
+    --wa-blue-40: #99B5BD;
+    --wa-blue-30: #B2C7CD;
+    --wa-blue-20: #CCDADE;
+    --wa-blue-10: #E5ECEE;
+
+    --wa-black-50: #808080;
+    --wa-black-10: #E6E6E6;
+
+    --wa-skyblue: #00A4D1;
+    --wa-dark-olive: #58756A;
+    --wa-light-olive: #86B0A0;
+    --wa-orange: #E57050;
+    --wa-deep-red: #813353;
+}
+
+li { padding: 0 !important; }
+
+.scroll {
+    overflow-y: auto;
+}
+
+#app {
+    height: 100vh;
+    width: 100vw;
+    display: grid;
+    grid-template-columns: 30ch 1fr;
+    background-color: var(--wa-black-10);
+}
+
+
+#index-layout {
+    display: grid;
+    grid-template-columns: 1fr auto;
+}
+
+#content {
+    overflow: auto;
+}
+
+main section {
+    padding: 2rem;
+}
+
+.student-card {
+    background-color: var(--wa-blue-90);
+    padding: 0.5rem;
+    color: var(--wa-black-10);
+    margin: 0.2rem 0;
+}
+
+#task-select {
+    overflow-y: auto;
+    position: relative;
+    color: var(--wa-black-10);
+    background-color: var(--wa-blue-70);
+}
+
+#task-select a {
+    text-decoration: none;
+    color: inherit;
+}
+
+#task-select ul {
+    margin: 0;
+}
+
+#home-link {
+    position: sticky;
+    display: block;
+    top: 0;
+    background-color: var(--wa-blue);
+}
+
+#task-select .item {
+    /* border-top: 0.1rem solid var(--wa-blue); */
+    padding: 0.5rem 1rem;
+}
+
+#files-bar {
+    overflow-x: auto;
+    position: sticky;
+    top: 0;
+    display: flex;
+    gap: 0.2rem;
+    background-color: var(--wa-blue);
+}
+
+#files-bar .file {
+    padding: 0.5rem 1rem;
+    background-color: var(--wa-blue-80);
+}
+
+#task-list {
+    list-style: none;
+    padding: 0;
+}
+
+#file-path {
+    display: grid;
+    grid-template-columns: 1fr auto;
+}
+
+#task-list li {
+    display: grid;
+    grid-template-columns: 1fr 2rem;
+}
+
+.task-indicator {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 1fr);
+    gap: 0.1rem;
+    padding: 0.1rem;
+}
+
+.indicator-bar.task-check { background-color: #00a2ff; }
+.indicator-bar.task-unchecked { background-color: #ffb300; }
+.indicator-bar.task-accept { background-color: #21db00; }
+.indicator-bar.task-accept.past { background-color: #199e02; }
+.indicator-bar.task-reject { background-color: #eb4034 }
+.indicator-bar.task-reject.final { background-color: #b00c00 }
+
+#code {
+    padding: 1rem;
+}
+
+.task-link {
+    display: block;
+    background-color: var(--wa-blue-90);
+}
+
+.task-link.selected {
+    background-color: var(--wa-blue-70);
+}
+
+a.file {
+    text-decoration: none;
+    color: var(--wa-blue-20);
+}
+
+.file.selected {
+    background-color: var(--wa-blue-60);
+}
+
+.spacer-lg {
+    height: 20rem;
+}
+
+
+#work-table {
+    max-height: 80vh;
+    overflow: auto;
+}
+
+#accept-buttons {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    padding: 1rem;
+    margin: 1rem;
+    background-color: var(--wa-black-10);
+}
+
+#task-main {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    text: black;
+}
+
+.student-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.action-button input[type="submit"] {
+    display: none;
+}
+
+.action-button label {
+    cursor: pointer;
+    background-color: var(--wa-blue-50);
+    padding: 0.5rem 1rem;
+}
+
+.action-button label.active {
+    outline: 0.2rem solid var(--wa-blue-70);
+}
+
+
+
+
 h1.sview, h2.sview, h3.sview {
   font-family: sans-serif;
   width: 100%;
@@ -151,8 +353,24 @@ document.querySelectorAll('.sedrila-replace').forEach(t => {
 });
 """ % SEDRILA_REPLACE_URL
 
-
 @bottle.route("/")
+def serve_index():
+    ctx = sdrl.participant.get_context()
+    body = f"""
+        <main id="index-layout">
+            <section class="scroll" id="work-report">
+                <h2>work-report</h2>
+                {html_for_work_report_section(ctx)}
+            </section>
+            <section class="scroll" id="students-table">
+                <h2>Student{"s" if len(ctx.studentlist) != 1 else ""}</h2>
+                {html_for_student_table(ctx.studentlist)}
+            </section>
+        </main>
+    """
+    return html_for_layout("sedrila", body)
+
+@bottle.route("/legacy")
 def serve_root():
     ctx = sdrl.participant.get_context()
     body = "%s\n\n%s\n\n%s\n\n%s\n\n%s" % (
@@ -165,34 +383,30 @@ def serve_root():
     return html_for_page("sedrila", ctx.course_url, body)
 
 
-@bottle.route(WORK_REPORT_URL)
-def serve_work_report():
-    ctx = sdrl.participant.get_context()
-    return html_for_page("work report", ctx.course_url, html_for_work_report(ctx))
-
-
-@bottle.route(SEDRILA_REPLACE_URL, method="POST")
-def serve_sedrila_replace():
+@bottle.route(SEDRILA_UPDATE_URL, method = "POST")
+def serve_sedrila_update():
     """
-    On the HTML page, spots where the user can change the state are coded like so:
-      <span id="mytaskname" data-index=0 class="sedrila-replace someclass">sometext</span>
-    When clicked, javascript will produce a POST request with a JSON body like so:
-      { id: "mytaskname", index: 0, cssclass: "sedrila-replace someclass", text: "sometext" }
-    This routine will call the state change function on the context and respond with a JSON body like so:
-      { cssclass: "sedrila-replace newclass", text: "newtext" }
+    Update the state of a task in the sedrila webapp
+    the json body of the post request should look like this:
+        { taskname: str, student_idx: int, new_state: State }
+    the response should look like this:
+        { updated_state: State }
     """
-    data = bottle.request.json
+    data = bottle.request.params
     ctx = sdrl.participant.get_context()
-    idx = data['index']
-    student, taskname = ctx.studentlist[idx], data['id']
-    taskstatus = student.submission[taskname]  # get task accept/reject status
-    classes = set(data['cssclass'].split(' '))
-    allclasses = set(student.possible_submission_states)
-    newstatus = student.move_to_next_state(taskname, taskstatus)
-    classes = (classes - allclasses)
-    classes.add(newstatus)
-    data['cssclass'] = ' '.join(classes)
-    return data
+    idx = int(data['student_idx'])
+    student = ctx.studentlist[idx]
+    taskname = data['taskname']
+    new_state = data['new_state']
+
+    if not student.set_state(taskname, new_state):
+        bottle.response.status = 404
+        return "invalid task or state"
+
+    if "return_file" in data:
+        return bottle.redirect(f"/tasks/{taskname}/{html.unescape(data['return_file'])}")
+
+    return { "updated_state": new_state }
 
 
 @bottle.route(FAVICON_URL)
@@ -212,82 +426,87 @@ def serve_js():
     bottle.response.content_type = 'text/javascript'
     return webapp_js
 
+@bottle.route("/tasks/<taskname>/<path:path>")
+@bottle.route("/tasks/<taskname>")
+def serve_task(taskname: str, path: str | None = None):
+    ctx = sdrl.participant.get_context()
+    is_instructor = ctx.is_instructor
 
-@bottle.route("<mypath:path>/")
-def serve_directory(mypath: str):
-    title = f"D:{html.escape(os.path.basename(mypath))}"
-    context = sdrl.participant.get_context()
-    body = html_for_directorylist(context, f"{mypath}/")
-    return html_for_page(title, context.course_url, body)
+    raw_files = set()
+    for s in ctx.studentlist:
+        task = s.submissions.task(taskname)
+        if task: raw_files.update(task.files)
+    files = sorted(raw_files)
 
+    files_bar = "".join(f"""
+        <a href="/tasks/{taskname}{f}" class="file{" selected" if f == path else ""}">
+            {pathlib.Path(f).name}
+        </a>
+    """ for f in files)
 
-@bottle.route("<mypath:path>")
-def serve_vfile(mypath: str):
-    context = sdrl.participant.get_context()
-    if bottle.request.query.raw:  # ...?raw=workdirname
-        student = context.students[bottle.request.query.raw]
-        return handle_rawfile(student, mypath)
-    title = f"F:{html.escape(os.path.basename(mypath))}"
-    body = html_for_file(context.studentlist, mypath)
-    return html_for_page(title, context.course_url, body)
+    if path: path = "/" + path
+    elif len(files) > 0: path = files[0]
 
+    def html_for_button(student_idx: int, state: str, task: sdrl.participant.SubmissionTask) -> str:
+        return_file = f"<input type='hidden' name='return_file' value='{html.escape(path[1:])}'/>" if path else None
+        return f"""
+            <form class="action-button" action="{SEDRILA_UPDATE_URL}" method="POST"/>
+                <input type="hidden" name="taskname" value="{taskname}"/>
+                <input type="hidden" name="student_idx" value="{student_idx}"/>
+                <input type="hidden" name="new_state" value="{state}"/>
+                {return_file or ""}
+                <label class="{"active" if task.state == state or (task.state == None and state == c.SUBMISSION_NONCHECK_MARK) else ""}">
+                    {state}
+                    <input type="submit"/>
+                </label>
+            </form>
+        """
+
+    buttons_markup = []
+    for i, s in enumerate(ctx.studentlist):
+        t = s.submissions.task(taskname)
+        if t:
+            buttons_markup.append(f"""
+            <div class="student-buttons">
+                <div>{s.student_gituser}</div>
+                {html_for_button(i, c.SUBMISSION_CHECK_MARK, t) if t.is_student_checkable or (t.is_checkable and is_instructor) else ""}
+                {html_for_button(i, c.SUBMISSION_NONCHECK_MARK, t) if t.is_student_checkable and not is_instructor else ""}
+                {html_for_button(i, c.SUBMISSION_ACCEPT_MARK, t) if is_instructor and t.is_checkable else ""}
+                {html_for_button(i, c.SUBMISSION_REJECT_MARK, t) if is_instructor and t.is_checkable else ""}
+                {"REJECT_FINAL" if t.state == sdrl.participant.SubmissionTaskState.REJECT_FINAL else ""}
+                {"ACCEPTED" if t.state == sdrl.participant.SubmissionTaskState.ACCEPT_PAST else ""}
+            </div>
+            """)
+    buttons = "".join(buttons_markup)
+
+    tasklink = html_for_tasklink(taskname, ctx.submission_find_taskname, ctx.course_url, ctx.is_instructor)
+
+    try:
+        file_markup = html_for_file(ctx.studentlist, path) if path else "no files"
+    except:
+        file_markup = html.escape("<binary>")
+
+    body = f"""
+        <main id="task-main">
+            <div id="files-bar">
+                {files_bar}
+            </div>
+            <div id="code">
+                <div id="file-path">
+                    <div>{path if path else ""}</div>
+                    <div>{tasklink}</div>
+                </div>
+                {file_markup}
+                <div id="accept-buttons">
+                    {buttons}
+                </div>
+            </div>
+        </main>
+    """
+    return html_for_layout(taskname, body, selected=taskname)
 
 def handle_rawfile(student: sdrl.participant.Student, mypath: str):
     return bottle.static_file(student.path_actualpath(mypath), root='.')
-
-
-def html_for_breadcrumb(path: str) -> str:
-    parts = [f"<nav {CSS}><a href='/'>sedrila</a>:"]
-    slashpos = path.find("/", 0)
-    assert slashpos == 0
-    nextslashpos = path.find("/", slashpos + 1)
-    # ----- process path elements between slashes:
-    while nextslashpos > 0:
-        parts.append(f" / <a href='{html.escape(path[:nextslashpos + 1])}'>{html.escape(path[slashpos + 1:nextslashpos])}</a>")
-        slashpos = nextslashpos
-        nextslashpos = path.find("/", slashpos + 1)
-    # ----- process last path element:
-    if slashpos + 1 == len(path):
-        parts.append(" /")  # dir path
-    else:
-        parts.append(f" / <a href='{html.escape(path)}'>{html.escape(path[slashpos + 1:])}</a>")  # file path
-    return f"{''.join(parts)}</nav>"
-
-
-def html_for_directorylist(ctx: sdrl.participant.Context, mypath, breadcrumb=True) -> str:
-    """A page listing the directories and files under mypath in the virtual filesystem."""
-    dirs, files = ctx.ls(mypath)
-    lines = [html_for_breadcrumb(mypath) if breadcrumb else ""]  # noqa
-    lines.append(f"<h1 {CSS}>Contents of '{html.escape(mypath)}'</h1>")
-    lines.append(f"<h2 id='subdirectories'{CSS}>Subdirectories</h2>")
-    lines.append(f"<table {CSS}>")
-    for idx, mydir in enumerate(sorted(dirs)):
-        tasklink = html_for_tasklink(mydir, ctx.submission_find_taskname, ctx.course_url, ctx.is_instructor)
-        lines.append(f"{tr_tag(idx)}"
-                     f"<td {CSS}><a href='{html.escape(mydir)}'>{html.escape(mydir)}</a></td>"
-                     f"<td {CSS}>{tasklink}</td>"
-                     f"</tr>")
-    lines.append("</table>")
-    lines.append(f"<h2 id='files' {CSS}>Files</h2>")
-    lines.append(f"<table {CSS}>")
-    for idx, file in enumerate(sorted(files)):
-        filepath = os.path.join(mypath, file)
-        tasklink = html_for_tasklink(filepath, ctx.submission_find_taskname, ctx.course_url, ctx.is_instructor)
-        lines.append(f"{tr_tag(idx)}"
-                     f"<td {CSS}><a href='{html.escape(filepath)}'>{html.escape(file)}</a></td>"
-                     f"{html_for_file_existence(ctx.studentlist, filepath)}"
-                     f"<td {CSS}>{tasklink}</td>"
-                     f"</tr>")
-    lines.append("</table>")
-    body = "\n".join(lines)
-    return body
-
-
-def html_for_editable_cell(idx: int, student: sdrl.participant.Student, taskname: str) -> str:
-    return (f"<span id='{html.escape(taskname)}' data-index={idx} "
-            f"class='sedrila-replace {html.escape(student.submission[taskname])}'>"
-            f"{html.escape(student.student_gituser)}</span>")
-
 
 def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
     """
@@ -347,7 +566,7 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
     toc = []
     for idx, workdir in enumerate(studentlist):
         toc.append(f"<a href='#{html.escape(workdir.topdir)}'>{idx}. {html.escape(workdir.topdir)}</a>  ")
-        lines.append(f"<h2 id='{html.escape(workdir.topdir)}' {CSS}>{idx}. {html.escape(workdir.topdir)}: {html.escape(filename)}</h2>")
+        # lines.append(f"<h2 id='{html.escape(workdir.topdir)}' {CSS}>{idx}. {html.escape(workdir.topdir)}: {html.escape(filename)}</h2>")
         if not workdir.path_exists(mypath):
             lines.append(f"(('{html.escape(mypath)}' does not exist in '{html.escape(workdir.topdir)}'))")
             kinds.append(MISSING)
@@ -357,81 +576,10 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
             append_diff()
     # ----- render:
     the_toc, the_lines = '\n'.join(toc), '\n'.join(lines)
-    markdown = (f"{html_for_breadcrumb(mypath)}\n"
-                f"<h1 {CSS}>{html.escape(mypath)}</h1>\n"
-                f"{the_toc}\n"
-                f"{the_lines}")
+    markdown = f"{the_lines}"
     macros.switch_part("webapp")
     mddict = md.render_markdown(mypath, filename, markdown, b.Mode.STUDENT, dict())
     return mddict['html']
-
-
-def html_for_file_existence(studentlist: list[sdrl.participant.Student], mypath: str) -> str:
-    """One or more table column entries with file existence markers for each file or file pair."""
-    def file_exists_at(idx: int) -> bool:
-        return studentlist[idx].path_exists(mypath)
-
-    BEGIN = f'<td {CSS}>'
-    END = '</td>'
-    MISSING = '-- '
-    entries = []
-    for idx, wd in enumerate(studentlist):
-        wd: sdrl.participant.Student  # type hint
-        if wd.path_exists(mypath):
-            taskname = wd.submission_find_taskname(mypath)
-            if taskname:
-                entries.append(f"{BEGIN}{html_for_editable_cell(idx, wd, taskname)}{END}")
-            else:
-                entries.append(f"{BEGIN}{html.escape(wd.student_gituser)}{END}")
-        else:
-            entries.append(f"{BEGIN}{MISSING}{END}")
-        if idx % 2 == 1:  # finish a pair
-            if file_exists_at(idx) and file_exists_at(idx-1):
-                size_even, size_odd = prev_wd.path_actualsize(mypath), wd.path_actualsize(mypath)  # noqa
-                if size_even > 1.5 * size_odd:
-                    sign = ">>"
-                elif size_even > size_odd:
-                    sign = ">"
-                elif size_even == size_odd:
-                    sign = "="
-                elif 1.5 * size_even < size_odd:
-                    sign = "<<"
-                elif size_even < size_odd:
-                    sign = "<"
-                else:
-                    assert False
-            else:
-                sign = ""
-            last = entries.pop()
-            entries.append(f"{BEGIN}{sign}{END}")
-            entries.append(last)
-        prev_wd = wd
-    return ''.join(entries)
-
-
-def html_for_instructions(is_instructor: bool):
-    """Explain how to use interactively what html_for_editable_cell() generates."""
-    result = [
-        "<ul>",
-        " <li>Browse <a href='#subdirectories'>directories</a>, "
-        "<a href='#files'>files</a>, "
-        "<a href='#submissions'>submitted tasks</a>, "
-        "<a href='#submissionrelated'>submission-related files</a>, or "
-        f"the <a href='{WORK_REPORT_URL}'>work report</a> "
-        "of one or more student file trees.</li>",
-        " <li>Cycle through the following states by clicking the colored cells "
-        f"for existing entries of '{c.SUBMISSION_FILE}':<br>"]
-    if is_instructor:
-        states = [("Please check", c.SUBMISSION_CHECK_MARK),
-                  ("Accepted", c.SUBMISSION_ACCEPT_MARK),
-                  ("Rejected", c.SUBMISSION_REJECT_MARK), ]
-    else:
-        states = [("Submit", c.SUBMISSION_CHECK_MARK),
-                  ("Do not submit", c.SUBMISSION_NONCHECK_MARK), ]
-    explanations = [f"<span class='{state}'>{text}</span>" for text, state in states]
-    result.append(', '.join(explanations))
-    result.append("</li></ul>")
-    return '\n'.join(result)
 
 
 def html_for_page(title: str, course_url: str, body: str) -> str:
@@ -442,29 +590,67 @@ def html_for_page(title: str, course_url: str, body: str) -> str:
         script=f"<script src='{WEBAPP_JS_URL}'></script>"
     )
 
+def html_for_layout(title: str, content: str, selected: str | None = None) -> str:
+    ctx = sdrl.participant.get_context()
 
-def html_for_remaining_submissions(ctx: sdrl.participant.Context, submissions_remaining: set[str]) -> str:
-    def html_for_remainingness(subm: str) -> str:
-        MISSING = '-- '
-        parts = []
-        for idx2, wd in enumerate(ctx.studentlist):
-            parts.append("<td {CSS}>")
-            parts.append(f"{html_for_editable_cell(idx2, wd, subm)} " if subm in wd.submissions_remaining else MISSING)
-            parts.append("</td>")
-        return ''.join(parts)
 
-    lines = [f"<h1 id='submissions' {CSS}>Submissions not covered above</h1>",
-             f"<table {CSS}>"]
-    for idx, submission in enumerate(sorted(submissions_remaining)):
-        tasklink = html_for_tasklink(submission, ctx.submission_find_taskname, ctx.course_url, ctx.is_instructor)
-        lines.append(f"{tr_tag(idx)}"
-                     f"<td {CSS}>{html.escape(submission)}</td>"
-                     f"<td {CSS}>{html_for_remainingness(submission)}</td>"
-                     f"<td {CSS}>{tasklink}</td>"
-                     f"</tr>")
-    lines.append("</table>")
-    return "\n".join(lines)
+    # small trick to move relevant tasks up
+    # adds '##' to all checkable tasks whilst sorting
+    def checkable_first(name):
+        for s in ctx.studentlist:
+            t = s.submissions.task(name)
+            if t and t.is_checkable: return f"##{name}"
+        return name
+    tasks = sorted(ctx.tasknames, key=checkable_first)
 
+    state_classes = dict([
+        (None, "task-unchecked"),
+        (sdrl.participant.SubmissionTaskState.CHECK, "task-check"),
+        (sdrl.participant.SubmissionTaskState.ACCEPT, "task-accept"),
+        (sdrl.participant.SubmissionTaskState.REJECT, "task-reject"),
+        (sdrl.participant.SubmissionTaskState.REJECT_FINAL, "task-reject final"),
+        (sdrl.participant.SubmissionTaskState.ACCEPT_PAST, "task-accept past"),
+    ])
+
+    def indicator_for_students(taskname: str) -> str:
+        indicators = []
+        for s in ctx.studentlist:
+            t = s.submissions.task(taskname)
+            indicators.append(f"""
+            <div class="indicator-bar {state_classes[t.state] if t and t.state in state_classes else "unknown"}"></div>
+            """)
+
+        return f"""
+            <div class="task-indicator">
+                {"".join(indicators)}
+            </div>
+        """
+
+    tasks_html = "".join(f"""
+        <li>
+            <a class="item task-link{' selected' if selected == t else ''}" href="/tasks/{t}">
+                {t}
+            </a>
+            {indicator_for_students(t)}
+        </li>
+
+    """ for t in tasks)
+
+    body = f"""
+        <div id="app">
+            <section id="task-select">
+                <a class="item" id="home-link" href="/">Home</a>
+                <ul id="task-list">
+                    {tasks_html}
+                </ul>
+                <div class="spacer-lg"></div>
+            </section>
+            <section id="content">
+                {content}
+            </section>
+        </div>
+    """
+    return html_for_page(title, ctx.course_url, body)
 
 def html_for_resources(course_url: str) -> str:
     return (f'<link rel="icon" type="image/png" sizes="16x16 32x32" href="{FAVICON_URL}">\n'
@@ -476,33 +662,24 @@ def html_for_resources(course_url: str) -> str:
 
 
 def html_for_student_table(studentlist: list[sdrl.participant.Student]) -> str:
-    lines = [f"<table {CSS}>"]
-    lines.append(f"{tr_tag(-1)}<td {CSS}><b>student_name</b></td><td {CSS}><b>student_id</b></td>"
-                 f"<td {CSS}><b>student_gituser</b></td><td {CSS}><b>partner_gituser</b></td>")
-    for idx, stud in enumerate(studentlist):
-        lines.append(f"{tr_tag(idx)}"
-                     f"<td {CSS}>{html.escape(stud.student_name)}</td>"
-                     f"<td {CSS}>{html.escape(stud.student_id)}</td>"
-                     f"<td {CSS}>{html.escape(stud.student_gituser)}</td>"
-                     f"<td {CSS}>{html.escape(stud.partner_gituser) or '--'}</td>"
-                     f"</tr>")
-    lines.append("</table>")
-    return "\n".join(lines)
+    tables = "".join(f"""
+        <div class="student-card">
+            <div class="student-name">
+                {html.escape(s.student_name)} ({html.escape(s.student_id)})
+            </div>
+            <hr/>
+            <div class="student-git">Git: {html.escape(s.student_gituser)}</div>
+            <div class="partner-git">
+                Partner: {html.escape(s.partner_gituser or "< none >")}
+            </div>
+        </div>
+    """ for s in studentlist)
 
-
-def html_for_submissionrelated_files(ctx: sdrl.participant.Context, submission_pathset: set[str]) -> str:
-    lines = [f"<h1 id='submissionrelated' {CSS}>Files with submission-related names</h1>",
-             f"<table {CSS}>"]
-    for idx, mypath in enumerate(sorted(submission_pathset)):
-        tasklink = html_for_tasklink(mypath, ctx.submission_find_taskname, ctx.course_url, ctx.is_instructor)
-        lines.append(f"{tr_tag(idx)}"
-                     f"<td {CSS}><a href='{html.escape(mypath)}'>{html.escape(mypath)}</a></td>"
-                     f"{html_for_file_existence(ctx.studentlist, mypath)}"
-                     f"<td {CSS}>{tasklink}</td>"
-                     f"</tr>")
-    lines.append("</table>")
-    return "\n".join(lines)
-
+    return f"""
+        <div>
+            {tables}
+        </div>
+    """
 
 def html_for_tasklink(str_with_taskname: str, find_taskname_func: tg.Callable[[str], str],
                       course_url: str, is_instructor: bool) -> str:
@@ -511,64 +688,61 @@ def html_for_tasklink(str_with_taskname: str, find_taskname_func: tg.Callable[[s
     return f"<a href='{html.escape(course_url)}{instructorpart}{html.escape(taskname)}.html'>task</a>" if taskname else ""
 
 
-def html_for_work_report(ctx: sdrl.participant.Context) -> str:
-    tasks = [(task.path, task.name) for task in ctx.course.taskdict.values()]
-    elems = [f"<h1 {CSS}>Tasks with time worked (w) or earned (e)</h1>\n",
-             f"<p>Colors for time earned: ",
-             f"<span class='{c.SUBMISSION_ACCEPT_MARK}'>Accepted</span>, "
-             f"<span class='{c.SUBMISSION_REJECTOID_MARK}'>Rejected (resubmittable)</span>, "
-             f"<span class='{c.SUBMISSION_REJECT_MARK}'>Rejected (final)</span>"
-             f"</p>\n",
-             f"<table {CSS}>\n",
-             f"<thead {CSS}>\n",
-             "<tr {CSS}>",
-             f"<th></th>",
-             ''.join((f"<th colspan=2>{html.escape(s.student_gituser)}</th>" for s in ctx.studentlist)),
-             f"</tr>",
-             "<tr {CSS}>",
-             f"<th>Task</th>",
-             ''.join(("<th>w</th><th>e</th>" for _ in ctx.studentlist)),
-             f"</tr>",
-             f"</thead>\n"]
-    idx = 0
-    for taskpath, taskname in sorted(tasks):
-        # ----- make sure this task belongs into the report:
-        workhours = [s.course.task(taskname).workhours for s in ctx.studentlist]
-        states = [s.course.task(taskname).acceptance_state for s in ctx.studentlist]
-        is_relevant = sum(workhours) > 0.0 or any((s != c.SUBMISSION_NONCHECK_MARK for s in states))
-        if not is_relevant:
-            continue  # nothing interesting would be in this row
-        # ----- produce general part of row:
-        idx += 1
-        elems.append(tr_tag(idx))
-        elems.append(f"<td {CSS}>{html.escape(taskpath)}</td>")
-        # ----- produce student-specific parts of row:
-        for stud in ctx.studentlist:
-            task = stud.course.task(taskname)
-            elems.append(f"<td {CSS}>{round(task.workhours, 2) if task.workhours else ''}</td>")
-            if task.acceptance_state != c.SUBMISSION_NONCHECK_MARK:
-                time_earned = round(task.time_earned, 2)
-                elems.append(f"<td {CSS}><span class='{task.acceptance_state}'>{time_earned}</span></td>")
-            else:
-                elems.append(f"<td {CSS}></td>")
-        elems.append("</tr>\n")
-    elems.append(f"<thead {CSS}>")
-    elems.append("<tr>")
-    elems.append("<th>Total:</th>")
-    for stud in ctx.studentlist:
-        workhours_total = sum([t.workhours for t in stud.course.taskdict.values()])
-        time_earned_total = sum([t.time_earned for t in stud.course.taskdict.values()])
-        elems.append(f"<th>{round(workhours_total, 2)}</th><th>{round(time_earned_total, 2)}</th>")
-    elems.append("</tr>")
-    elems.append("</thead>")
-    elems.append("</table>\n")
-    return ''.join(elems)
+def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
+    if len(set(map(lambda s: s.student_gituser, ctx.studentlist))) != len(ctx.studentlist):
+        b.warning("multiple students with same git username work report might be incorrect!")
+    total_earned = { s.student_gituser: .0 for s in ctx.studentlist}
+    total_work = { s.student_gituser: .0 for s in ctx.studentlist }
 
+    def html_for_students(task: str) -> str:
+        markup = []
+        for s in ctx.studentlist:
+            ct = s.course.task(task) # course_task
+            if ct:
+                total_earned[s.student_gituser] += ct.time_earned
+                total_work[s.student_gituser] += ct.workhours
 
-def tr_tag(idx: int) -> str:
-    color = "even" if idx % 2 == 0 else "odd"
-    return f"<tr class='sview {color}'>"
+            markup.append(f"""
+                <td>{round(ct.workhours, 2) if ct and ct.workhours else ""}</td>
+                <td>{round(ct.time_earned, 2) if ct and ct.time_earned else ""}</td>
+            """)
 
+        return "".join(markup)
+
+    tasks_markup = []
+    sorted_tasks = sorted(ctx.tasknames)
+    for name in sorted_tasks:
+        tasks_markup.append(f"""
+            <tr>
+                <td>{name}</td>
+                {html_for_students(name)}
+            </tr>
+        """)
+
+    students_markup = []
+    totals_markup = []
+    for s in ctx.studentlist:
+        students_markup.append(f"""
+        <th colspan="2">{s.student_gituser}</th>
+        """)
+        totals_markup.append(f"""
+        <td>{round(total_work[s.student_gituser], 2)}</td>
+        <td>{round(total_earned[s.student_gituser], 2)}</td>
+        """)
+
+    return f"""
+        <table id="work-table">
+            <tr>
+                <th>task</td>
+                {''.join(students_markup)}
+            </tr>
+            {''.join(tasks_markup)}
+            <tr>
+            <td>totals (worked, earned)</td>
+            {''.join(totals_markup)}
+            </tr>
+        </table>
+    """
 
 def diff_files(path1: str, path2: str) -> str:
     problem1 = b.problem_with_path(path1)

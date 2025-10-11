@@ -106,7 +106,7 @@ def submission_checked_commits(instructors: tg.Sequence[tg.Mapping[str, str]],
     """The properly instructor-signed Commits of finished submission checks."""
     try:
         allowed_signers = {b.as_fingerprint(instructor['keyfingerprint'])
-                           for instructor in instructors}
+                           for instructor in instructors if 'keyfingerprint' in instructor}
     except KeyError:
         allowed_signers = set()  # silence linter warning
         b.critical("missing 'keyfingerprint' in configuration")
