@@ -328,6 +328,7 @@ def check_output1(course: course.Coursebuilder, actual_output1: str, expected_ou
     with contextlib.chdir(course.targetdir_s):
         check_filelist(expected_filelist1)
         assert os.path.exists(os.path.join(course.targetdir_i, c.HTACCESS_FILE))
+        assert b.slurp(f"{course.targetdir_i}/{c.PARTICIPANTSLIST_FILE}") == "123\n124"
         check_toc1()
         check_task_html1()
         check_zipfile1()

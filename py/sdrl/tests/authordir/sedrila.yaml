@@ -11,6 +11,10 @@ blockmacro_topmatter:
   WARNING: "<strong>Warning:</strong> "
   NOTICE: "<strong>Note:</strong> "
   INSTRUCTOR: "<h2>Instructor: {arg1}</h2>"
+participants:
+  file: participants.tsv
+  file_column: id
+  student_attribute: student_id
 instructors:
   - nameish: One Instructor
     email: o.instructor@inf.fu-berlin.de
