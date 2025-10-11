@@ -27,6 +27,12 @@ class PathsAndRemaining(tg.NamedTuple):
     remaining_tasks: set[str]
 
 class SubmissionTaskState(enum.StrEnum):
+    """
+    used by SubmissionTask
+    the extended state of a submitted task
+    also taskes into account things like final rejects
+    and distinguishes between current and past rejects
+    """
     # the task name is invalid
     INVALID = "INVALID"
 
@@ -43,7 +49,18 @@ class SubmissionTaskState(enum.StrEnum):
     REJECT_FINAL = "REJECT_FINAL"
 
 class SubmissionTask:
+    """
+    stores the set of files submitted for a task
+    as the names do not have to match up with the task
+    anymore like in old builds of sedrila
+
+    also contains the precise state of the task for display and editing
+    """
+    # set of (relative) file paths that are part of the task
     files: set[str] = set()
+    # current state of the task, None if the 
+    # task is not considered in any way
+    # (equivalent of NONCHECK in the past)
     state: SubmissionTaskState | None = None
 
     def __init__(self): self.files = set()
@@ -56,14 +73,19 @@ class SubmissionTask:
     @property
     def is_checkable(self) -> bool:
         """returns wether the task can be marked for submission or checked"""
-        return self.state in [None, SubmissionTaskState.CHECK, SubmissionTaskState.ACCEPT, SubmissionTaskState.REJECT]
+        valid = [None, SubmissionTaskState.CHECK, SubmissionTaskState.ACCEPT, SubmissionTaskState.REJECT]
+        return self.state in valid
 
     @property
     def is_student_checkable(self) -> bool:
-        return self.state in [None, SubmissionTaskState.CHECK, SubmissionTaskState.REJECT]
-
+        valid = [None, SubmissionTaskState.CHECK, SubmissionTaskState.REJECT]
+        return self.state in valid
 
 class Submission:
+    """
+    contains data about an entire submission of a student (processed tasks)
+    and allows to query them in various ways
+    """
     # the set of tasks that have a commit
     _tasks: tg.Dict[str, SubmissionTask] = {}
 
