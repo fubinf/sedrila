@@ -369,6 +369,9 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
     def __init__(self, *, configfile: str, **kwargs):
         self.configfile = self.context = configfile
         self.configdict = b.slurp_yaml(configfile)
+        self._expandvars(self.configdict,
+                  ['title', 'name', 'baseresourcedir', 'templatedir', 'allowed_attempts'],
+                         self.configfile)
         super().__init__(**kwargs)
         self.parttype = dict(Chapter=Chapterbuilder, Taskgroup=Taskgroupbuilder, Task=Taskbuilder)
         self._read_config(self.configdict)
@@ -689,6 +692,14 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         for zf in self.directory.get_all(el.Zipfile):
             self.namespace_add(zf)
 
+    @staticmethod
+    def _expandvars(configdict: dict, attrlist: tg.Iterable[str], context: str):
+        """In configdict, modify entries named in attrlist by calling b.expandvars() on them."""
+        for attr in attrlist:
+            if attr not in configdict:
+                continue  # we can expand only where an entry exists
+            configdict[attr] = b.expandvars(configdict[attr], f"{context}::{attr}")
+                                            
     def _init_parts(self, configdict: dict, include_stage: str):
         self.directory.record_the(Course, self.name, self)
         self.namespace_add(self)

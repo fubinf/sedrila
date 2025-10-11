@@ -3,6 +3,7 @@
 
 ## Version 2.10.0 (upcoming)
 - `author`: support `ITREE` prefix in [INCLUDE::ITREE:somefile]`
+- `author`: support environment variable expansion in some config file settings
 - `author`, `instructor`: introduced `former_instructors` config setting 
   (like `instructors`, but not suggested to students upon submission preparation)
 - ...

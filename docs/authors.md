@@ -54,10 +54,13 @@ https://github.com/fubinf/propra-inf/blob/main/sedrila.yaml (content in German, 
 About the entries:
 
 - `title`: Course title, can be chosen freely.
+  This setting supports the expansion of environment variables using the `$MYVAR` or `${MYVAR}` syntax.
   A title exists at all levels (course, chapter, taskgroup, task).
   Titles are used for headings and for tooltips of links.
 - `name`: Short title of the course to be used in the breadcrumb navigation.
+  Supports the expansion of environment variables.
 - `baseresourcedir` is optional and states where the few CSS and JavaScript files live. 
+  Supports the expansion of environment variables.
   Not defining a `baseresourcedir` means to use the built-in default files.  
 - `chapterdir`: Relative path of directory in which the course content lives.
   The names of directories below `chapterdir` are the names of chapters (level 1)
@@ -81,6 +84,7 @@ About the entries:
   instructor subdirectory of the generated website.
   See section "Confidential contents" below for details.
 - `templatedir` is also optional and states where the Jinja2 templates for the overall page structures live. 
+  Supports the expansion of environment variables.
   Not defining a `templatedir` means to use the built-in default files,  
   which is probably sufficient for most cases.
 - `stages`: ordered list of allowed values for the 'stage:' metadata entry for tasks, taskgroups, and chapters.
@@ -143,6 +147,7 @@ About the entries:
   then tasks with a timevalue of 0.5, 1.0, 1.5, 2.0, 3.0, 4.0 hours will have  
   theoretical allowed attempts of 2.25, 2.5, 2.75, 3.0, 3.5, 4.0,
   and actual allowed attempts of 2, 2, 2, 3, 3, 4, respectively.
+  Supports the expansion of environment variables.
 - `chapters`: describes the course content at the chapter and taskgroup level by listing
   the directory name of each chapter and taskgroup.
   The individual tasks are found by inspecting all `*.md` files in a taskgroup directory.

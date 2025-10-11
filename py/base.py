@@ -110,6 +110,14 @@ def copyattrs(context: str, source: StrAnyDict, target: tg.Any,
             error(f"'{context}': attribute '{attrname}' should be {str(its_type)} (is '{value}')")
 
 
+def expandvars(msg: str, context: str) -> str:
+    result = os.path.expandvars(msg)
+    mm = re.search(r'\$\{|\$\w', result)  # leftover unexpanded variables
+    if mm:
+        warning(f"env variable undefined in '{result}'", context)
+    return result
+
+
 def slurp(resource: str) -> str:
     """Reads local file (via filename) or http resource (via URL)."""
     try:
