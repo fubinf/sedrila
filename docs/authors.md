@@ -112,6 +112,16 @@ About the entries:
   (Exception: `course_url` cannot be overwritten, because the value is needed to make the customized prompts
   available in the first place.)
   You can add optional attributes.
+- `participants` (optional): If provided, may generate a participants list file in the instructor output directory,
+  which is then used by the `instructor` command to emit a warning when examining a submission of 
+  a student not on the participants list.
+  Three keys need to be present:  
+  `file`: name of the participants list input file, which must be a TAB-separated values text file
+  with column headers.
+  If this value is empty, the entire `participants` entry will be ignored.  
+  `file_column`: name of the column in which the attribute is found by which a participant is identied.  
+  `student_attribute`: name of the entry in the student's `student.yaml` file that identifies the student
+  in the participants list file.
 - `instructors`: The source of truth for who can give students credit 
   for their work. A list of dictionaries, each of which has the following entries:  
   `nameish`: the personal name or nickname of the instructor so students know who they can talk to,  

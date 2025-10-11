@@ -268,7 +268,6 @@ class Course(el.Part):
         self._read_config(self.configdict)
         self.allowed_attempts_base, self.allowed_attempts_hourly = self._parse_allowed_attempts()
 
-
     @functools.cached_property  # beware: call this only once initialization is complete!
     def taskdict(self) -> dict[str, Task|Taskbuilder]:
         return {k:v for k,v in self.namespace.items() if isinstance(v, Task)}
@@ -315,7 +314,7 @@ class Course(el.Part):
                     configdict, self,
                     mustcopy_attrs=('title, name, instructors, allowed_attempts' +
                                     self.MUSTCOPY_ADDITIONAL),
-                    cancopy_attrs=('former_instructors, student_yaml_attribute_prompts' +
+                    cancopy_attrs=('participants, former_instructors, student_yaml_attribute_prompts' +
                                    self.CANCOPY_ADDITIONAL),
                     mustexist_attrs='chapters',
                     report_extra=bool(self.MUSTCOPY_ADDITIONAL))
@@ -383,6 +382,13 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         return f"<a href='index.html' {titleattr}>{self.name}</a>"
 
     @property
+    def has_participantslist(self) -> bool:
+        return ('participants' in self.configdict and 
+                self.configdict['participants'].get('file', False) and
+                self.configdict['participants'].get('file_column', False) and
+                self.configdict['participants'].get('student_attribute', False))
+    
+    @property
     def outputfile(self) -> str:
         return "index.html"
 
@@ -416,6 +422,9 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
                       student_yaml_attribute_prompts=getattr(self, 'student_yaml_attribute_prompts', dict()),
                       allowed_attempts=self.allowed_attempts,
                       chapters=[chapter.as_json() for chapter in self.chapters])
+        if self.has_participantslist:
+            # hand through only the relevant part:
+            result['participants'] = dict(student_attribute=self.configdict['participants']['student_attribute'])
         return result
 
     def check_links(self):
@@ -722,7 +731,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         self.glossary = glossary.Glossary(c.AUTHOR_GLOSSARY_BASENAME, parent=self)
         self.directory.record_the(glossary.Glossary, self.glossary.name, self.glossary)
         self.namespace_add(self.glossary)
-        # ----- create MetadataDerivation and baseresources:
+        # ----- create MetadataDerivation, baseresources, participants list:
         self.directory.make_the(MetadataDerivation, self.name, part=self, course=self)
         self._add_baseresources()
 
