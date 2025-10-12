@@ -37,6 +37,8 @@ Element
           Taskbuilder
         Glossary
         Zipfile
+      TransformedFile
+        ParticipantsList
   Source
     Configelement
     Sourcefile
@@ -603,6 +605,26 @@ class Zipfile(Part):
         namepos = sourcename.find(self.name)  # will always exist
         remainder = sourcename[namepos+len(self.name)+1:]
         return f"{self.innerpath}/{remainder}"
+
+
+class TransformedFile(Outputfile):  # abstract class
+    """An output derived by applying a transformation operation to a single sourcefile"""
+    transformation: tg.Callable[['TransformedFile'], None]  # function that generates the output
+    
+    def __init__(self, name: str, **kwargs):  
+        """args sourcefile, transformation, targetdir_s, targetdir_i.""" 
+        super().__init__(name, **kwargs)
+        self.add_dependency(self.directory.get_the(Sourcefile, self.sourcefile))
+
+    def do_build(self):
+        self.transformation(self)
+
+
+class ParticipantsList(TransformedFile):
+    file_column: str  # which column of the TAB-separated inputfile to use
+    fingerprints: list[str]  # keyfingerprint field of each instructor that has it set
+
+    pass  # no extra code, only attributes
 
 
 class Source(Element):  # abstract class
