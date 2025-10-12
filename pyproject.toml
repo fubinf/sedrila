@@ -56,6 +56,7 @@ mdx_linkify = "^2.1"
 numpy = "<2"  # why needed? only pandas (2.2) needs this and declares it correctly!
 pandas = "^2.2"
 Pygments = "^2.17"
+python-gnugpg = "^0.5.5"
 PyYAML = "^6.0"
 requests = "^2.32"
 rich = "^13.7"
