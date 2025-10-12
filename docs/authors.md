@@ -112,7 +112,7 @@ About the entries:
   (Exception: `course_url` cannot be overwritten, because the value is needed to make the customized prompts
   available in the first place.)
   You can add optional attributes.
-- `participants` (optional): If provided, may generate a participants list file in the instructor output directory,
+- `participants` (optional): If provided, will generate an encrypted participants list file,
   which is then used by the `instructor` command to emit a warning when examining a submission of 
   a student not on the participants list.
   Three keys need to be present:  

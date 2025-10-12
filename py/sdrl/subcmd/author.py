@@ -265,7 +265,6 @@ def create_and_build_course(pargs, targetdir_i, targetdir_s) -> sdrl.course.Cour
     # ----- build special files:
     b.spit(os.path.join(targetdir_s, c.METADATA_FILE), json.dumps(the_course.as_json(), indent=2))
     generate_htaccess(the_course)
-    generate_participantslist(the_course)
     # ----- clean up and report:
     purge_leftover_outputfiles(directory, targetdir_s, targetdir_i)
     if pargs.sums:
@@ -283,21 +282,6 @@ def generate_htaccess(course: sdrl.course.Coursebuilder):
                        userlist_spaces = " ".join(userlist),
                        userlist_quotes_spaces = " ".join((f'"{u}"' for u in userlist))))
     b.spit(os.path.join(course.targetdir_i, c.HTACCESS_FILE), htaccess_txt)
-
-
-def generate_participantslist(course: sdrl.course.Coursebuilder):
-    if not course.has_participantslist:
-        return  # nothing to do
-    inputfile = course.configdict['participants']['file']
-    outputfile = f"{course.targetdir_i}/{c.PARTICIPANTSLIST_FILE}"
-    column = course.configdict['participants']['file_column']
-    if not os.path.exists(inputfile):
-        b.critical(f"participants.file '{inputfile}' does not exist.", file=course.configfile)
-    b.debug(f"converting '{inputfile}'\t-> '{outputfile}'")
-    with open(inputfile, newline='') as tsvfile:
-        tsvreader = csv.DictReader(tsvfile, delimiter='\t')  # read tab-separated values
-        participants = [entry[column] for entry in tsvreader]
-    b.spit(outputfile, "\n".join(participants))
 
 
 def prepare_directories(targetdir_s: str, targetdir_i: str):
@@ -363,7 +347,7 @@ def purge_leftover_outputfiles(directory: dir.Directory, targetdir_s: str, targe
     
     expected_files = set([of.outputfile for of in directory.get_all_outputfiles() if keep(of)])
     additions_s = {c.AUTHOR_OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR, c.METADATA_FILE}
-    additions_i = {c.HTACCESS_FILE, c.PARTICIPANTSLIST_FILE}
+    additions_i = {c.HTACCESS_FILE}
     purge_all_but(targetdir_s, expected_files | additions_s)
     purge_all_but(targetdir_i, expected_files | additions_i, exception=c.CACHE_FILENAME)
 

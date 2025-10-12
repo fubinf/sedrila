@@ -4,6 +4,7 @@ There are two ways how these objects can be instantiated:
 In 'author' mode, metadata comes from sedrila.yaml and the partfiles.
 Otherwise, metadata comes from METADATA_FILE. 
 """
+import csv
 import dataclasses
 import functools
 import glob
@@ -15,6 +16,7 @@ import re
 import typing as tg
 
 import base as b
+import mycrypt
 import sdrl.constants as c
 import sdrl.elements as el
 import sdrl.glossary as glossary
@@ -697,6 +699,23 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
             else:
                 b.warning("is not a plain file. Ignored.", file=direntry)
 
+    def _add_participantslist(self):
+        if not self.has_participantslist:
+            return  # nothing to do
+        inputfile = self.configdict['participants']['file']
+        keyfingerprints = [instructor['keyfingerprint']
+                           for instructor in self.configdict['instructors']
+                           if instructor.get('keyfingerprint', None)]
+        if not os.path.exists(inputfile):
+            b.critical(f"participants.file '{inputfile}' does not exist.", file=self.configfile)
+        self.directory.make_the(el.Sourcefile, inputfile)
+        self.directory.make_the(el.ParticipantsList, c.PARTICIPANTSLIST_FILE,
+                                sourcefile=inputfile,
+                                targetdir_s=self.targetdir_s, targetdir_i=self.targetdir_i,
+                                transformation=self._transform_participantslist,
+                                file_column=self.configdict['participants']['file_column'],
+                                fingerprints=keyfingerprints)
+
     def _collect_zipdirs(self):
         for zf in self.directory.get_all(el.Zipfile):
             self.namespace_add(zf)
@@ -708,7 +727,17 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
             if attr not in configdict:
                 continue  # we can expand only where an entry exists
             configdict[attr] = b.expandvars(configdict[attr], f"{context}::{attr}")
-                                            
+    
+    @staticmethod
+    def _transform_participantslist(elem: el.TransformedFile):
+        with open(elem.sourcefile, newline='') as tsvfile:
+            tsvreader = csv.DictReader(tsvfile, delimiter='\t')  # read tab-separated values
+            participants = [entry[elem.file_column] for entry in tsvreader]
+        participantslist = ("\n".join(participants)).encode('utf-8')
+        encryptedlist = mycrypt.encrypt_gpg(participantslist, elem.fingerprints)
+        b.spit_bytes(elem.outputfile_s, encryptedlist)
+        b.spit_bytes(elem.outputfile_i, encryptedlist)
+
     def _init_parts(self, configdict: dict, include_stage: str):
         self.directory.record_the(Course, self.name, self)
         self.namespace_add(self)
@@ -734,6 +763,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         # ----- create MetadataDerivation, baseresources, participants list:
         self.directory.make_the(MetadataDerivation, self.name, part=self, course=self)
         self._add_baseresources()
+        self._add_participantslist()
 
     @staticmethod
     def _taskordering_for_toc(graph) -> list[Taskbuilder]:

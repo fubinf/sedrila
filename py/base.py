@@ -131,6 +131,11 @@ def slurp(resource: str) -> str:
         critical(f"'{resource}' does not exist")
 
 
+def slurp_bytes(resource: str) -> bytes:
+    with open(resource, 'rb') as f:
+        return f.read()
+
+
 def slurp_json(resource: str) -> StrAnyDict:
     return json.loads(slurp(resource))
 
@@ -141,6 +146,11 @@ def slurp_yaml(resource: str) -> StrAnyDict:
 
 def spit(filename: str, content: str):
     with open(filename, 'wt', encoding='utf8') as f:
+        f.write(content)
+
+
+def spit_bytes(filename: str, content: bytes):
+    with open(filename, 'wb') as f:
         f.write(content)
 
 
