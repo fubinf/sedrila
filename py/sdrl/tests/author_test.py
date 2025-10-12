@@ -10,6 +10,7 @@ import zipfile
 import bs4
 
 import base as b
+import mycrypt
 import sdrl.constants as c
 import sdrl.course as course
 import sdrl.macros as macros
@@ -301,7 +302,24 @@ def test_sedrila_author(capfd):
                                                     myoutputdir, catcher)
         check_output2(course9, actual_out9, expected_out9, filelist=expected_filelist7)
         check_glossaryitem_concept3b(os.path.join(myoutputdir, "glossary.html"), expected_glossaryitem_step9)
-        # TODO 1: check bottomlinkslist
+        # --- step 10: add participants list
+        configfilename = c.AUTHOR_CONFIG_FILENAME  # we are in myinputdir
+        config = b.slurp(configfilename)
+        # obtain a suitable keyfingerprint from env, stop if not supplied
+        fingerprintlist = os.environ.get("SEDRILA_MYCRYPTTEST_FINGERPRINTS", "")
+        if not fingerprintlist:
+            return
+        fingerprints = fingerprintlist.split(",")  # config will use the first only
+        # patch the config to provide participants list and keyfingerprint
+        config = config.replace('file: ""', 'file: participants.tsv')
+        config = config.replace('keyfingerprint: ABCDEF0123', f'keyfingerprint: {fingerprints[0]}')
+        b.spit(configfilename, config)
+        course10, actual_out10 = call_sedrila_author("step 10: check participantslist",
+                                                     myoutputdir, catcher)
+        encrypted_participantslist = b.slurp_bytes(f"{myoutputdir}/{c.PARTICIPANTSLIST_FILE}")
+        participantslist = mycrypt.decrypt_gpg(encrypted_participantslist)
+        assert participantslist == b"123\n124"
+        # TODO 3: check bottomlinkslist
 
 def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -> tuple[course.Coursebuilder, str]:
     pargs = argparse.Namespace()
@@ -328,7 +346,6 @@ def check_output1(course: course.Coursebuilder, actual_output1: str, expected_ou
     with contextlib.chdir(course.targetdir_s):
         check_filelist(expected_filelist1)
         assert os.path.exists(os.path.join(course.targetdir_i, c.HTACCESS_FILE))
-        assert b.slurp(f"{course.targetdir_i}/{c.PARTICIPANTSLIST_FILE}") == "123\n124"
         check_toc1()
         check_task_html1()
         check_zipfile1()

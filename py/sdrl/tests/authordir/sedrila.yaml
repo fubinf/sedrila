@@ -12,7 +12,7 @@ blockmacro_topmatter:
   NOTICE: "<strong>Note:</strong> "
   INSTRUCTOR: "<h2>Instructor: {arg1}</h2>"
 participants:
-  file: participants.tsv
+  file: ""
   file_column: id
   student_attribute: student_id
 instructors:
