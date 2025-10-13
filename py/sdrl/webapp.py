@@ -395,7 +395,7 @@ def serve_index():
                   </div>
                   <div class="legend-item">
                     <span class="legend-swatch indicator-bar task-unchecked"></span>
-                    <span>Unchecked</span>
+                    <span>Not submitted</span>
                   </div>
                   <div class="legend-item">
                     <span class="legend-swatch indicator-bar task-reject final"></span>
