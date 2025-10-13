@@ -207,6 +207,25 @@ main section {
 .indicator-bar.task-reject { background-color: #eb4034 }
 .indicator-bar.task-reject.final { background-color: #b00c00 }
 
+.legend-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem 1rem;
+}
+  
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+  
+.legend-swatch {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 0.2rem;
+}
+
 #code {
     padding: 1rem;
 }
@@ -361,7 +380,35 @@ def serve_index():
     body = f"""
         <main id="index-layout">
             <section class="scroll" id="work-report">
-                <h2>work-report</h2>
+                <div class="legend-grid">
+                  <div class="legend-item">
+                    <span class="legend-swatch indicator-bar task-check"></span>
+                    <span>CHECK</span>
+                  </div>
+                  <div class="legend-item">
+                    <span class="legend-swatch indicator-bar task-reject"></span>
+                    <span>Rejected</span>
+                  </div>
+                  <div class="legend-item">
+                    <span class="legend-swatch indicator-bar task-accept"></span>
+                    <span>Accepted</span>
+                  </div>
+                  <div class="legend-item">
+                    <span class="legend-swatch indicator-bar task-unchecked"></span>
+                    <span>Unchecked</span>
+                  </div>
+                  <div class="legend-item">
+                    <span class="legend-swatch indicator-bar task-reject final"></span>
+                    <span>Rejected (Final)</span>
+                  </div>
+                  <div class="legend-item">
+                    <span class="legend-swatch indicator-bar task-accept past"></span>
+                    <span>Accepted (Past)</span>
+                  </div>
+                </div>
+                <p>Select a task on the left, switch between its files at the top, select choice at bottom right.</p>  
+                <h2>Work Report</h2>
+                <p><b>w</b>: work time (from commit msgs), <b>v</b>: task time value</p>  
                 {html_for_work_report_section(ctx)}
             </section>
             <section class="scroll" id="students-table">
@@ -371,19 +418,6 @@ def serve_index():
         </main>
     """
     return html_for_layout("sedrila", body)
-
-@bottle.route("/legacy")
-def serve_root():
-    ctx = sdrl.participant.get_context()
-    body = "%s\n\n%s\n\n%s\n\n%s\n\n%s" % (
-        html_for_instructions(ctx.is_instructor),
-        html_for_student_table(ctx.studentlist),
-        html_for_submissionrelated_files(ctx, ctx.submission_pathset),
-        html_for_remaining_submissions(ctx, ctx.submissions_remaining),
-        html_for_directorylist(ctx, "/", breadcrumb=False),
-    )
-    return html_for_page("sedrila", ctx.course_url, body)
-
 
 @bottle.route(SEDRILA_UPDATE_URL, method = "POST")
 def serve_sedrila_update():
@@ -715,9 +749,9 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
 
     tasks_markup = []
     sorted_tasks = sorted(ctx.tasknames)
-    for name in sorted_tasks:
+    for i, name in enumerate(sorted_tasks):
         tasks_markup.append(f"""
-            <tr>
+            <tr class="{'even' if i % 2 == 0 else 'odd'}">
                 <td>{name}</td>
                 {html_for_students(name)}
             </tr>
@@ -737,8 +771,12 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
     return f"""
         <table id="work-table">
             <tr>
-                <th>task</td>
+                <th></th>
                 {''.join(students_markup)}
+            </tr>
+            <tr>
+                <th>task</th>
+                {f"<th>w</th><th>v</th>" * len(ctx.studentlist)}
             </tr>
             {''.join(tasks_markup)}
             <tr>
