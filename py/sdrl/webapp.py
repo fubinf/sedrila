@@ -257,6 +257,8 @@ a.file {
 .student-buttons {
     display: flex;
     gap: 0.5rem;
+    margin-top: 1rem;
+    justify-content: end;
 }
 
 .action-button input[type="submit"] {

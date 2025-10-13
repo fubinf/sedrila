@@ -57,7 +57,7 @@ class SubmissionTask:
     also contains the precise state of the task for display and editing
     """
     # set of (relative) file paths that are part of the task
-    files: set[str] = set()
+    files: set[str]
     # current state of the task, None if the 
     # task is not considered in any way
     # (equivalent of NONCHECK in the past)
@@ -87,7 +87,9 @@ class Submission:
     and allows to query them in various ways
     """
     # the set of tasks that have a commit
-    _tasks: tg.Dict[str, SubmissionTask] = {}
+    _tasks: tg.Dict[str, SubmissionTask]
+
+    def __init__(self): self._tasks = {}
 
     def _get_or_add_empty(self, name: str) -> SubmissionTask:
         self._add_empty_task(name)
