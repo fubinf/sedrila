@@ -131,9 +131,12 @@ def prepare_workdir(workdir: str):
         # ----- obtain instructor key fingerprints:
         if not os.path.isfile(c.PARTICIPANT_FILE):
             b.critical(f"'{workdir}': '{c.PARTICIPANT_FILE}' is missing.")
-        S = sdrl.participant.Student  # abbrev
-        course = S.get_course_metadata(S.get_course_url(c.PARTICIPANT_FILE))
-        key_fingerprints = { i.get('keyfingerprint', '') for i in course.get('instructors', [])}
+        stud = sdrl.participant.Student('.', is_instructor=True)
+        if not stud.is_participant:
+            b.warning(f"{stud.participant_attrname} {stud.participant_id} is not in participants list", 
+                      file=c.PARTICIPANT_FILE)
+        key_fingerprints = {i.get('keyfingerprint', '') 
+                            for i in stud.course.configdict.get('instructors', [])}
         key_fingerprints.discard('')  # empty entry would mean unsigned commits are considered instructor-signed
         # ----- consider pulling:
         state = r.submission_state('.', key_fingerprints)

@@ -270,6 +270,10 @@ class Course(el.Part):
         self._read_config(self.configdict)
         self.allowed_attempts_base, self.allowed_attempts_hourly = self._parse_allowed_attempts()
 
+    @property
+    def has_participantslist(self) -> bool:
+        False
+
     @functools.cached_property  # beware: call this only once initialization is complete!
     def taskdict(self) -> dict[str, Task|Taskbuilder]:
         return {k:v for k,v in self.namespace.items() if isinstance(v, Task)}

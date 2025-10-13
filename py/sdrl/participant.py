@@ -226,6 +226,26 @@ class Student:
         return self.course
 
     @property
+    def is_participant(self) -> bool:
+        return True  # TODO 1: implement instructor-side use of participantslist
+        pid = getattr(self, self.participant_attrname)
+        return pid in self.participantslist if pid else True  # an absent participantslist contains everybody
+
+    @property
+    def participant_attrname(self) -> str | None:
+        p = self.course.configdict.get('participant', None)
+        return p['student_attribute'] if p else None
+
+    @property
+    def participantslist(self) -> list[str]:
+        rawlist = requests.get
+        return ...
+
+    @property
+    def participantslist_url(self) -> set[str]:
+        return f"{self.course_url}/instructor/{c.PARTICIPANTSLIST_FILE}"
+
+    @property
     def participantfile_path(self) -> str:
         return os.path.join(self.topdir, c.PARTICIPANT_FILE)
 
