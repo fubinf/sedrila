@@ -1,7 +1,6 @@
 """Simple facade for asymmetric encryption/decryption."""
 import typing as tg
 
-import cryptography.fernet as cf
 import gnupg
 
 

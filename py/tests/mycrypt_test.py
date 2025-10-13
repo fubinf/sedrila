@@ -4,17 +4,6 @@ import pytest
 
 import mycrypt
 
-def test_symmetric():
-    plaintext = b"abcdefgh"
-    ciphertext, key = mycrypt.encrypt_sym(plaintext)
-    print("plaintext:", plaintext)
-    print("ciphertext:", ciphertext)
-    print("key:", key)
-    decrypted = mycrypt.decrypt_sym(ciphertext, key)
-    print("decrypted text:", decrypted)
-    assert plaintext == decrypted
-
-
 def test_asymmetric():
     """
     Requires local GPG setup for the fingerprints listed in $SEDRILA_MYCRYPTTEST_FINGERPRINTS and
