@@ -405,6 +405,8 @@ def serve_sedrila_update():
 
     if "return_file" in data:
         return bottle.redirect(f"/tasks/{taskname}/{html.unescape(data['return_file'])}")
+    elif not "no_redirect" in data:
+        return bottle.redirect(f"/tasks/{taskname}")
 
     return { "updated_state": new_state }
 
