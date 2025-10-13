@@ -220,7 +220,7 @@ class Student:
     def course_with_work(self) -> sdrl.course.CourseSI:
         """Set task.is_accepted and task.rejections values in course."""
         with contextlib.chdir(self.topdir):
-            b.info(f"reading commit history in '{self.topdir}'")
+            b.info(f"'{self.topdir}':\t reading commit history")
             commits = sgit.commits_of_local_repo(chronological=True)
             r.compute_student_work_so_far(self.course, commits)
         return self.course
