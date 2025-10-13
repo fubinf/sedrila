@@ -1,12 +1,16 @@
 # sedrila CHANGELOG
 
 
-## Version 2.10.0 (upcoming)
+## Version 2.11.0 (upcoming)
+- ...
+
+## Version 2.10.0 (2025-10-13)
 - `author`: support `ITREE` prefix in [INCLUDE::ITREE:somefile]`
+- `author`: introduced `participants` config setting (not actually used yet!) 
 - `author`: support environment variable expansion in some config file settings
 - `author`, `instructor`: introduced `former_instructors` config setting 
   (like `instructors`, but not suggested to students upon submission preparation)
-- ...
+- `student`, `instructor`: totally revamped and much better webapp 
 
 ## Version 2.9.0 (2025-08-19)
 - `author`: taskgroup-level non-md files are now copied to targetdir verbatim (for images, downloads, etc.)
