@@ -1,5 +1,6 @@
 import argparse
 import contextlib
+import itertools
 import os
 import typing as tg
 
@@ -136,7 +137,8 @@ def prepare_workdir(workdir: str):
             b.warning(f"{stud.participant_attrname} {stud.participant_id} is not in participants list", 
                       file=c.PARTICIPANT_FILE)
         key_fingerprints = {i.get('keyfingerprint', '') 
-                            for i in stud.course.configdict.get('instructors', [])}
+                            for i in itertools.chain(stud.course.configdict.get('instructors', []),
+                                                     stud.course.configdict.get('former_instructors', []))}
         key_fingerprints.discard('')  # empty entry would mean unsigned commits are considered instructor-signed
         # ----- consider pulling:
         state = r.submission_state('.', key_fingerprints)
