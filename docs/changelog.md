@@ -4,6 +4,9 @@
 ## Version 2.11.0 (upcoming)
 - ...
 
+## Version 2.10.1 (2025-10-14)
+- fixed crucial typo in `pyproject.toml`
+
 ## Version 2.10.0 (2025-10-13)
 - `author`: support `ITREE` prefix in [INCLUDE::ITREE:somefile]`
 - `author`: introduced `participants` config setting (not actually used yet!) 
