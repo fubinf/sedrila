@@ -614,7 +614,33 @@ into the Markdown input stream at this point.
 base directories; see 1.14 "Confindential contents" for details.
 
 
-#### 1.9.4 `[PROT]`
+#### 1.9.4 `@INCLUDE_SNIPPET`
+
+`@INCLUDE_SNIPPET: snippet_id from filename`: inserts a specific marked code snippet from a file
+into the Markdown input stream at this point.
+
+- This is a preprocessor directive (not a macro in square brackets) that enables reusing code snippets
+  from solution files directly in task descriptions.
+- Snippets must be marked in the source file using HTML comment markers:
+  ```markdown
+  <!-- @SNIPPET_START: snippet_id -->
+  code content here
+  <!-- @SNIPPET_END: snippet_id -->
+  ```
+- Optional language specification: `<!-- @SNIPPET_START: snippet_id lang=python -->`
+- `filename` follows the same path resolution rules as `[INCLUDE]`:
+  - Relative paths are resolved from the directory containing the file with the reference
+  - Paths starting with `altdir/` are resolved from the project root
+  - Absolute paths starting with `/` are resolved from `chapterdir`
+- The snippet content (excluding the HTML comment markers) is inserted verbatim, preserving formatting
+- During `sedrila author` build, all `@INCLUDE_SNIPPET` directives are expanded automatically
+- Use `sedrila author --validate-snippets` to verify all snippet references are valid
+- This approach ensures code examples in task descriptions always match the actual solution code,
+  preventing inconsistencies when solution code is updated
+- Particularly useful for tutorial-style tasks where students need to see specific parts of example code
+
+
+#### 1.9.6 `[PROT]`
 
 Include a rendered command protocol.
 `[PROT::filename.prot]`: works much like `[INCLUDE]` and obeys the same rules for the filenames.
@@ -644,7 +670,7 @@ in yet another manner, all based on CSS classes which you can find in the output
 Line structure and spaces are preserved.
 
 
-#### 1.9.5 `[TOC]`, `[DIFF]`
+#### 1.9.7 `[TOC]`, `[DIFF]`
 
 - `[TOC]`: Generates a table of contents from the Markdown headings present in the file.
   For the glossary, ignores headings and instead makes an alphabetical list of all term entries 
@@ -854,6 +880,18 @@ Both versions will by default exclude all tasks, taskgroups, and chapters that h
   Examples:
   - `sedrila author --validate-protocols -- /tmp/output` (check all course protocol files)
   - `sedrila author --validate-protocols /path/to/file.prot /tmp/output` (check specific file)
+- Option `--validate-snippets [task_file]` validates code snippet references and definitions.
+  Without an argument, it checks all task files in the course (respects `--include_stage` setting).
+  With a file argument, it checks only that specific task file.
+  Validates that all `@INCLUDE_SNIPPET` references point to existing snippet definitions marked with
+  `<!-- @SNIPPET_START: snippet_id -->` and `<!-- @SNIPPET_END: snippet_id -->` markers.
+  Also validates snippet marker syntax, detecting unclosed snippets and mismatched markers.
+  Generates fixed-name reports: `snippet_validation_report.json` and `snippet_validation_report.md`.
+  This ensures code snippets embedded in task descriptions match their source definitions in solution files.
+  Examples:
+  - `sedrila author --validate-snippets -- /tmp/output` (check all task files)
+  - `sedrila author --validate-snippets ch/Web/Django/task.md /tmp/output` (check specific file)
+  - `sedrila author --include_stage draft --validate-snippets -- /tmp/output` (include draft tasks)
 
 #### 2.2.1 Link validation rules
 

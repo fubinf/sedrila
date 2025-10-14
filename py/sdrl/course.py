@@ -540,6 +540,101 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
                 b.error(f"  {error}")
             return False
 
+    def validate_snippet_references(self, show_progress: bool = True) -> bool:
+        """
+        Validate code snippet references and definitions in all course files.
+        
+        Returns:
+            bool: True if all snippet references are valid, False if any failed
+        """
+        try:
+            import sdrl.snippetchecker as snippetchecker
+        except ImportError as e:
+            b.error(f"Cannot import snippet checking modules: {e}")
+            return False
+        
+        b.info("Starting snippet reference and definition validation...")
+        
+        # Find all task files that might contain snippet references
+        task_files = []
+        solution_files = []
+        
+        for task in self.taskdict.values():
+            if task.to_be_skipped:
+                continue  # Skip tasks that are marked to be skipped
+            
+            # Add task file itself (may contain snippet references)
+            task_files.append(task.sourcefile)
+            
+            # Look for solution files in corresponding altdir
+            task_dir = os.path.dirname(task.sourcefile)
+            alt_task_dir = task_dir.replace(self.chapterdir, self.altdir, 1)
+            
+            # Search for source files in altdir (potential solution files)
+            if os.path.exists(alt_task_dir):
+                source_extensions = ['.py', '.java', '.cpp', '.c', '.js', '.ts', '.go', '.rs', '.rb']
+                for file in os.listdir(alt_task_dir):
+                    if any(file.endswith(ext) for ext in source_extensions):
+                        solution_path = os.path.join(alt_task_dir, file)
+                        solution_files.append(solution_path)
+        
+        if show_progress:
+            b.info(f"Found {len(task_files)} task files and {len(solution_files)} potential solution files")
+        
+        # First, validate snippet definitions in solution files
+        validator = snippetchecker.SnippetValidator()
+        file_errors = {}
+        
+        if solution_files and show_progress:
+            b.info("Validating snippet definitions...")
+        
+        for sol_file in solution_files:
+            if show_progress:
+                b.info(f"Checking definitions in: {sol_file}")
+            
+            errors = validator._validate_snippet_markers_in_file(sol_file)
+            if errors:
+                file_errors[sol_file] = errors
+        
+        # Then, validate snippet references in task files
+        all_validation_results = []
+        
+        if task_files and show_progress:
+            b.info("Validating snippet references...")
+        
+        for task_file in task_files:
+            if show_progress:
+                b.info(f"Checking references in: {task_file}")
+            
+            # Use project root as base directory for resolving snippet references
+            # Snippet paths like "altdir/ch/Web/Django/django-project.md" are relative to project root
+            # The project root is the directory containing both chapterdir and altdir
+            # task_file might be like "ch/Web/Django/django-project.md" (relative) or absolute path
+            if os.path.isabs(task_file):
+                # Extract project root from absolute path
+                base_directory = task_file.split('/' + self.chapterdir)[0] if '/' + self.chapterdir in task_file else os.path.dirname(task_file)
+            else:
+                # For relative paths, use current working directory as project root
+                base_directory = os.getcwd()
+            
+            results = validator.validate_file_references(task_file, base_directory)
+            all_validation_results.extend(results)
+        
+        # Generate and display comprehensive report
+        reporter = snippetchecker.SnippetReporter()
+        reporter.print_summary(all_validation_results, file_errors)
+        
+        # Save detailed reports with fixed names
+        if all_validation_results or file_errors:
+            reporter.generate_json_report(all_validation_results, file_errors)
+            reporter.generate_markdown_report(all_validation_results, file_errors)
+        
+        # Return success status
+        failed_results = [r for r in all_validation_results if not r.success]
+        total_definition_errors = sum(len(errors) for errors in file_errors.values())
+        
+        return len(failed_results) == 0 and total_definition_errors == 0
+
 
     def compute_taskorder(self):
         """

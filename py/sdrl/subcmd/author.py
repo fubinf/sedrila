@@ -46,6 +46,8 @@ def add_arguments(subparser: argparse.ArgumentParser):
                            help="Check accessibility of external links. Use without argument to check all course files, or specify a single markdown file to check")
     subparser.add_argument('--validate-protocols', nargs='?', const='all', metavar="protocol_file",
                            help="Validate protocol check annotations in .prot files. Use without argument to check all course protocol files, or specify a single .prot file to check")
+    subparser.add_argument('--validate-snippets', nargs='?', const='all', metavar="task_file",
+                           help="Validate code snippet references and definitions. Use without argument to check all course files, or specify a single task file to check")
     subparser.add_argument('targetdir',
                            help=f"Directory to which output will be written.")
 
@@ -98,6 +100,24 @@ def execute(pargs: argparse.Namespace):
         if pargs.validate_protocols != 'all':
             return  # Exit early when validating single file, don't continue with normal build
     
+    # Perform snippet validation if requested
+    if hasattr(pargs, 'validate_snippets') and pargs.validate_snippets is not None:
+        b.info("=" * 60)
+        if pargs.validate_snippets == 'all':
+            # Validate all course snippet references and definitions
+            b.info("Validating code snippet references and definitions in all course files...")
+            snippets_ok = the_course.validate_snippet_references(show_progress=True)
+            if not snippets_ok:
+                b.error("Snippet validation failed - some references or definitions are invalid")
+                # Note: We don't exit with error code here to allow the build to complete
+                # Users can check the log output to see which snippets failed
+        else:
+            # Validate specific file
+            validate_single_task_snippets(pargs.validate_snippets)
+        b.info("=" * 60)
+        if pargs.validate_snippets != 'all':
+            return  # Exit early when validating single file, don't continue with normal build
+    
     b.finalmessage()
 
 
@@ -120,6 +140,45 @@ def validate_single_protocol_file(filepath: str):
         b.error(f"Found {len(errors)} validation errors:")
         for error in errors:
             b.error(f"  {error}")
+
+
+def validate_single_task_snippets(filepath: str):
+    """Validate snippet references in a single task file for development/debugging."""
+    try:
+        import sdrl.snippetchecker as snippetchecker
+    except ImportError as e:
+        b.error(f"Cannot import snippet checking modules: {e}")
+        return
+    
+    import os.path
+    
+    b.info(f"Validating snippet references in: {filepath}")
+    
+    if not os.path.exists(filepath):
+        b.error(f"File not found: {filepath}")
+        return
+    
+    # Use the directory containing the task file as base directory for resolving references
+    base_directory = os.path.dirname(os.path.abspath(filepath))
+    
+    validator = snippetchecker.SnippetValidator()
+    results = validator.validate_file_references(filepath, base_directory)
+    
+    if not results:
+        b.info("No snippet references found in file")
+        return
+    
+    # Generate report
+    reporter = snippetchecker.SnippetReporter()
+    reporter.print_summary(results)
+    
+    # Save detailed reports for single file testing
+    reporter.generate_json_report(results)  # Uses default fixed name
+    reporter.generate_markdown_report(results)  # Uses default fixed name
+    
+    # Return success status
+    failed_results = [r for r in results if not r.success]
+    return len(failed_results) == 0
 
 
 def test_single_markdown_file(filepath: str):

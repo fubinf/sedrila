@@ -234,6 +234,80 @@ mark the snippet in the exemplary solution and extract it directly from there
 when rendering the task in `sedrila author`.
 Then testing the snippet would be reduced to testing the program in which it appears.
 
+#### Implementation for now
+
+Snippet extraction and validation is now integrated into `sedrila` with the following components:
+
+##### Annotation Syntax (for authors)
+
+Authors can mark code snippets in solution files using HTML comment markers:
+
+```markdown
+<!-- @SNIPPET_START: snippet_id lang=python -->
+def example_function():
+    return "Hello, World!"
+<!-- @SNIPPET_END: snippet_id -->
+```
+
+And reference them in task files using:
+
+```markdown
+@INCLUDE_SNIPPET: snippet_id from altdir/ch/TaskGroup/solution.md
+```
+
+**Snippet Marker Format:**
+- Start marker: `<!-- @SNIPPET_START: snippet_id -->` or `<!-- @SNIPPET_START: snippet_id lang=language -->`
+- End marker: `<!-- @SNIPPET_END: snippet_id -->`
+- The `snippet_id` must match between start and end markers
+- Optional `lang=` parameter specifies the programming language for syntax highlighting
+
+**Snippet Reference Format:**
+- `@INCLUDE_SNIPPET: snippet_id from filepath`
+- The filepath can be relative to the task file or absolute (from project root)
+- Paths starting with `altdir/` are resolved from the project root
+
+##### Usage Examples
+
+Validate snippet references in a single file:
+```bash
+# Validate specific task file
+sedrila author --validate-snippets ch/Web/Django/django-project.md /tmp/output
+```
+
+Validate all snippet references in the course:
+```bash
+# Validate all course files (respects --include_stage)
+sedrila author --include_stage draft --validate-snippets -- /tmp/output
+```
+
+##### Features
+
+- **Snippet Extraction**: Extracts marked code snippets from solution files
+- **Reference Validation**: Verifies all `@INCLUDE_SNIPPET` references point to valid snippets
+- **Automatic Expansion**: During build, snippet references are replaced with actual code content
+- **Path Resolution**: Supports both relative and absolute paths, including `altdir/` references
+- **Error Reporting**: Generates JSON and Markdown reports with detailed validation results
+- **Marker Validation**: Detects unclosed snippets and mismatched markers
+
+##### Implementation Details
+
+- Core module: `py/sdrl/snippetchecker.py`
+- Tests: `py/sdrl/tests/snippetchecker_test.py` (pytest format)
+- Integration: Snippet expansion occurs during markdown preprocessing in `py/sdrl/markdown.py`
+
+Run tests:
+```bash
+cd py
+pytest sdrl/tests/snippetchecker_test.py -v
+```
+
+##### Benefits
+
+- **Eliminates Redundancy**: Single source of truth for code examples
+- **Maintains Consistency**: Changes to solution code automatically update task descriptions
+- **Prevents Errors**: Validation ensures all snippet references remain valid
+- **Improves Maintainability**: Easier to update code examples across multiple tasks
+
 
 ### 2.4 Other
 

@@ -1,6 +1,7 @@
 """
 Markdown rendering with sedrila-specific bells and/or whistles.
 """
+import os
 import re
 
 import markdown
@@ -11,6 +12,7 @@ import markdown.postprocessors as mdpost
 import base as b
 import sdrl.macros as macros
 import sdrl.replacements as replacements
+import sdrl.snippetchecker as snippetchecker
 
 # see bottom for initialization code
 
@@ -26,6 +28,7 @@ class SedrilaPreprocessor(mdpre.Preprocessor):
         content = "\n".join(lines)  # we work on the entire markup at once
         content = self.perhaps_suppress_instructorinfo(content)  
         content = self.make_replacements(content)
+        content = self.expand_snippet_inclusions(content)
         content = macros.expand_macros(self.md.context_sourcefile, self.md.partname, content,
                                        is_early_phase=True)
         return content.split("\n")
@@ -47,12 +50,97 @@ class SedrilaPreprocessor(mdpre.Preprocessor):
         def the_repl(mm: re.Match) -> str:
             return replacements.get_replacement(self.md.context_sourcefile, mm.group(2), mm.group(1))            
         return re.sub(replacements.replacement_expr_re, the_repl, content, flags=re.DOTALL)
+    
+    def expand_snippet_inclusions(self, content: str) -> str:
+        """Expand @INCLUDE_SNIPPET directives by inserting snippet content from other files."""
+        context_file = self.md.context_sourcefile
+        
+        b.debug(f"expand_snippet_inclusions called for: {context_file}")
+        
+        # For sedrila, context_file is often a relative path like "ch/Web/Django/django-project.md"
+        # We need to find the project root (the directory we're running from)
+        
+        if os.path.isabs(context_file):
+            # Absolute path - extract project root
+            if '/ch/' in context_file:
+                basedir = context_file.split('/ch/')[0]
+            elif '/altdir/' in context_file:
+                basedir = context_file.split('/altdir/')[0]
+            else:
+                # Go up until we find altdir
+                basedir = os.path.dirname(context_file)
+                while basedir and basedir != '/':
+                    if os.path.exists(os.path.join(basedir, 'altdir')):
+                        break
+                    basedir = os.path.dirname(basedir)
+        else:
+            # Relative path - use current working directory as project root
+            basedir = os.getcwd()
+            
+            # Verify this is correct by checking if altdir exists
+            if not os.path.exists(os.path.join(basedir, 'altdir')):
+                # Try to find the correct base directory
+                test_dir = basedir
+                while test_dir and test_dir != '/':
+                    if os.path.exists(os.path.join(test_dir, 'altdir')):
+                        basedir = test_dir
+                        break
+                    test_dir = os.path.dirname(test_dir)
+        
+        b.debug(f"Derived basedir: {basedir}")
+        
+        # Check if content contains @INCLUDE_SNIPPET before processing
+        if '@INCLUDE_SNIPPET' in content:
+            b.debug("Found @INCLUDE_SNIPPET in content, processing...")
+        else:
+            b.debug("No @INCLUDE_SNIPPET found in content")
+        
+        result = snippetchecker.expand_snippet_inclusion(content, context_file, basedir)
+        
+        if result != content:
+            b.debug("Content was modified by snippet expansion")
+        else:
+            b.debug("Content unchanged after snippet expansion")
+        
+        return result
 
 
 class SedrilaPostprocessor(mdpost.Postprocessor):
     def run(self, text: str) -> str:
+        # Also process snippets in postprocessor stage to catch any missed cases
+        if '@INCLUDE_SNIPPET' in text:
+            b.debug("Found @INCLUDE_SNIPPET in postprocessor, re-processing...")
+            text = self.expand_snippet_inclusions_post(text)
+        
         text = macros.expand_macros(self.md.context_sourcefile, self.md.partname, text)
         return text
+    
+    def expand_snippet_inclusions_post(self, text: str) -> str:
+        """Fallback snippet processing in postprocessor stage."""
+        context_file = self.md.context_sourcefile
+        
+        if os.path.isabs(context_file):
+            if '/ch/' in context_file:
+                basedir = context_file.split('/ch/')[0]
+            elif '/altdir/' in context_file:
+                basedir = context_file.split('/altdir/')[0]
+            else:
+                basedir = os.path.dirname(context_file)
+                while basedir and basedir != '/':
+                    if os.path.exists(os.path.join(basedir, 'altdir')):
+                        break
+                    basedir = os.path.dirname(basedir)
+        else:
+            basedir = os.getcwd()
+            if not os.path.exists(os.path.join(basedir, 'altdir')):
+                test_dir = basedir
+                while test_dir and test_dir != '/':
+                    if os.path.exists(os.path.join(test_dir, 'altdir')):
+                        basedir = test_dir
+                        break
+                    test_dir = os.path.dirname(test_dir)
+        
+        return snippetchecker.expand_snippet_inclusion(text, context_file, basedir)
 
 
 class SedrilaMarkdown(markdown.Markdown):
