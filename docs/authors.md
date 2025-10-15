@@ -1,13 +1,13 @@
 # `sedrila` use for course authors
 
 Assumes Unix filenames, will not work properly on Windows.
-On a Windows platform, use WSL (or Cygwin).
+On a Windows platform, use WSL.
 
 A sedrila course consists of chapters, taskgroups, tasks, a glossary,
 possibly .zip directories, and a config file.
 Each chapter, taskgroup, or task (as well as the glossary) is represented
 by a text file containing YAML metadata ("front matter") and a body
-using Markdown markup (plus various sedrila-specific macros, 
+using Markdown markup (plus calls to various sedrila-specific macros, 
 plus sometimes "replacement blocks").
 
 The content below describes the details of these data (Section 1,
@@ -51,7 +51,8 @@ This is best explained by example. Have a look at:
 
 https://github.com/fubinf/propra-inf/blob/main/sedrila.yaml (content in German, but that should hardly matter)
 
-About the entries:
+
+#### 1.1.1 Entries for `sedrila author`
 
 - `title`: Course title, can be chosen freely.
   This setting supports the expansion of environment variables using the `$MYVAR` or `${MYVAR}` syntax.
@@ -104,6 +105,20 @@ About the entries:
   Special generation logic for SECTION and HINT is hardwired into sedrila,
   but WARNING, NOTICE, and INSTRUCTOR all follow the same logic and you can introduce further
   such macros if you want -- this is the reason why those three are all uppercase in sedrila.yaml.
+- `htaccess_template`: In case you are using an Apache httpd webserver for serving
+  the generated pages, sedrila can generate into the instructor part an `.htaccess` file
+  that instructs Apache to serve those files to instructors only.
+  If you do not need such a file, just include no `htaccess_template` entry in your `sedrila.yaml`
+  file at all.
+  If you want it, put its entire concent into the entry, with the actual instructor usernames
+  replaced by one of the following:  
+  `{userlist_commas}`: The list of usernames, separated by a comma.  
+  `{userlist_spaces}`: The list of usernames, separated by a space.  
+  `{userlist_quotes_spaces}`: The list of usernames, each enclosed in double quotes, separated by a space.
+
+
+#### 1.1.2 Entries for `sedrila student`
+
 - `student_yaml_attribute_prompts`: Optional dictionary of pairs of attribute name and prompt to be used
   for interactively populating the `student.yaml` student identification file 
   during the `sedrila student --init` command.
@@ -112,6 +127,10 @@ About the entries:
   (Exception: `course_url` cannot be overwritten, because the value is needed to make the customized prompts
   available in the first place.)
   You can add optional attributes.
+
+
+#### 1.1.3 Entries for `sedrila instructor`
+
 - `participants` (optional): If provided, will generate an encrypted participants list file,
   which is then used by the `instructor` command to emit a warning when examining a submission of 
   a student not on the participants list.
@@ -119,9 +138,14 @@ About the entries:
   `file`: name of the participants list input file, which must be a TAB-separated values text file
   with column headers.
   If this value is empty, the entire `participants` entry will be ignored.  
+  Supports the expansion of environment variables.  
   `file_column`: name of the column in which the attribute is found by which a participant is identied.  
   `student_attribute`: name of the entry in the student's `student.yaml` file that identifies the student
   in the participants list file.
+
+
+#### 1.1.4 Entries for `sedrila instructor` and `sedrila student`
+
 - `instructors`: The source of truth for who can give students credit 
   for their work. A list of dictionaries, each of which has the following entries:  
   `nameish`: the personal name or nickname of the instructor so students know who they can talk to,  
@@ -138,16 +162,6 @@ About the entries:
   with the same structure and meaning of entries. 
   The only difference is that the `former_instructors` will not be mentioned in the list of 
   available instructors shown to students when they prepare a submission.
-- `htaccess_template`: In case you are using an Apache httpd webserver for serving
-  the generated pages, sedrila can generate into the instructor part an `.htaccess` file
-  that instructs Apache to serve those files to instructors only.
-  If you do not need such a file, just include no `htaccess_template` entry in your `sedrila.yaml`
-  file at all.
-  If you want it, put its entire concent into the entry, with the actual instructor usernames
-  replaced by one of the following:  
-  `{userlist_commas}`: The list of usernames, separated by a comma.  
-  `{userlist_spaces}`: The list of usernames, separated by a space.  
-  `{userlist_quotes_spaces}`: The list of usernames, each enclosed in double quotes, separated by a space.
 - `allowed_attempts`: Students have a maximum number of times they can present a task
   until it must be accepted by the instructor, called the `allowed_attempts` of that task.
   If the task gets rejected that many times, it will never be accepted later on, i.e.,
@@ -158,9 +172,15 @@ About the entries:
   theoretical allowed attempts of 2.25, 2.5, 2.75, 3.0, 3.5, 4.0,
   and actual allowed attempts of 2, 2, 2, 3, 3, 4, respectively.
   Supports the expansion of environment variables.
+
+
+#### 1.1.5 Entries for all sub-commands
+
 - `chapters`: describes the course content at the chapter and taskgroup level by listing
   the directory name of each chapter and taskgroup.
-  The individual tasks are found by inspecting all `*.md` files in a taskgroup directory.
+  See the example linked above for how these entries have to look like.
+  The individual tasks are found by inspecting all `*.md` files in a taskgroup directory,
+  as described in the next section.
 
 
 ### 1.2 Three-level directory tree: chapters, taskgroups, tasks
