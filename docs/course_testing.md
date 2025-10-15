@@ -1,6 +1,6 @@
 # `sedrila` test framework for SeDriLa courses
 
-*+This is work-in-progress. Inofficial. Changing heavily. Partly broken. Do not rely on anything here yet.**
+**This is work-in-progress. Inofficial. Changing heavily. Partly broken. Do not rely on anything here yet.**
 
 A SeDriLa course may deteriorate over time. Or be broken by a change to a task.
 A new task can be broken right from the start.
