@@ -50,7 +50,10 @@ def commits_of_local_repo(*, chronological: bool) -> tg.Sequence[Commit]:
     gitrun = sp.run(gitcmd, capture_output=True, encoding='utf8', text=True)
     result = []
     for line in gitrun.stdout.split('\n'):
-        hash_, email, tstamp, fngrprnt, goodness, subj = tuple(line.split(LOG_FORMAT_SEPARATOR))
+        try:
+            hash_, email, tstamp, fngrprnt, goodness, subj = tuple(line.split(LOG_FORMAT_SEPARATOR))
+        except ValueError:
+            continue  # an empty repo will result in a format error, but we do not lose anything here
         if fngrprnt and goodness not in "GXYU":  
             # accept good sigs G, expired sigs X, expired keys Y, unknown validity U
             fngrprnt = "-"  # treat as unsigned
