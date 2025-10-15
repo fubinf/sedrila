@@ -20,6 +20,23 @@ such automated testing.
 
 ## 1. Link checking
 
+One aspect of SeDriLa content checking is making sure that any hyperlinks to external resources
+work as expected.
+
+Such checking should be integrated into `sedrila author`, to be activated by a new 
+option `--check-links`:
+
+- Link checking needs to follow redirects.
+- Not all links that work alright also result in HTTP 200 status.
+  `sedrila` should probably allow specifying a different (specifically expected for this particular link)
+  status code.
+- Not all links that work from a technical point of view will also still contain the
+  content the task designer expected it to contain.
+  `sedrila` should probably allow specifying a key text snipped that must be present in the response?
+  Or even require it?
+
+### Implementation for now
+
 External link validation is integrated into `sedrila author` using efficient HEAD requests with comprehensive reporting.
 
 ### Features:
