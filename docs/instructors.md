@@ -94,6 +94,11 @@ and call
 `sedrila student --import-keys .`  
 This is the only time you will need to call `sedrila student` (as opposed to `sedrila instructor`).
 
+If you do not have a student directory, create one yourself by `git init mytmp; cd mytmp`
+and then following the steps described in
+"Describing your course participation" in the 
+[sedrila user guide for students](../students).
+
 (On the next course, if the set of instructors is different, you can safely do the same routine again.
 `gpg` can cope with keys it already has imported previously.)
 
