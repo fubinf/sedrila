@@ -230,6 +230,95 @@ Ensuring consistency of the SeDriLa means
 - Making sure the program still produces the (or an) expected command log.
   This is also difficult, for similar reasons than above.
 
+#### Implementation for now
+
+Program testing is now integrated into `sedrila` with automated testing of exemplary programs against their protocol files.
+
+##### Configuration-based Testing
+
+Program testing uses a YAML configuration file (`programchecker.yaml`) to define testing strategies for different program categories:
+
+**1. SKIP Section** - Programs requiring manual testing:
+- Programs with non-deterministic output (memory addresses, concurrent execution order)
+- Programs requiring interactive input
+- Programs with environment-specific output (sys.path)
+- Shell redirection that cannot be reliably automated
+
+**2. Partial Skip Section** - Programs with mixed testability:
+- Some commands are testable, others require manual verification
+- Handles programs with Traceback output variations, non-deterministic output, interactive requirements, or error demonstrations
+- Currently empty as programs are either fully testable or require complete manual testing
+
+**3. Command Override Section** - Correct command mismatches:
+- Maps incorrect commands in .prot files to correct program filenames
+- Example: `go run main.go` → `go run go-channels.go`
+
+**4. Normal Test Section** - Fully automated testing:
+- Programs with deterministic output
+- No special handling required
+
+##### Usage Examples
+
+Test all exemplary programs:
+```bash
+# Test all programs from itree.zip against their .prot files
+sedrila author --test-programs -- /tmp/output
+
+# Test specific program file
+sedrila author --test-programs altdir/itree.zip/Sprachen/Go/go-channels.go -- /tmp/output
+```
+
+##### Features
+
+- **Automated Execution**: Runs programs and compares output against .prot files
+- **Multi-command Testing**: 
+  - Parses and tests **ALL testable commands** from single .prot file
+  - Executes each command sequentially and aggregates results
+  - Reports pass/fail status for each individual command
+  - Only marks test as passed if ALL commands succeed
+  - Provides detailed failure information including which command failed
+- **Automatic Cleanup**: 
+  - Cleans up generated files before and after each test
+  - Removes `.db`, `.sqlite`, `.sqlite3`, `.log`, `.tmp` files
+  - Removes `__pycache__` directories and `.pyc` files
+  - Ensures consistent test environment across runs
+  - Prevents test interference from residual files
+- **Intelligent Skipping**: Automatically detects commands with errors, interactive input, or shell complexity
+- **Comprehensive Reporting**: Generates JSON and Markdown reports with detailed test results
+  - Shows numbered list of all tested commands with individual status
+  - Separates failed, skipped, and passed tests in reports
+  - Includes execution time for each command
+- **Parallel Execution**: Optional parallel testing for faster results
+- **Configuration-driven**: Flexible YAML-based rules without code changes
+
+##### Output Statistics
+
+Program testing provides detailed statistics including:
+- Total programs found and test pairs identified
+- Programs passed, failed, and skipped (with categories)
+- Success rate calculation
+- Execution time tracking
+- Detailed failure reasons and manual testing requirements
+
+##### Implementation Details
+
+- Core module: `py/sdrl/programchecker.py`
+- Configuration: `py/sdrl/programchecker.yaml`
+- Tests: `py/sdrl/tests/programchecker_test.py` (pytest format)
+
+Run tests:
+```bash
+cd py
+pytest sdrl/tests/programchecker_test.py -v
+```
+
+##### Supported Languages
+
+Currently supports:
+- Python (`.py`)
+- Go (`.go`)
+- Extensible for additional languages via `SUPPORTED_EXTENSIONS`
+
 
 ### 2.3 Program snippets
 

@@ -49,6 +49,8 @@ def add_arguments(subparser: argparse.ArgumentParser):
                            help="Validate protocol check annotations in .prot files. Use without argument to check all course protocol files, or specify a single .prot file to check")
     subparser.add_argument('--validate-snippets', nargs='?', const='all', metavar="task_file",
                            help="Validate code snippet references and definitions. Use without argument to check all course files, or specify a single task file to check")
+    subparser.add_argument('--test-programs', nargs='?', const='all', metavar="program_file",
+                           help="Test exemplary programs from itree.zip against their .prot files. Use without argument to test all programs, or specify a single program file to test")
     subparser.add_argument('targetdir',
                            help=f"Directory to which output will be written.")
 
@@ -118,6 +120,23 @@ def execute(pargs: argparse.Namespace):
         b.info("=" * 60)
         if pargs.validate_snippets != 'all':
             return  # Exit early when validating single file, don't continue with normal build
+    
+    # Perform program testing if requested
+    if hasattr(pargs, 'test_programs') and pargs.test_programs is not None:
+        b.info("=" * 60)
+        if pargs.test_programs == 'all':
+            # Test all programs in itree.zip
+            b.info("Testing all exemplary programs from itree.zip...")
+            programs_ok = the_course.test_exemplary_programs(show_progress=True)
+            # Note: Error reporting is already done in test_exemplary_programs()
+            # We don't exit with error code here to allow the build to complete
+            # Users can check the log output to see which programs failed
+        else:
+            # Test specific program file
+            test_single_program_file(pargs.test_programs)
+        b.info("=" * 60)
+        if pargs.test_programs != 'all':
+            return  # Exit early when testing single file, don't continue with normal build
     
     b.finalmessage()
 
@@ -350,6 +369,17 @@ def purge_leftover_outputfiles(directory: dir.Directory, targetdir_s: str, targe
     additions_i = {c.HTACCESS_FILE}
     purge_all_but(targetdir_s, expected_files | additions_s)
     purge_all_but(targetdir_i, expected_files | additions_i, exception=c.CACHE_FILENAME)
+
+
+def test_single_program_file(filepath: str):
+    """Test a single program file for development/debugging."""
+    try:
+        import sdrl.programchecker as programchecker
+    except ImportError as e:
+        b.error(f"Program checker module not available: {e}")
+        return
+    
+    programchecker.test_single_program_file(filepath)
 
 
 def purge_all_but(dir: str, files: set[str], exception: tg.Optional[str] = None):

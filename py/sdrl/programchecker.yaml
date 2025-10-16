@@ -1,0 +1,121 @@
+# Program Testing Configuration
+# This file defines how different programs should be handled during testing
+
+# 1. SKIP Section - Programs to completely skip (require manual testing)
+skip_programs:
+  - program_name: "go-basics"
+    reason: ".prot file includes tests for incomplete versions of go-basics.go (e.g., first run only outputs 'hello world')"
+    manual_test_required: true
+    
+  - program_name: "go-goroutines" 
+    reason: "Infinite loop program, requires manual interruption"
+    manual_test_required: true
+    
+  - program_name: "go-mutex"
+    reason: "Output contains dynamic execution time and counter values"
+    manual_test_required: true
+    
+  - program_name: "go-structs2"
+    reason: "Output contains dynamic memory addresses"
+    manual_test_required: true
+    
+  - program_name: "go-unsafe"
+    reason: "Output contains numerous dynamic memory addresses"
+    manual_test_required: true
+    
+  - program_name: "go-waitgroup"
+    reason: "Concurrent execution order is non-deterministic"
+    manual_test_required: true
+    
+  - program_name: "FastAPI-GET"
+    reason: "Output contains uncontrollable status codes and timestamps"
+    manual_test_required: true
+    
+  - program_name: "FastAPI-CRUD"
+    reason: "Output contains uncontrollable status codes and timestamps"
+    manual_test_required: true
+  
+  - program_name: "m_sys"
+    reason: "Contains sys.path (varies across machines) and shell redirection (>/tmp/a). Automated testing cannot distinguish redirection from arguments - if treated as argument, output will mismatch .prot file"
+    manual_test_required: true
+  
+  - program_name: "m_subprocess2"
+    reason: ".prot file includes tests for different program versions (pytest vs direct execution with different parameters), similar to go-basics issue"
+    manual_test_required: true
+
+# 2. Partial Skip Section - Skip specific commands within programs, others are testable
+# This section is for programs where some commands can be automatically tested,
+# but others require manual testing due to:
+# - Traceback output variations across different machines/environments
+# - Non-deterministic output (memory addresses, timing, execution order)
+# - Interactive input requirements during specific commands
+# - Error demonstrations that intentionally show different results
+partial_skip_programs: []
+  # Currently empty - programs are either fully testable or require complete manual testing
+  # Example configuration for future use:
+  # - program_name: "example_program"
+  #   skip_commands_with:
+  #     - "Traceback (most recent call last):"
+  #     - "MemoryError"
+  #   skip_reason: "Different stack depths lead to inconsistent Traceback output"
+  #   testable_note: "Other commands without error demonstrations can be automatically tested"
+
+# 3. Command Override Section - Provide correct test commands
+command_override:
+  - program_name: "go-channels"
+    original_command: "go run main.go"
+    correct_command: "go run go-channels.go"
+    reason: ".prot file uses main.go but actual file is go-channels.go"
+  
+  - program_name: "go-interfaces"
+    original_command: "go run interfaces.go"
+    correct_command: "go run go-interfaces.go"
+    reason: ".prot file uses interfaces.go but actual file is go-interfaces.go"
+
+# 4. Normal Test Section - Programs that can be tested directly
+normal_test_programs:
+  - program_name: "m_sqlite3" 
+    notes: "Supports programs with arguments"
+    
+  - program_name: "go-functions"
+    notes: "Standard Go program"
+    
+  - program_name: "go-structs1"
+    notes: "Standard Go program"
+    
+  - program_name: "go-interfaces"
+    notes: "Standard Go program"
+
+# Global Settings
+global_settings:
+  # Keywords for auto-detecting interactive programs
+  interaction_keywords:
+    - "Enter"
+    - "Input:"
+    - "input:"
+    - "(Enter to proceed)"
+    - "Press"
+    - "Continue?"
+    
+  # Keywords for auto-detecting error demonstrations  
+  error_keywords:
+    - "Traceback (most recent call last):"
+    - "Error:"
+    - "Exception:"
+    - "MemoryError"
+    - "IndexError" 
+    - "ValueError"
+    - "KeyError"
+    - "FileNotFoundError"
+    
+  # Keywords for auto-detecting shell complexity
+  shell_complexity_keywords:
+    - ">"
+    - "<"
+    - ">>"
+    - "|"
+    - "&&"
+    - "||"
+    - "("
+    - ")"
+    - "ulimit"

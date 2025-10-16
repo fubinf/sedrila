@@ -14,6 +14,7 @@ import numbers
 import os
 import re
 import typing as tg
+from pathlib import Path
 
 import base as b
 import mycrypt
@@ -655,6 +656,52 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         total_definition_errors = sum(len(errors) for errors in file_errors.values())
         
         return len(failed_results) == 0 and total_definition_errors == 0
+
+    def test_exemplary_programs(self, show_progress: bool = True) -> bool:
+        """
+        Test exemplary programs from itree.zip against their .prot files.
+        Returns True if all tests pass, False otherwise.
+        """
+        try:
+            import sdrl.programchecker as programchecker
+        except ImportError as e:
+            b.error(f"Program checker module not available: {e}")
+            return False
+        
+        if show_progress:
+            b.info("Starting program testing...")
+        
+        # Create program checker with course root 
+        # For Coursebuilder, we are already in the course root directory
+        # altdir should be relative to the current directory
+        course_root = Path.cwd()
+        checker = programchecker.ProgramChecker(course_root=course_root)
+        
+        # Run all program tests
+        results = checker.test_all_programs(show_progress=show_progress)
+        
+        if not results:
+            b.warning("No program tests were executed")
+            return True  # Consider this a success if no tests were found
+        
+        # Generate reports
+        checker.generate_reports(results)
+        
+        # Return success status (considering skipped tests as non-failures)
+        failed_results = [r for r in results if not r.success and not r.skipped]
+        success = len(failed_results) == 0
+        
+        if show_progress:
+            passed = sum(1 for r in results if r.success)
+            failed = len(failed_results)
+            skipped = sum(1 for r in results if r.skipped)
+            
+            if success:
+                b.info(f"Program testing completed successfully: {passed} passed, {skipped} skipped")
+            else:
+                b.error(f"Program testing failed: {failed} failed, {passed} passed, {skipped} skipped")
+        
+        return success
 
 
     def compute_taskorder(self):
