@@ -278,8 +278,11 @@ class Student:
                         sub._add_task_file(taskname, sp)
                 # add everything else
                 else: sub._add_task_file(taskname, p)
-
-            if task.workhours <= 0 and not task.is_accepted and not task.allowed_attempts <= 0:
+                
+            if (task.workhours <= 0
+                and not task.is_accepted
+                and not task.allowed_attempts <= 0
+                and not taskname in self.submission):
                 sub._remove_if_empty(taskname)
 
         # assign states to tasks from submission yaml
