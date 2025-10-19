@@ -646,15 +646,20 @@ def html_for_page(title: str, course_url: str, body: str) -> str:
 
 def html_for_layout(title: str, content: str, selected: str | None = None) -> str:
     ctx = sdrl.participant.get_context()
-
+    is_instructor = ctx.is_instructor
 
     # small trick to move relevant tasks up
     # adds '##' to all checkable tasks whilst sorting
     def checkable_first(name):
         for s in ctx.studentlist:
             t = s.submissions.task(name)
-            if t and t.is_checkable: return f"##{name}"
-        return name
+            if not t: continue
+
+            # sort entries not marked for submission last for instructors
+            if is_instructor and not t.is_registered: return (1, name)
+            # sort checkable entries first
+            if t and t.is_checkable: return (-1, name)
+        return (0, name)
     tasks = sorted(ctx.tasknames, key=checkable_first)
 
     state_classes = dict([
