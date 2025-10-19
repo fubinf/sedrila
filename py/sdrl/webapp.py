@@ -563,7 +563,7 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
     SRC = 'src'
     BINARY = 'binary'
     MISSING = 'missing'
-    binaryfile_suffixes = ('gif', 'ico', 'jpg', 'pdf', 'png', 'zip')  # TODO 2: what else?
+    binaryfile_suffixes = ('gif', 'ico', 'jpg', 'pdf', 'png', 'zip', 'sqlite', 'db')  # TODO 2: what else?
     suffix2lang = dict(  # see https://pygments.org/languages/  TODO 2: always just use the suffix?
         c="c", cc="c++", cpp="c++", cs="csharp",
         go="golang",
