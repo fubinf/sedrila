@@ -439,17 +439,17 @@ def serve_sedrila_update():
     """
     data = bottle.request.params
     ctx = sdrl.participant.get_context()
-    idx = int(data['student_idx'])
+    idx = int(html.unescape(data.student_idx))
     student = ctx.studentlist[idx]
-    taskname = data['taskname']
-    new_state = data['new_state']
+    taskname = html.unescape(data.taskname)
+    new_state = data.new_state
 
     if not student.set_state(taskname, new_state):
         bottle.response.status = 404
         return "invalid task or state"
 
     if "return_file" in data:
-        return bottle.redirect(f"/tasks/{taskname}/{html.unescape(data['return_file'])}")
+        return bottle.redirect(f"/tasks/{taskname}/{html.unescape(data.return_file)}")
     elif not "no_redirect" in data:
         return bottle.redirect(f"/tasks/{taskname}")
 
@@ -498,9 +498,9 @@ def serve_task(taskname: str, path: str | None = None):
         return_file = f"<input type='hidden' name='return_file' value='{html.escape(path[1:])}'/>" if path else None
         return f"""
             <form class="action-button" action="{SEDRILA_UPDATE_URL}" method="POST"/>
-                <input type="hidden" name="taskname" value="{taskname}"/>
-                <input type="hidden" name="student_idx" value="{student_idx}"/>
-                <input type="hidden" name="new_state" value="{state}"/>
+                <input type="hidden" name="taskname" value="{html.escape(taskname)}"/>
+                <input type="hidden" name="student_idx" value="{html.escape(str(student_idx))}"/>
+                <input type="hidden" name="new_state" value="{html.escape(state)}"/>
                 {return_file or ""}
                 <label class="{"active" if task.state == state or (task.state == None and state == c.SUBMISSION_NONCHECK_MARK) else ""}">
                     {state}
