@@ -473,6 +473,15 @@ def serve_js():
     bottle.response.content_type = 'text/javascript'
     return webapp_js
 
+@bottle.route("/raw/<student_idx>/<path:path>")
+def serve_raw(student_idx: str, path: str):
+    ctx = sdrl.participant.get_context()
+    idx = int(student_idx)
+    if idx >= len(ctx.studentlist):
+        raise bottle.HTTPError(status=404, body="invalid student idx")
+    student = ctx.studentlist[idx]
+    return bottle.static_file(student.path_actualpath(f"/{path}"), root='.')
+
 @bottle.route("/tasks/<taskname>/<path:path>")
 @bottle.route("/tasks/<taskname>")
 def serve_task(taskname: str, path: str | None = None):
@@ -552,9 +561,6 @@ def serve_task(taskname: str, path: str | None = None):
     """
     return html_for_layout(taskname, body, selected=taskname)
 
-def handle_rawfile(student: sdrl.participant.Student, mypath: str):
-    return bottle.static_file(student.path_actualpath(mypath), root='.')
-
 def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
     """
     Page body showing each Workdir's version (if existing) of file mypath, and pairwise diffs where possible.
@@ -575,9 +581,10 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
     filename = os.path.basename(mypath)
     frontname, suffix = os.path.splitext(filename)
 
-    def append_one_file():
+    def append_one_file(idx):
+        path = html.escape(workdir.path_actualpath(mypath))
         if not suffix or suffix[1:] in binaryfile_suffixes:
-            lines.append(f"<a href='?raw={html.escape(workdir.topdir)}'>{html.escape(workdir.path_actualpath(mypath))}</a>")
+            lines.append(f"<a href='/raw/{idx}/{path}'>{path}</a>")
             kinds.append(BINARY)
             return
         content = b.slurp(f"{workdir.topdir}{mypath}")
@@ -588,7 +595,7 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
         else:  # any other suffix: assume this is a sourcefile
             language = suffix2lang.get(suffix[1:], "")
             if language == 'html':
-                lines.append(f"<a href='?raw={html.escape(workdir.topdir)}'>view as HTML page</a>")
+                lines.append(f"<a href='/raw/{idx}/{path}'>view as HTML page</a>")
             lines.append(f"```{language}")
             lines.append(content.rstrip("\n"))
             lines.append(f"```")
@@ -618,7 +625,7 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
             lines.append(f"(('{html.escape(mypath)}' does not exist in '{html.escape(workdir.topdir)}'))")
             kinds.append(MISSING)
         else:
-            append_one_file()
+            append_one_file(idx)
         if idx % 2 == 1:
             append_diff()
     # ----- render:
