@@ -23,9 +23,6 @@ such automated testing.
 One aspect of SeDriLa content checking is making sure that any hyperlinks to external resources
 work as expected.
 
-Such checking should be integrated into `sedrila author`, to be activated by a new 
-option `--check-links`:
-
 - Link checking needs to follow redirects.
 - Not all links that work alright also result in HTTP 200 status.
   `sedrila` should probably allow specifying a different (specifically expected for this particular link)
@@ -37,7 +34,7 @@ option `--check-links`:
 
 ### Implementation for now
 
-External link validation is integrated into `sedrila author` using efficient HEAD requests with comprehensive reporting.
+External link validation is integrated into `sedrila maintainer` (a dedicated maintenance subcommand) using efficient HEAD requests with comprehensive reporting. The maintainer subcommand operates directly on source files without building the course, making it much faster than the full `sedrila author` build process.
 
 ### Features:
 - `--check-links [file]`: Validates external links with detailed reporting
@@ -50,15 +47,17 @@ External link validation is integrated into `sedrila author` using efficient HEA
 ### Usage Examples
 
 ```bash
-# Full link validation with detailed reports  
-sedrila author --check-links -- /tmp/output
+# Full link validation with detailed reports (checks all course files)
+sedrila maintainer --check-links
 
 # Test single file (development/debugging)
-sedrila author --check-links /path/to/file.md /tmp/output
+sedrila maintainer --check-links /path/to/file.md
 
-# Include beta-stage tasks in link checking (recommended for pre-release validation)
-sedrila author --include_stage beta --check-links -- /tmp/output
+# Specify custom config file
+sedrila maintainer --config custom-sedrila.yaml --check-links
 ```
+
+**Note**: Unlike `sedrila author`, the `maintainer` subcommand does not require an output directory and does not respect `--include_stage` flags. It directly parses `sedrila.yaml` and checks all files listed there.
 
 ### Custom Validation Rules
 
@@ -83,14 +82,7 @@ Supported parameters:
 
 The validation rule applies to the next link found and is then reset.
 
-### Anti-Crawling Protection
-
-Some domains implement aggressive anti-crawling mechanisms that block automated tools while remaining accessible in browsers. The link checker handles this gracefully:
-
-- **Trusted domains**: `linux.die.net`, `baeldung.com`, `labex.io`, `cyberciti.biz`, `code.visualstudio.com`
-- **Behavior**: Returns actual HTTP status (403/500) but marks link as valid
-- **Reporting**: Clear explanation that these links are accessible despite status codes
-- **Console output**: Dedicated "ANTI-CRAWLING WHITELIST NOTE" section
+**Important**: If a website returns 403 or similar error codes, you must explicitly mark it with `<!-- LINK_CHECK: status=403 -->`. The system will actually make the request to verify the status code is still 403 - this catches cases where domains change ownership or become unavailable.
 
 ### Output
 
@@ -98,7 +90,6 @@ Reports are generated with fixed names for easy integration:
 - JSON report: `link_check_report.json`
 - Markdown report: `link_check_report.md`
 - Console summary with integrated statistics
-- **Anti-crawling sections**: Dedicated reporting for whitelisted domains with explanations
 
 **Note**: Both single-file and full-course testing use the same fixed report names to prevent file accumulation.
 

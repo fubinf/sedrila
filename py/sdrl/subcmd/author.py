@@ -43,8 +43,6 @@ def add_arguments(subparser: argparse.ArgumentParser):
                            help="purge cache and perform a complete build")
     subparser.add_argument('--rename', nargs=2, metavar=("partname", "new_partname"),
                            help="Rename files of part, macro calls in *.md. and part mentions in *.prot, then stop.")
-    subparser.add_argument('--check-links', nargs='?', const='all', metavar="markdown_file",
-                           help="Check accessibility of external links. Use without argument to check all course files, or specify a single markdown file to check")
     subparser.add_argument('--validate-protocols', nargs='?', const='all', metavar="protocol_file",
                            help="Validate protocol check annotations in .prot files. Use without argument to check all course protocol files, or specify a single .prot file to check")
     subparser.add_argument('--validate-snippets', nargs='?', const='all', metavar="task_file",
@@ -66,24 +64,6 @@ def execute(pargs: argparse.Namespace):
     targetdir_i = _targetdir_i(pargs.targetdir)
     prepare_directories(targetdir_s, targetdir_i)
     the_course = create_and_build_course(pargs, targetdir_i, targetdir_s)
-    
-    # Perform external link checking if requested
-    if hasattr(pargs, 'check_links') and pargs.check_links is not None:
-        b.info("=" * 60)
-        if pargs.check_links == 'all':
-            # Check all course files
-            b.info("Checking links in all course files...")
-            links_ok = the_course.check_external_links(show_progress=True)
-            if not links_ok:
-                b.error("External link validation failed - some links are broken")
-                # Note: We don't exit with error code here to allow the build to complete
-                # Users can check the log output to see which links failed
-        else:
-            # Check specific file
-            test_single_markdown_file(pargs.check_links)
-        b.info("=" * 60)
-        if pargs.check_links != 'all':
-            return  # Exit early when checking single file, don't continue with normal build
     
     # Perform protocol annotation validation if requested
     if hasattr(pargs, 'validate_protocols') and pargs.validate_protocols is not None:
@@ -198,68 +178,6 @@ def validate_single_task_snippets(filepath: str):
     
     # Return success status
     failed_results = [r for r in results if not r.success]
-    return len(failed_results) == 0
-
-
-def test_single_markdown_file(filepath: str):
-    """Test links in a single markdown file for development/debugging."""
-    import sdrl.linkchecker as linkchecker
-    
-    if not os.path.exists(filepath):
-        b.error(f"File not found: {filepath}")
-        return
-    
-    b.info(f"Testing file: {filepath}")
-    b.info("=" * 60)
-    
-    # Extract links
-    extractor = linkchecker.LinkExtractor()
-    links = extractor.extract_links_from_file(filepath)
-    
-    b.info(f"Found {len(links)} links:")
-    for i, link in enumerate(links, 1):
-        rule_info = ""
-        if link.validation_rule:
-            rule_parts = []
-            if link.validation_rule.expected_status:
-                rule_parts.append(f"status={link.validation_rule.expected_status}")
-            if link.validation_rule.required_text:
-                rule_parts.append(f"content='{link.validation_rule.required_text}'")
-            if link.validation_rule.timeout:
-                rule_parts.append(f"timeout={link.validation_rule.timeout}")
-            if link.validation_rule.ignore_ssl:
-                rule_parts.append("ignore_ssl=true")
-            if rule_parts:
-                rule_info = f" [CUSTOM: {', '.join(rule_parts)}]"
-        
-        b.info(f"  {i}. {link.url}{rule_info}")
-    
-    if not links:
-        b.info("No external links found to test.")
-        return
-    
-    b.info("\n" + "=" * 60)
-    b.info("Starting link validation...")
-    b.info("=" * 60)
-    
-    # Check links
-    checker = linkchecker.LinkChecker()
-    results = checker.check_links(links, show_progress=True)
-    
-    # Generate report
-    reporter = linkchecker.LinkCheckReporter()
-    reporter.print_summary(results)
-    
-    # Save detailed reports for single file testing (using fixed names as per professor's suggestion)
-    
-    # Save JSON report
-    reporter.generate_json_report(results)  # Uses default fixed name
-    
-    # Save Markdown report  
-    reporter.generate_markdown_report(results)  # Uses default fixed name
-    
-    # Return success status
-    failed_results = linkchecker.LinkCheckReporter.get_failed_links(results)
     return len(failed_results) == 0
 
 

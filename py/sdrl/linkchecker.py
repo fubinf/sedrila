@@ -157,29 +157,6 @@ class LinkChecker:
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1'
         })
-        
-        # Domains that require longer delays and special treatment
-        self.strict_domains = {
-            'linux.die.net': 5.0,
-            'labex.io': 4.0,
-            'cyberciti.biz': 4.0,
-            'www.cyberciti.biz': 4.0,
-            'baeldung.com': 3.0,
-            'www.baeldung.com': 3.0,
-            'code.visualstudio.com': 3.0
-        }
-        
-        # Trusted domains that are known to work but have strict anti-crawling
-        # These will be marked as "assumed valid" with a warning instead of failed
-        self.trusted_but_strict_domains = {
-            'linux.die.net',      # Official Linux manual pages
-            'labex.io',          # Educational platform, valid but blocks automation  
-            'cyberciti.biz',     # Well-known Linux/Unix tutorial site
-            'www.cyberciti.biz', # With www prefix
-            'baeldung.com',      # Respected Java/programming tutorial site  
-            'www.baeldung.com',  # With www prefix
-            'code.visualstudio.com'  # Official Microsoft VS Code documentation
-        }
     
     def check_link(self, link: ExternalLink) -> LinkCheckResult:
         """Check accessibility of a single external link using HEAD request."""
@@ -199,26 +176,15 @@ class LinkChecker:
                 # Determine request method: use HEAD unless content checking is needed
                 # This strictly follows professor's requirement: "A link checker should use HEAD, not GET"
                 # Only exception: when explicit content validation is required (content= rule)
-                host = urlparse(link.url).netloc.lower()
                 use_get = (link.validation_rule and link.validation_rule.required_text)
                 method = 'GET' if use_get else 'HEAD'
-                
-                # Add extra headers for strict domains
-                extra_headers = {}
-                if host in self.strict_domains:
-                    extra_headers.update({
-                        'Referer': f'https://{host}/',
-                        'Cache-Control': 'no-cache',
-                        'Pragma': 'no-cache'
-                    })
                 
                 response = self.session.request(
                     method,
                     link.url, 
                     timeout=timeout, 
                     allow_redirects=follow_redirects,
-                    verify=verify_ssl,
-                    headers=extra_headers
+                    verify=verify_ssl
                 )
                 response_time = round(time.time() - start_time, 3)
                 
@@ -234,14 +200,6 @@ class LinkChecker:
                     # Default: consider 2xx and 3xx status codes as success
                     status_ok = 200 <= response.status_code < 400
                     error_message = None if status_ok else f"HTTP {response.status_code}"
-                    
-                    # Special handling for trusted domains with strict anti-crawling
-                    if not status_ok:
-                        host = urlparse(link.url).netloc.lower()
-                        if (host in self.trusted_but_strict_domains and 
-                            response.status_code in [403, 500]):
-                            status_ok = True  # Mark as successful
-                            error_message = f"Assumed valid (trusted domain blocks automation): {host}"
                 
                 # Check content if required
                 content_ok = True
@@ -312,9 +270,7 @@ class LinkChecker:
             host = urlparse(url).netloc.lower()
             
             current_time = time.time()
-            
-            # Use longer delay for strict domains
-            required_delay = self.strict_domains.get(host, self.delay_per_host)
+            required_delay = self.delay_per_host
             
             if host in self.host_last_request:
                 time_since_last = current_time - self.host_last_request[host]
@@ -415,12 +371,10 @@ class LinkStatistics:
     failed_links: int = 0
     total_files: int = 0
     files_with_links: int = 0
-    files_with_broken_links: int = 0
+    files_with_failed_links: int = 0  # Files containing links that failed validation
     domains: dict[str, int] = None
     status_codes: dict[int, int] = None
     error_types: dict[str, int] = None
-    whitelisted_links: int = 0  # Links that passed due to whitelist
-    whitelisted_domains: dict[str, int] = None  # Domains that were whitelisted
     
     def __post_init__(self):
         if self.domains is None:
@@ -429,8 +383,6 @@ class LinkStatistics:
             self.status_codes = {}
         if self.error_types is None:
             self.error_types = {}
-        if self.whitelisted_domains is None:
-            self.whitelisted_domains = {}
     
     @property
     def success_rate(self) -> float:
@@ -460,7 +412,7 @@ class LinkCheckReporter:
         
         file_set = set()
         files_with_links = set()
-        files_with_broken_links = set()
+        files_with_failed_links = set()
         
         for result in results:
             link = result.link
@@ -468,11 +420,6 @@ class LinkCheckReporter:
             # Basic counts
             if result.success:
                 stats.successful_links += 1
-                # Check if this was a whitelisted domain
-                if result.error_message and "trusted domain" in result.error_message.lower():
-                    stats.whitelisted_links += 1
-                    domain = urlparse(link.url).netloc.lower()
-                    stats.whitelisted_domains[domain] = stats.whitelisted_domains.get(domain, 0) + 1
             else:
                 stats.failed_links += 1
             
@@ -480,7 +427,7 @@ class LinkCheckReporter:
             file_set.add(link.source_file)
             files_with_links.add(link.source_file)
             if not result.success:
-                files_with_broken_links.add(link.source_file)
+                files_with_failed_links.add(link.source_file)
             
             # Domain analysis
             try:
@@ -500,7 +447,7 @@ class LinkCheckReporter:
         
         stats.total_files = len(file_set)
         stats.files_with_links = len(files_with_links)
-        stats.files_with_broken_links = len(files_with_broken_links)
+        stats.files_with_failed_links = len(files_with_failed_links)
         
         return stats
     
@@ -513,6 +460,8 @@ class LinkCheckReporter:
             return '404_not_found'
         elif '403' in error_lower or 'forbidden' in error_lower:
             return '403_forbidden'
+        elif '405' in error_lower or 'method not allowed' in error_lower:
+            return '405_method_not_allowed'
         elif '500' in error_lower or 'server error' in error_lower:
             return '500_server_error'
         elif 'connection' in error_lower:
@@ -542,7 +491,7 @@ class LinkCheckReporter:
         b.info(f"  Successful: {stats.successful_links} ({stats.success_rate:.1f}%)")
         b.info(f"  Failed: {stats.failed_links} ({100-stats.success_rate:.1f}%)")
         b.info(f"  Files with links: {stats.files_with_links}")
-        b.info(f"  Files with broken links: {stats.files_with_broken_links}")
+        b.info(f"  Files with failed links: {stats.files_with_failed_links}")
         b.info("")
         
         # Top domains
@@ -562,14 +511,6 @@ class LinkCheckReporter:
                 percentage = (count / stats.total_links) * 100
                 status_desc = self._get_status_description(status_code)
                 b.info(f"  {status_code} ({status_desc}): {count} ({percentage:.1f}%)")
-            b.info("")
-            
-        # Whitelist explanation for 403/500 codes
-        if stats.whitelisted_links > 0:
-            b.info("ANTI-CRAWLING WHITELIST NOTE")
-            b.info(f"  {stats.whitelisted_links} links from trusted domains returned 403/500 but are actually accessible.")
-            b.info("  These sites block automation tools but work fine in browsers.")
-            b.info("  Status codes shown are actual server responses, not marked as errors.")
             b.info("")
         
         # Error analysis
@@ -597,7 +538,24 @@ class LinkCheckReporter:
         # Final status
         b.info("=" * 60)
         if failed_results:
-            b.error(f"VALIDATION FAILED: {len(failed_results)}/{stats.total_links} links are broken")
+            # Count by HTTP status code
+            status_counts = {}
+            other_errors = 0
+            for result in failed_results:
+                if result.status_code:
+                    status_counts[result.status_code] = status_counts.get(result.status_code, 0) + 1
+                else:
+                    other_errors += 1
+            
+            # Build status breakdown string
+            breakdown_parts = []
+            for status_code in sorted(status_counts.keys()):
+                breakdown_parts.append(f"{status_code}: {status_counts[status_code]}")
+            if other_errors > 0:
+                breakdown_parts.append(f"other: {other_errors}")
+            breakdown = ", ".join(breakdown_parts)
+            
+            b.error(f"VALIDATION FAILED: {len(failed_results)}/{stats.total_links} links failed validation ({breakdown})")
         else:
             b.info(f"VALIDATION PASSED: All {stats.total_links} links are accessible")
         b.info("=" * 60)
@@ -610,6 +568,7 @@ class LinkCheckReporter:
             302: "Found",
             403: "Forbidden",
             404: "Not Found",
+            405: "Method Not Allowed",
             500: "Internal Server Error",
             502: "Bad Gateway",
             503: "Service Unavailable",
@@ -637,12 +596,10 @@ class LinkCheckReporter:
                 "duplicate_urls": stats.total_links - stats.unique_urls_checked,
                 "successful_links": stats.successful_links,
                 "failed_links": stats.failed_links,
-                "whitelisted_links": stats.whitelisted_links,
                 "total_files": stats.total_files,
                 "files_with_links": stats.files_with_links,
-                "files_with_broken_links": stats.files_with_broken_links,
+                "files_with_failed_links": stats.files_with_failed_links,
                 "domains": sorted_domains,
-                "whitelisted_domains": dict(sorted(stats.whitelisted_domains.items(), key=lambda x: x[1], reverse=True)),
                 "status_codes": stats.status_codes,
                 "error_types": stats.error_types
             },
@@ -691,10 +648,8 @@ class LinkCheckReporter:
                 f.write(f"- **Duplicate URLs:** {duplicates} ({duplicates/stats.total_links*100:.1f}%)\n")
             f.write(f"- **Successful:** {stats.successful_links} ({stats.success_rate:.1f}%)\n")
             f.write(f"- **Failed:** {stats.failed_links} ({100-stats.success_rate:.1f}%)\n")
-            if stats.whitelisted_links > 0:
-                f.write(f"- **Whitelisted (anti-crawling):** {stats.whitelisted_links} ({stats.whitelisted_links/stats.total_links*100:.1f}%)\n")
             f.write(f"- **Files with links:** {stats.files_with_links}\n")
-            f.write(f"- **Files with broken links:** {stats.files_with_broken_links}\n\n")
+            f.write(f"- **Files with failed links:** {stats.files_with_failed_links}\n\n")
             
             # Clarification about duplicate handling
             if stats.unique_urls_checked != stats.total_links:
@@ -712,58 +667,6 @@ class LinkCheckReporter:
                 for domain, count in sorted_domains[:15]:
                     percentage = (count / stats.total_links) * 100
                     f.write(f"| {domain} | {count} | {percentage:.1f}% |\n")
-                f.write("\n")
-            
-            # Whitelisted domains section with detailed links
-            whitelisted_results = [r for r in results if r.success and r.error_message and "trusted domain" in r.error_message.lower()]
-            if whitelisted_results:
-                f.write("## Trusted Domains (Anti-Crawling Whitelist)\n\n")
-                f.write("**Important Note:** The links below returned 403/500 status codes but are actually accessible in browsers. ")
-                f.write("These sites implement anti-crawling mechanisms that block automated tools while remaining functional for human users. ")
-                f.write("The status codes shown are the actual server responses, but these links are NOT marked as errors.\n\n")
-                f.write("These domains are known to be valid but block automation tools:\n\n")
-                
-                # Summary table
-                f.write("### Summary\n\n")
-                f.write("| Domain | Links | Reason |\n")
-                f.write("|--------|-------|--------|\n")
-                domain_reasons = {
-                    'linux.die.net': 'Official Linux manual pages',
-                    'labex.io': 'Educational platform', 
-                    'cyberciti.biz': 'Linux/Unix tutorial site',
-                    'www.cyberciti.biz': 'Linux/Unix tutorial site',
-                    'baeldung.com': 'Programming tutorial site',
-                    'www.baeldung.com': 'Programming tutorial site', 
-                    'code.visualstudio.com': 'Microsoft VS Code documentation'
-                }
-                for domain, count in sorted(stats.whitelisted_domains.items(), key=lambda x: x[1], reverse=True):
-                    reason = domain_reasons.get(domain, 'Trusted domain with strict anti-crawling')
-                    f.write(f"| {domain} | {count} | {reason} |\n")
-                f.write("\n")
-                
-                # Detailed whitelisted links
-                f.write("### Whitelisted Links Details\n\n")
-                f.write("These specific links were marked as valid despite returning 403/500 errors. ")
-                f.write("**All these links are accessible in browsers** - the status codes reflect anti-crawling protection, not actual failures:\n\n")
-                f.write("| URL | Status | File | Line | Message |\n")
-                f.write("|-----|--------|------|------|----------|\n")
-                
-                # Group whitelisted results by domain
-                whitelisted_by_domain = defaultdict(list)
-                for result in whitelisted_results:
-                    domain = urlparse(result.link.url).netloc.lower()
-                    whitelisted_by_domain[domain].append(result)
-                
-                # Sort by domain, then by URL
-                for domain in sorted(whitelisted_by_domain.keys()):
-                    domain_results = sorted(whitelisted_by_domain[domain], key=lambda x: x.link.url)
-                    for result in domain_results:
-                        link = result.link
-                        status_code = result.status_code or "N/A"
-                        error_msg = result.error_message or ""
-                        # Truncate long URLs for readability
-                        url_display = link.url if len(link.url) <= 60 else link.url[:57] + "..."
-                        f.write(f"| {url_display} | {status_code} | {link.source_file} | {link.line_number} | {error_msg} |\n")
                 f.write("\n")
             
             # Failed links table (sorted by error type, then filename)
@@ -791,8 +694,8 @@ class LinkCheckReporter:
                 file_results = grouped[file_path]
                 f.write(f"### {file_path}\n\n")
                 for result in sorted(file_results, key=lambda x: x.link.line_number):
-                    status = "✅" if result.success else "❌"
-                    f.write(f"  {status}{result.link.line_number}: {result.link.url}\n")
+                    status = "[PASS]" if result.success else "[FAIL]"
+                    f.write(f"  {status} {result.link.line_number}: {result.link.url}\n")
                 f.write("\n")
         
         b.info(f"Detailed Markdown report saved to: {output_file}")

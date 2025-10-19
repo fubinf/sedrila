@@ -444,58 +444,6 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
                 if not self.namespace.get(required, None):
                     b.error(f"required part '{required}' does not exist", file=task.sourcefile)
 
-    def check_external_links(self, show_progress: bool = True) -> bool:
-        """
-        Check accessibility of external links in all tasks.
-        
-        Returns:
-            bool: True if all links are accessible, False if any failed
-        """
-        try:
-            import sdrl.linkchecker as linkchecker
-        except ImportError as e:
-            b.error(f"Cannot import link checking modules: {e}")
-            return False
-        
-        b.info("Starting external link validation...")
-        
-        # Extract links from all tasks
-        extractor = linkchecker.LinkExtractor()
-        all_links = []
-        
-        for task in self.taskdict.values():
-            if task.to_be_skipped:
-                continue  # Skip tasks that are marked to be skipped
-            
-            links = extractor.extract_links_from_file(task.sourcefile)
-            all_links.extend(links)
-        
-        if not all_links:
-            b.info("No external links found to check.")
-            return True
-        
-        b.info(f"Found {len(all_links)} external links to validate")
-        
-        # Check all links
-        checker = linkchecker.LinkChecker()
-        results = checker.check_links(all_links, show_progress=show_progress)
-        
-        # Generate and display report
-        reporter = linkchecker.LinkCheckReporter()
-        reporter.print_summary(results)
-        
-        # Save detailed reports with fixed names
-        if results:
-            # Save JSON report
-            reporter.generate_json_report(results)
-            
-            # Save Markdown report
-            reporter.generate_markdown_report(results)
-        
-        # Return success status
-        failed_results = linkchecker.LinkCheckReporter.get_failed_links(results)
-        return len(failed_results) == 0
-
     def validate_protocol_annotations(self, show_progress: bool = True) -> bool:
         """
         Validate protocol check annotations in all protocol files.

@@ -13,7 +13,7 @@ plus sometimes "replacement blocks").
 The content below describes the details of these data (Section 1,
 including advice about what content to put where in Sections 1.2 and 1.6),
 how to generate the course website from it (Section 2),
-and how to make and maintain a fork of an existing sedrila course (Section 3)
+and how to make and maintain a fork of an existing sedrila course (Section 3).
 
 
 ## 1. Content structure of a sedrila course
@@ -900,15 +900,6 @@ Both versions will by default exclude all tasks, taskgroups, and chapters that h
 - To use an alternative configuration file, use something like `--config myconfig.yaml`.  
 - Option `--sums` generates reports about the volume of tasks per chapter,
   per difficulty, and per stage.
-- Option `--check-links [markdown_file]` validates external HTTP/HTTPS links found in markdown files.
-  Without an argument, it checks all course files. With a file argument, it checks only that specific file.
-  Uses HEAD requests by default for efficiency, falling back to GET only when content validation is needed.
-  Generates fixed-name reports: `link_check_report.json` and `link_check_report.md` in the output directory.
-  Supports custom validation rules via HTML comments in markdown files (see examples below).
-  Avoids checking duplicate URLs and includes comprehensive statistics in the main report.
-  Examples: 
-  - `sedrila author --check-links -- /tmp/output` (check all course files)
-  - `sedrila author --check-links /path/to/file.md /tmp/output` (check specific file)
 - Option `--validate-protocols [prot_file]` validates protocol check annotations in `.prot` files.
   Without an argument, it checks all protocol files in the course (searches both task directories and altdir). 
   With a file argument, it checks only that specific file.
@@ -945,53 +936,7 @@ Both versions will by default exclude all tasks, taskgroups, and chapters that h
   - `sedrila author --test-programs -- /tmp/output` (test all programs from itree.zip)
   - `sedrila author --test-programs path/to/program.py /tmp/output` (test specific program)
 
-#### 2.2.1 Link validation rules
-
-The link checker supports custom validation rules specified in HTML comments before links:
-
-```markdown
-<!-- LINK_CHECK: status=404 -->
-[Expected 404 Link](https://example.com/notfound)
-
-<!-- LINK_CHECK: content="API Documentation" -->
-[Must contain specific text](https://api.example.com/docs)
-
-<!-- LINK_CHECK: status=302, timeout=30, ignore_ssl=true -->
-[Complex validation](https://redirect.example.com)
-```
-
-Available rule parameters:
-- `status=N`: Expect specific HTTP status code (e.g., `status=404` for intentionally broken links)
-- `content="text"`: Verify page contains specific text (triggers GET request)
-- `timeout=N`: Use custom timeout in seconds
-- `ignore_ssl=true`: Skip SSL certificate validation
-
-The validation rule applies to the next link found and is then reset.
-This feature is particularly useful for testing links in beta-stage tasks.
-
-#### 2.2.2 Anti-crawling protection handling
-
-Some domains implement strict anti-crawling mechanisms that block automated requests while remaining fully accessible in browsers. The link checker handles these gracefully:
-
-**Trusted domains with anti-crawling protection:**
-- `linux.die.net` (Official Linux manual pages)
-- `baeldung.com` (Programming tutorials)
-- `labex.io` (Educational platform)
-- `cyberciti.biz` (Linux/Unix tutorials)
-- `code.visualstudio.com` (VS Code documentation)
-
-**Behavior:**
-- Returns actual HTTP status code (typically 403 Forbidden or 500)
-- Marks the link as **valid** (not an error)
-- Provides clear explanation in reports and console output
-- Dedicated reporting sections explain the anti-crawling protection
-
-**HTTP request strategy:**
-- **Default**: HEAD requests for efficiency and server-friendliness
-- **Exception**: GET requests only when content validation is required (`content=` parameter)
-- **Strict policy**: No automatic fallback to GET based on domain sensitivity
-
-#### 2.2.3 Protocol check annotations
+#### 2.2.1 Protocol check annotations
 
 Protocol files (`.prot`) contain command-line execution logs. Authors can add `@PROT_CHECK` annotations
 to specify validation rules for comparing student submissions with expected examples.
@@ -1047,7 +992,7 @@ drwxr-xr-x 2 user user 4096 Jan 1 12:00 .
 - Protocol files typically include prompt lines in output, which differ between students and authors
 - For tasks with variable output (timestamps, IPs, etc.), use `output=skip` or `output=flexible`
 
-#### 2.2.4 Program testing configuration
+#### 2.2.2 Program testing configuration
 
 The `--test-programs` option uses a YAML configuration file (`py/sdrl/programchecker.yaml`) to define
 testing strategies for different program categories. This allows flexible handling of various program

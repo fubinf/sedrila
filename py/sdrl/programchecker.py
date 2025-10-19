@@ -1095,7 +1095,7 @@ Generated: {timestamp}
         b.info(f"  - Skipped (runtime): {skipped_runtime}")
         b.info(f"Success Rate: {(passed / len(results) * 100):.1f}%")
         if total_time > 0:
-            b.info(f"Total Time:   {total_time:.2f}s")
+            b.info(f"Test Execution Time: {total_time:.2f}s")
         
         if failed > 0:
             b.info("")
