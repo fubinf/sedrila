@@ -4,8 +4,17 @@
 ## Version 2.11.0 (upcoming)
 - ...
 
+
+## Version 2.10.2 (upcoming)
+- `student`, `instructor`: new webapp, #19: fixed issue with CSS mimetype
+- `student`, `instructor`: new webapp, #25: fixed issue with Umlauts in filenames
+- `student`, `instructor`: new webapp, #26: reduced duration of the occasional unwanted service pauses
+- ...
+
+
 ## Version 2.10.1 (2025-10-14)
 - fixed crucial typo in `pyproject.toml`
+
 
 ## Version 2.10.0 (2025-10-13)
 - `author`: support `ITREE` prefix in [INCLUDE::ITREE:somefile]`
@@ -15,9 +24,11 @@
   (like `instructors`, but not suggested to students upon submission preparation)
 - `student`, `instructor`: totally revamped and much better webapp 
 
+
 ## Version 2.9.0 (2025-08-19)
 - `author`: taskgroup-level non-md files are now copied to targetdir verbatim (for images, downloads, etc.)
 - `instructor`, `student`: Defend against dangerous paths and control chars in student metadata 
+
 
 ## Version 2.8.1 (2025-08-15)
 - `instructor`: pull repo whenever workdir is clean
