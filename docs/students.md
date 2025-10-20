@@ -84,7 +84,7 @@ A precision of five or ten minutes will be good enough.
 Beware: Decimal hours are possible as well, but are not recommended. 
 `%SomeTask 2.75h description words` would mean 2 hours and 45 minutes,
 so make sure you get the colon right or else your data will be distorted.
-When `sedrila` creates a work time report for you, it will use decimal hours.>
+When `sedrila` creates a work time report for you, it will use decimal hours.
 
 
 ## 4. How to view your work
