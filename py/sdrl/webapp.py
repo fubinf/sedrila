@@ -58,8 +58,9 @@ favicon32x32_png = base64.b64decode(favicon32x32_png_base64)
 
 
 def run(ctx: sdrl.participant.Context):
-    b.set_register_files_callback(lambda s: None)  # in case student .md files contain weird macro calls
-    macroexpanders.register_macros(ctx.course)  # noqa
+    # Do not enable macros, because that makes the second start of webapp within one session crash
+    # b.set_register_files_callback(lambda s: None)  # in case student .md files contain weird macro calls
+    # macroexpanders.register_macros(ctx.course)  # noqa
     b.info(f"Webserver starts. Visit 'http://localhost:{ctx.pargs.port}/'. Terminate with Ctrl-C.")
 
     from wsgiref.simple_server import WSGIRequestHandler
