@@ -37,7 +37,9 @@ def test_participant(capfd):
         os.mkdir("instructordir")
         os.chdir("instructordir")
         sgit.clone(TEST_REPO, "studentdir")
-        assert "Cloning into" in capfd.readouterr().err
+        git_stderr = capfd.readouterr().err
+        assert "Cloning into" in git_stderr
+        assert not "Permission denied" in git_stderr, "clone failed, do you have an ssh key?"
         with open("studentdir/student.yaml", 'wt') as f:
             f.write(student_yaml)
         
@@ -70,18 +72,16 @@ def test_participant(capfd):
         ctx = sdrl.participant.make_context(empty, ["studentdir"], is_instructor=True)
         student = ctx.studentlist[0]  # now with the above submission file
         print("#1:", student.submission)
-        while True:  # horrible logic here, but natural in the webapp:
-            state = student.move_to_next_state('Task1', student.submission['Task1'])
-            if state == c.SUBMISSION_ACCEPT_MARK:
-                break
+        student.set_state("Task1", sdrl.participant.SubmissionTaskState.ACCEPT)
         print("#2:", student.submission)
-        assert student.submission['Task1'] == c.SUBMISSION_ACCEPT_MARK
-        while True:
-            state = student.move_to_next_state('Task2', student.submission['Task2'])
-            if state == c.SUBMISSION_REJECT_MARK:
-                break
+        assert student.submissions.task("Task1").state == sdrl.participant.SubmissionTaskState.ACCEPT
+        assert student.submission["Task1"] == c.SUBMISSION_ACCEPT_MARK 
+
+        student.set_state("Task2", sdrl.participant.SubmissionTaskState.REJECT)
         print("#3:", student.submission)
-        assert student.submission['Task2'] == c.SUBMISSION_REJECT_MARK  # ditto in submission.yaml
+        assert student.submissions.task("Task2").state == sdrl.participant.SubmissionTaskState.REJECT
+        assert student.submission["Task2"] == c.SUBMISSION_REJECT_MARK 
+
         with contextlib.chdir(student.topdir):  # make unsigned commit, we will mock the signature check
             sgit.make_commit(*[c.SUBMISSION_FILE], msg=c.SUBMISSION_CHECKED_COMMIT_MSG, signed=False)
         

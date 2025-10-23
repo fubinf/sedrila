@@ -648,8 +648,7 @@ def html_for_layout(title: str, content: str, selected: str | None = None) -> st
     ctx = sdrl.participant.get_context()
     is_instructor = ctx.is_instructor
 
-    # small trick to move relevant tasks up
-    # adds '##' to all checkable tasks whilst sorting
+    # move relevant tasks up in list
     def checkable_first(name):
         for s in ctx.studentlist:
             t = s.submissions.task(name)

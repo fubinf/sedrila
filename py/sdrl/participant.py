@@ -438,8 +438,10 @@ class Student:
 
     def set_state(self, taskname: str, new_state: SubmissionTaskState) -> bool:
         task = self.submissions.task(taskname)
+        print(taskname, task)
         if not task: return False
         task.state = new_state if new_state != c.SUBMISSION_NONCHECK_MARK else None
+        if taskname in self.submission: self.submission[taskname] = new_state
         self.save_submission()
         return True
 
