@@ -6,9 +6,12 @@
 
 
 ## Version 2.10.2 (upcoming)
+- `student`, `instructor`: new webapp, #14: better ordering of tasks
 - `student`, `instructor`: new webapp, #19: fixed issue with CSS mimetype
 - `student`, `instructor`: new webapp, #25: fixed issue with Umlauts in filenames
 - `student`, `instructor`: new webapp, #26: reduced duration of the occasional unwanted service pauses
+- `student`, `instructor`: new webapp: fixed crash when webapp was started a second time
+- `student`, `instructor`: new webapp, #14: tasks with no worktime entry are now shown correctly
 - ...
 
 
