@@ -84,7 +84,7 @@ def check_links_command(pargs: argparse.Namespace):
         
         # Check all links
         checker = linkchecker.LinkChecker()
-        results = checker.check_links(all_links, show_progress=True, batch_mode=True)
+        results = checker.check_links(all_links, show_progress=True)
         
         # Generate and display report
         reporter = linkchecker.LinkCheckReporter()
