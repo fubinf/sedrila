@@ -65,3 +65,7 @@ The validation rule applies to the next link found and is then reset.
 non-2xx/3xx status codes (e.g., 403), you must explicitly declare this with a `LINK_CHECK` comment.
 The checker will still make the request to verify the actual status code.
 
+#### CI/CD Integration
+
+Link checking is now used for Github Actions
+

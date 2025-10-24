@@ -9,6 +9,8 @@ necessarily developing new tasks.
 """
 import argparse
 import os
+
+import sys
 from pathlib import Path
 import typing as tg
 
@@ -82,7 +84,7 @@ def check_links_command(pargs: argparse.Namespace):
         
         # Check all links
         checker = linkchecker.LinkChecker()
-        results = checker.check_links(all_links, show_progress=True)
+        results = checker.check_links(all_links, show_progress=True, batch_mode=True)
         
         # Generate and display report
         reporter = linkchecker.LinkCheckReporter()
@@ -93,9 +95,20 @@ def check_links_command(pargs: argparse.Namespace):
             reporter.generate_json_report(results)
             reporter.generate_markdown_report(results)
         
+        # Check for failures and exit with appropriate status
+        failed_count = sum(1 for r in results if not r.success)
+        if failed_count > 0:
+            sys.exit(1)
+        
     else:
         # Check specific file
-        check_single_file(pargs.check_links)
+        results = check_single_file(pargs.check_links)
+        
+        # Check for failures and exit with appropriate status
+        if results:
+            failed_count = sum(1 for r in results if not r.success)
+            if failed_count > 0:
+                sys.exit(1)
     
     b.info("=" * 60)
 
@@ -173,12 +186,16 @@ def find_markdown_files(chapterdir: str, chapters: list) -> list[str]:
 
 
 def check_single_file(filepath: str):
-    """Check links in a single markdown file."""
+    """Check links in a single markdown file.
+    
+    Returns:
+        list[LinkCheckResult]: List of check results, or None if file not found/no links
+    """
     import sdrl.linkchecker as linkchecker
     
     if not os.path.exists(filepath):
         b.error(f"File not found: {filepath}")
-        return
+        return None
     
     b.info(f"Checking links in file: {filepath}")
     b.info("=" * 60)
@@ -189,7 +206,7 @@ def check_single_file(filepath: str):
     
     if not links:
         b.info("No external links found in file.")
-        return
+        return None
     
     b.info(f"Found {len(links)} external links:")
     for i, link in enumerate(links, 1):
@@ -224,4 +241,6 @@ def check_single_file(filepath: str):
     if results:
         reporter.generate_json_report(results)
         reporter.generate_markdown_report(results)
+    
+    return results
 

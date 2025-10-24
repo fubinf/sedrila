@@ -139,7 +139,7 @@ class LinkExtractor:
 class LinkChecker:
     """Validates external links by making HTTP requests."""
     
-    def __init__(self, timeout: int = 10, max_retries: int = 2, delay_between_requests: float = 1.0, delay_per_host: float = 2.0):
+    def __init__(self, timeout: int = 20, max_retries: int = 2, delay_between_requests: float = 1.0, delay_per_host: float = 2.0):
         self.timeout = timeout
         self.max_retries = max_retries
         self.delay_between_requests = delay_between_requests
@@ -294,8 +294,14 @@ class LinkChecker:
         
         return f"{link.url}{validation_key}"
     
-    def check_links(self, links: list[ExternalLink], show_progress: bool = True) -> list[LinkCheckResult]:
-        """Check multiple links, avoiding duplicate URL checks."""
+    def check_links(self, links: list[ExternalLink], show_progress: bool = True, batch_mode: bool = False) -> list[LinkCheckResult]:
+        """Check multiple links, avoiding duplicate URL checks.
+        
+        Args:
+            links: List of links to check
+            show_progress: Show progress messages for each link
+            batch_mode: If True, reduce verbosity for batch/CI use (only show summary)
+        """
         if not links:
             return []
         
@@ -312,19 +318,22 @@ class LinkChecker:
         total_unique_links = len(unique_links)
         
         # Display summary of links found
-        if show_progress:
+        if show_progress and not batch_mode:
             b.info(f"Found {total_original_links} external links to validate")
             if total_original_links != total_unique_links:
                 duplicate_count = total_original_links - total_unique_links
                 b.info(f"After deduplication: {total_unique_links} unique URLs ({duplicate_count} duplicates removed)")
             else:
                 b.info(f"All {total_unique_links} links are unique URLs")
+        elif batch_mode:
+            # Batch mode: only essential info
+            b.info(f"Checking {total_unique_links} unique URLs ({total_original_links} total references)...")
         
         results = []
         total_links = total_unique_links
         
         for i, link in enumerate(unique_links):
-            if show_progress:
+            if show_progress and not batch_mode:
                 b.info(f"Checking link {i+1}/{total_links}: {link.url}")
             
             # Implement per-host delay to avoid triggering anti-crawling mechanisms

@@ -93,6 +93,10 @@ Reports are generated with fixed names for easy integration:
 
 **Note**: Both single-file and full-course testing use the same fixed report names to prevent file accumulation.
 
+### CI/CD Integration
+
+Link checking is now used for Github Actions
+
 
 ## 2. Program testing
 
