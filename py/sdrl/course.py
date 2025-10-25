@@ -444,214 +444,6 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
                 if not self.namespace.get(required, None):
                     b.error(f"required part '{required}' does not exist", file=task.sourcefile)
 
-    def validate_protocol_annotations(self, show_progress: bool = True) -> bool:
-        """
-        Validate protocol check annotations in all protocol files.
-        
-        Returns:
-            bool: True if all annotations are valid, False if any failed
-        """
-        try:
-            import sdrl.protocolchecker as protocolchecker
-        except ImportError as e:
-            b.error(f"Cannot import protocol checking modules: {e}")
-            return False
-        
-        b.info("Starting protocol annotation validation...")
-        
-        # Find all .prot files in the course
-        # Protocol files are typically stored in altdir, not in the task directory
-        # Note: We check all tasks regardless of their to_be_skipped status,
-        # because validation should work for all protocol files regardless of stage
-        protocol_files = []
-        
-        for task in self.taskdict.values():
-            # Look for protocol files in both task directory and altdir
-            task_dir = os.path.dirname(task.sourcefile)
-            
-            # Calculate corresponding altdir path (where answer files are stored)
-            alt_task_dir = task_dir.replace(self.chapterdir, self.altdir, 1)
-            
-            # Search in both directories
-            for search_dir in [task_dir, alt_task_dir]:
-                if os.path.exists(search_dir):
-                    for file in os.listdir(search_dir):
-                        if file.endswith('.prot'):
-                            protocol_path = os.path.join(search_dir, file)
-                            # Avoid duplicates if both directories exist and have same files
-                            if protocol_path not in protocol_files:
-                                protocol_files.append(protocol_path)
-        
-        if not protocol_files:
-            b.info("No protocol files found to validate.")
-            return True
-        
-        if show_progress:
-            b.info(f"Found {len(protocol_files)} protocol files to validate")
-        
-        # Validate all protocol files
-        validator = protocolchecker.ProtocolValidator()
-        all_errors = []
-        
-        for prot_file in protocol_files:
-            if show_progress:
-                b.info(f"Validating: {prot_file}")
-            
-            errors = validator.validate_file(prot_file)
-            all_errors.extend(errors)
-        
-        # Report results
-        if not all_errors:
-            b.info("All protocol annotations are valid")
-            return True
-        else:
-            b.error(f"Found {len(all_errors)} validation errors:")
-            for error in all_errors:
-                b.error(f"  {error}")
-            return False
-
-    def validate_snippet_references(self, show_progress: bool = True) -> bool:
-        """
-        Validate code snippet references and definitions in all course files.
-        
-        Returns:
-            bool: True if all snippet references are valid, False if any failed
-        """
-        try:
-            import sdrl.snippetchecker as snippetchecker
-        except ImportError as e:
-            b.error(f"Cannot import snippet checking modules: {e}")
-            return False
-        
-        b.info("Starting snippet reference and definition validation...")
-        
-        # Find all task files that might contain snippet references
-        task_files = []
-        solution_files = []
-        
-        for task in self.taskdict.values():
-            if task.to_be_skipped:
-                continue  # Skip tasks that are marked to be skipped
-            
-            # Add task file itself (may contain snippet references)
-            task_files.append(task.sourcefile)
-            
-            # Look for solution files in corresponding altdir
-            task_dir = os.path.dirname(task.sourcefile)
-            alt_task_dir = task_dir.replace(self.chapterdir, self.altdir, 1)
-            
-            # Search for source files in altdir (potential solution files)
-            if os.path.exists(alt_task_dir):
-                source_extensions = ['.py', '.java', '.cpp', '.c', '.js', '.ts', '.go', '.rs', '.rb']
-                for file in os.listdir(alt_task_dir):
-                    if any(file.endswith(ext) for ext in source_extensions):
-                        solution_path = os.path.join(alt_task_dir, file)
-                        solution_files.append(solution_path)
-        
-        if show_progress:
-            b.info(f"Found {len(task_files)} task files and {len(solution_files)} potential solution files")
-        
-        # First, validate snippet definitions in solution files
-        validator = snippetchecker.SnippetValidator()
-        file_errors = {}
-        
-        if solution_files and show_progress:
-            b.info("Validating snippet definitions...")
-        
-        for sol_file in solution_files:
-            if show_progress:
-                b.info(f"Checking definitions in: {sol_file}")
-            
-            errors = validator._validate_snippet_markers_in_file(sol_file)
-            if errors:
-                file_errors[sol_file] = errors
-        
-        # Then, validate snippet references in task files
-        all_validation_results = []
-        
-        if task_files and show_progress:
-            b.info("Validating snippet references...")
-        
-        for task_file in task_files:
-            if show_progress:
-                b.info(f"Checking references in: {task_file}")
-            
-            # Use project root as base directory for resolving snippet references
-            # Snippet paths like "altdir/ch/Web/Django/django-project.md" are relative to project root
-            # The project root is the directory containing both chapterdir and altdir
-            # task_file might be like "ch/Web/Django/django-project.md" (relative) or absolute path
-            if os.path.isabs(task_file):
-                # Extract project root from absolute path
-                base_directory = task_file.split('/' + self.chapterdir)[0] if '/' + self.chapterdir in task_file else os.path.dirname(task_file)
-            else:
-                # For relative paths, use current working directory as project root
-                base_directory = os.getcwd()
-            
-            results = validator.validate_file_references(task_file, base_directory)
-            all_validation_results.extend(results)
-        
-        # Generate and display comprehensive report
-        reporter = snippetchecker.SnippetReporter()
-        reporter.print_summary(all_validation_results, file_errors)
-        
-        # Save detailed reports with fixed names
-        if all_validation_results or file_errors:
-            reporter.generate_json_report(all_validation_results, file_errors)
-            reporter.generate_markdown_report(all_validation_results, file_errors)
-        
-        # Return success status
-        failed_results = [r for r in all_validation_results if not r.success]
-        total_definition_errors = sum(len(errors) for errors in file_errors.values())
-        
-        return len(failed_results) == 0 and total_definition_errors == 0
-
-    def test_exemplary_programs(self, show_progress: bool = True) -> bool:
-        """
-        Test exemplary programs from itree.zip against their .prot files.
-        Returns True if all tests pass, False otherwise.
-        """
-        try:
-            import sdrl.programchecker as programchecker
-        except ImportError as e:
-            b.error(f"Program checker module not available: {e}")
-            return False
-        
-        if show_progress:
-            b.info("Starting program testing...")
-        
-        # Create program checker with course root 
-        # For Coursebuilder, we are already in the course root directory
-        # altdir should be relative to the current directory
-        course_root = Path.cwd()
-        checker = programchecker.ProgramChecker(course_root=course_root)
-        
-        # Run all program tests
-        results = checker.test_all_programs(show_progress=show_progress)
-        
-        if not results:
-            b.warning("No program tests were executed")
-            return True  # Consider this a success if no tests were found
-        
-        # Generate reports
-        checker.generate_reports(results)
-        
-        # Return success status (considering skipped tests as non-failures)
-        failed_results = [r for r in results if not r.success and not r.skipped]
-        success = len(failed_results) == 0
-        
-        if show_progress:
-            passed = sum(1 for r in results if r.success)
-            failed = len(failed_results)
-            skipped = sum(1 for r in results if r.skipped)
-            
-            if success:
-                b.info(f"Program testing completed successfully: {passed} passed, {skipped} skipped")
-            else:
-                b.error(f"Program testing failed: {failed} failed, {passed} passed, {skipped} skipped")
-        
-        return success
-
-
     def compute_taskorder(self):
         """
         Set self.taskorder such that it respects the 'assumes' and 'requires'
@@ -759,8 +551,10 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         self.glossary = glossary.Glossary(c.AUTHOR_GLOSSARY_BASENAME, parent=self)
         self.directory.record_the(glossary.Glossary, self.glossary.name, self.glossary)
         self.namespace_add(self.glossary)
-        # ----- create MetadataDerivation, baseresources, participants list:
+        # ----- create MetadataDerivation, validations, baseresources, participants list:
         self.directory.make_the(MetadataDerivation, self.name, part=self, course=self)
+        self.directory.make_the(SnippetValidation, self.name, part=self, course=self)
+        self.directory.make_the(ProtocolValidation, self.name, part=self, course=self)
         self._add_baseresources()
         self._add_participantslist()
 
@@ -975,3 +769,124 @@ class MetadataDerivation(el.Step):
         self.course.add_inverse_links()
         self.course.compute_taskorder()
         self.course.check_links()
+
+
+class SnippetValidation(el.Step):
+    """Validate code snippet references and definitions in course files."""
+    course: Coursebuilder
+    
+    def my_dependencies(self) -> tg.Iterable['el.Element']:
+        """Declare dependencies on source files. Called after tasks are initialized."""
+        deps = list(self.dependencies)  # Start with any manually added dependencies
+        # Add dependencies on all task source files and solution files
+        for task in self.course.taskdict.values():
+            if task.to_be_skipped:
+                continue
+            # Depend on task markdown file
+            sourcefile_elem = self.directory.get_the(el.Sourcefile, task.sourcefile)
+            if sourcefile_elem:
+                deps.append(sourcefile_elem)
+            # Depend on solution files in altdir
+            task_dir = os.path.dirname(task.sourcefile)
+            alt_task_dir = task_dir.replace(self.course.chapterdir, self.course.altdir, 1)
+            if os.path.exists(alt_task_dir):
+                source_extensions = ['.py', '.java', '.cpp', '.c', '.js', '.ts', '.go', '.rs', '.rb', '.md']
+                for file in os.listdir(alt_task_dir):
+                    if any(file.endswith(ext) for ext in source_extensions):
+                        solution_path = os.path.join(alt_task_dir, file)
+                        sourcefile_elem = self.directory.get_the(el.Sourcefile, solution_path)
+                        if sourcefile_elem:
+                            deps.append(sourcefile_elem)
+        return deps
+
+    def do_build(self):
+        """Validate snippet references and definitions, reporting errors directly."""
+        try:
+            import sdrl.snippetchecker as snippetchecker
+        except ImportError as e:
+            b.error(f"Cannot import snippet checking modules: {e}")
+            return
+        
+        # ----- validate snippet definitions in solution files:
+        validator = snippetchecker.SnippetValidator()
+        for task in self.course.taskdict.values():
+            if task.to_be_skipped:
+                continue
+            
+            task_dir = os.path.dirname(task.sourcefile)
+            alt_task_dir = task_dir.replace(self.course.chapterdir, self.course.altdir, 1)
+            
+            if os.path.exists(alt_task_dir):
+                source_extensions = ['.py', '.java', '.cpp', '.c', '.js', '.ts', '.go', '.rs', '.rb', '.md']
+                for file in os.listdir(alt_task_dir):
+                    if any(file.endswith(ext) for ext in source_extensions):
+                        solution_path = os.path.join(alt_task_dir, file)
+                        errors = validator._validate_snippet_markers_in_file(solution_path)
+                        for error in errors:
+                            b.error(error, file=solution_path)
+        
+        # ----- validate snippet references in task files:
+        for task in self.course.taskdict.values():
+            if task.to_be_skipped:
+                continue
+            
+            # Extract project root for resolving snippet paths
+            if os.path.isabs(task.sourcefile):
+                base_directory = task.sourcefile.split('/' + self.course.chapterdir)[0] \
+                    if '/' + self.course.chapterdir in task.sourcefile else os.path.dirname(task.sourcefile)
+            else:
+                base_directory = os.getcwd()
+            
+            results = validator.validate_file_references(task.sourcefile, base_directory)
+            for result in results:
+                if not result.success:
+                    b.error(result.error_message, file=f"{result.reference.source_file}:{result.reference.line_number}")
+
+
+class ProtocolValidation(el.Step):
+    """Validate protocol check annotations in .prot files."""
+    course: Coursebuilder
+
+    def my_dependencies(self) -> tg.Iterable['el.Element']:
+        """Declare dependencies on .prot files. Called after tasks are initialized."""
+        deps = list(self.dependencies)
+        protocol_files = self._find_protocol_files()
+        for prot_file in protocol_files:
+            sourcefile_elem = self.directory.get_the(el.Sourcefile, prot_file)
+            if sourcefile_elem:
+                deps.append(sourcefile_elem)
+        return deps
+
+    def _find_protocol_files(self) -> list[str]:
+        """Find all .prot files in the course."""
+        protocol_files = []
+        for task in self.course.taskdict.values():
+            task_dir = os.path.dirname(task.sourcefile)
+            alt_task_dir = task_dir.replace(self.course.chapterdir, self.course.altdir, 1)
+            
+            for search_dir in [task_dir, alt_task_dir]:
+                if os.path.exists(search_dir):
+                    for file in os.listdir(search_dir):
+                        if file.endswith('.prot'):
+                            protocol_path = os.path.join(search_dir, file)
+                            if protocol_path not in protocol_files:
+                                protocol_files.append(protocol_path)
+        return protocol_files
+
+    def do_build(self):
+        """Validate protocol annotations, reporting errors directly."""
+        try:
+            import sdrl.protocolchecker as protocolchecker
+        except ImportError as e:
+            b.error(f"Cannot import protocol checking modules: {e}")
+            return
+        
+        protocol_files = self._find_protocol_files()
+        if not protocol_files:
+            return  # No protocol files to validate
+        
+        validator = protocolchecker.ProtocolValidator()
+        for prot_file in protocol_files:
+            errors = validator.validate_file(prot_file)
+            for error in errors:
+                b.error(error)

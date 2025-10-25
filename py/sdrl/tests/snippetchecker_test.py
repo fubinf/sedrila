@@ -342,56 +342,167 @@ def broken_function():
         assert no_snippet_file not in file_errors or not file_errors[no_snippet_file], "File without snippets should have no errors"
 
 
-def test_report_generation():
-    """Test generation of validation reports."""
-    # Create some mock validation results
-    successful_ref = snippetchecker.SnippetReference("good_snippet", "task.md", "solution.py", 5)
-    failed_ref = snippetchecker.SnippetReference("bad_snippet", "task.md", "missing.py", 10)
+def test_snippet_inclusion_expansion():
+    """Test expansion of @INCLUDE_SNIPPET directives in content."""
+    # Create snippet definition file
+    solution_content = """# Solution file
+<!-- @SNIPPET_START: test_func -->
+def test_function():
+    return 42
+<!-- @SNIPPET_END: test_func -->
+
+<!-- @SNIPPET_START: hello_func lang=python -->
+def hello():
+    print("Hello, World!")
+<!-- @SNIPPET_END: hello_func -->
+"""
     
-    successful_result = snippetchecker.SnippetValidationResult(
-        reference=successful_ref,
-        success=True,
-        snippet=snippetchecker.CodeSnippet("good_snippet", "def test():\n    pass", "solution.py", 1, 3)
-    )
+    # Create content with snippet references
+    task_content = """# Task Description
+
+Implement the following function:
+
+@INCLUDE_SNIPPET: test_func from solution.py
+
+And also this one:
+
+@INCLUDE_SNIPPET: hello_func from solution.py
+
+Good luck!
+"""
     
-    failed_result = snippetchecker.SnippetValidationResult(
-        reference=failed_ref,
-        success=False,
-        error_message="File not found"
-    )
-    
-    validation_results = [successful_result, failed_result]
-    file_errors = {"broken.py": ["Unclosed snippet"]}
-    
-    # Test reporter
-    reporter = snippetchecker.SnippetReporter()
-    
-    # Test statistics generation
-    stats = reporter.generate_statistics(validation_results, file_errors)
-    assert stats.total_references == 2, f"Expected 2 total references, got {stats.total_references}"
-    assert stats.successful_references == 1, f"Expected 1 successful reference, got {stats.successful_references}"
-    assert stats.failed_references == 1, f"Expected 1 failed reference, got {stats.failed_references}"
-    assert stats.success_rate == 50.0, f"Expected 50% success rate, got {stats.success_rate}"
-    assert stats.unique_snippets_found == 1, f"Expected 1 unique snippet, got {stats.unique_snippets_found}"
-    
-    # Test report generation (should not crash)
     with tempfile.TemporaryDirectory() as temp_dir:
-        json_file = os.path.join(temp_dir, "test_report.json")
-        md_file = os.path.join(temp_dir, "test_report.md")
+        # Write solution file
+        solution_file = os.path.join(temp_dir, "solution.py")
+        with open(solution_file, 'w', encoding='utf-8') as f:
+            f.write(solution_content)
         
-        reporter.generate_json_report(validation_results, file_errors, json_file)
-        reporter.generate_markdown_report(validation_results, file_errors, md_file)
+        # Expand snippet inclusions
+        task_file = os.path.join(temp_dir, "task.md")
+        result = snippetchecker.expand_snippet_inclusion(task_content, task_file, temp_dir)
         
-        assert os.path.exists(json_file), "JSON report should be created"
-        assert os.path.exists(md_file), "Markdown report should be created"
+        # Verify expansion worked
+        assert "def test_function():" in result, "Should contain expanded test_func snippet"
+        assert "return 42" in result, "Should contain test_func content"
+        assert "def hello():" in result, "Should contain expanded hello_func snippet"
+        assert 'print("Hello, World!")' in result, "Should contain hello_func content"
         
-        # Basic validation that files contain expected content
-        with open(json_file, 'r') as f:
-            json_content = f.read()
-            assert "good_snippet" in json_content, "JSON report should contain snippet ID"
-            assert "File not found" in json_content, "JSON report should contain error message"
+        # Verify directives were replaced
+        assert "@INCLUDE_SNIPPET: test_func" not in result, "Directive should be replaced"
+        assert "@INCLUDE_SNIPPET: hello_func" not in result, "Directive should be replaced"
         
-        with open(md_file, 'r') as f:
-            md_content = f.read()
-            assert "good_snippet" in md_content, "Markdown report should contain snippet ID"
-            assert "File not found" in md_content, "Markdown report should contain error message"
+        # Verify surrounding text is preserved
+        assert "# Task Description" in result, "Should preserve text before snippet"
+        assert "Good luck!" in result, "Should preserve text after snippet"
+
+
+def test_snippet_inclusion_with_altdir():
+    """Test snippet inclusion from altdir/ path."""
+    # Create directory structure: basedir/altdir/solutions/
+    solution_content = """<!-- @SNIPPET_START: altdir_snippet -->
+def from_altdir():
+    return "altdir works"
+<!-- @SNIPPET_END: altdir_snippet -->
+"""
+    
+    task_content = """# Task
+@INCLUDE_SNIPPET: altdir_snippet from altdir/solutions/helper.py
+"""
+    
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Create altdir structure
+        altdir_path = os.path.join(temp_dir, "altdir", "solutions")
+        os.makedirs(altdir_path, exist_ok=True)
+        
+        # Write solution file in altdir
+        solution_file = os.path.join(altdir_path, "helper.py")
+        with open(solution_file, 'w', encoding='utf-8') as f:
+            f.write(solution_content)
+        
+        # Expand (basedir is temp_dir, simulating project root)
+        task_file = os.path.join(temp_dir, "ch", "task.md")
+        os.makedirs(os.path.dirname(task_file), exist_ok=True)
+        
+        result = snippetchecker.expand_snippet_inclusion(task_content, task_file, temp_dir)
+        
+        # Verify altdir path was resolved correctly
+        assert "def from_altdir():" in result, "Should expand snippet from altdir"
+        assert 'return "altdir works"' in result, "Should contain snippet content"
+        assert "@INCLUDE_SNIPPET" not in result, "Directive should be replaced"
+
+
+def test_snippet_inclusion_missing_file():
+    """Test error handling when referenced file doesn't exist."""
+    task_content = """# Task
+@INCLUDE_SNIPPET: missing_snippet from nonexistent.py
+"""
+    
+    with tempfile.TemporaryDirectory() as temp_dir:
+        task_file = os.path.join(temp_dir, "task.md")
+        
+        result = snippetchecker.expand_snippet_inclusion(task_content, task_file, temp_dir)
+        
+        # Should return error comment
+        assert "<!-- ERROR:" in result, "Should contain error comment"
+        assert "not found" in result, "Error should mention file not found"
+
+
+def test_snippet_inclusion_missing_snippet_id():
+    """Test error handling when snippet ID doesn't exist."""
+    solution_content = """<!-- @SNIPPET_START: existing_snippet -->
+def exists():
+    pass
+<!-- @SNIPPET_END: existing_snippet -->
+"""
+    
+    task_content = """# Task
+@INCLUDE_SNIPPET: nonexistent_id from solution.py
+"""
+    
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Write solution file
+        solution_file = os.path.join(temp_dir, "solution.py")
+        with open(solution_file, 'w', encoding='utf-8') as f:
+            f.write(solution_content)
+        
+        task_file = os.path.join(temp_dir, "task.md")
+        
+        result = snippetchecker.expand_snippet_inclusion(task_content, task_file, temp_dir)
+        
+        # Should return error comment
+        assert "<!-- ERROR:" in result, "Should contain error comment"
+        assert "not found" in result, "Error should mention snippet not found"
+
+
+def test_snippet_inclusion_relative_path():
+    """Test snippet inclusion with relative path."""
+    solution_content = """<!-- @SNIPPET_START: relative_snippet -->
+def relative_function():
+    return "relative"
+<!-- @SNIPPET_END: relative_snippet -->
+"""
+    
+    task_content = """# Task
+@INCLUDE_SNIPPET: relative_snippet from ../solutions/code.py
+"""
+    
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Create directory structure: temp_dir/tasks/task.md, temp_dir/solutions/code.py
+        tasks_dir = os.path.join(temp_dir, "tasks")
+        solutions_dir = os.path.join(temp_dir, "solutions")
+        os.makedirs(tasks_dir, exist_ok=True)
+        os.makedirs(solutions_dir, exist_ok=True)
+        
+        # Write solution file
+        solution_file = os.path.join(solutions_dir, "code.py")
+        with open(solution_file, 'w', encoding='utf-8') as f:
+            f.write(solution_content)
+        
+        # Expand (task file is in tasks/ directory)
+        task_file = os.path.join(tasks_dir, "task.md")
+        
+        result = snippetchecker.expand_snippet_inclusion(task_content, task_file, temp_dir)
+        
+        # Verify relative path resolution worked
+        assert "def relative_function():" in result, "Should resolve relative path"
+        assert 'return "relative"' in result, "Should contain snippet content"

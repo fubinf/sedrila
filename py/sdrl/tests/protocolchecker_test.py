@@ -208,7 +208,7 @@ $ pwd
 def test_protocol_with_prompt_lines():
     """Test protocol files with prompt lines (user@host directory time sequence)."""
     sample_content = """# @PROT_CHECK: command=exact, output=flexible
-navi@Navi /MA/MyDoc/http_test 12:19:00 123
+user@host /home/user/work 12:19:00 123
 $ ls -la
 total 16
 drwxr-xr-x 2 user user 4096 Jan 1 12:00 .
@@ -253,8 +253,8 @@ $ pwd
 def test_comparison_with_prompt_lines():
     """Test protocol comparison when files have prompt lines."""
     # Author file with prompt lines and annotations
-    author_content = r"""# @PROT_CHECK: command=regex, regex=nc.*POST-form\.crlf, output=skip
-navi@Navi /MA/MyDoc/http_test 12:19:00 123
+    author_content = r"""# @PROT_CHECK: command=regex, regex=nc.*POST.*\.crlf, output=skip
+user@host /home/user/work 12:19:00 123
 $ nc httpbin.org 80 <http-POST-form.crlf
 HTTP/1.1 200 OK
 Date: Mon, 04 Aug 2025 09:59:21 GMT
@@ -309,17 +309,84 @@ $ ls -la
 def test_command_line_integration():
     """Test command line integration by importing the modules."""
     try:
-        # Test importing author module (should work without errors now)
-        import sdrl.subcmd.author as author
+        # Test importing course module with validation steps
+        import sdrl.course as course
         
         # Test importing instructor module
         import sdrl.subcmd.instructor as instructor
         
-        # Test that new functions exist
-        assert hasattr(author, 'validate_single_protocol_file'), "Author should have validate_single_protocol_file function"
+        # Test that validation Step classes exist in course module
+        assert hasattr(course, 'SnippetValidation'), "Course should have SnippetValidation Step class"
+        assert hasattr(course, 'ProtocolValidation'), "Course should have ProtocolValidation Step class"
+        
+        # Test that instructor has protocol checking functionality
         assert hasattr(instructor, 'check_protocol_files'), "Instructor should have check_protocol_files function"
         
     except ImportError as e:
         raise
+
+
+def test_protocol_reporter_print_summary():
+    """Test protocol reporter output formatting (should not crash)."""
+    # Create mock entries
+    student_entry1 = protocolchecker.ProtocolEntry("ls -la", "file1\nfile2", 1)
+    author_entry1 = protocolchecker.ProtocolEntry("ls -la", "file1\nfile2", 1)
+    
+    student_entry2 = protocolchecker.ProtocolEntry("pwd", "/wrong/path", 2)
+    author_entry2 = protocolchecker.ProtocolEntry("pwd", "/correct/path", 2)
+    
+    student_entry3 = protocolchecker.ProtocolEntry("echo test", "test", 3)
+    author_entry3 = protocolchecker.ProtocolEntry("echo test", "test", 3)
+    
+    # Create mock results
+    successful_result = protocolchecker.CheckResult(
+        student_entry=student_entry1,
+        author_entry=author_entry1,
+        command_match=True,
+        output_match=True,
+        success=True
+    )
+    
+    failed_result = protocolchecker.CheckResult(
+        student_entry=student_entry2,
+        author_entry=author_entry2,
+        command_match=True,
+        output_match=False,
+        success=False,
+        error_message="output mismatch"
+    )
+    
+    manual_check_result = protocolchecker.CheckResult(
+        student_entry=student_entry3,
+        author_entry=author_entry3,
+        command_match=True,
+        output_match=True,
+        success=True,
+        requires_manual_check=True,
+        manual_check_note="Please verify the output format manually"
+    )
+    
+    results = [successful_result, failed_result, manual_check_result]
+    
+    # Test that print_summary doesn't crash with various result types
+    reporter = protocolchecker.ProtocolReporter()
+    
+    # Should not raise any exceptions
+    try:
+        reporter.print_summary(results, "student.prot", "author.prot")
+    except Exception as e:
+        raise AssertionError(f"print_summary should not raise exception, got: {e}")
+    
+    # Test with empty results
+    try:
+        reporter.print_summary([], "student.prot", "author.prot")
+    except Exception as e:
+        raise AssertionError(f"print_summary should handle empty results, got: {e}")
+    
+    # Test without file names
+    try:
+        reporter.print_summary(results)
+    except Exception as e:
+        raise AssertionError(f"print_summary should work without file names, got: {e}")
 
 

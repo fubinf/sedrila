@@ -5,74 +5,9 @@ Allows extracting code snippets from solution files and including them in task f
 import dataclasses
 import os
 import re
-import sys
 from pathlib import Path
 from typing import Optional
 
-
-def _ensure_sedrila_path():
-    """
-    Automatically detect and add sedrila/py path to sys.path if needed.
-    This ensures snippet functionality works with both pipx global installs and virtual environments.
-    """
-    # Skip if we're already in a working environment
-    try:
-        import base as b
-        return  # If base imports successfully, we're good
-    except ImportError:
-        pass  # Need to find and add sedrila path
-    
-    # Try to find sedrila/py path using multiple detection methods  
-    current_file = os.path.abspath(__file__)
-    sedrila_py_candidates = []
-    
-    # Method 1: Current file is in sedrila/py/sdrl/snippetchecker.py
-    # So sedrila/py should be two levels up
-    py_path = os.path.dirname(os.path.dirname(current_file))
-    if os.path.basename(py_path) == 'py':
-        sedrila_py_candidates.append(py_path)
-    
-    # Method 2: Look for sedrila installation in common locations
-    # This handles the case where sedrila is installed via pipx or pip
-    home_dir = os.path.expanduser("~")
-    possible_locations = [
-        # Common development location
-        os.path.join(home_dir, "MA", "sedrila", "py"),
-        # Look in the same directory structure as current file
-        os.path.join(os.path.dirname(current_file), "..", "..", ".."),
-    ]
-    
-    for location in possible_locations:
-        abs_location = os.path.abspath(location)
-        if os.path.exists(os.path.join(abs_location, "base.py")):
-            sedrila_py_candidates.append(abs_location)
-    
-    # Method 3: Search in sys.path for an existing sedrila installation
-    for path in sys.path:
-        if os.path.exists(os.path.join(path, "base.py")):
-            sedrila_py_candidates.append(path)
-    
-    # Try each candidate path
-    for candidate in sedrila_py_candidates:
-        if os.path.exists(os.path.join(candidate, "base.py")):
-            normalized_path = os.path.abspath(candidate)
-            if normalized_path not in sys.path:
-                sys.path.insert(0, normalized_path)
-            try:
-                import base as b
-                return  # Success!
-            except ImportError:
-                continue
-    
-    # If we get here, we couldn't find base.py anywhere
-    raise ImportError(
-        "Cannot find sedrila base module. Please ensure sedrila is properly installed "
-        "or set PYTHONPATH to include the sedrila/py directory."
-    )
-
-
-# Ensure sedrila path is available before importing base
-_ensure_sedrila_path()
 import base as b
 
 
@@ -204,23 +139,13 @@ class SnippetReference:
     line_number: int
 
 
-@dataclasses.dataclass 
+@dataclasses.dataclass
 class SnippetValidationResult:
     """Result of validating a snippet reference."""
     reference: SnippetReference
     success: bool
     snippet: Optional[CodeSnippet] = None
     error_message: Optional[str] = None
-
-
-@dataclasses.dataclass
-class ValidationStatistics:
-    """Statistics for snippet validation."""
-    total_references: int
-    successful_references: int
-    failed_references: int
-    success_rate: float
-    unique_snippets_found: int
 
 
 class SnippetReferenceExtractor:
@@ -280,7 +205,6 @@ class SnippetValidator:
         
         if reference.referenced_file.startswith('altdir/'):
             # Path is relative to project root
-            # base_directory is typically /path/to/project/ch/Web/Django
             # We need to find the project root (the directory containing both ch/ and altdir/)
             
             # Go up from base_directory until we find a directory that contains 'altdir'
@@ -370,164 +294,6 @@ class SnippetValidator:
             return [f"Error parsing snippets: {str(e)}"]
 
 
-class SnippetReporter:
-    """Generates reports for snippet validation results."""
-    
-    def print_summary(self, results: list[SnippetValidationResult], file_errors: dict[str, list[str]] = None):
-        """Print a summary of validation results."""
-        if file_errors is None:
-            file_errors = {}
-        
-        # Print snippet definition errors first
-        if file_errors:
-            b.error("Snippet definition errors found:")
-            for filepath, errors in file_errors.items():
-                b.error(f"  {filepath}:")
-                for error in errors:
-                    b.error(f"    - {error}")
-        
-        if not results:
-            if not file_errors:
-                b.info("No snippet references found")
-            return
-        
-        total = len(results)
-        successful = sum(1 for r in results if r.success)
-        failed = total - successful
-        
-        b.info(f"Snippet validation summary:")
-        b.info(f"  Total references: {total}")
-        b.info(f"  Successful: {successful}")
-        b.info(f"  Failed: {failed}")
-        
-        if failed > 0:
-            b.info("Failed references:")
-            for result in results:
-                if not result.success:
-                    b.error(f"  {result.reference.source_file}:{result.reference.line_number} - {result.error_message}")
-        else:
-            b.info("All snippet references are valid!")
-    
-    def generate_statistics(self, validation_results: list[SnippetValidationResult], 
-                          file_errors: dict[str, list[str]]) -> ValidationStatistics:
-        """Generate statistics from validation results."""
-        total = len(validation_results)
-        successful = sum(1 for r in validation_results if r.success)
-        failed = total - successful
-        success_rate = (successful / total * 100) if total > 0 else 0.0
-        
-        unique_snippets = set()
-        for result in validation_results:
-            if result.success and result.snippet:
-                unique_snippets.add(result.snippet.snippet_id)
-        
-        return ValidationStatistics(
-            total_references=total,
-            successful_references=successful,
-            failed_references=failed,
-            success_rate=success_rate,
-            unique_snippets_found=len(unique_snippets)
-        )
-    
-    def generate_json_report(self, validation_results: list[SnippetValidationResult], 
-                           file_errors: dict[str, list[str]] = None, 
-                           output_file: str = "snippet_validation_report.json"):
-        """Generate a JSON report."""
-        import json
-        
-        report_data = {
-            "validation_results": [],
-            "file_errors": file_errors or {},
-            "statistics": {}
-        }
-        
-        for result in validation_results:
-            result_data = {
-                "reference": {
-                    "snippet_id": result.reference.snippet_id,
-                    "source_file": result.reference.source_file,
-                    "referenced_file": result.reference.referenced_file,
-                    "line_number": result.reference.line_number
-                },
-                "success": result.success,
-                "error_message": result.error_message
-            }
-            
-            if result.snippet:
-                result_data["snippet"] = {
-                    "snippet_id": result.snippet.snippet_id,
-                    "source_file": result.snippet.source_file,
-                    "start_line": result.snippet.start_line,
-                    "end_line": result.snippet.end_line,
-                    "language": result.snippet.language
-                }
-            
-            report_data["validation_results"].append(result_data)
-        
-        stats = self.generate_statistics(validation_results, file_errors or {})
-        report_data["statistics"] = {
-            "total_references": stats.total_references,
-            "successful_references": stats.successful_references,
-            "failed_references": stats.failed_references,
-            "success_rate": stats.success_rate,
-            "unique_snippets_found": stats.unique_snippets_found
-        }
-        
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(report_data, f, indent=2)
-        
-        b.info(f"JSON report generated: {output_file}")
-    
-    def generate_markdown_report(self, validation_results: list[SnippetValidationResult], 
-                               file_errors: dict[str, list[str]] = None, 
-                               output_file: str = "snippet_validation_report.md"):
-        """Generate a Markdown report."""
-        lines = ["# Snippet Validation Report", ""]
-        
-        # Statistics
-        stats = self.generate_statistics(validation_results, file_errors or {})
-        lines.extend([
-            "## Summary", "",
-            f"- **Total references**: {stats.total_references}",
-            f"- **Successful**: {stats.successful_references}",
-            f"- **Failed**: {stats.failed_references}", 
-            f"- **Success rate**: {stats.success_rate:.1f}%",
-            f"- **Unique snippets found**: {stats.unique_snippets_found}", ""
-        ])
-        
-        # Validation results
-        if validation_results:
-            lines.extend(["## Validation Results", ""])
-            for result in validation_results:
-                status = "PASS" if result.success else "FAIL"
-                lines.append(f"### {status} {result.reference.snippet_id}")
-                lines.append(f"- **Source**: `{result.reference.source_file}:{result.reference.line_number}`")
-                lines.append(f"- **Reference**: `{result.reference.referenced_file}`")
-                
-                if result.success and result.snippet:
-                    lines.append(f"- **Found at**: `{result.snippet.source_file}:{result.snippet.start_line}-{result.snippet.end_line}`")
-                    if result.snippet.language:
-                        lines.append(f"- **Language**: `{result.snippet.language}`")
-                else:
-                    lines.append(f"- **Error**: {result.error_message}")
-                
-                lines.append("")
-        
-        # File errors
-        if file_errors:
-            lines.extend(["## File Errors", ""])
-            for filepath, errors in file_errors.items():
-                lines.append(f"### {filepath}")
-                for error in errors:
-                    lines.append(f"- {error}")
-                lines.append("")
-        
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write('\n'.join(lines))
-        
-        b.info(f"Markdown report generated: {output_file}")
-
-
 def expand_snippet_inclusion(content: str, context_file: str, basedir: str) -> str:
     """
     Expand @INCLUDE_SNIPPET directives in content.
@@ -566,11 +332,6 @@ def expand_snippet_inclusion(content: str, context_file: str, basedir: str) -> s
         snippet_file = match.group('file').strip()
         
         b.debug(f"Processing snippet inclusion: id='{snippet_id}', file='{snippet_file}'")
-        
-        # Resolve the file path
-        # The basedir should be the project root (e.g., /home/navi/MA/propra-inf)
-        # context_file might be something like: propra-inf/ch/Web/Django/django-project.md
-        # or an absolute path like: /home/navi/MA/propra-inf/ch/Web/Django/django-project.md
         
         if snippet_file.startswith('altdir/'):
             # Path is relative to project root

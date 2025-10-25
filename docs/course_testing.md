@@ -168,34 +168,13 @@ $ pwd
 - `variants="cmd1|cmd2|cmd3"`: Pipe-separated list of acceptable command variants
 - `manual_note="message"`: Note for manual checking instructions
 
-##### Usage Examples
-
-Validate protocol annotations in author files:
-```bash
-# Validate all protocol files in course (searches both task directories and altdir)
-sedrila author --validate-protocols -- /tmp/output
-
-# Validate specific protocol file
-sedrila author --validate-protocols /path/to/file.prot /tmp/output
-
-# Note: Unlike --check-links, protocol validation automatically checks ALL files
-# regardless of task stage (no need for --include_stage flag)
-```
-
-Compare student and author protocol files:
-```bash
-# Compare student submission with author example
-sedrila instructor --check-protocols student.prot author.prot
-```
-
 ##### Features
 
-- Validation: `sedrila author --validate-protocols` validates annotation syntax
-- Comparison: `sedrila instructor --check-protocols` compares student vs author files
-- Flexible Matching: Supports exact, regex, flexible, and multi-variant matching
-- Manual Review: Flags entries requiring instructor attention
-- Comprehensive Reports: JSON and Markdown reports with detailed results
-- Error Handling: Graceful handling of malformed files and missing annotations
+- Protocol annotations validated during every build (`sedrila author`)
+- Only changed `.prot` files rechecked (use `--clean` to force full recheck)
+- `sedrila instructor --check-protocols student.prot author.prot` compares files
+- Supports exact, regex, flexible, and multi-variant matching
+- Flags entries requiring instructor attention
 
 ##### Implementation Details
 
@@ -254,14 +233,6 @@ Program testing uses a YAML configuration file (`programchecker.yaml`) to define
 
 ##### Usage Examples
 
-Test all exemplary programs:
-```bash
-# Test all programs from itree.zip against their .prot files
-sedrila author --test-programs -- /tmp/output
-
-# Test specific program file
-sedrila author --test-programs altdir/itree.zip/Sprachen/Go/go-channels.go -- /tmp/output
-```
 
 ##### Features
 
@@ -367,28 +338,16 @@ And reference them in task files using:
 - The filepath can be relative to the task file or absolute (from project root)
 - Paths starting with `altdir/` are resolved from the project root
 
-##### Usage Examples
-
-Validate snippet references in a single file:
-```bash
-# Validate specific task file
-sedrila author --validate-snippets ch/Web/Django/django-project.md /tmp/output
-```
-
-Validate all snippet references in the course:
-```bash
-# Validate all course files (respects --include_stage)
-sedrila author --include_stage draft --validate-snippets -- /tmp/output
-```
-
 ##### Features
 
-- **Snippet Extraction**: Extracts marked code snippets from solution files
-- **Reference Validation**: Verifies all `@INCLUDE_SNIPPET` references point to valid snippets
-- **Automatic Expansion**: During build, snippet references are replaced with actual code content
-- **Path Resolution**: Supports both relative and absolute paths, including `altdir/` references
-- **Error Reporting**: Generates JSON and Markdown reports with detailed validation results
-- **Marker Validation**: Detects unclosed snippets and mismatched markers
+- Snippet references and definitions validated during every build (`sedrila author`)
+- Only changed task/solution files rechecked (use `--clean` to force full recheck)
+- Extracts marked code snippets from solution files
+- Verifies `@INCLUDE_SNIPPET` references point to valid snippets
+- Checks snippet markers for syntax errors (unclosed, mismatched)
+- Snippet references replaced with actual code during build
+- Supports relative, absolute, and `altdir/` paths
+- Respects `--include_stage` setting (validates only non-skipped tasks)
 
 ##### Implementation Details
 

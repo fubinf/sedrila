@@ -43,12 +43,6 @@ def add_arguments(subparser: argparse.ArgumentParser):
                            help="purge cache and perform a complete build")
     subparser.add_argument('--rename', nargs=2, metavar=("partname", "new_partname"),
                            help="Rename files of part, macro calls in *.md. and part mentions in *.prot, then stop.")
-    subparser.add_argument('--validate-protocols', nargs='?', const='all', metavar="protocol_file",
-                           help="Validate protocol check annotations in .prot files. Use without argument to check all course protocol files, or specify a single .prot file to check")
-    subparser.add_argument('--validate-snippets', nargs='?', const='all', metavar="task_file",
-                           help="Validate code snippet references and definitions. Use without argument to check all course files, or specify a single task file to check")
-    subparser.add_argument('--test-programs', nargs='?', const='all', metavar="program_file",
-                           help="Test exemplary programs from itree.zip against their .prot files. Use without argument to test all programs, or specify a single program file to test")
     subparser.add_argument('targetdir',
                            help=f"Directory to which output will be written.")
 
@@ -64,121 +58,7 @@ def execute(pargs: argparse.Namespace):
     targetdir_i = _targetdir_i(pargs.targetdir)
     prepare_directories(targetdir_s, targetdir_i)
     the_course = create_and_build_course(pargs, targetdir_i, targetdir_s)
-    
-    # Perform protocol annotation validation if requested
-    if hasattr(pargs, 'validate_protocols') and pargs.validate_protocols is not None:
-        b.info("=" * 60)
-        if pargs.validate_protocols == 'all':
-            # Validate all course protocol files
-            b.info("Validating protocol annotations in all course files...")
-            protocols_ok = the_course.validate_protocol_annotations(show_progress=True)
-            if not protocols_ok:
-                b.error("Protocol annotation validation failed - some annotations are invalid")
-                # Note: We don't exit with error code here to allow the build to complete
-                # Users can check the log output to see which annotations failed
-        else:
-            # Validate specific file
-            validate_single_protocol_file(pargs.validate_protocols)
-        b.info("=" * 60)
-        if pargs.validate_protocols != 'all':
-            return  # Exit early when validating single file, don't continue with normal build
-    
-    # Perform snippet validation if requested
-    if hasattr(pargs, 'validate_snippets') and pargs.validate_snippets is not None:
-        b.info("=" * 60)
-        if pargs.validate_snippets == 'all':
-            # Validate all course snippet references and definitions
-            b.info("Validating code snippet references and definitions in all course files...")
-            snippets_ok = the_course.validate_snippet_references(show_progress=True)
-            if not snippets_ok:
-                b.error("Snippet validation failed - some references or definitions are invalid")
-                # Note: We don't exit with error code here to allow the build to complete
-                # Users can check the log output to see which snippets failed
-        else:
-            # Validate specific file
-            validate_single_task_snippets(pargs.validate_snippets)
-        b.info("=" * 60)
-        if pargs.validate_snippets != 'all':
-            return  # Exit early when validating single file, don't continue with normal build
-    
-    # Perform program testing if requested
-    if hasattr(pargs, 'test_programs') and pargs.test_programs is not None:
-        b.info("=" * 60)
-        if pargs.test_programs == 'all':
-            # Test all programs in itree.zip
-            b.info("Testing all exemplary programs from itree.zip...")
-            programs_ok = the_course.test_exemplary_programs(show_progress=True)
-            # Note: Error reporting is already done in test_exemplary_programs()
-            # We don't exit with error code here to allow the build to complete
-            # Users can check the log output to see which programs failed
-        else:
-            # Test specific program file
-            test_single_program_file(pargs.test_programs)
-        b.info("=" * 60)
-        if pargs.test_programs != 'all':
-            return  # Exit early when testing single file, don't continue with normal build
-    
     b.finalmessage()
-
-
-def validate_single_protocol_file(filepath: str):
-    """Validate protocol annotations in a single protocol file for development/debugging."""
-    try:
-        import sdrl.protocolchecker as protocolchecker
-    except ImportError as e:
-        b.error(f"Cannot import protocol checking modules: {e}")
-        return
-    
-    b.info(f"Validating protocol annotations in: {filepath}")
-    
-    validator = protocolchecker.ProtocolValidator()
-    errors = validator.validate_file(filepath)
-    
-    if not errors:
-        b.info("All protocol annotations are valid")
-    else:
-        b.error(f"Found {len(errors)} validation errors:")
-        for error in errors:
-            b.error(f"  {error}")
-
-
-def validate_single_task_snippets(filepath: str):
-    """Validate snippet references in a single task file for development/debugging."""
-    try:
-        import sdrl.snippetchecker as snippetchecker
-    except ImportError as e:
-        b.error(f"Cannot import snippet checking modules: {e}")
-        return
-    
-    import os.path
-    
-    b.info(f"Validating snippet references in: {filepath}")
-    
-    if not os.path.exists(filepath):
-        b.error(f"File not found: {filepath}")
-        return
-    
-    # Use the directory containing the task file as base directory for resolving references
-    base_directory = os.path.dirname(os.path.abspath(filepath))
-    
-    validator = snippetchecker.SnippetValidator()
-    results = validator.validate_file_references(filepath, base_directory)
-    
-    if not results:
-        b.info("No snippet references found in file")
-        return
-    
-    # Generate report
-    reporter = snippetchecker.SnippetReporter()
-    reporter.print_summary(results)
-    
-    # Save detailed reports for single file testing
-    reporter.generate_json_report(results)  # Uses default fixed name
-    reporter.generate_markdown_report(results)  # Uses default fixed name
-    
-    # Return success status
-    failed_results = [r for r in results if not r.success]
-    return len(failed_results) == 0
 
 
 def do_rename(configfile: str, old_partname: str, new_partname: str):
@@ -287,17 +167,6 @@ def purge_leftover_outputfiles(directory: dir.Directory, targetdir_s: str, targe
     additions_i = {c.HTACCESS_FILE}
     purge_all_but(targetdir_s, expected_files | additions_s)
     purge_all_but(targetdir_i, expected_files | additions_i, exception=c.CACHE_FILENAME)
-
-
-def test_single_program_file(filepath: str):
-    """Test a single program file for development/debugging."""
-    try:
-        import sdrl.programchecker as programchecker
-    except ImportError as e:
-        b.error(f"Program checker module not available: {e}")
-        return
-    
-    programchecker.test_single_program_file(filepath)
 
 
 def purge_all_but(dir: str, files: set[str], exception: tg.Optional[str] = None):

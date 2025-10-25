@@ -86,14 +86,9 @@ def check_protocol_files(student_file: str, author_file: str):
     checker = protocolchecker.ProtocolChecker()
     results = checker.compare_files(student_file, author_file)
     
-    # Generate and display report
+    # Display comparison results
     reporter = protocolchecker.ProtocolReporter()
     reporter.print_summary(results, student_file, author_file)
-    
-    # Save detailed reports
-    if results:
-        reporter.generate_json_report(results)
-        reporter.generate_markdown_report(results)
     
     b.info("=" * 60)
 

@@ -69,3 +69,91 @@ The checker will still make the request to verify the actual status code.
 
 Link checking is now used for Github Actions
 
+### Protocol Comparison and Program Testing
+
+- Option `--check-protocols [student_file] [author_file]` compares student protocol files against author
+  reference files using `@PROT_CHECK` annotations to validate command execution and output.
+  
+#### Program testing configuration
+
+Testing strategies for different program categories. This allows flexible handling of various program
+types without modifying code.
+
+**Configuration sections:**
+
+**1. SKIP Section** - Programs requiring manual testing:
+- Programs with non-deterministic output (memory addresses, concurrent execution order, timestamps)
+- Programs requiring interactive input
+- Programs with environment-specific output (e.g., `sys.path` varies across machines)
+- Shell redirection that cannot be reliably automated (e.g., `>/tmp/a` cannot be distinguished from arguments)
+- Example configuration:
+  ```yaml
+  skip_programs:
+    - program_name: "go-waitgroup"
+      reason: "Concurrent execution order is non-deterministic"
+      manual_test_required: true
+  ```
+
+**2. Partial Skip Section** - Programs with mixed testability:
+- Some commands within the program are testable, others require manual verification
+- Handles programs with Traceback output variations, non-deterministic output, interactive requirements, or error demonstrations
+- Configuration specifies which command patterns to skip and provides reasons
+- Currently empty as programs are either fully testable or require complete manual testing
+- Example configuration for future use:
+  ```yaml
+  partial_skip_programs:
+    # Currently empty - programs are either fully testable or require complete manual testing
+    # Example configuration for future use:
+    # - program_name: "example_program"
+    #   skip_commands_with:
+    #     - "Traceback (most recent call last):"
+    #     - "MemoryError"
+    #   skip_reason: "Different stack depths lead to inconsistent Traceback output"
+    #   testable_note: "Other commands without error demonstrations can be automatically tested"
+  ```
+
+**3. Command Override Section** - Correct command mismatches:
+- Maps incorrect commands in `.prot` files to correct program filenames
+- Useful when `.prot` files reference generic names but actual files have specific names
+- Example:
+  ```yaml
+  command_override:
+    - program_name: "go-channels"
+      original_command: "go run main.go"
+      correct_command: "go run go-channels.go"
+      reason: ".prot file uses main.go but actual file is go-channels.go"
+  ```
+
+**4. Normal Test Section** - Fully automated testing:
+- Programs with deterministic output
+- No special handling required
+- Simply list program names for documentation purposes
+
+**Multi-command testing:**
+- Parses and tests **ALL testable commands** from each `.prot` file
+- Each command is executed sequentially with output comparison
+- Test only passes if ALL commands succeed
+- Detailed reporting shows status for each individual command
+- Failed tests show which specific command(s) failed with error details
+
+**Automatic cleanup:**
+- Cleans up generated files before and after each test to ensure clean environment
+- Removes database files (`.db`, `.sqlite`, `.sqlite3`)
+- Removes log files (`.log`), temporary files (`.tmp`)
+- Removes Python cache (`__pycache__`, `.pyc`)
+- Prevents test failures caused by residual files from previous runs
+- Ensures consistency between single program and full course testing
+
+**Test output and reporting:**
+- Displays total programs found and test pairs identified
+- Shows programs passed, failed, and skipped (with detailed categories)
+- For multi-command programs:
+  - Lists each command with numbered index
+  - Shows individual pass/fail status (✓ [PASS] or ✗ [FAIL])
+  - Includes error details for failed commands
+  - Separates tested commands from skipped commands
+- Calculates success rate based on all programs
+- Tracks execution time for each command and overall test
+- Provides detailed failure reasons and manual testing requirements
+- Generates both JSON and Markdown reports with categorized sections (Failed Tests, Skipped Tests, Passed Tests)
+

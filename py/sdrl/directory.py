@@ -23,6 +23,7 @@ class Directory:
             el.Sourcefile, el.CopiedFile, el.ParticipantsList,
             el.Zipdir, el.Zipfile,
             el.Topmatter, el.Content, course.MetadataDerivation,
+            course.SnippetValidation, course.ProtocolValidation,
             el.IncludeList_s, el.IncludeList_i, el.TermrefList,
             el.Body_s, el.Body_i, el.Glossarybody,
             el.Toc, el.LinkslistBottom,

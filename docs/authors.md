@@ -679,7 +679,7 @@ into the Markdown input stream at this point.
 - Particularly useful for tutorial-style tasks where students need to see specific parts of example code
 
 
-#### 1.9.6 `[PROT]`
+#### 1.9.5 `[PROT]`
 
 Include a rendered command protocol.
 `[PROT::filename.prot]`: works much like `[INCLUDE]` and obeys the same rules for the filenames.
@@ -709,7 +709,7 @@ in yet another manner, all based on CSS classes which you can find in the output
 Line structure and spaces are preserved.
 
 
-#### 1.9.7 `[TOC]`, `[DIFF]`
+#### 1.9.6 `[TOC]`, `[DIFF]`
 
 - `[TOC]`: Generates a table of contents from the Markdown headings present in the file.
   For the glossary, ignores headings and instead makes an alphabetical list of all term entries 
@@ -900,43 +900,33 @@ Both versions will by default exclude all tasks, taskgroups, and chapters that h
 - To use an alternative configuration file, use something like `--config myconfig.yaml`.  
 - Option `--sums` generates reports about the volume of tasks per chapter,
   per difficulty, and per stage.
-- Option `--validate-protocols [prot_file]` validates protocol check annotations in `.prot` files.
-  Without an argument, it checks all protocol files in the course (searches both task directories and altdir). 
-  With a file argument, it checks only that specific file.
-  Validates `@PROT_CHECK` annotation syntax, ensuring proper parameter usage and regex validity.
-  This is useful for authors to verify their protocol annotations before students submit work.
-  **Important**: Validation checks all protocol files regardless of task stage (alpha, beta, etc.), 
-  as annotation syntax validation should work for all files.
-  Examples:
-  - `sedrila author --validate-protocols -- /tmp/output` (check all course protocol files)
-  - `sedrila author --validate-protocols /path/to/file.prot /tmp/output` (check specific file)
-- Option `--validate-snippets [task_file]` validates code snippet references and definitions.
-  Without an argument, it checks all task files in the course (respects `--include_stage` setting).
-  With a file argument, it checks only that specific task file.
-  Validates that all `@INCLUDE_SNIPPET` references point to existing snippet definitions marked with
-  `<!-- @SNIPPET_START: snippet_id -->` and `<!-- @SNIPPET_END: snippet_id -->` markers.
-  Also validates snippet marker syntax, detecting unclosed snippets and mismatched markers.
-  Generates fixed-name reports: `snippet_validation_report.json` and `snippet_validation_report.md`.
-  This ensures code snippets embedded in task descriptions match their source definitions in solution files.
-  Examples:
-  - `sedrila author --validate-snippets -- /tmp/output` (check all task files)
-  - `sedrila author --validate-snippets ch/Web/Django/task.md /tmp/output` (check specific file)
-  - `sedrila author --include_stage draft --validate-snippets -- /tmp/output` (include draft tasks)
-- Option `--test-programs [program_file]` tests exemplary programs against their protocol files.
-  Without an argument, it tests all programs from `itree.zip` against their corresponding `.prot` files in `altdir`.
-  With a file argument, it tests only that specific program file.
-  Uses configuration from `programchecker.yaml` to define testing strategies for different program categories:
-  programs requiring manual testing (SKIP section), programs with partial testability (Partial Skip section),
-  command mismatches needing correction (Command Override section), and fully automated tests (Normal Test section).
-  Automatically detects commands with errors, interactive input, or shell complexity and handles them appropriately.
-  Generates comprehensive reports: `program_test_report.json` and `program_test_report.md` with detailed statistics.
-  Supports parallel execution for faster testing.
-  Currently supports Python (`.py`) and Go (`.go`) programs, extensible for additional languages.
-  Examples:
-  - `sedrila author --test-programs -- /tmp/output` (test all programs from itree.zip)
-  - `sedrila author --test-programs path/to/program.py /tmp/output` (test specific program)
+- Option `--rename old_partname new_partname` shortcuts normal operation and only performs a
+  rename refactoring of the course content.
+  It requires passing a dummy `targetdir` commandline argument which is not actually used.
+  It will rename files or directories as appropriate (and occasionally beyond).
+  It will replace references in markdown files: 
+  `assumes:` and `requires:` headers as well as `PARTREF`, `INCLUDE`, `PROT`, and `TREEREF`
+  macro calls.
+  It will heuristically replace occurrences of `old_partname` in `new_partname.prot` files.
+  Practical tips:
+
+    - False positives are possible; make sure you inspect the protocol output on the terminal.
+    - False negatives are likely, because other file types (such as program source files) are not modified.
+      Perform a full-text search in your IDE after the rename operation to find them.
+    - Start from a clean git state, so you can reset easily if things work out badly.
+    - Do not interrupt a rename operation. A wrong, but complete rename is often easy to revert;
+      a half-done one is probably not.
+    - Make sure you adjust your config file if chapter/taskgroup directories were renamed.
+    - After a rename, perform a build to check validity.
 
 #### 2.2.1 Protocol check annotations
+
+During `sedrila author` builds, all `@PROT_CHECK` annotation syntax is validated **automatically and incrementally**.
+This checks parameter types (command/output: exact/regex/multi_variant/flexible/skip) and regex validity.
+Invalid annotations result in build errors.
+
+**Note**: This validates annotation syntax only. For comparing student protocols with author protocols,
+use `sedrila instructor --check-protocols`.
 
 Protocol files (`.prot`) contain command-line execution logs. Authors can add `@PROT_CHECK` annotations
 to specify validation rules for comparing student submissions with expected examples.
@@ -992,108 +982,56 @@ drwxr-xr-x 2 user user 4096 Jan 1 12:00 .
 - Protocol files typically include prompt lines in output, which differ between students and authors
 - For tasks with variable output (timestamps, IPs, etc.), use `output=skip` or `output=flexible`
 
-#### 2.2.2 Program testing configuration
+#### 2.2.2 Snippet inclusion with `@INCLUDE_SNIPPET`
 
-The `--test-programs` option uses a YAML configuration file (`py/sdrl/programchecker.yaml`) to define
-testing strategies for different program categories. This allows flexible handling of various program
-types without modifying code.
+During `sedrila author` builds, all `@INCLUDE_SNIPPET` references are validated **automatically and incrementally**.
+This checks that referenced snippet IDs exist in the specified files and that snippet markers are properly formed
+(no unclosed or mismatched markers). Invalid references result in build errors. Respects `--include_stage` setting.
 
-**Configuration sections:**
+The `@INCLUDE_SNIPPET` directive enables reusing code snippets from solution files directly in task descriptions,
+ensuring code examples always match actual solution code.
 
-**1. SKIP Section** - Programs requiring manual testing:
-- Programs with non-deterministic output (memory addresses, concurrent execution order, timestamps)
-- Programs requiring interactive input
-- Programs with environment-specific output (e.g., `sys.path` varies across machines)
-- Shell redirection that cannot be reliably automated (e.g., `>/tmp/a` cannot be distinguished from arguments)
-- Example configuration:
-  ```yaml
-  skip_programs:
-    - program_name: "go-waitgroup"
-      reason: "Concurrent execution order is non-deterministic"
-      manual_test_required: true
-  ```
+**Directive syntax:**
+```markdown
+@INCLUDE_SNIPPET: snippet_id from filename
+```
 
-**2. Partial Skip Section** - Programs with mixed testability:
-- Some commands within the program are testable, others require manual verification
-- Handles programs with Traceback output variations, non-deterministic output, interactive requirements, or error demonstrations
-- Configuration specifies which command patterns to skip and provides reasons
-- Currently empty as programs are either fully testable or require complete manual testing
-- Example configuration for future use:
-  ```yaml
-  partial_skip_programs:
-    # Currently empty - programs are either fully testable or require complete manual testing
-    # Example configuration for future use:
-    # - program_name: "example_program"
-    #   skip_commands_with:
-    #     - "Traceback (most recent call last):"
-    #     - "MemoryError"
-    #   skip_reason: "Different stack depths lead to inconsistent Traceback output"
-    #   testable_note: "Other commands without error demonstrations can be automatically tested"
-  ```
+**Marking snippets in source files:**
+```markdown
+<!-- @SNIPPET_START: snippet_id -->
+code content here
+<!-- @SNIPPET_END: snippet_id -->
+```
 
-**3. Command Override Section** - Correct command mismatches:
-- Maps incorrect commands in `.prot` files to correct program filenames
-- Useful when `.prot` files reference generic names but actual files have specific names
-- Example:
-  ```yaml
-  command_override:
-    - program_name: "go-channels"
-      original_command: "go run main.go"
-      correct_command: "go run go-channels.go"
-      reason: ".prot file uses main.go but actual file is go-channels.go"
-  ```
+**Optional language specification:**
+```markdown
+<!-- @SNIPPET_START: snippet_id lang=python -->
+```
 
-**4. Normal Test Section** - Fully automated testing:
-- Programs with deterministic output
-- No special handling required
-- Simply list program names for documentation purposes
+**Path resolution** (same as `[INCLUDE]` macro):
+- Relative paths are resolved from the directory containing the file with the reference
+- Paths starting with `altdir/` are resolved from the project root
+- Absolute paths starting with `/` are resolved from `chapterdir`
 
-**Multi-command testing:**
-- Parses and tests **ALL testable commands** from each `.prot` file
-- Each command is executed sequentially with output comparison
-- Test only passes if ALL commands succeed
-- Detailed reporting shows status for each individual command
-- Failed tests show which specific command(s) failed with error details
+**Example usage:**
 
-**Automatic cleanup:**
-- Cleans up generated files before and after each test to ensure clean environment
-- Removes database files (`.db`, `.sqlite`, `.sqlite3`)
-- Removes log files (`.log`), temporary files (`.tmp`)
-- Removes Python cache (`__pycache__`, `.pyc`)
-- Prevents test failures caused by residual files from previous runs
-- Ensures consistency between single program and full course testing
+In a solution file `altdir/ch/Python/hello-solution.py`:
+```python
+<!-- @SNIPPET_START: greeting lang=python -->
+def say_hello(name):
+    return f"Hello, {name}!"
+<!-- @SNIPPET_END: greeting -->
+```
 
-**Test output and reporting:**
-- Displays total programs found and test pairs identified
-- Shows programs passed, failed, and skipped (with detailed categories)
-- For multi-command programs:
-  - Lists each command with numbered index
-  - Shows individual pass/fail status (✓ [PASS] or ✗ [FAIL])
-  - Includes error details for failed commands
-  - Separates tested commands from skipped commands
-- Calculates success rate based on all programs
-- Tracks execution time for each command and overall test
-- Provides detailed failure reasons and manual testing requirements
-- Generates both JSON and Markdown reports with categorized sections (Failed Tests, Skipped Tests, Passed Tests)
+In a task file `ch/Python/hello-task.md`:
+```markdown
+Here's the function you should implement:
 
-- Option `--rename old_partname new_partname` shortcuts normal operation and only performs a
-  rename refactoring of the course content.
-  It requires passing a dummy `targetdir` commandline argument which is not actually used.
-  It will rename files or directories as appropriate (and occasionally beyond).
-  It will replace references in markdown files: 
-  `assumes:` and `requires:` headers as well as `PARTREF`, `INCLUDE`, `PROT`, and `TREEREF`
-  macro calls.
-  It will heuristically replace occurrences of `old_partname` in `new_partname.prot` files.
-  Practical tips:
+@INCLUDE_SNIPPET: greeting from altdir/ch/Python/hello-solution.py
+```
 
-    - False positives are possible; make sure you inspect the protocol output on the terminal.
-    - False negatives are likely, because other file types (such as program source files) are not modified.
-      Perform a full-text search in your IDE after the rename operation to find them.
-    - Start from a clean git state, so you can reset easily if things work out badly.
-    - Do not interrupt a rename operation. A wrong, but complete rename is often easy to revert;
-      a half-done one is probably not.
-    - Make sure you adjust your config file if chapter/taskgroup directories were renamed.
-    - After a rename, perform a build to check validity.
+The snippet content (excluding the HTML comment markers) is inserted verbatim during build, preserving formatting.
+See section 1.9.4 for more details.
 
 ### 2.3 Copying the build output
 

@@ -124,10 +124,8 @@ author-provided examples.
 sedrila instructor --check-protocols student_file.prot author_file.prot
 ```
 
-This compares a student's protocol file with the author's example and generates:
-- Console summary of passed/failed/manual-check-required entries
-- `protocol_check_report.md` - Human-readable Markdown report
-- `protocol_check_report.json` - Machine-readable JSON report with full command/output details
+This compares a student's protocol file with the author's example and displays a console summary 
+of passed/failed/manual-check-required entries with detailed error messages for each mismatch
 
 **Example:**
 ```bash
@@ -146,16 +144,16 @@ The comparison checks each command entry based on author-defined rules (`@PROT_C
 **Typical workflow:**
 
 1. Student submits their `.prot` file in their repository
-2. Run protocol comparison to get automated results
-3. Review the generated reports:
-   - Check failed entries for obvious errors
-   - Review manual-check entries using the JSON report (contains full student output)
+2. Run protocol comparison to see immediate results in the console
+3. Review the output:
+   - Check failed entries for obvious errors (detailed error messages are shown)
+   - Review manual-check entries (marked with "Manual check required")
 4. Provide feedback to student based on findings
 
 **Important notes:**
 - Tasks with variable output (HTTP responses, timestamps, etc.) typically use `output=skip`
-- Such entries will always be marked "manual check required" 
-- The JSON report contains complete student commands and outputs for manual verification
+- Such entries will always be marked "manual check required"
+- Failed entries show detailed error messages (e.g., "command mismatch", "output mismatch")
 - This feature complements (not replaces) the normal submission checking workflow
 
 - When `sedrila` starts, it will `git pull` the repo and remove all entries from 'submission.yaml'
