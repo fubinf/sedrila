@@ -501,3 +501,99 @@ if len(sys.argv) > 1:
             finally:
                 os.unlink(prot_file.name)
                 os.unlink(py_file.name)
+
+
+def test_markup_extraction_from_md():
+    """Test extraction of program test markup from task .md files."""
+    import tempfile
+    
+    # Create task file with PROGRAM_TEST_SKIP markup
+    task_content = """# Test Task
+
+Some task description.
+
+[INSTRUCTOR::some instructor notes]
+
+<!-- @PROGRAM_TEST_SKIP: reason="Test reason" manual_test_required="true" -->
+
+More content here.
+"""
+    
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as f:
+        f.write(task_content)
+        md_file = f.name
+    
+    try:
+        extractor = programchecker.AnnotationExtractor()
+        annotation = extractor.extract_annotations_from_file(md_file)
+        
+        assert annotation.skip is True, "Should extract skip=True"
+        assert annotation.skip_reason == "Test reason", "Should extract skip reason"
+        assert annotation.manual_test_required is True, "Should extract manual_test_required"
+    finally:
+        os.unlink(md_file)
+
+
+def test_cleanup_mechanism():
+    """Test that generated files are cleaned up properly."""
+    import tempfile
+    from pathlib import Path
+    
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        
+        # Create some test files that should be cleaned up
+        test_db = temp_path / "test.db"
+        test_log = temp_path / "test.log"
+        test_pyc = temp_path / "test.pyc"
+        pycache_dir = temp_path / "__pycache__"
+        
+        test_db.write_text("test")
+        test_log.write_text("test")
+        test_pyc.write_text("test")
+        pycache_dir.mkdir()
+        (pycache_dir / "module.pyc").write_text("test")
+        
+        # Verify files exist
+        assert test_db.exists()
+        assert test_log.exists()
+        assert test_pyc.exists()
+        assert pycache_dir.exists()
+        
+        # Run cleanup
+        checker = programchecker.ProgramChecker()
+        checker._cleanup_generated_files(temp_path, "test_program")
+        
+        # Verify files were cleaned up
+        assert not test_db.exists(), ".db files should be cleaned"
+        assert not test_log.exists(), ".log files should be cleaned"
+        assert not test_pyc.exists(), ".pyc files should be cleaned"
+        assert not pycache_dir.exists(), "__pycache__ directories should be cleaned"
+
+
+def test_command_override_markup():
+    """Test that command override markup is properly extracted and applied."""
+    import tempfile
+    
+    # Create task file with PROGRAM_TEST_OVERRIDE markup
+    task_content = """# Test Task
+
+<!-- @PROGRAM_TEST_OVERRIDE: original_command="go run main.go" correct_command="go run real-file.go" reason="File name mismatch" -->
+
+Task content.
+"""
+    
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as f:
+        f.write(task_content)
+        md_file = f.name
+    
+    try:
+        extractor = programchecker.AnnotationExtractor()
+        annotation = extractor.extract_annotations_from_file(md_file)
+        
+        assert annotation.command_override is True, "Should extract command_override=True"
+        assert annotation.original_command == "go run main.go", "Should extract original command"
+        assert annotation.correct_command == "go run real-file.go", "Should extract correct command"
+        assert "mismatch" in annotation.override_reason.lower(), "Should extract override reason"
+    finally:
+        os.unlink(md_file)

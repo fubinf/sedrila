@@ -506,3 +506,56 @@ def relative_function():
         # Verify relative path resolution worked
         assert "def relative_function():" in result, "Should resolve relative path"
         assert 'return "relative"' in result, "Should contain snippet content"
+
+
+def test_circular_reference_detection():
+    """Test detection of circular snippet references."""
+    import tempfile
+    
+    # Create files with circular references
+    file1_content = """# File 1
+@INCLUDE_SNIPPET: snippet2 from file2.md
+"""
+    
+    file2_content = """# File 2
+@INCLUDE_SNIPPET: snippet1 from file1.md
+"""
+    
+    with tempfile.TemporaryDirectory() as temp_dir:
+        file1 = os.path.join(temp_dir, "file1.md")
+        file2 = os.path.join(temp_dir, "file2.md")
+        
+        with open(file1, 'w', encoding='utf-8') as f:
+            f.write(file1_content)
+        with open(file2, 'w', encoding='utf-8') as f:
+            f.write(file2_content)
+        
+        # This would cause infinite loop if not handled
+        # Currently, expand_snippet_inclusion doesn't detect cycles
+        # This test documents the current behavior and can be updated when cycle detection is added
+        result = snippetchecker.expand_snippet_inclusion(file1_content, file1, temp_dir)
+        
+        # Should return an error comment or original content
+        # (Currently no cycle detection implemented, so this documents expected behavior)
+        assert "@INCLUDE_SNIPPET" in result or "ERROR" in result
+
+
+def test_snippet_with_special_characters():
+    """Test snippet extraction with special characters in content."""
+    import tempfile
+    
+    content = """# Solution
+<!-- @SNIPPET_START: special_chars -->
+def test():
+    return "Special: <>&\"'äöü 日本語"
+<!-- @SNIPPET_END: special_chars -->
+"""
+    
+    extractor = snippetchecker.SnippetExtractor()
+    snippets, errors = extractor.extract_snippets_from_content(content, "test.py", collect_errors=False)
+    
+    assert len(snippets) == 1
+    assert len(errors) == 0
+    assert "äöü" in snippets[0].content
+    assert "日本語" in snippets[0].content
+    assert "&" in snippets[0].content

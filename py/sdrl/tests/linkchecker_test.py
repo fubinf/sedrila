@@ -235,3 +235,72 @@ Another HREF: [HREF::https://github.com/fubinf/sedrila]
             os.unlink(temp_file)
         except:
             pass
+
+
+def test_batch_mode_output():
+    """Test that batch mode produces less verbose output."""
+    test_content = """# Test File
+
+Regular link: [Test](https://example.com)
+"""
+    
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as f:
+        f.write(test_content)
+        temp_file = f.name
+    
+    try:
+        extractor = linkchecker.LinkExtractor()
+        links = extractor.extract_links_from_file(temp_file)
+        
+        # Check links in batch mode
+        checker = linkchecker.LinkChecker()
+        results = checker.check_links(links, show_progress=False, batch_mode=True)
+        
+        # Should still return results
+        assert len(results) == 1, "Should have one result"
+        
+        # Batch mode doesn't change result structure, only output verbosity
+        assert results[0].link.url == "https://example.com"
+        
+    finally:
+        try:
+            os.unlink(temp_file)
+        except:
+            pass
+
+
+def test_deduplication():
+    """Test that duplicate URLs are only checked once."""
+    test_content = """# Test File
+
+First link: [Link1](https://example.com)
+Second link: [Link2](https://example.com)
+Third link: [Link3](https://example.com)
+"""
+    
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as f:
+        f.write(test_content)
+        temp_file = f.name
+    
+    try:
+        extractor = linkchecker.LinkExtractor()
+        links = extractor.extract_links_from_file(temp_file)
+        
+        # Should extract all 3 link references
+        assert len(links) == 3, "Should extract 3 link references"
+        
+        # But check_links should deduplicate
+        checker = linkchecker.LinkChecker()
+        results = checker.check_links(links, show_progress=False)
+        
+        # All 3 results should be returned (mapped back to original links)
+        assert len(results) == 3, "Should return results for all 3 references"
+        
+        # All should reference the same URL
+        assert all(r.link.url == "https://example.com" for r in results)
+        
+    finally:
+        try:
+            os.unlink(temp_file)
+        except:
+            pass

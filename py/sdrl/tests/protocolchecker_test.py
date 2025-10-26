@@ -390,3 +390,50 @@ def test_protocol_reporter_print_summary():
         raise AssertionError(f"print_summary should work without file names, got: {e}")
 
 
+def test_malformed_markup_handling():
+    """Test graceful handling of malformed markup in protocol files."""
+    # Test malformed @PROT_CHECK markup
+    content = """$ ls
+output
+# @PROT_CHECK: invalid_syntax_here no_equals_sign
+$ pwd
+/home/user
+"""
+    
+    extractor = protocolchecker.ProtocolExtractor()
+    protocol = extractor.extract_from_content(content, "test.prot")
+    
+    # Should still extract commands even with malformed markup
+    assert len(protocol.entries) == 2, "Should extract 2 commands despite malformed markup"
+    assert protocol.entries[0].command == "ls"
+    assert protocol.entries[1].command == "pwd"
+
+
+def test_unicode_in_protocol_files():
+    """Test handling of non-ASCII characters in protocol files."""
+    content = """$ echo "Hällo Wörld 你好"
+Hällo Wörld 你好
+$ cat file.txt
+Spëcial çhâractérs: äöü 日本語
+"""
+    
+    extractor = protocolchecker.ProtocolExtractor()
+    protocol = extractor.extract_from_content(content, "test.prot")
+    
+    assert len(protocol.entries) == 2
+    assert "Hällo" in protocol.entries[0].command
+    assert "你好" in protocol.entries[0].output
+    assert "日本語" in protocol.entries[1].output
+
+
+def test_empty_protocol_file():
+    """Test handling of empty protocol files."""
+    content = ""
+    
+    extractor = protocolchecker.ProtocolExtractor()
+    protocol = extractor.extract_from_content(content, "empty.prot")
+    
+    assert len(protocol.entries) == 0, "Empty file should have no entries"
+    assert protocol.total_entries == 0
+
+
