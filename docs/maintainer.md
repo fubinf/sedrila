@@ -73,61 +73,67 @@ Link checking is now used for Github Actions
 
 - Option `--check-protocols [student_file] [author_file]` compares student protocol files against author
   reference files using `@PROT_CHECK` annotations to validate command execution and output.
+
+- Option `--check-programs` tests exemplary programs from `itree.zip` against their corresponding protocol files.
+  Programs are executed and their output is compared with expected results from `.prot` files.
+  Uses annotation-based configuration in task `.md` files for flexible test behavior control.
+  Generates fixed-name reports: `program_test_report.json` and `program_test_report.md` in the current directory.
+  Examples:
+  - `sedrila maintainer --check-programs` (test all programs)
   
-#### Program testing configuration
+#### Program testing annotations
 
-Testing strategies for different program categories. This allows flexible handling of various program
-types without modifying code.
+By default, programs are tested automatically. You can control test behavior using HTML comment annotations in task `.md` files (typically placed before the `[INSTRUCTOR]` section).
 
-**Configuration sections:**
+**Available annotation types:**
 
-**1. SKIP Section** - Programs requiring manual testing:
-- Programs with non-deterministic output (memory addresses, concurrent execution order, timestamps)
-- Programs requiring interactive input
-- Programs with environment-specific output (e.g., `sys.path` varies across machines)
-- Shell redirection that cannot be reliably automated (e.g., `>/tmp/a` cannot be distinguished from arguments)
-- Example configuration:
-  ```yaml
-  skip_programs:
-    - program_name: "go-waitgroup"
-      reason: "Concurrent execution order is non-deterministic"
-      manual_test_required: true
-  ```
+**1. SKIP annotation** - Programs requiring manual testing:
 
-**2. Partial Skip Section** - Programs with mixed testability:
-- Some commands within the program are testable, others require manual verification
-- Handles programs with Traceback output variations, non-deterministic output, interactive requirements, or error demonstrations
-- Configuration specifies which command patterns to skip and provides reasons
-- Currently empty as programs are either fully testable or require complete manual testing
-- Example configuration for future use:
-  ```yaml
-  partial_skip_programs:
-    # Currently empty - programs are either fully testable or require complete manual testing
-    # Example configuration for future use:
-    # - program_name: "example_program"
-    #   skip_commands_with:
-    #     - "Traceback (most recent call last):"
-    #     - "MemoryError"
-    #   skip_reason: "Different stack depths lead to inconsistent Traceback output"
-    #   testable_note: "Other commands without error demonstrations can be automatically tested"
-  ```
+Use for programs with non-deterministic output, interactive input, environment-specific output, or complex shell operations.
 
-**3. Command Override Section** - Correct command mismatches:
-- Maps incorrect commands in `.prot` files to correct program filenames
-- Useful when `.prot` files reference generic names but actual files have specific names
-- Example:
-  ```yaml
-  command_override:
-    - program_name: "go-channels"
-      original_command: "go run main.go"
-      correct_command: "go run go-channels.go"
-      reason: ".prot file uses main.go but actual file is go-channels.go"
-  ```
+```markdown
+<!-- @PROGRAM_TEST_SKIP: reason="Concurrent execution order is non-deterministic" manual_test_required=true -->
 
-**4. Normal Test Section** - Fully automated testing:
-- Programs with deterministic output
-- No special handling required
-- Simply list program names for documentation purposes
+[INSTRUCTOR::...]
+```
+
+Parameters:
+- `reason="text"`: Explanation why manual testing is required
+- `manual_test_required=true`: Marks program for manual testing
+
+**2. PARTIAL annotation** - Programs with mixed testability:
+
+Use when some commands are testable while others require manual verification.
+
+```markdown
+<!-- @PROGRAM_TEST_PARTIAL: skip_commands_with="Traceback,MemoryError" skip_reason="Different stack depths lead to inconsistent output" testable_note="Other commands can be automatically tested" -->
+
+[INSTRUCTOR::...]
+```
+
+Parameters:
+- `skip_commands_with="keyword1,keyword2"`: Skip commands containing these keywords in output
+- `skip_reason="text"`: Explanation for skipping certain commands
+- `testable_note="text"`: Note about which commands are testable
+
+**3. OVERRIDE annotation** - Correct command mismatches:
+
+Use when `.prot` files reference incorrect command names.
+
+```markdown
+<!-- @PROGRAM_TEST_OVERRIDE: original_command="go run main.go" correct_command="go run go-channels.go" reason=".prot file uses main.go but actual file is go-channels.go" -->
+
+[INSTRUCTOR::...]
+```
+
+Parameters:
+- `original_command="cmd"`: Command as written in `.prot` file
+- `correct_command="cmd"`: Correct command to execute
+- `reason="text"`: Explanation for the override
+
+**4. Normal testing** - No annotation needed:
+
+Programs with deterministic output require no special annotation and are tested automatically
 
 **Multi-command testing:**
 - Parses and tests **ALL testable commands** from each `.prot` file
@@ -156,4 +162,62 @@ types without modifying code.
 - Tracks execution time for each command and overall test
 - Provides detailed failure reasons and manual testing requirements
 - Generates both JSON and Markdown reports with categorized sections (Failed Tests, Skipped Tests, Passed Tests)
+
+#### Prerequisites
+
+**Important**: Program testing requires `itree.zip` to be built first. This directory is created during course building:
+
+```bash
+# Option 1: Complete build (tests all stages)
+sedrila author /tmp/build
+
+# Option 2: Beta stage only (faster, for quick testing)
+sedrila author --include_stage beta /tmp/build
+
+# Then run program tests
+sedrila maintainer --check-programs
+```
+
+Without building first, the checker will report "Total Programs: 0" because it cannot find program files.
+
+In GitHub Actions, **complete build** is automatically performed before testing to ensure full coverage.
+
+#### Environment Requirements
+
+Program testing requires the following environment:
+
+**Required:**
+- **Python**: 3.11 or higher
+- **Go**: 1.23 or higher (for Go programs)
+- **Built course**: `itree.zip` directory must exist in `altdir/`
+
+**Python packages (Sedrila dependencies):**
+- Core: argparse_subcommand, blessed, bottle, GitPython, Jinja2, Markdown, PyYAML, requests, rich
+- Data/Scientific: matplotlib, numpy, pandas, Pygments
+- Markdown: mdx_linkify
+
+**Python packages (for example programs):**
+- FastAPI programs: fastapi, pydantic, uvicorn
+- Testing: pytest
+
+In GitHub Actions, all dependencies are automatically installed. For local testing, ensure these packages are available in your environment.
+
+#### CI/Batch Mode Features
+
+Use the `--batch` flag to enable batch/CI-friendly output:
+
+```bash
+sedrila maintainer --check-programs --batch
+```
+
+- **Batch mode output** (`--batch`): Concise output suitable for automated testing
+  - Without `--batch` (interactive): Detailed progress, colored output, real-time status
+  - With `--batch` (CI): Concise output, only shows failures, error summary at end
+- **Exit status**: Returns non-zero (1) when tests fail, zero (0) on success
+- **Complete error list at end**: All failed tests are summarized at the end of output for quick error identification
+- **Report generation**: JSON and Markdown reports are always generated for detailed analysis
+- **Scheduled execution**: 
+  - Link checking: Every Sunday at 03:00 UTC (`maintainer-linkchecker.yml`)
+  - Program testing: Every Sunday at 03:30 UTC (`maintainer-programchecker.yml`)
+  - Both workflows use the `--batch` flag for CI-friendly output
 

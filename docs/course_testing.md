@@ -95,7 +95,12 @@ Reports are generated with fixed names for easy integration:
 
 ### CI/CD Integration
 
-Link checking is now used for Github Actions
+Both link checking and program testing are integrated with GitHub Actions as separate workflows:
+
+- **Link Checker** (`maintainer-linkchecker.yml`): Runs every Sunday at 03:00 UTC
+- **Program Checker** (`maintainer-programchecker.yml`): Runs every Sunday at 03:30 UTC
+
+Each workflow can be triggered independently via GitHub's "Run workflow" button, making it easy to test specific functionality without running all checks. Both use the `--batch` flag for CI-friendly output and proper exit status codes (0 for success, 1 for failure).
 
 
 ## 2. Program testing
@@ -206,30 +211,53 @@ Ensuring consistency of the SeDriLa means
 
 #### Implementation for now
 
-Program testing is now integrated into `sedrila` with automated testing of exemplary programs against their protocol files.
+Program testing is now integrated into `sedrila` with automated testing of exemplary programs against their protocol files using a decentralized, annotation-based approach.
 
-##### Configuration-based Testing
+##### Annotation-based Testing
 
-Program testing uses a YAML configuration file (`programchecker.yaml`) to define testing strategies for different program categories:
+Following sedrila's decentralized design philosophy, program testing uses HTML comment annotations directly in task `.md` files. This keeps test configuration close to the task content, making it easier to maintain and update.
 
-**1. SKIP Section** - Programs requiring manual testing:
-- Programs with non-deterministic output (memory addresses, concurrent execution order)
-- Programs requiring interactive input
-- Programs with environment-specific output (sys.path)
-- Shell redirection that cannot be reliably automated
+**Annotation placement:** Annotations are placed in task `.md` files, typically before the `[INSTRUCTOR]` section, providing locality and easy discoverability.
 
-**2. Partial Skip Section** - Programs with mixed testability:
-- Some commands are testable, others require manual verification
-- Handles programs with Traceback output variations, non-deterministic output, interactive requirements, or error demonstrations
-- Currently empty as programs are either fully testable or require complete manual testing
+**Available annotation types:**
 
-**3. Command Override Section** - Correct command mismatches:
-- Maps incorrect commands in .prot files to correct program filenames
-- Example: `go run main.go` → `go run go-channels.go`
+**1. SKIP annotation** - Programs requiring manual testing:
 
-**4. Normal Test Section** - Fully automated testing:
-- Programs with deterministic output
-- No special handling required
+```markdown
+<!-- @PROGRAM_TEST_SKIP: reason="Concurrent execution order is non-deterministic" manual_test_required=true -->
+```
+
+Use for programs with:
+- Non-deterministic output (memory addresses, concurrent execution order, timestamps)
+- Interactive input requirements
+- Environment-specific output (e.g., `sys.path` varies across machines)
+- Complex shell operations that cannot be reliably automated
+
+**2. PARTIAL annotation** - Programs with mixed testability:
+
+```markdown
+<!-- @PROGRAM_TEST_PARTIAL: skip_commands_with="Traceback,MemoryError" skip_reason="Different stack depths lead to inconsistent output" testable_note="Other commands can be tested" -->
+```
+
+Use when some commands are testable while others require manual verification due to Traceback variations, non-deterministic output, or error demonstrations.
+
+**3. OVERRIDE annotation** - Correct command mismatches:
+
+```markdown
+<!-- @PROGRAM_TEST_OVERRIDE: original_command="go run main.go" correct_command="go run go-channels.go" reason=".prot file uses main.go but actual file is go-channels.go" -->
+```
+
+Use when `.prot` files reference incorrect command names that need correction.
+
+**4. Normal testing** - No annotation needed:
+
+Programs with deterministic output require no special annotation and are tested automatically.
+
+**Decentralization benefits:**
+- **Locality**: Test configuration lives next to task content, making updates easier
+- **Self-contained tasks**: Each task specifies its own testing requirements
+- **No central configuration**: Eliminates need for maintaining separate configuration files
+- **Easy discovery**: Test behavior is immediately visible when editing task files
 
 ##### Usage Examples
 
@@ -255,7 +283,7 @@ Program testing uses a YAML configuration file (`programchecker.yaml`) to define
   - Separates failed, skipped, and passed tests in reports
   - Includes execution time for each command
 - **Parallel Execution**: Optional parallel testing for faster results
-- **Configuration-driven**: Flexible YAML-based rules without code changes
+- **Annotation-driven**: Flexible HTML comment annotations directly in task files for easy maintenance
 
 ##### Output Statistics
 
@@ -269,7 +297,7 @@ Program testing provides detailed statistics including:
 ##### Implementation Details
 
 - Core module: `py/sdrl/programchecker.py`
-- Configuration: `py/sdrl/programchecker.yaml`
+- Annotation extraction: Uses regex patterns to parse `@PROGRAM_TEST_*` annotations from task `.md` files
 - Tests: `py/sdrl/tests/programchecker_test.py` (pytest format)
 
 Run tests:

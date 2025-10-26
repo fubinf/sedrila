@@ -30,6 +30,10 @@ def add_arguments(subparser: argparse.ArgumentParser):
                            help="Log level for logging to stdout (default: INFO)")
     subparser.add_argument('--check-links', nargs='?', const='all', metavar="markdown_file",
                            help="Check accessibility of external links. Use without argument to check all course files, or specify a single markdown file to check")
+    subparser.add_argument('--check-programs', action='store_true',
+                           help="Test exemplary programs against protocol files")
+    subparser.add_argument('--batch', action='store_true',
+                           help="Use batch/CI-friendly output: concise output, only show failures, complete error list at end")
 
 
 def execute(pargs: argparse.Namespace):
@@ -40,8 +44,13 @@ def execute(pargs: argparse.Namespace):
         check_links_command(pargs)
         return
     
+    # Check programs if requested
+    if hasattr(pargs, 'check_programs') and pargs.check_programs:
+        check_programs_command(pargs)
+        return
+    
     # If no specific command was given, show help
-    b.error("No maintenance command specified. Use --check-links or see --help for options.")
+    b.error("No maintenance command specified. Use --check-links, --check-programs, or see --help for options.")
 
 
 def check_links_command(pargs: argparse.Namespace):
@@ -84,7 +93,8 @@ def check_links_command(pargs: argparse.Namespace):
         
         # Check all links
         checker = linkchecker.LinkChecker()
-        results = checker.check_links(all_links, show_progress=True)
+        batch_mode = getattr(pargs, 'batch', False)
+        results = checker.check_links(all_links, show_progress=True, batch_mode=batch_mode)
         
         # Generate and display report
         reporter = linkchecker.LinkCheckReporter()
@@ -243,4 +253,41 @@ def check_single_file(filepath: str):
         reporter.generate_markdown_report(results)
     
     return results
+
+
+def check_programs_command(pargs: argparse.Namespace):
+    """Execute program testing (lightweight, no course build)."""
+    try:
+        import sdrl.programchecker as programchecker
+    except ImportError as e:
+        b.error(f"Cannot import program checking modules: {e}")
+        return
+    
+    # Get batch mode from command line argument
+    batch_mode = getattr(pargs, 'batch', False)
+    
+    if not batch_mode:
+        b.info("=" * 60)
+    
+    b.info("Testing exemplary programs...")
+    
+    course_root = Path.cwd()
+    
+    # Initialize checker (uses annotation-based configuration from task .md files)
+    checker = programchecker.ProgramChecker(course_root=course_root, parallel_execution=True)
+    
+    # Run tests with appropriate verbosity
+    show_progress = not batch_mode  # Less verbose in batch mode
+    results = checker.test_all_programs(show_progress=show_progress, batch_mode=batch_mode)
+    
+    # Generate reports
+    checker.generate_reports(results, batch_mode=batch_mode)
+    
+    # Check for failures and exit with appropriate status
+    failed_count = sum(1 for r in results if not r.success and not r.skipped)
+    if failed_count > 0:
+        sys.exit(1)
+    
+    if not batch_mode:
+        b.info("=" * 60)
 
