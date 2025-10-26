@@ -91,7 +91,13 @@ Reports are generated with fixed names for easy integration:
 - Markdown report: `link_check_report.md`
 - Console summary with integrated statistics
 
-**Note**: Both single-file and full-course testing use the same fixed report names to prevent file accumulation.
+**Note**: only full-course testing has report. 
+
+##### Implementation Details
+
+- Core module: `py/sdrl/linkchecker.py`
+- Tests: `py/sdrl/tests/linkchecker_test.py` (pytest format)
+- Integration: Invoked via `sedrila maintainer --check-links`
 
 ### CI/CD Integration
 
@@ -136,9 +142,9 @@ and execution logic for performing them and reporting when running `sedrila inst
 Command protocol checking is now integrated into `sedrila` with two main components Validation and 
 Comparison:
 
-##### Annotation Syntax (for authors)
+##### Markup Syntax (for authors)
 
-Authors can add validation rules to their example protocol files using `@PROT_CHECK` annotations:
+Authors can add validation rules to their example protocol files using `@PROT_CHECK` markup:
 
 ```bash
 # @PROT_CHECK: command=exact, output=flexible
@@ -175,7 +181,7 @@ $ pwd
 
 ##### Features
 
-- Protocol annotations validated during every build (`sedrila author`)
+- Protocol markup validated during every build (`sedrila author`)
 - Only changed `.prot` files rechecked (use `--clean` to force full recheck)
 - `sedrila instructor --check-protocols student.prot author.prot` compares files
 - Supports exact, regex, flexible, and multi-variant matching
@@ -185,14 +191,6 @@ $ pwd
 
 - Core module: `py/sdrl/protocolchecker.py`
 - Tests: `py/sdrl/tests/protocolchecker_test.py` (pytest format)
-- Demo: `example_protocol_demo.py`
-
-Run tests:
-```bash
-cd py
-python -m pytest sdrl/tests/protocolchecker_test.py -v
-```
-
 
 ### 2.2 Programs
 
@@ -211,17 +209,17 @@ Ensuring consistency of the SeDriLa means
 
 #### Implementation for now
 
-Program testing is now integrated into `sedrila` with automated testing of exemplary programs against their protocol files using a decentralized, annotation-based approach.
+Program testing is now integrated into `sedrila` with automated testing of exemplary programs against their protocol files using a decentralized, markup-based approach.
 
-##### Annotation-based Testing
+##### Markup-based Testing
 
-Following sedrila's decentralized design philosophy, program testing uses HTML comment annotations directly in task `.md` files. This keeps test configuration close to the task content, making it easier to maintain and update.
+Following sedrila's decentralized design philosophy, program testing uses HTML comment markup directly in task `.md` files. This keeps test configuration close to the task content, making it easier to maintain and update.
 
-**Annotation placement:** Annotations are placed in task `.md` files, typically before the `[INSTRUCTOR]` section, providing locality and easy discoverability.
+**Markup placement:** Markup is placed in task `.md` files, typically before the `[INSTRUCTOR]` section, providing locality and easy discoverability.
 
-**Available annotation types:**
+**Available markup types:**
 
-**1. SKIP annotation** - Programs requiring manual testing:
+**1. SKIP markup** - Programs requiring manual testing:
 
 ```markdown
 <!-- @PROGRAM_TEST_SKIP: reason="Concurrent execution order is non-deterministic" manual_test_required=true -->
@@ -233,7 +231,7 @@ Use for programs with:
 - Environment-specific output (e.g., `sys.path` varies across machines)
 - Complex shell operations that cannot be reliably automated
 
-**2. PARTIAL annotation** - Programs with mixed testability:
+**2. PARTIAL markup** - Programs with mixed testability:
 
 ```markdown
 <!-- @PROGRAM_TEST_PARTIAL: skip_commands_with="Traceback,MemoryError" skip_reason="Different stack depths lead to inconsistent output" testable_note="Other commands can be tested" -->
@@ -241,7 +239,7 @@ Use for programs with:
 
 Use when some commands are testable while others require manual verification due to Traceback variations, non-deterministic output, or error demonstrations.
 
-**3. OVERRIDE annotation** - Correct command mismatches:
+**3. OVERRIDE markup** - Correct command mismatches:
 
 ```markdown
 <!-- @PROGRAM_TEST_OVERRIDE: original_command="go run main.go" correct_command="go run go-channels.go" reason=".prot file uses main.go but actual file is go-channels.go" -->
@@ -249,9 +247,9 @@ Use when some commands are testable while others require manual verification due
 
 Use when `.prot` files reference incorrect command names that need correction.
 
-**4. Normal testing** - No annotation needed:
+**4. Normal testing** - No markup needed:
 
-Programs with deterministic output require no special annotation and are tested automatically.
+Programs with deterministic output require no special markup and are tested automatically.
 
 **Decentralization benefits:**
 - **Locality**: Test configuration lives next to task content, making updates easier
@@ -261,57 +259,63 @@ Programs with deterministic output require no special annotation and are tested 
 
 ##### Usage Examples
 
+**Prerequisites:**
+Program testing requires `itree.zip` to be built first:
+```bash
+# Build course to generate itree.zip
+sedrila author /tmp/build
+
+# For faster testing of beta stage only
+sedrila author --include_stage beta /tmp/build
+```
+
+**Test all programs:**
+```bash
+# Test all programs with detailed output
+sedrila maintainer --check-programs
+
+# Batch/CI mode (concise output, errors at end)
+sedrila maintainer --check-programs --batch
+```
+
+**Test single program:**
+```bash
+# Test specific program file
+sedrila maintainer --check-programs altdir/itree.zip/Sprachen/Go/go-channels.go
+
+# Or with relative path
+sedrila maintainer --check-programs altdir/itree.zip/Bibliotheken/Python-Standardbibliothek/m_sqlite3.py
+```
+
+**Custom configuration:**
+```bash
+# Specify custom config file
+sedrila maintainer --config custom-sedrila.yaml --check-programs
+```
 
 ##### Features
 
 - **Automated Execution**: Runs programs and compares output against .prot files
-- **Multi-command Testing**: 
-  - Parses and tests **ALL testable commands** from single .prot file
-  - Executes each command sequentially and aggregates results
-  - Reports pass/fail status for each individual command
-  - Only marks test as passed if ALL commands succeed
-  - Provides detailed failure information including which command failed
-- **Automatic Cleanup**: 
-  - Cleans up generated files before and after each test
-  - Removes `.db`, `.sqlite`, `.sqlite3`, `.log`, `.tmp` files
-  - Removes `__pycache__` directories and `.pyc` files
-  - Ensures consistent test environment across runs
-  - Prevents test interference from residual files
+- **Multi-command Testing**: Parses and tests all commands from `.prot` files, only passes if all commands succeed
+- **Automatic Cleanup**: Removes generated files (`.db`, `.log`, `__pycache__`, etc.) before and after tests
 - **Intelligent Skipping**: Automatically detects commands with errors, interactive input, or shell complexity
-- **Comprehensive Reporting**: Generates JSON and Markdown reports with detailed test results
-  - Shows numbered list of all tested commands with individual status
-  - Separates failed, skipped, and passed tests in reports
-  - Includes execution time for each command
+- **Comprehensive Reporting**: Generates JSON and Markdown reports with detailed pass/fail status and execution times
 - **Parallel Execution**: Optional parallel testing for faster results
-- **Annotation-driven**: Flexible HTML comment annotations directly in task files for easy maintenance
-
-##### Output Statistics
-
-Program testing provides detailed statistics including:
-- Total programs found and test pairs identified
-- Programs passed, failed, and skipped (with categories)
-- Success rate calculation
-- Execution time tracking
-- Detailed failure reasons and manual testing requirements
+- **Markup-driven**: Flexible HTML comment markup directly in task files for easy maintenance
 
 ##### Implementation Details
 
 - Core module: `py/sdrl/programchecker.py`
-- Annotation extraction: Uses regex patterns to parse `@PROGRAM_TEST_*` annotations from task `.md` files
 - Tests: `py/sdrl/tests/programchecker_test.py` (pytest format)
 
-Run tests:
-```bash
-cd py
-pytest sdrl/tests/programchecker_test.py -v
-```
+### CI/CD Integration
 
-##### Supported Languages
+Both link checking and program testing are integrated with GitHub Actions as separate workflows:
 
-Currently supports:
-- Python (`.py`)
-- Go (`.go`)
-- Extensible for additional languages via `SUPPORTED_EXTENSIONS`
+- **Link Checker** (`maintainer-linkchecker.yml`): Runs every Sunday at 03:00 UTC
+- **Program Checker** (`maintainer-programchecker.yml`): Runs every Sunday at 03:30 UTC
+
+Each workflow can be triggered independently via GitHub's "Run workflow" button, making it easy to test specific functionality without running all checks. Both use the `--batch` flag for CI-friendly output and proper exit status codes (0 for success, 1 for failure).
 
 
 ### 2.3 Program snippets
@@ -338,7 +342,7 @@ Then testing the snippet would be reduced to testing the program in which it app
 
 Snippet extraction and validation is now integrated into `sedrila` with the following components:
 
-##### Annotation Syntax (for authors)
+##### Markup Syntax (for authors)
 
 Authors can mark code snippets in solution files using HTML comment markers:
 
@@ -382,12 +386,6 @@ And reference them in task files using:
 - Core module: `py/sdrl/snippetchecker.py`
 - Tests: `py/sdrl/tests/snippetchecker_test.py` (pytest format)
 - Integration: Snippet expansion occurs during markdown preprocessing in `py/sdrl/markdown.py`
-
-Run tests:
-```bash
-cd py
-pytest sdrl/tests/snippetchecker_test.py -v
-```
 
 ##### Benefits
 

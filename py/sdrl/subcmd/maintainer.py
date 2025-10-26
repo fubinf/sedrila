@@ -30,8 +30,8 @@ def add_arguments(subparser: argparse.ArgumentParser):
                            help="Log level for logging to stdout (default: INFO)")
     subparser.add_argument('--check-links', nargs='?', const='all', metavar="markdown_file",
                            help="Check accessibility of external links. Use without argument to check all course files, or specify a single markdown file to check")
-    subparser.add_argument('--check-programs', action='store_true',
-                           help="Test exemplary programs against protocol files")
+    subparser.add_argument('--check-programs', nargs='?', const='all', metavar="program_file",
+                           help="Test exemplary programs against protocol files. Use without argument to test all programs, or specify a single program file to test")
     subparser.add_argument('--batch', action='store_true',
                            help="Use batch/CI-friendly output: concise output, only show failures, complete error list at end")
 
@@ -45,7 +45,7 @@ def execute(pargs: argparse.Namespace):
         return
     
     # Check programs if requested
-    if hasattr(pargs, 'check_programs') and pargs.check_programs:
+    if hasattr(pargs, 'check_programs') and pargs.check_programs is not None:
         check_programs_command(pargs)
         return
     
@@ -243,14 +243,9 @@ def check_single_file(filepath: str):
     checker = linkchecker.LinkChecker()
     results = checker.check_links(links, show_progress=True)
     
-    # Generate and display report
+    # Display summary (no report files for single file testing)
     reporter = linkchecker.LinkCheckReporter()
     reporter.print_summary(results)
-    
-    # Save detailed reports
-    if results:
-        reporter.generate_json_report(results)
-        reporter.generate_markdown_report(results)
     
     return results
 
@@ -263,31 +258,34 @@ def check_programs_command(pargs: argparse.Namespace):
         b.error(f"Cannot import program checking modules: {e}")
         return
     
-    # Get batch mode from command line argument
-    batch_mode = getattr(pargs, 'batch', False)
+    b.info("=" * 60)
     
-    if not batch_mode:
-        b.info("=" * 60)
+    if pargs.check_programs == 'all':
+        # Test all programs
+        b.info("Testing exemplary programs...")
+        
+        course_root = Path.cwd()
+        
+        # Get batch mode from command line argument
+        batch_mode = getattr(pargs, 'batch', False)
+        
+        # Initialize checker (uses annotation-based configuration from task .md files)
+        checker = programchecker.ProgramChecker(course_root=course_root, parallel_execution=True)
+        
+        # Run tests with appropriate verbosity
+        show_progress = not batch_mode  # Less verbose in batch mode
+        results = checker.test_all_programs(show_progress=show_progress, batch_mode=batch_mode)
+        
+        # Generate reports
+        checker.generate_reports(results, batch_mode=batch_mode)
+        
+        # Check for failures and exit with appropriate status
+        failed_count = sum(1 for r in results if not r.success and not r.skipped)
+        if failed_count > 0:
+            sys.exit(1)
+    else:
+        # Test single program file
+        programchecker.test_single_program_file(pargs.check_programs)
     
-    b.info("Testing exemplary programs...")
-    
-    course_root = Path.cwd()
-    
-    # Initialize checker (uses annotation-based configuration from task .md files)
-    checker = programchecker.ProgramChecker(course_root=course_root, parallel_execution=True)
-    
-    # Run tests with appropriate verbosity
-    show_progress = not batch_mode  # Less verbose in batch mode
-    results = checker.test_all_programs(show_progress=show_progress, batch_mode=batch_mode)
-    
-    # Generate reports
-    checker.generate_reports(results, batch_mode=batch_mode)
-    
-    # Check for failures and exit with appropriate status
-    failed_count = sum(1 for r in results if not r.success and not r.skipped)
-    if failed_count > 0:
-        sys.exit(1)
-    
-    if not batch_mode:
-        b.info("=" * 60)
+    b.info("=" * 60)
 

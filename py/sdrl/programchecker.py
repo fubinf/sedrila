@@ -170,6 +170,8 @@ class ProgramTestResult:
     exit_code: int = 0
     skip_category: str = ""  # "config_skip", "partial_skip", "runtime_skip"
     partial_skip_details: Dict[str, Any] = field(default_factory=dict)  # For partial skip programs
+    command_override: bool = False  # Whether command override was used
+    override_details: Dict[str, str] = field(default_factory=dict)  # Override command details
     
     def __str__(self) -> str:
         status = "PASS" if self.success else ("SKIP" if self.skipped else "FAIL")
@@ -697,10 +699,6 @@ class ProgramChecker:
                 # Extract: "go run program.go args..." -> ["go", "run", "program.go", "args..."]
                 parts = command_line.split()
                 if len(parts) >= 3 and parts[0] == 'go' and parts[1] == 'run':
-                    # If .prot uses main.go but actual file is different, use actual file
-                    go_file_in_cmd = parts[2]
-                    if go_file_in_cmd == 'main.go' and config.program_path.name != 'main.go':
-                        parts[2] = config.program_path.name
                     return parts[:3]  # Just "go run program.go" for now, ignore additional args
         elif config.language == 'python':
             # Handle python and fastapi commands
@@ -890,6 +888,15 @@ class ProgramChecker:
             final_result.partial_skip_details = {
                 "tested_commands": tested_cmd_infos,
                 "skipped_commands": skipped_commands
+            }
+        
+        # Add command override details if used
+        if config.annotation.command_override:
+            final_result.command_override = True
+            final_result.override_details = {
+                "original_command": config.annotation.original_command,
+                "correct_command": config.annotation.correct_command,
+                "reason": config.annotation.override_reason
             }
         
         # Clean up generated files after testing
@@ -1124,7 +1131,9 @@ class ProgramChecker:
                     "error_message": r.error_message,
                     "missing_dependencies": r.missing_dependencies,
                     "actual_output_preview": r.actual_output[:200] if r.actual_output else "",
-                    "expected_output_preview": r.expected_output[:200] if r.expected_output else ""
+                    "expected_output_preview": r.expected_output[:200] if r.expected_output else "",
+                    "command_override": r.command_override,
+                    "override_details": r.override_details if r.command_override else None
                 }
                 for r in results
             ]
@@ -1211,12 +1220,29 @@ Generated: {timestamp}
 
 """
         
+        # Add command override section
+        override_tests = [r for r in results if r.command_override]
+        if override_tests:
+            report_content += "\n## Programs with Command Override\n"
+            for result in override_tests:
+                status = "PASS" if result.success else ("SKIP" if result.skipped else "FAIL")
+                report_content += f"""
+### {result.program_name} ({result.language}) - {status}
+
+- **Original Command**: `{result.override_details.get('original_command', 'N/A')}`
+- **Overridden Command**: `{result.override_details.get('correct_command', 'N/A')}`
+- **Reason**: {result.override_details.get('reason', 'N/A')}
+- **Execution Time**: {result.execution_time:.2f}s
+
+"""
+        
         report_content += "\n## Passed Tests\n"
         
         if passed_tests:
             for result in passed_tests:
+                override_note = " *(with command override)*" if result.command_override else ""
                 report_content += f"""
-### {result.program_name} ({result.language})
+### {result.program_name} ({result.language}){override_note}
 
 - **Execution Time**: {result.execution_time:.2f}s
 
@@ -1321,6 +1347,19 @@ Generated: {timestamp}
                 if result.skipped and result.skip_category == "runtime_skip":
                     deps = ", ".join(result.missing_dependencies) if result.missing_dependencies else "N/A"
                     b.info(f"  SKIP: {result.program_name} ({result.language}): {result.error_message} [Missing: {deps}]")
+        
+        # Show programs with command override
+        override_programs = [r for r in results if r.command_override]
+        if override_programs and not batch_mode:
+            b.info("")
+            b.info("Programs with Command Override:")
+            for result in override_programs:
+                status = "PASS" if result.success else ("SKIP" if result.skipped else "FAIL")
+                b.info(f"  [{status}] {result.program_name} ({result.language})")
+                if result.override_details:
+                    b.info(f"      Original: {result.override_details.get('original_command', 'N/A')}")
+                    b.info(f"      Override: {result.override_details.get('correct_command', 'N/A')}")
+                    b.info(f"      Reason: {result.override_details.get('reason', 'N/A')}")
         
         b.info("=" * 60)
 

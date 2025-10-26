@@ -125,7 +125,8 @@ ValueError: Test error
         f.flush()
         
         checker = programchecker.ProgramChecker()
-        command_tests = checker.parse_command_tests_from_prot(Path(f.name), "test_prog.py")
+        annotation = programchecker.ProgramTestAnnotation()
+        command_tests = checker.parse_command_tests_from_prot(Path(f.name), "test_prog.py", annotation)
         
         # Should find 2 command tests (both use test_prog.py)
         assert len(command_tests) == 2
@@ -376,7 +377,8 @@ def test_missing_files_handling():
     assert results == []
     
     # Test parsing from non-existent .prot file
-    command_tests = checker.parse_command_tests_from_prot(Path("/nonexistent/file.prot"), "test.py")
+    annotation = programchecker.ProgramTestAnnotation()
+    command_tests = checker.parse_command_tests_from_prot(Path("/nonexistent/file.prot"), "test.py", annotation)
     assert command_tests == []
 
 
@@ -449,7 +451,8 @@ if len(sys.argv) > 1:
             try:
                 checker = programchecker.ProgramChecker()
                 prot_path = Path(prot_file.name)
-                command_tests = checker.parse_command_tests_from_prot(prot_path, "multi_test.py")
+                annotation = programchecker.ProgramTestAnnotation()
+                command_tests = checker.parse_command_tests_from_prot(prot_path, "multi_test.py", annotation)
                 
                 # Should parse 4 commands total
                 assert len(command_tests) == 4

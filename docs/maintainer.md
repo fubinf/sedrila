@@ -71,23 +71,27 @@ Link checking is now used for Github Actions
 
 ### Protocol Comparison and Program Testing
 
-- Option `--check-protocols [student_file] [author_file]` compares student protocol files against author
-  reference files using `@PROT_CHECK` annotations to validate command execution and output.
-
-- Option `--check-programs` tests exemplary programs from `itree.zip` against their corresponding protocol files.
-  Programs are executed and their output is compared with expected results from `.prot` files.
-  Uses annotation-based configuration in task `.md` files for flexible test behavior control.
-  Generates fixed-name reports: `program_test_report.json` and `program_test_report.md` in the current directory.
-  Examples:
-  - `sedrila maintainer --check-programs` (test all programs)
+- Option `--check-programs [program_file]` tests exemplary programs from `itree.zip` against their corresponding protocol files.
+  Without an argument, it tests all programs. With a file argument, it tests only that specific file.
   
-#### Program testing annotations
+**How it works:**
+- **Automatic test pair discovery**: Scans `itree.zip` for program files (`.py`, `.go`) and finds corresponding `.prot` files in `altdir/ch/`
+- **Default behavior**: Programs with found test pairs are automatically tested if no markup is present
+- **Markup-based configuration**: Use HTML comments in task `.md` files to control test behavior (skip, partial skip, command override)
+- **Multi-command testing**: Executes ALL testable commands from `.prot` files and verifies output
+- **Report generation**: Creates `program_test_report.json` and `program_test_report.md` in the current directory
+  
+Examples:
+- `sedrila maintainer --check-programs` (test all programs)
+- `sedrila maintainer --check-programs altdir/itree.zip/Sprachen/Go/go-channels.go` (test single file)
+  
+#### Program testing markup
 
-By default, programs are tested automatically. You can control test behavior using HTML comment annotations in task `.md` files (typically placed before the `[INSTRUCTOR]` section).
+By default, programs are tested automatically. You can control test behavior using HTML comment markup in task `.md` files (typically placed before the `[INSTRUCTOR]` section).
 
-**Available annotation types:**
+**Available markup types:**
 
-**1. SKIP annotation** - Programs requiring manual testing:
+**1. SKIP markup** - Programs requiring manual testing:
 
 Use for programs with non-deterministic output, interactive input, environment-specific output, or complex shell operations.
 
@@ -101,7 +105,7 @@ Parameters:
 - `reason="text"`: Explanation why manual testing is required
 - `manual_test_required=true`: Marks program for manual testing
 
-**2. PARTIAL annotation** - Programs with mixed testability:
+**2. PARTIAL markup** - Programs with mixed testability:
 
 Use when some commands are testable while others require manual verification.
 
@@ -116,7 +120,7 @@ Parameters:
 - `skip_reason="text"`: Explanation for skipping certain commands
 - `testable_note="text"`: Note about which commands are testable
 
-**3. OVERRIDE annotation** - Correct command mismatches:
+**3. OVERRIDE markup** - Correct command mismatches:
 
 Use when `.prot` files reference incorrect command names.
 
@@ -131,9 +135,9 @@ Parameters:
 - `correct_command="cmd"`: Correct command to execute
 - `reason="text"`: Explanation for the override
 
-**4. Normal testing** - No annotation needed:
+**4. Normal testing** - No markup needed:
 
-Programs with deterministic output require no special annotation and are tested automatically
+Programs with deterministic output require no special markup and are tested automatically
 
 **Multi-command testing:**
 - Parses and tests **ALL testable commands** from each `.prot` file
@@ -211,8 +215,6 @@ sedrila maintainer --check-programs --batch
 ```
 
 - **Batch mode output** (`--batch`): Concise output suitable for automated testing
-  - Without `--batch` (interactive): Detailed progress, colored output, real-time status
-  - With `--batch` (CI): Concise output, only shows failures, error summary at end
 - **Exit status**: Returns non-zero (1) when tests fail, zero (0) on success
 - **Complete error list at end**: All failed tests are summarized at the end of output for quick error identification
 - **Report generation**: JSON and Markdown reports are always generated for detailed analysis

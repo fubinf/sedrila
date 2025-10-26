@@ -113,6 +113,29 @@ but the ideal case is two, where these students form a work pair and make
 corresponding submissions at the same time.
 Working with more than four directories at once is hardly practical.
 
+When `sedrila` starts, it will `git pull` the repo and remove all entries from 'submission.yaml'
+that do not say "CHECK", unless you have worked on the so-created 'submission.yaml' already
+and not committed that work.
+
+`sedrila` then provides a simple menu-driven command loop offering tools for
+marking submission items as accepted or rejected: 
+  - a webapp (used in the browser and usually the nicest choice)
+  - calling your text editor for doing it manually
+  - committing+pushing the result when you are done
+
+Several assumptions about the SeDriLa in question are built into the webapp. In particular:
+
+- The underlying SeDriLa prescribes submission filenames and directory structure precisely, 
+  so that the directory trees can be merged naturally and corresponding files identified easily.
+- For many or most submission files, their basename (without the suffix) will be the name of the
+  corresponding task, so that viewer can read `submission.yaml` and then identify (and mark)
+  most of those files in the directory tree that are relevant for the current submission.
+
+Based on this, the webapp presents a joint virtual filesystem formed by merging the contents
+of several students working directories, points out which students have submitted which tasks,
+and (at the file level) allows viewing pairwise differences between two students' exemplars
+of the same file.
+
 ### 2.3 Protocol checking
 
 For tasks that require command-line execution logs (`.prot` files), `sedrila` provides automated 
@@ -155,25 +178,3 @@ The comparison checks each command entry based on author-defined rules (`@PROT_C
 - Such entries will always be marked "manual check required"
 - Failed entries show detailed error messages (e.g., "command mismatch", "output mismatch")
 - This feature complements (not replaces) the normal submission checking workflow
-
-- When `sedrila` starts, it will `git pull` the repo and remove all entries from 'submission.yaml'
-  that do not say "CHECK", unless you have worked on the so-created 'submission.yaml' already
-  and not committed that work.
-- `sedrila` then provides a simple menu-driven command loop offering tools for
-  marking submission items as accepted or rejected: 
-    - a webapp (used in the browser and usually the nicest choice)
-    - calling your text editor for doing it manually
-    - committing+pushing the result when you are done
-
-Several assumptions about the SeDriLa in question are built into the webapp. In particular:
-
-- The underlying SeDriLa prescribes submission filenames and directory structure precisely, 
-  so that the directory trees can be merged naturally and corresponding files identified easily.
-- For many or most submission files, their basename (without the suffix) will be the name of the
-  corresponding task, so that viewer can read `submission.yaml` and then identify (and mark)
-  most of those files in the directory tree that are relevant for the current submission.
-
-Based on this, the webapp presents a joint virtual filesystem formed by merging the contents
-of several students working directories, points out which students have submitted which tasks,
-and (at the file level) allows viewing pairwise differences between two students' exemplars
-of the same file.
