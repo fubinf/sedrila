@@ -24,7 +24,7 @@ import base as b
 
 @dataclass
 class ProgramTestAnnotation:
-    """Program test annotation from task .md file."""
+    """Program test markup from task .md file."""
     skip: bool = False
     skip_reason: str = ""
     manual_test_required: bool = False
@@ -39,9 +39,9 @@ class ProgramTestAnnotation:
     notes: str = ""
 
 class AnnotationExtractor:
-    """Extracts program test annotations from task .md files."""
+    """Extracts program test markup from task .md files."""
     
-    # Regex patterns for different annotation types
+    # Regex patterns for different markup types
     PROGRAM_TEST_SKIP_RE = re.compile(
         r'<!--\s*@PROGRAM_TEST_SKIP:\s*(.+?)\s*-->', re.DOTALL
     )
@@ -56,7 +56,7 @@ class AnnotationExtractor:
     )
     
     def extract_annotations_from_file(self, md_filepath: str) -> ProgramTestAnnotation:
-        """Extract program test annotations from a task .md file."""
+        """Extract program test markup from a task .md file."""
         if not os.path.exists(md_filepath):
             b.debug(f"Task file not found: {md_filepath}")
             return ProgramTestAnnotation()
@@ -96,13 +96,13 @@ class AnnotationExtractor:
         return annotation
     
     def _parse_skip_params(self, params_text: str, annotation: ProgramTestAnnotation):
-        """Parse parameters from @PROGRAM_TEST_SKIP annotation."""
+        """Parse parameters from @PROGRAM_TEST_SKIP markup."""
         params = self._parse_key_value_pairs(params_text)
         annotation.skip_reason = params.get('reason', '')
         annotation.manual_test_required = params.get('manual_test_required', '').lower() in ('true', '1', 'yes')
     
     def _parse_partial_params(self, params_text: str, annotation: ProgramTestAnnotation):
-        """Parse parameters from @PROGRAM_TEST_PARTIAL annotation."""
+        """Parse parameters from @PROGRAM_TEST_PARTIAL markup."""
         params = self._parse_key_value_pairs(params_text)
         skip_commands = params.get('skip_commands_with', '')
         if skip_commands:
@@ -111,19 +111,19 @@ class AnnotationExtractor:
         annotation.testable_note = params.get('testable_note', '')
     
     def _parse_override_params(self, params_text: str, annotation: ProgramTestAnnotation):
-        """Parse parameters from @PROGRAM_TEST_OVERRIDE annotation."""
+        """Parse parameters from @PROGRAM_TEST_OVERRIDE markup."""
         params = self._parse_key_value_pairs(params_text)
         annotation.original_command = params.get('original_command', '')
         annotation.correct_command = params.get('correct_command', '')
         annotation.override_reason = params.get('reason', '')
     
     def _parse_test_params(self, params_text: str, annotation: ProgramTestAnnotation):
-        """Parse parameters from @PROGRAM_TEST annotation."""
+        """Parse parameters from @PROGRAM_TEST markup."""
         params = self._parse_key_value_pairs(params_text)
         annotation.notes = params.get('notes', '')
     
     def _parse_key_value_pairs(self, text: str) -> Dict[str, str]:
-        """Parse key="value" pairs from annotation parameters."""
+        """Parse key="value" pairs from markup parameters."""
         params = {}
         # Match key="value" or key='value' patterns
         pattern = r'(\w+)\s*=\s*["\']([^"\']*)["\']'
@@ -137,7 +137,7 @@ class AnnotationExtractor:
 @dataclass
 class CommandTest:
     """Single command test extracted from .prot file"""
-    command: str                    # The command to run (e.g., "go run program.go")  
+    command: str                    # The command to run
     expected_output: str           # Expected output for this command
     has_errors: bool = False       # True if output contains Traceback/errors
     needs_interaction: bool = False # True if command needs user input
@@ -148,7 +148,6 @@ class ProgramTestConfig:
     """Configuration for testing a program (may contain multiple commands)."""
     program_path: Path
     program_name: str
-    language: str
     expected_protocol_file: Path
     working_dir: Path
     command_tests: List[CommandTest] = field(default_factory=list)
@@ -159,7 +158,6 @@ class ProgramTestConfig:
 class ProgramTestResult:
     """Result of running and testing a program."""
     program_name: str
-    language: str
     success: bool
     actual_output: str = ""
     expected_output: str = ""
@@ -175,57 +173,10 @@ class ProgramTestResult:
     
     def __str__(self) -> str:
         status = "PASS" if self.success else ("SKIP" if self.skipped else "FAIL")
-        return f"{self.program_name} ({self.language}): {status}"
-
-class EnvironmentChecker:
-    """Check if environment requirements for running programs are satisfied."""
-    
-    def check_python_packages(self, packages: List[str]) -> Dict[str, Any]:
-        """Check if Python packages are installed."""
-        missing = []
-        available = []
-        
-        for pkg in packages:
-            try:
-                __import__(pkg)
-                available.append(pkg)
-            except ImportError:
-                missing.append(pkg)
-        
-        return {
-            "satisfied": len(missing) == 0,
-            "missing": missing,
-            "available": available
-        }
-    
-    def check_go_version(self, required_version: str = "1.20") -> Dict[str, Any]:
-        """Check Go version availability."""
-        try:
-            result = sp.run(['go', 'version'], capture_output=True, text=True, timeout=5)
-            if result.returncode == 0:
-                # Parse version info, e.g.: "go version go1.23.4 linux/amd64"
-                version_match = re.search(r'go(\d+\.\d+)', result.stdout)
-                if version_match:
-                    version = version_match.group(1)
-                    return {
-                        "satisfied": True, 
-                        "version": version,
-                        "output": result.stdout.strip()
-                    }
-            return {"satisfied": False, "error": f"Go version parse failed: {result.stdout}"}
-        except FileNotFoundError:
-            return {"satisfied": False, "error": "Go not installed"}
-        except sp.TimeoutExpired:
-            return {"satisfied": False, "error": "Go version check timeout"}
+        return f"{self.program_name}: {status}"
 
 class ProgramChecker:
     """Main program testing class for SeDriLa courses."""
-    
-    # Supported program file extensions and their languages
-    SUPPORTED_EXTENSIONS = {
-        '.py': 'python',
-        '.go': 'go'
-    }
     
     # Default timeout for program execution
     DEFAULT_TIMEOUT = 30
@@ -238,9 +189,8 @@ class ProgramChecker:
             parallel_execution: Whether to run tests in parallel (default: True)
         """
         self.course_root = course_root or Path.cwd()
-        self.env_checker = EnvironmentChecker()
         self.results = []
-        self.skipped_programs = []  # Track programs skipped by annotation
+        self.skipped_programs = []  # Track programs skipped by markup
         self.parallel_execution = parallel_execution
         self.annotation_extractor = AnnotationExtractor()
     
@@ -248,7 +198,7 @@ class ProgramChecker:
         """Map program file path to corresponding task .md file.
         
         Args:
-            program_path: Path to program file (e.g., altdir/itree.zip/Sprachen/Go/go-channels.go)
+            program_path: Path to program file
             itree_root: Root path of itree directory
             
         Returns:
@@ -276,14 +226,14 @@ class ProgramChecker:
             return None
     
     def _get_annotation_for_program(self, program_path: Path, itree_root: Path) -> ProgramTestAnnotation:
-        """Get program test annotation from corresponding task .md file.
+        """Get program test markup from corresponding task .md file.
         
         Args:
             program_path: Path to program file
             itree_root: Root path of itree directory
             
         Returns:
-            ProgramTestAnnotation object (empty if no task file or no annotation)
+            ProgramTestAnnotation object (empty if no task file or no markup)
         """
         task_md_path = self._get_task_md_path(program_path, itree_root)
         if task_md_path is None:
@@ -292,10 +242,10 @@ class ProgramChecker:
         return self.annotation_extractor.extract_annotations_from_file(str(task_md_path))
     
     def _should_skip_program(self, annotation: ProgramTestAnnotation) -> Tuple[bool, str]:
-        """Check if program should be completely skipped based on annotation.
+        """Check if program should be completely skipped based on markup.
         
         Args:
-            annotation: Program test annotation from task .md file
+            annotation: Program test markup from task .md file
             
         Returns:
             Tuple of (should_skip, reason)
@@ -305,10 +255,10 @@ class ProgramChecker:
         return False, ""
     
     def _should_skip_command(self, annotation: ProgramTestAnnotation, command: str, output: str) -> Tuple[bool, str]:
-        """Check if specific command should be skipped based on annotation.
+        """Check if specific command should be skipped based on markup.
         
         Args:
-            annotation: Program test annotation from task .md file
+            annotation: Program test markup from task .md file
             command: The command being tested
             output: Expected output from command
             
@@ -321,20 +271,6 @@ class ProgramChecker:
                     return True, annotation.partial_skip_reason or f'Contains {keyword}'
         return False, ""
     
-    def _get_command_override(self, annotation: ProgramTestAnnotation, original_command: str) -> str:
-        """Get overridden command if specified in annotation.
-        
-        Args:
-            annotation: Program test annotation from task .md file
-            original_command: The command from .prot file
-            
-        Returns:
-            Overridden command, or original if no override
-        """
-        if annotation.command_override and annotation.original_command == original_command:
-            return annotation.correct_command
-        return original_command
-        
     def find_program_test_pairs(self, itree_path: Path, altdir_path: Path) -> List[ProgramTestConfig]:
         """Find all program-protocol file pairs for testing."""
         configs = []
@@ -361,30 +297,38 @@ class ProgramChecker:
             # It's a directory, use directly
             itree_root = itree_path
         
-        # Find all program files
+        # Find all files in itree directory (language-agnostic approach)
+        # The programs in itree.zip are decisive, not the .prot files
+        all_files = list(itree_root.rglob('*'))
+        
+        # Filter: only regular files, exclude documentation/config files
+        excluded_extensions = {'.md', '.yaml', '.yml', '.txt', '.json', '.prot', 
+                              '.gitignore', '.cfg', '.conf', '.ini', '.xml', '.html'}
+        excluded_names = {'README', 'LICENSE', 'Makefile', '.git', '.gitkeep'}
+        
         program_files = []
-        for pattern in self.SUPPORTED_EXTENSIONS.keys():
-            program_files.extend(itree_root.rglob(f'*{pattern}'))
+        for file_path in all_files:
+            if not file_path.is_file():
+                continue
+            if file_path.suffix.lower() in excluded_extensions:
+                continue
+            if file_path.name in excluded_names:
+                continue
+            program_files.append(file_path)
         
         b.info(f"Found {len(program_files)} program files in itree directory")
         
+        # For each program file, try to find corresponding .prot file
         for program_file in program_files:
-            # Determine language
-            language = self.SUPPORTED_EXTENSIONS.get(program_file.suffix)
-            if not language:
-                b.debug(f"Unsupported file type: {program_file}")
-                continue
-            
             # Program name without extension
             program_name = program_file.stem
             
             # Find corresponding .prot file
-            # Relative path: e.g. Sprachen/Go/go-basics.go -> altdir/ch/Sprachen/Go/go-basics.prot
             rel_path = program_file.relative_to(itree_root)
             prot_path = altdir_path / "ch" / rel_path.with_suffix('.prot')
             
             if prot_path.exists():
-                # Get annotation from task .md file
+                # Get markup from task .md file
                 annotation = self._get_annotation_for_program(program_file, itree_root)
                 
                 # Check if this program should be completely skipped
@@ -394,7 +338,6 @@ class ProgramChecker:
                     # Create a skipped result for this program
                     skipped_result = ProgramTestResult(
                         program_name=program_name,
-                        language=language,
                         success=False,
                         skipped=True,
                         error_message=skip_reason,
@@ -410,7 +353,6 @@ class ProgramChecker:
                     config = ProgramTestConfig(
                         program_path=program_file,
                         program_name=program_name,
-                        language=language,
                         expected_protocol_file=prot_path,
                         working_dir=program_file.parent,
                         command_tests=command_tests,
@@ -421,7 +363,7 @@ class ProgramChecker:
                     # Log command analysis
                     total_commands = len(command_tests)
                     testable_commands = len([ct for ct in command_tests if not ct.has_errors and not ct.needs_interaction and not ct.has_redirection])
-                    b.debug(f"Found test pair: {program_name} ({language}) <-> {prot_path.name} ({testable_commands}/{total_commands} testable commands)")
+                    b.debug(f"Found test pair: {program_name} <-> {prot_path.name} ({testable_commands}/{total_commands} testable commands)")
                 else:
                     b.debug(f"No testable commands found in {prot_path} for {program_name}")
             else:
@@ -429,7 +371,7 @@ class ProgramChecker:
         
         # Calculate total test pairs (including skipped ones)
         total_pairs = len(configs) + len(self.skipped_programs)
-        b.info(f"Found {total_pairs} program-protocol test pairs ({len(configs)} to test, {len(self.skipped_programs)} skipped by annotation)")
+        b.info(f"Found {total_pairs} program-protocol test pairs ({len(configs)} to test, {len(self.skipped_programs)} skipped by markup)")
         return configs
     
     def parse_command_tests_from_prot(self, prot_file: Path, program_name: str, annotation: ProgramTestAnnotation) -> List[CommandTest]:
@@ -437,8 +379,8 @@ class ProgramChecker:
         
         Args:
             prot_file: Path to .prot file
-            program_name: Name of the program (e.g., "go-basics.go")
-            annotation: Program test annotation from task .md file
+            program_name: Name of the program
+            annotation: Program test markup from task .md file
             
         Returns:
             List of CommandTest objects
@@ -507,40 +449,27 @@ class ProgramChecker:
             command: The command to run
             output: Expected output from command
             program_name: Name of the program file
-            annotation: Program test annotation from task .md file
+            annotation: Program test markup from task .md file
         """
         
-        # Check if this is a recognizable program command
-        is_python_cmd = 'python' in command or 'fastapi' in command
-        is_go_cmd = 'go run' in command
-        
-        if not (is_python_cmd or is_go_cmd):
-            # Filter out test frameworks (pytest, npm, etc.) and other non-executable commands
-            return None
-        
-        # For standard execution commands, check if it relates to our program
-        # For python: program_name should be in command
-        # For go: any .go file in command is acceptable (allows main.go vs go-xxx.go mismatch)
-        if is_python_cmd:
+        # If there's a command override, use it directly without checking relevance
+        if annotation.command_override:
+            final_command = annotation.correct_command
+        else:
+            # Normal flow: check if command relates to our program file
             if program_name not in command:
-                return None
-        elif is_go_cmd:
-            # For go, just check that there's a .go file mentioned
-            if '.go' not in command:
-                return None
+                return None  # Not related to this program
+            final_command = command
         
-        # Check for various flags using both hardcoded logic and annotation
+        # Check for various flags using both hardcoded logic and markup
         has_errors = self._has_error_output(output)
         needs_interaction = self._needs_interaction(output)
         has_redirection = self._has_redirection(command)
         
-        # Additional check for annotation-based partial skip
+        # Additional check for markup-based partial skip
         should_skip_cmd, _ = self._should_skip_command(annotation, command, output)
         if should_skip_cmd:
             has_errors = True  # Mark as having errors to skip it
-        
-        # Apply command override if configured in annotation
-        final_command = self._get_command_override(annotation, command)
         
         return CommandTest(
             command=final_command,
@@ -585,25 +514,10 @@ class ProgramChecker:
         """Execute a single command test."""
         start_time = time.time()
         
-        # Check environment first
-        if config.language == 'go':
-            go_status = self.env_checker.check_go_version("1.20")
-            if not go_status['satisfied']:
-                return ProgramTestResult(
-                    program_name=config.program_name,
-                    language=config.language,
-                    success=False,
-                    error_message=f"Go environment check failed: {go_status.get('error', 'Unknown error')}",
-                    missing_dependencies=['go'],
-                    skipped=True,
-                    skip_category="runtime_skip"
-                )
-        
         # Skip tests with errors, interaction, or redirection
         if command_test.has_errors:
             return ProgramTestResult(
                 program_name=config.program_name,
-                language=config.language,
                 success=False,
                 error_message=f"Command contains error demonstration: {command_test.command[:50]}...",
                 skipped=True,
@@ -614,7 +528,6 @@ class ProgramChecker:
         if command_test.needs_interaction:
             return ProgramTestResult(
                 program_name=config.program_name,
-                language=config.language,
                 success=False,
                 error_message=f"Command needs interactive input: {command_test.command[:50]}...",
                 skipped=True,
@@ -625,7 +538,6 @@ class ProgramChecker:
         if command_test.has_redirection:
             return ProgramTestResult(
                 program_name=config.program_name,
-                language=config.language,
                 success=False,
                 error_message=f"Command has shell redirection: {command_test.command[:50]}...",
                 skipped=True,
@@ -633,23 +545,11 @@ class ProgramChecker:
                 skip_category="runtime_skip"
             )
         
-        # Extract the actual program command (remove shell complexities)
-        program_cmd = self._extract_program_command(command_test.command, config)
-        if not program_cmd:
-            return ProgramTestResult(
-                program_name=config.program_name,
-                language=config.language,
-                success=False,
-                error_message=f"Could not extract program command from: {command_test.command}",
-                skipped=True,
-                execution_time=time.time() - start_time,
-                skip_category="runtime_skip"
-            )
-        
-        # Execute program
+        # Execute program directly using shell
         try:
             result = sp.run(
-                program_cmd,
+                command_test.command,
+                shell=True,  # Use shell to support all command formats
                 cwd=config.working_dir,
                 capture_output=True,
                 text=True,
@@ -665,7 +565,6 @@ class ProgramChecker:
             
             return ProgramTestResult(
                 program_name=config.program_name,
-                language=config.language,
                 success=success,
                 actual_output=actual_output,
                 expected_output=expected_output,
@@ -677,7 +576,6 @@ class ProgramChecker:
         except sp.TimeoutExpired:
             return ProgramTestResult(
                 program_name=config.program_name,
-                language=config.language,
                 success=False,
                 error_message=f"Program execution timeout ({config.timeout}s)",
                 execution_time=time.time() - start_time
@@ -685,42 +583,10 @@ class ProgramChecker:
         except Exception as e:
             return ProgramTestResult(
                 program_name=config.program_name,
-                language=config.language,
                 success=False,
                 error_message=f"Execution error: {str(e)}",
                 execution_time=time.time() - start_time
             )
-    
-    def _extract_program_command(self, command_line: str, config: ProgramTestConfig) -> Optional[List[str]]:
-        """Extract the actual program command from shell command line."""
-        # Handle different program types
-        if config.language == 'go':
-            if 'go run' in command_line:
-                # Extract: "go run program.go args..." -> ["go", "run", "program.go", "args..."]
-                parts = command_line.split()
-                if len(parts) >= 3 and parts[0] == 'go' and parts[1] == 'run':
-                    return parts[:3]  # Just "go run program.go" for now, ignore additional args
-        elif config.language == 'python':
-            # Handle python and fastapi commands
-            if 'python' in command_line:
-                # Extract: "python program.py args..." -> ["python", "program.py", "args..."]
-                parts = command_line.split()
-                python_idx = -1
-                for i, part in enumerate(parts):
-                    if 'python' in part:
-                        python_idx = i
-                        break
-                
-                if python_idx >= 0 and python_idx + 1 < len(parts):
-                    # For now, include all arguments to allow proper testing
-                    return parts[python_idx:]
-            elif 'fastapi' in command_line:
-                # Extract: "fastapi dev program.py" -> ["fastapi", "dev", "program.py"]  
-                parts = command_line.split()
-                if len(parts) >= 3 and parts[0] == 'fastapi':
-                    return parts[:3]  # Just "fastapi dev program.py"
-        
-        return None
     
     def _cleanup_generated_files(self, working_dir: Path, program_name: str) -> None:
         """Clean up files generated during program testing.
@@ -731,13 +597,13 @@ class ProgramChecker:
         """
         # List of file patterns that are typically generated during testing
         cleanup_patterns = [
-            '*.db',      # SQLite databases
-            '*.sqlite',  # SQLite databases (alternative extension)
-            '*.sqlite3', # SQLite databases (alternative extension)
-            '*.log',     # Log files
-            '*.tmp',     # Temporary files
-            '__pycache__', # Python cache directories
-            '*.pyc',     # Python compiled files
+            '*.db',      
+            '*.sqlite',  
+            '*.sqlite3', 
+            '*.log',     
+            '*.tmp',     
+            '__pycache__', 
+            '*.pyc',     
         ]
         
         try:
@@ -778,7 +644,7 @@ class ProgramChecker:
                 skip_category="runtime_skip"
             )
         
-        # Check if this is a partial skip program (from annotation)
+        # Check if this is a partial skip program (from markup)
         is_partial_skip = config.annotation.partial_skip
         
         # Filter testable commands (not errors, not interactive, not redirected)
@@ -828,7 +694,6 @@ class ProgramChecker:
             
             return ProgramTestResult(
                 program_name=config.program_name,
-                language=config.language,
                 success=False,
                 error_message=f"All commands skipped: {', '.join(set(skip_reasons))}",
                 skipped=True,
@@ -862,7 +727,6 @@ class ProgramChecker:
         # Build final result
         final_result = ProgramTestResult(
             program_name=config.program_name,
-            language=config.language,
             success=all_passed,
             execution_time=time.time() - start_time,
             skip_category="partial_skip" if is_partial_skip and skipped_commands else None
@@ -955,11 +819,11 @@ class ProgramChecker:
         
         if batch_mode:
             # Batch mode: concise output
-            b.info(f"Testing {len(configs)} programs ({len(self.skipped_programs)} skipped by annotation)...")
+            b.info(f"Testing {len(configs)} programs ({len(self.skipped_programs)} skipped by markup)...")
         else:
             b.info(f"Starting program tests for {total_programs} programs...")
             b.info(f"  - {len(configs)} programs to test")
-            b.info(f"  - {len(self.skipped_programs)} programs skipped by annotation")
+            b.info(f"  - {len(self.skipped_programs)} programs skipped by markup")
         
         if self.parallel_execution and len(configs) > 1:
             results = self._run_tests_parallel(configs, show_progress, batch_mode)
@@ -988,7 +852,7 @@ class ProgramChecker:
             if show_progress and not batch_mode:
                 # Adjust progress to account for total programs including skipped ones
                 progress = f"[{i+1+offset}/{len(configs)+offset}]"
-                b.info(f"{progress} Testing {config.program_name} ({config.language})...")
+                b.info(f"{progress} Testing {config.program_name}...")
             
             result = self.run_program_test(config)
             results.append(result)
@@ -999,7 +863,7 @@ class ProgramChecker:
             elif batch_mode:
                 # In batch mode, only show failures
                 if not result.success and not result.skipped:
-                    b.error(f"FAIL: {config.program_name} ({config.language})")
+                    b.error(f"FAIL: {config.program_name}")
         
         return results
     
@@ -1040,13 +904,12 @@ class ProgramChecker:
                         b.info(f"{progress} {config.program_name}: {status}")
                     elif batch_mode and not result.success and not result.skipped:
                         # In batch mode, only show failures
-                        b.error(f"FAIL: {config.program_name} ({config.language})")
+                        b.error(f"FAIL: {config.program_name}")
                         
                 except Exception as e:
                     # Create a failed result for any exception during execution
                     error_result = ProgramTestResult(
                         program_name=config.program_name,
-                        language=config.language,
                         success=False,
                         error_message=f"Test execution failed: {str(e)}"
                     )
@@ -1097,7 +960,6 @@ class ProgramChecker:
             "failed_tests": [
                 {
                     "program_name": r.program_name,
-                    "language": r.language,
                     "error_message": r.error_message,
                     "execution_time": r.execution_time,
                 }
@@ -1106,7 +968,6 @@ class ProgramChecker:
             "skipped_tests": [
                 {
                     "program_name": r.program_name,
-                    "language": r.language,
                     "skip_reason": r.error_message,
                     "skip_category": r.skip_category,
                 }
@@ -1115,7 +976,6 @@ class ProgramChecker:
             "passed_tests": [
                 {
                     "program_name": r.program_name,
-                    "language": r.language,
                     "execution_time": r.execution_time,
                 }
                 for r in passed_tests
@@ -1123,7 +983,6 @@ class ProgramChecker:
             "all_results": [
                 {
                     "program_name": r.program_name,
-                    "language": r.language,
                     "success": r.success,
                     "skipped": r.skipped,
                     "execution_time": r.execution_time,
@@ -1176,7 +1035,7 @@ Generated: {timestamp}
         if failed_tests:
             for result in failed_tests:
                 report_content += f"""
-### {result.program_name} ({result.language})
+### {result.program_name}
 
 - **Error**: {result.error_message}
 - **Execution Time**: {result.execution_time:.2f}s
@@ -1196,25 +1055,25 @@ Generated: {timestamp}
         else:
             report_content += "\nNo failed tests.\n"
         
-        report_content += "\n## Skipped Tests (by annotation)\n"
+        report_content += "\n## Skipped Tests (by markup)\n"
         
         if skipped_config:
             for result in skipped_config:
                 report_content += f"""
-### {result.program_name} ({result.language})
+### {result.program_name}
 
 - **Reason**: {result.error_message}
 
 """
         else:
-            report_content += "\nNo tests skipped by annotation.\n"
+            report_content += "\nNo tests skipped by markup.\n"
         
         if skipped_runtime:
             report_content += "\n## Skipped Tests (at runtime)\n"
             for result in skipped_runtime:
                 deps = f" [Missing: {', '.join(result.missing_dependencies)}]" if result.missing_dependencies else ""
                 report_content += f"""
-### {result.program_name} ({result.language})
+### {result.program_name}
 
 - **Reason**: {result.error_message}{deps}
 
@@ -1227,7 +1086,7 @@ Generated: {timestamp}
             for result in override_tests:
                 status = "PASS" if result.success else ("SKIP" if result.skipped else "FAIL")
                 report_content += f"""
-### {result.program_name} ({result.language}) - {status}
+### {result.program_name} - {status}
 
 - **Original Command**: `{result.override_details.get('original_command', 'N/A')}`
 - **Overridden Command**: `{result.override_details.get('correct_command', 'N/A')}`
@@ -1242,7 +1101,7 @@ Generated: {timestamp}
             for result in passed_tests:
                 override_note = " *(with command override)*" if result.command_override else ""
                 report_content += f"""
-### {result.program_name} ({result.language}){override_note}
+### {result.program_name}{override_note}
 
 - **Execution Time**: {result.execution_time:.2f}s
 
@@ -1302,14 +1161,14 @@ Generated: {timestamp}
             b.info("=" * 60)
             for result in results:
                 if not result.success and not result.skipped:
-                    b.error(f"  FAIL: {result.program_name} ({result.language}): {result.error_message}")
+                    b.error(f"  FAIL: {result.program_name}: {result.error_message}")
         
         if skipped_config > 0:
             b.info("")
-            b.info("Skipped Tests (by annotation):")
+            b.info("Skipped Tests (by markup):")
             for result in results:
                 if result.skipped and result.skip_category == "config_skip":
-                    b.info(f"  SKIP: {result.program_name} ({result.language}): {result.error_message}")
+                    b.info(f"  SKIP: {result.program_name}: {result.error_message}")
         
         if skipped_partial > 0:
             b.info("")
@@ -1323,7 +1182,7 @@ Generated: {timestamp}
                     testable_note = details.get("testable_note", "")
                     
                     status = "PASS" if result.success else "FAIL"
-                    b.info(f"  {status}: {result.program_name} ({result.language})")
+                    b.info(f"  {status}: {result.program_name}")
                     
                     if tested:
                         b.info(f"      ✓ Tested Commands ({len(tested)}):")
@@ -1346,7 +1205,7 @@ Generated: {timestamp}
             for result in results:
                 if result.skipped and result.skip_category == "runtime_skip":
                     deps = ", ".join(result.missing_dependencies) if result.missing_dependencies else "N/A"
-                    b.info(f"  SKIP: {result.program_name} ({result.language}): {result.error_message} [Missing: {deps}]")
+                    b.info(f"  SKIP: {result.program_name}: {result.error_message} [Missing: {deps}]")
         
         # Show programs with command override
         override_programs = [r for r in results if r.command_override]
@@ -1355,7 +1214,7 @@ Generated: {timestamp}
             b.info("Programs with Command Override:")
             for result in override_programs:
                 status = "PASS" if result.success else ("SKIP" if result.skipped else "FAIL")
-                b.info(f"  [{status}] {result.program_name} ({result.language})")
+                b.info(f"  [{status}] {result.program_name}")
                 if result.override_details:
                     b.info(f"      Original: {result.override_details.get('original_command', 'N/A')}")
                     b.info(f"      Override: {result.override_details.get('correct_command', 'N/A')}")
@@ -1378,13 +1237,8 @@ def test_single_program_file(program_path: str) -> None:
         b.info(f"Testing single program file: {program_file.name}")
         b.info("=" * 60)
         
-        # Determine program name and language
+        # Determine program name
         program_name = program_file.stem
-        language = checker.SUPPORTED_EXTENSIONS.get(program_file.suffix)
-        
-        if not language:
-            b.error(f"Unsupported file type: {program_file.suffix}")
-            return
         
         # Find corresponding .prot file
         # For single file testing, we need to locate the .prot file
@@ -1443,7 +1297,6 @@ def test_single_program_file(program_path: str) -> None:
         config = ProgramTestConfig(
             program_path=program_file,
             program_name=program_name,
-            language=language,
             expected_protocol_file=prot_path,
             working_dir=program_file.parent,
             command_tests=command_tests,
@@ -1451,7 +1304,7 @@ def test_single_program_file(program_path: str) -> None:
         )
         
         # Run the test
-        b.info(f"Running test for {program_name} ({language})")
+        b.info(f"Running test for {program_name}")
         b.info(f"Found {len(command_tests)} command(s) in .prot file")
         result = checker.run_program_test(config)
         

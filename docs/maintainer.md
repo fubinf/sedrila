@@ -75,7 +75,7 @@ Link checking is now used for Github Actions
   Without an argument, it tests all programs. With a file argument, it tests only that specific file.
   
 **How it works:**
-- **Automatic test pair discovery**: Scans `itree.zip` for program files (`.py`, `.go`) and finds corresponding `.prot` files in `altdir/ch/`
+- **Automatic test pair discovery**: Scans `itree.zip` for program files and finds corresponding `.prot` files in `altdir/ch/`
 - **Default behavior**: Programs with found test pairs are automatically tested if no markup is present
 - **Markup-based configuration**: Use HTML comments in task `.md` files to control test behavior (skip, partial skip, command override)
 - **Multi-command testing**: Executes ALL testable commands from `.prot` files and verifies output

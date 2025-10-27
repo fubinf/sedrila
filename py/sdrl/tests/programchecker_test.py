@@ -7,51 +7,16 @@ from pathlib import Path
 import sdrl.programchecker as programchecker
 
 
-def test_environment_checker():
-    """Test environment checker functionality."""
-    env_checker = programchecker.EnvironmentChecker()
-    
-    # Test Python package checking
-    result = env_checker.check_python_packages(['os', 'sys', 'nonexistent_package'])
-    assert result['satisfied'] is False
-    assert 'nonexistent_package' in result['missing']
-    assert 'os' in result['available']
-    assert 'sys' in result['available']
-    
-    # Test with all available packages
-    result = env_checker.check_python_packages(['os', 'sys'])
-    assert result['satisfied'] is True
-    assert len(result['missing']) == 0
-
-
-def test_go_version_check():
-    """Test Go version checking."""
-    env_checker = programchecker.EnvironmentChecker()
-    
-    # Note: This test might fail if Go is not installed
-    result = env_checker.check_go_version("1.20")
-    
-    # Should either succeed (if Go is installed) or fail gracefully
-    assert 'satisfied' in result
-    if result['satisfied']:
-        assert 'version' in result
-        assert 'output' in result
-    else:
-        assert 'error' in result
-
-
 def test_program_test_config():
     """Test ProgramTestConfig dataclass."""
     config = programchecker.ProgramTestConfig(
         program_path=Path("/test/prog.py"),
         program_name="prog",
-        language="python",
         expected_protocol_file=Path("/test/prog.prot"),
         working_dir=Path("/test")
     )
     
     assert config.program_name == "prog"
-    assert config.language == "python"
     assert config.timeout == 30  # default value
 
 
@@ -59,7 +24,6 @@ def test_program_test_result():
     """Test ProgramTestResult dataclass."""
     result = programchecker.ProgramTestResult(
         program_name="test_prog",
-        language="python",
         success=True,
         actual_output="Hello World",
         expected_output="Hello World",
@@ -73,7 +37,6 @@ def test_program_test_result():
     # Test failed result
     failed_result = programchecker.ProgramTestResult(
         program_name="failed_prog",
-        language="go",
         success=False,
         error_message="Compilation error"
     )
@@ -194,17 +157,14 @@ $ go run test.go
         program_names = {config.program_name for config in configs}
         assert "test" in program_names
         
-        languages = {config.language for config in configs}
-        assert "python" in languages
-        assert "go" in languages
-        
         # Check command_tests are populated
         for config in configs:
             assert len(config.command_tests) > 0
-            if config.language == "python":
+            # Check that we have valid commands
+            if "python" in config.command_tests[0].command:
                 assert config.command_tests[0].command == "python test.py"
                 assert "Hello" in config.command_tests[0].expected_output
-            elif config.language == "go":
+            elif "go run" in config.command_tests[0].command:
                 assert config.command_tests[0].command == "go run test.go"
 
 
@@ -233,13 +193,11 @@ def test_json_report_generation():
             results = [
                 programchecker.ProgramTestResult(
                     program_name="test1",
-                    language="python", 
                     success=True,
                     execution_time=1.0
                 ),
                 programchecker.ProgramTestResult(
                     program_name="test2",
-                    language="go",
                     success=False,
                     error_message="Test error",
                     execution_time=0.5
@@ -276,7 +234,6 @@ def test_markdown_report_generation():
             results = [
                 programchecker.ProgramTestResult(
                     program_name="success_test",
-                    language="python",
                     success=True,
                     actual_output="Hello World"
                 )
@@ -353,19 +310,18 @@ def test_parallel_vs_sequential_execution():
         assert len(results_seq) == len(results_par)
         for seq_result, par_result in zip(results_seq, results_par):
             assert seq_result.program_name == par_result.program_name
-            assert seq_result.language == par_result.language
             assert seq_result.success == par_result.success
 
 
-def test_supported_extensions():
-    """Test supported file extensions detection."""
+def test_protocol_driven_discovery():
+    """Test that program discovery is driven by .prot files (language-agnostic)."""
     checker = programchecker.ProgramChecker()
     
-    # Test supported extensions
-    assert '.py' in checker.SUPPORTED_EXTENSIONS
-    assert '.go' in checker.SUPPORTED_EXTENSIONS
-    assert checker.SUPPORTED_EXTENSIONS['.py'] == 'python'
-    assert checker.SUPPORTED_EXTENSIONS['.go'] == 'go'
+    # The checker should not have hardcoded language extensions
+    assert not hasattr(checker, 'SUPPORTED_EXTENSIONS') or checker.SUPPORTED_EXTENSIONS is None
+    
+    # Instead, it discovers programs by finding .prot files
+    # Any program with a corresponding .prot file can be tested, regardless of language
 
 
 def test_missing_files_handling():
@@ -402,15 +358,6 @@ def test_command_test_detection():
     assert checker._has_redirection("(ulimit -v 512000; python test.py)") is True
     assert checker._has_redirection("python test.py | grep result") is True
     assert checker._has_redirection("python test.py") is False
-    
-    # Test command extraction
-    config_mock = type('Config', (), {'language': 'python'})()
-    cmd = checker._extract_program_command("python test.py arg1 arg2", config_mock)
-    assert cmd == ["python", "test.py", "arg1", "arg2"]
-    
-    config_mock.language = 'go'
-    cmd = checker._extract_program_command("go run test.go", config_mock)
-    assert cmd == ["go", "run", "test.go"]
 
 
 def test_multi_command_testing():
@@ -470,7 +417,6 @@ if len(sys.argv) > 1:
                 config = programchecker.ProgramTestConfig(
                     program_path=Path(py_file.name),
                     program_name="multi_test",
-                    language="python",
                     expected_protocol_file=prot_path,
                     working_dir=Path(py_file.name).parent,
                     command_tests=command_tests
