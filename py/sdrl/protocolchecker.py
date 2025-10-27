@@ -101,7 +101,7 @@ class ProtocolExtractor:
                 pending_check_rule = self._parse_check_rule(annotation_match.group(1))
                 continue
             
-            # Check for prompt line (user@host /path HH:MM:SS seq) - skip it
+            # Check for prompt line (user@host /path HH:MM:SS seq) and skip it
             prompt_match = self.prompt_regex.match(line)
             if prompt_match:
                 continue
@@ -282,8 +282,8 @@ class ProtocolChecker:
             return CheckResult(
                 student_entry=student_entry,
                 author_entry=author_entry,
-                command_match=True,  # Skip means we don't check
-                output_match=True,   # Skip means we don't check
+                command_match=True,  
+                output_match=True,   
                 success=True,
                 requires_manual_check=True,
                 manual_check_note=rule.manual_check_note or "Manual check required"
@@ -332,7 +332,7 @@ class ProtocolChecker:
                 # Fallback to exact match if no variants provided
                 return student_cmd.strip() == author_cmd.strip()
         elif rule.command_type == "skip":
-            return True  # Skip means always pass
+            return True  # always pass
         else:
             # Default to exact match
             return student_cmd.strip() == author_cmd.strip()
@@ -353,7 +353,7 @@ class ProtocolChecker:
             author_lines = [line.strip() for line in author_output.split('\n') if line.strip()]
             return student_lines == author_lines
         elif rule.output_type == "skip":
-            return True  # Skip means always pass
+            return True  # always pass
         else:
             # Default to exact match
             return student_output.strip() == author_output.strip()

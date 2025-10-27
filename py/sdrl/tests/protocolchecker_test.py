@@ -43,8 +43,8 @@ Done
     assert protocol.entries[2].output.strip() == "Done", f"Expected 'Done', got '{protocol.entries[2].output.strip()}'"
 
 
-def test_annotation_parsing():
-    """Test protocol check annotation parsing."""
+def test_markup_parsing():
+    """Test protocol check markup parsing."""
     sample_content = """# @PROT_CHECK: command=exact, output=flexible
 user@host /home/user 10:00:00 1
 $ ls -la
@@ -67,20 +67,20 @@ $ pwd
     
     assert protocol.total_entries == 3, f"Expected 3 entries, got {protocol.total_entries}"
     
-    # Check first entry annotation
+    # Check first entry markup
     rule1 = protocol.entries[0].check_rule
     assert rule1 is not None, "First entry should have a check rule"
     assert rule1.command_type == "exact", f"Expected command_type 'exact', got '{rule1.command_type}'"
     assert rule1.output_type == "flexible", f"Expected output_type 'flexible', got '{rule1.output_type}'"
     
-    # Check second entry annotation
+    # Check second entry markup
     rule2 = protocol.entries[1].check_rule
     assert rule2 is not None, "Second entry should have a check rule"
     assert rule2.command_type == "regex", f"Expected command_type 'regex', got '{rule2.command_type}'"
     assert rule2.regex_pattern == "echo.*test", f"Expected regex 'echo.*test', got '{rule2.regex_pattern}'"
     assert rule2.output_type == "skip", f"Expected output_type 'skip', got '{rule2.output_type}'"
     
-    # Check third entry annotation
+    # Check third entry markup
     rule3 = protocol.entries[2].check_rule
     assert rule3 is not None, "Third entry should have a check rule"
     assert rule3.command_type == "multi_variant", f"Expected command_type 'multi_variant', got '{rule3.command_type}'"
@@ -88,8 +88,8 @@ $ pwd
 
 
 def test_validation():
-    """Test protocol annotation validation."""
-    # Valid annotations
+    """Test protocol markup validation."""
+    # Valid markup
     valid_content = """# @PROT_CHECK: command=exact, output=flexible
 user@host /home/user 10:00:00 1
 $ ls -la
@@ -101,7 +101,7 @@ $ echo "test"
 test
 """
     
-    # Invalid annotations
+    # Invalid markup
     invalid_content = """# @PROT_CHECK: command=invalid_type, output=flexible
 user@host /home/user 10:00:00 1
 $ ls -la
@@ -140,7 +140,7 @@ test
 
 def test_comparison():
     """Test protocol file comparison."""
-    # Author file with annotations
+    # Author file with markup
     author_content = """# @PROT_CHECK: command=exact, output=flexible
 author@server /home/author 10:00:00 1
 $ ls -la
@@ -252,7 +252,7 @@ $ pwd
 
 def test_comparison_with_prompt_lines():
     """Test protocol comparison when files have prompt lines."""
-    # Author file with prompt lines and annotations
+    # Author file with prompt lines and markup
     author_content = r"""# @PROT_CHECK: command=regex, regex=nc.*POST.*\.crlf, output=skip
 user@host /home/user/work 12:19:00 123
 $ nc httpbin.org 80 <http-POST-form.crlf

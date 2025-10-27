@@ -174,7 +174,6 @@ class LinkChecker:
                         follow_redirects = False
                 
                 # Determine request method: use HEAD unless content checking is needed
-                # This strictly follows professor's requirement: "A link checker should use HEAD, not GET"
                 # Only exception: when explicit content validation is required (content= rule)
                 use_get = (link.validation_rule and link.validation_rule.required_text)
                 method = 'GET' if use_get else 'HEAD'

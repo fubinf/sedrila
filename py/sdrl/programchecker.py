@@ -297,7 +297,7 @@ class ProgramChecker:
             # It's a directory, use directly
             itree_root = itree_path
         
-        # Find all files in itree directory (language-agnostic approach)
+        # Find all files in itree directory (language-independent approach)
         # The programs in itree.zip are decisive, not the .prot files
         all_files = list(itree_root.rglob('*'))
         
@@ -1152,7 +1152,7 @@ Generated: {timestamp}
         if total_time > 0 and not batch_mode:
             b.info(f"Test Execution Time: {total_time:.2f}s")
         
-        # Complete error list at the end (per professor's requirement)
+        # Complete error list at the end
         if failed > 0:
             if not batch_mode:
                 b.info("")
