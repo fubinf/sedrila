@@ -265,13 +265,33 @@ class SnippetValidator:
         """Validate snippet markers in all files in a directory."""
         file_errors = {}
         
+        # Exclude binary files and system files (use exclusion approach, not inclusion)
+        excluded_extensions = {'.zip', '.tar', '.gz', '.bz2', '.xz', '.7z',
+                              '.exe', '.bin', '.so', '.dll', '.dylib',
+                              '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.ico', '.svg',
+                              '.pdf', '.doc', '.docx', '.xls', '.xlsx',
+                              '.pyc', '.pyo', '.o', '.a', '.class',
+                              '.db', '.sqlite', '.sqlite3'}
+        excluded_names = {'.git', '.svn', '.hg', '__pycache__', 
+                         '.DS_Store', 'Thumbs.db'}
+        
         for root, dirs, files in os.walk(directory):
+            # Skip system and cache directories
+            dirs[:] = [d for d in dirs if d not in excluded_names]
+            
             for file in files:
-                if file.endswith(('.md', '.py', '.js', '.ts', '.java', '.cpp', '.c')):
-                    filepath = os.path.join(root, file)
-                    errors = self._validate_snippet_markers_in_file(filepath)
-                    if errors:
-                        file_errors[filepath] = errors
+                # Skip binary files, hidden files, and excluded files
+                if file.startswith('.'):
+                    continue
+                if file in excluded_names:
+                    continue
+                if any(file.endswith(ext) for ext in excluded_extensions):
+                    continue
+                
+                filepath = os.path.join(root, file)
+                errors = self._validate_snippet_markers_in_file(filepath)
+                if errors:
+                    file_errors[filepath] = errors
         
         return file_errors
     

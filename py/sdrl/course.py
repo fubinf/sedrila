@@ -790,10 +790,24 @@ class SnippetValidation(el.Step):
             task_dir = os.path.dirname(task.sourcefile)
             alt_task_dir = task_dir.replace(self.course.chapterdir, self.course.altdir, 1)
             if os.path.exists(alt_task_dir):
-                source_extensions = ['.py', '.java', '.cpp', '.c', '.js', '.ts', '.go', '.rs', '.rb', '.md']
+                # Exclude binary and system files (use exclusion approach for language-agnostic validation)
+                excluded_extensions = {'.zip', '.tar', '.gz', '.bz2', '.xz', '.7z',
+                                      '.exe', '.bin', '.so', '.dll', '.dylib',
+                                      '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.ico', '.svg',
+                                      '.pdf', '.doc', '.docx', '.xls', '.xlsx',
+                                      '.pyc', '.pyo', '.o', '.a', '.class',
+                                      '.db', '.sqlite', '.sqlite3'}
+                excluded_names = {'.DS_Store', 'Thumbs.db', '__pycache__'}
+                
                 for file in os.listdir(alt_task_dir):
-                    if any(file.endswith(ext) for ext in source_extensions):
-                        solution_path = os.path.join(alt_task_dir, file)
+                    # Skip hidden files, excluded files, and binary files
+                    if (file.startswith('.') or 
+                        file in excluded_names or
+                        any(file.endswith(ext) for ext in excluded_extensions)):
+                        continue
+                    
+                    solution_path = os.path.join(alt_task_dir, file)
+                    if os.path.isfile(solution_path):
                         sourcefile_elem = self.directory.get_the(el.Sourcefile, solution_path)
                         if sourcefile_elem:
                             deps.append(sourcefile_elem)
@@ -817,10 +831,24 @@ class SnippetValidation(el.Step):
             alt_task_dir = task_dir.replace(self.course.chapterdir, self.course.altdir, 1)
             
             if os.path.exists(alt_task_dir):
-                source_extensions = ['.py', '.java', '.cpp', '.c', '.js', '.ts', '.go', '.rs', '.rb', '.md']
+                # Exclude binary and system files (use exclusion approach for language-agnostic validation)
+                excluded_extensions = {'.zip', '.tar', '.gz', '.bz2', '.xz', '.7z',
+                                      '.exe', '.bin', '.so', '.dll', '.dylib',
+                                      '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.ico', '.svg',
+                                      '.pdf', '.doc', '.docx', '.xls', '.xlsx',
+                                      '.pyc', '.pyo', '.o', '.a', '.class',
+                                      '.db', '.sqlite', '.sqlite3'}
+                excluded_names = {'.DS_Store', 'Thumbs.db', '__pycache__'}
+                
                 for file in os.listdir(alt_task_dir):
-                    if any(file.endswith(ext) for ext in source_extensions):
-                        solution_path = os.path.join(alt_task_dir, file)
+                    # Skip hidden files, excluded files, and binary files
+                    if (file.startswith('.') or 
+                        file in excluded_names or
+                        any(file.endswith(ext) for ext in excluded_extensions)):
+                        continue
+                    
+                    solution_path = os.path.join(alt_task_dir, file)
+                    if os.path.isfile(solution_path):
                         errors = validator._validate_snippet_markers_in_file(solution_path)
                         for error in errors:
                             b.error(error, file=solution_path)
