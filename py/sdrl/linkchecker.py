@@ -8,8 +8,7 @@ import json
 import re
 import time
 import typing as tg
-from collections import defaultdict
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from datetime import datetime
 from urllib.parse import urlparse
 
@@ -707,11 +706,6 @@ class LinkCheckReporter:
                 f.write("\n")
         
         b.info(f"Detailed Markdown report saved to: {output_file}")
-    
-    @staticmethod
-    def get_failed_links(results: list[LinkCheckResult]) -> list[LinkCheckResult]:
-        """Get only the failed link results."""
-        return [r for r in results if not r.success]
     
     @staticmethod
     def group_by_file(results: list[LinkCheckResult]) -> dict[str, list[LinkCheckResult]]:

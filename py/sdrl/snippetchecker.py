@@ -5,7 +5,6 @@ Allows extracting code snippets from solution files and including them in task f
 import dataclasses
 import os
 import re
-from pathlib import Path
 from typing import Optional
 
 import base as b

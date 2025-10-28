@@ -4,13 +4,9 @@ Command protocol checker for SeDriLa courses.
 This module provides functionality to validate and compare command protocol (.prot) files
 that contain command line execution logs from students and authors.
 """
-import json
 import re
 import typing as tg
-from collections import defaultdict
-from dataclasses import dataclass, asdict
-from datetime import datetime
-from pathlib import Path
+from dataclasses import dataclass
 
 import base as b
 

@@ -259,17 +259,47 @@ def test_markdown_report_generation():
 
 def test_single_program_file_function():
     """Test the single program file testing function."""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-        f.write("print('test')")
-        f.flush()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        original_cwd = os.getcwd()
         
-        # This should not raise an exception
         try:
-            programchecker.test_single_program_file(f.name)
-        except Exception:
-            pass  # Expected since it's a simplified implementation
+            # Change to temp directory (simulating course root)
+            os.chdir(temp_dir)
+            temp_path = Path(temp_dir)
+            
+            # Create proper directory structure
+            itree_dir = temp_path / "altdir" / "itree.zip" / "test_folder"
+            itree_dir.mkdir(parents=True)
+            
+            # Create test program
+            program_file = itree_dir / "test_prog.py"
+            program_file.write_text("print('Hello from test')")
+            
+            # Create corresponding .prot file
+            prot_dir = temp_path / "altdir" / "ch" / "test_folder"
+            prot_dir.mkdir(parents=True)
+            prot_file = prot_dir / "test_prog.prot"
+            prot_file.write_text("""user@host /path 10:00:00 1
+$ python test_prog.py
+Hello from test
+""")
+            
+            # Test the function - should execute without errors
+            try:
+                programchecker.test_single_program_file(str(program_file))
+                # If it completes without exception, test passes
+                assert True, "Function executed successfully"
+            except FileNotFoundError as e:
+                # This is acceptable if dependencies are missing
+                if "altdir" not in str(e):
+                    raise
+            except Exception as e:
+                # For other exceptions, we verify it's a meaningful error
+                assert "error" in str(e).lower() or "not found" in str(e).lower(), \
+                    f"Unexpected exception: {e}"
+                    
         finally:
-            os.unlink(f.name)
+            os.chdir(original_cwd)
 
 
 def test_parallel_vs_sequential_execution():

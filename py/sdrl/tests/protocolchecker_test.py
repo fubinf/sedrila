@@ -306,8 +306,8 @@ $ ls -la
         os.unlink(student_file)
 
 
-def test_command_line_integration():
-    """Test command line integration by importing the modules."""
+def test_module_integration_points():
+    """Test that validation steps are properly integrated into course and instructor modules."""
     try:
         # Test importing course module with validation steps
         import sdrl.course as course
@@ -315,11 +315,11 @@ def test_command_line_integration():
         # Test importing instructor module
         import sdrl.subcmd.instructor as instructor
         
-        # Test that validation Step classes exist in course module
+        # Verify course module has validation Step classes
         assert hasattr(course, 'SnippetValidation'), "Course should have SnippetValidation Step class"
         assert hasattr(course, 'ProtocolValidation'), "Course should have ProtocolValidation Step class"
         
-        # Test that instructor has protocol checking functionality
+        # Verify instructor has protocol checking functionality
         assert hasattr(instructor, 'check_protocol_files'), "Instructor should have check_protocol_files function"
         
     except ImportError as e:
