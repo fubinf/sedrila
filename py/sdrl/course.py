@@ -774,44 +774,6 @@ class MetadataDerivation(el.Step):
 class SnippetValidation(el.Step):
     """Validate code snippet references and definitions in course files."""
     course: Coursebuilder
-    
-    def my_dependencies(self) -> tg.Iterable['el.Element']:
-        """Declare dependencies on source files. Called after tasks are initialized."""
-        deps = list(self.dependencies)  # Start with any manually added dependencies
-        # Add dependencies on all task source files and solution files
-        for task in self.course.taskdict.values():
-            if task.to_be_skipped:
-                continue
-            # Depend on task markdown file
-            sourcefile_elem = self.directory.get_the(el.Sourcefile, task.sourcefile)
-            if sourcefile_elem:
-                deps.append(sourcefile_elem)
-            # Depend on solution files in altdir
-            task_dir = os.path.dirname(task.sourcefile)
-            alt_task_dir = task_dir.replace(self.course.chapterdir, self.course.altdir, 1)
-            if os.path.exists(alt_task_dir):
-                # Exclude binary and system files (use exclusion approach for language-agnostic validation)
-                excluded_extensions = {'.zip', '.tar', '.gz', '.bz2', '.xz', '.7z',
-                                      '.exe', '.bin', '.so', '.dll', '.dylib',
-                                      '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.ico', '.svg',
-                                      '.pdf', '.doc', '.docx', '.xls', '.xlsx',
-                                      '.pyc', '.pyo', '.o', '.a', '.class',
-                                      '.db', '.sqlite', '.sqlite3'}
-                excluded_names = {'.DS_Store', 'Thumbs.db', '__pycache__'}
-                
-                for file in os.listdir(alt_task_dir):
-                    # Skip hidden files, excluded files, and binary files
-                    if (file.startswith('.') or 
-                        file in excluded_names or
-                        any(file.endswith(ext) for ext in excluded_extensions)):
-                        continue
-                    
-                    solution_path = os.path.join(alt_task_dir, file)
-                    if os.path.isfile(solution_path):
-                        sourcefile_elem = self.directory.get_the(el.Sourcefile, solution_path)
-                        if sourcefile_elem:
-                            deps.append(sourcefile_elem)
-        return deps
 
     def do_build(self):
         """Validate snippet references and definitions, reporting errors directly."""
@@ -875,18 +837,15 @@ class ProtocolValidation(el.Step):
     """Validate protocol check annotations in .prot files."""
     course: Coursebuilder
 
-    def my_dependencies(self) -> tg.Iterable['el.Element']:
-        """Declare dependencies on .prot files. Called after tasks are initialized."""
-        deps = list(self.dependencies)
-        protocol_files = self._find_protocol_files()
-        for prot_file in protocol_files:
-            sourcefile_elem = self.directory.get_the(el.Sourcefile, prot_file)
-            if sourcefile_elem:
-                deps.append(sourcefile_elem)
-        return deps
-
-    def _find_protocol_files(self) -> list[str]:
-        """Find all .prot files in the course."""
+    def do_build(self):
+        """Validate protocol annotations, reporting errors directly."""
+        try:
+            import sdrl.protocolchecker as protocolchecker
+        except ImportError as e:
+            b.error(f"Cannot import protocol checking modules: {e}")
+            return
+        
+        # ----- find all .prot files in the course:
         protocol_files = []
         for task in self.course.taskdict.values():
             task_dir = os.path.dirname(task.sourcefile)
@@ -899,20 +858,11 @@ class ProtocolValidation(el.Step):
                             protocol_path = os.path.join(search_dir, file)
                             if protocol_path not in protocol_files:
                                 protocol_files.append(protocol_path)
-        return protocol_files
-
-    def do_build(self):
-        """Validate protocol annotations, reporting errors directly."""
-        try:
-            import sdrl.protocolchecker as protocolchecker
-        except ImportError as e:
-            b.error(f"Cannot import protocol checking modules: {e}")
-            return
         
-        protocol_files = self._find_protocol_files()
         if not protocol_files:
             return  # No protocol files to validate
         
+        # ----- validate protocol annotations:
         validator = protocolchecker.ProtocolValidator()
         for prot_file in protocol_files:
             errors = validator.validate_file(prot_file)
