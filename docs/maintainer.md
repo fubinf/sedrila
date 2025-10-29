@@ -1,11 +1,12 @@
-# `sedrila maintainer` - Course Maintenance
+# `sedrila` use for people defending a SeDriLa against the ravages of time
 
-The `sedrila maintainer` subcommand provides lightweight tools for maintaining course quality
-without building the course. It operates directly on source files for faster execution.
+**All functionality described herein is in alpha development stage and is subject to change!**
 
-## Usage
+The `sedrila maintainer` subcommand provides lightweight tools for maintaining the technical integrity 
+of a SeDriLa course without building the course. 
+It operates directly on source files for faster execution.
 
-Basic command structure:
+## 1. Basic command structure
 
 ```bash
 sedrila maintainer [options]
@@ -19,25 +20,27 @@ Unlike `sedrila author`, the maintainer does not:
 
 Instead, it performs quality checks directly on source markdown and protocol files.
 
-## Options
+Function options:
+- `--check-links [markdown_file]`: Check URLs for availability
+- 
 
 Common options:
 - `--config <configfile>`: Specify configuration file (default: `sedrila.yaml`)
 - `--log <level>`: Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 
-### Link Checking
+## 2. Link Checking: `--check-links`
 
 - Option `--check-links [markdown_file]` validates external HTTP/HTTPS links found in markdown files.
   Without an argument, it checks all course files. With a file argument, it checks only that specific file.
   Uses HEAD requests by default for efficiency, falling back to GET only when content validation is needed.
   Generates fixed-name reports: `link_check_report.json` and `link_check_report.md` in the current directory.
-  Supports custom validation rules via HTML comments in markdown files (see examples below).
+  Supports custom link validation rules via HTML comments in markdown files.
   Avoids checking duplicate URLs and includes comprehensive statistics in the main report.
   Examples: 
   - `sedrila maintainer --check-links` (check all course files)
-  - `sedrila maintainer --check-links ch/Chapter1/Task1.md` (check specific file)
+  - `sedrila maintainer --check-links ch/Chapter1/Task1.md` (check one specific file)
 
-#### Link validation rules
+### 2.1 Link validation rules
 
 By default, links are considered successful if they return 2xx or 3xx status codes.
 You can specify custom validation rules using HTML comments before links:
@@ -65,14 +68,11 @@ The validation rule applies to the next link found and is then reset.
 non-2xx/3xx status codes (e.g., 403), you must explicitly declare this with a `LINK_CHECK` comment.
 The checker will still make the request to verify the actual status code.
 
-#### CI/CD Integration
 
-Link checking is now used for Github Actions
+## 3. Program Testing: `--check-programs`
 
-### Protocol Comparison and Program Testing
-
-- Option `--check-programs [program_file]` tests exemplary programs from `itree.zip` against their corresponding protocol files.
-  Without an argument, it tests all programs. With a file argument, it tests only that specific file.
+Option `--check-programs [program_file]` tests exemplary programs from `itree.zip` against their corresponding protocol files.
+Without an argument, it tests all programs. With a file argument, it tests only that specific file.
   
 **How it works:**
 - **Automatic test pair discovery**: Scans `itree.zip` for program files and finds corresponding `.prot` files in `altdir/ch/`
@@ -84,60 +84,52 @@ Link checking is now used for Github Actions
 Examples:
 - `sedrila maintainer --check-programs` (test all programs)
 - `sedrila maintainer --check-programs altdir/itree.zip/Sprachen/Go/go-channels.go` (test single file)
-  
-#### Program testing markup
 
-By default, programs are tested automatically. You can control test behavior using HTML comment markup in task `.md` files (typically placed before the `[INSTRUCTOR]` section).
 
-**Available markup types:**
+### 3.1 Prerequisites
 
-**1. SKIP markup** - Programs requiring manual testing:
+#### 3.1.1. Build
 
-Use for programs with non-deterministic output, interactive input, environment-specific output, or complex shell operations.
+**Important**: Program testing requires `itree.zip` to be built first. This directory is created during course building:
 
-```markdown
-<!-- @PROGRAM_TEST_SKIP: reason="Concurrent execution order is non-deterministic" manual_test_required=true -->
+```bash
+# Option 1: Complete build (tests all stages)
+sedrila author /tmp/build
 
-[INSTRUCTOR::...]
+# Option 2: Beta stage only (faster, for quick testing)
+sedrila author --include_stage beta /tmp/build
+
+# Then run program tests
+sedrila maintainer --check-programs
 ```
 
-Parameters:
-- `reason="text"`: Explanation why manual testing is required
-- `manual_test_required=true`: Marks program for manual testing
+Without building first, the checker will report "Total Programs: 0" because it cannot find program files.
 
-**2. PARTIAL markup** - Programs with mixed testability:
+In a GitHub Action, **complete build** should be performed before testing to ensure full coverage.
 
-Use when some commands are testable while others require manual verification.
 
-```markdown
-<!-- @PROGRAM_TEST_PARTIAL: skip_commands_with="Traceback,MemoryError" skip_reason="Different stack depths lead to inconsistent output" testable_note="Other commands can be automatically tested" -->
+#### 3.1.2. Operating environment
 
-[INSTRUCTOR::...]
-```
+Program testing requires the following environment:
 
-Parameters:
-- `skip_commands_with="keyword1,keyword2"`: Skip commands containing these keywords in output
-- `skip_reason="text"`: Explanation for skipping certain commands
-- `testable_note="text"`: Note about which commands are testable
+**Required:**
+- **Python**: 3.11 or higher
+- **Go**: 1.23 or higher (for Go programs)
+- **Built course**: `itree.zip` directory must exist in `altdir/`
 
-**3. OVERRIDE markup** - Correct command mismatches:
+**Python packages (Sedrila dependencies):**
+- Core: argparse_subcommand, blessed, bottle, GitPython, Jinja2, Markdown, PyYAML, requests, rich
+- Data/Scientific: matplotlib, numpy, pandas, Pygments
+- Markdown: mdx_linkify
 
-Use when `.prot` files reference incorrect command names.
+**Python packages (for example programs):**
+- FastAPI programs: fastapi, pydantic, uvicorn
+- Testing: pytest
 
-```markdown
-<!-- @PROGRAM_TEST_OVERRIDE: original_command="go run main.go" correct_command="go run go-channels.go" reason=".prot file uses main.go but actual file is go-channels.go" -->
+In GitHub Actions, all dependencies are automatically installed. For local testing, ensure these packages are available in your environment.
 
-[INSTRUCTOR::...]
-```
 
-Parameters:
-- `original_command="cmd"`: Command as written in `.prot` file
-- `correct_command="cmd"`: Correct command to execute
-- `reason="text"`: Explanation for the override
-
-**4. Normal testing** - No markup needed:
-
-Programs with deterministic output require no special markup and are tested automatically
+### 3.2 General behavior
 
 **Multi-command testing:**
 - Parses and tests **ALL testable commands** from each `.prot` file
@@ -167,53 +159,7 @@ Programs with deterministic output require no special markup and are tested auto
 - Provides detailed failure reasons and manual testing requirements
 - Generates both JSON and Markdown reports with categorized sections (Failed Tests, Skipped Tests, Passed Tests)
 
-#### Prerequisites
-
-**Important**: Program testing requires `itree.zip` to be built first. This directory is created during course building:
-
-```bash
-# Option 1: Complete build (tests all stages)
-sedrila author /tmp/build
-
-# Option 2: Beta stage only (faster, for quick testing)
-sedrila author --include_stage beta /tmp/build
-
-# Then run program tests
-sedrila maintainer --check-programs
-```
-
-Without building first, the checker will report "Total Programs: 0" because it cannot find program files.
-
-In GitHub Actions, **complete build** is automatically performed before testing to ensure full coverage.
-
-#### Environment Requirements
-
-Program testing requires the following environment:
-
-**Required:**
-- **Python**: 3.11 or higher
-- **Go**: 1.23 or higher (for Go programs)
-- **Built course**: `itree.zip` directory must exist in `altdir/`
-
-**Python packages (Sedrila dependencies):**
-- Core: argparse_subcommand, blessed, bottle, GitPython, Jinja2, Markdown, PyYAML, requests, rich
-- Data/Scientific: matplotlib, numpy, pandas, Pygments
-- Markdown: mdx_linkify
-
-**Python packages (for example programs):**
-- FastAPI programs: fastapi, pydantic, uvicorn
-- Testing: pytest
-
-In GitHub Actions, all dependencies are automatically installed. For local testing, ensure these packages are available in your environment.
-
-#### CI/Batch Mode Features
-
-Use the `--batch` flag to enable batch/CI-friendly output:
-
-```bash
-sedrila maintainer --check-programs --batch
-```
-
+**CI/Batch Mode**
 - **Batch mode output** (`--batch`): Concise output suitable for automated testing
 - **Exit status**: Returns non-zero (1) when tests fail, zero (0) on success
 - **Complete error list at end**: All failed tests are summarized at the end of output for quick error identification
@@ -223,3 +169,60 @@ sedrila maintainer --check-programs --batch
   - Program testing: Every Sunday at 03:30 UTC (`maintainer-programchecker.yml`)
   - Both workflows use the `--batch` flag for CI-friendly output
 
+
+### 3.3. Program testing markup
+
+By default, programs are tested automatically. 
+You can control test behavior using HTML comment markup in task `.md` files (typically placed before the `[INSTRUCTOR]` section).
+
+
+#### 3.3.1. SKIP markup (manual testing)
+
+Use for programs with non-deterministic output, interactive input, environment-specific output, or complex shell operations.
+
+```markdown
+<!-- @PROGRAM_TEST_SKIP: reason="Concurrent execution order is non-deterministic" manual_test_required=true -->
+
+[INSTRUCTOR::...]
+```
+
+Parameters:
+- `reason="text"`: Explanation why manual testing is required
+- `manual_test_required=true`: Marks program for manual testing
+
+
+#### 3.3.2. PARTIAL markup (manual/automation mix)
+
+Use when some commands are testable while others require manual verification.
+
+```markdown
+<!-- @PROGRAM_TEST_PARTIAL: skip_commands_with="Traceback,MemoryError" skip_reason="Different stack depths lead to inconsistent output" testable_note="Other commands can be automatically tested" -->
+
+[INSTRUCTOR::...]
+```
+
+Parameters:
+- `skip_commands_with="keyword1,keyword2"`: Skip commands containing these keywords in output
+- `skip_reason="text"`: Explanation for skipping certain commands
+- `testable_note="text"`: Note about which commands are testable
+
+
+#### 3.3.3. OVERRIDE markup (expected command mismatches)
+
+Use when `.prot` files reference incorrect command names.
+
+```markdown
+<!-- @PROGRAM_TEST_OVERRIDE: original_command="go run main.go" correct_command="go run go-channels.go" reason=".prot file uses main.go but actual file is go-channels.go" -->
+
+[INSTRUCTOR::...]
+```
+
+Parameters:
+- `original_command="cmd"`: Command as written in `.prot` file
+- `correct_command="cmd"`: Correct command to execute
+- `reason="text"`: Explanation for the override
+
+
+#### 3.3.4. no markup ("normal" automated testing)
+
+Programs with deterministic output require no special markup and are tested automatically.
