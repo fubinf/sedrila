@@ -9,7 +9,7 @@ It operates directly on source files for faster execution.
 ## 1. Basic command structure
 
 ```bash
-sedrila maintainer [options]
+sedrila maintainer [options] targetdir
 ```
 
 Unlike `sedrila author`, the maintainer does not:
@@ -19,16 +19,21 @@ Unlike `sedrila author`, the maintainer does not:
 - Generate student/instructor websites
 - Create cache files
 
-Instead, it performs quality checks directly on source markdown and protocol files.
+Instead, it performs quality checks using the course structure parsing capability of the build system
+to correctly identify which files should be checked according to the course configuration.
 
 Function options:
 
 - `--check-links [markdown_file]`: Check URLs for availability
+- `--check-programs [program_file]`: Test programs
 
 Common options:
 
 - `--config <configfile>`: Specify configuration file (default: `sedrila.yaml`)
+- `--include-stage <stage>`: Include parts with this and higher stage entries (default: `draft` which includes all stages)
 - `--log <level>`: Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- `--batch`: Use batch/CI-friendly output
+- `targetdir`: Directory for build output and reports
 
 ## 2. Link Checking: `--check-links`
 
@@ -80,12 +85,11 @@ Without an argument, it tests all programs. With a file argument, it tests only 
 - **Default behavior**: Programs with found test pairs are automatically tested if no markup is present
 - **Markup-based configuration**: Use HTML comments in task `.md` files to control test behavior (skip, partial skip, command override)
 - **Multi-command testing**: Executes ALL testable commands from `.prot` files and verifies output
-- **Report generation**: Creates `program_test_report.json` and `program_test_report.md` in the current directory
+- **Report generation**: Creates `program_test_report.json` and `program_test_report.md` in `targetdir`
   
 Examples:
-
-- `sedrila maintainer --check-programs` (test all programs)
-- `sedrila maintainer --check-programs altdir/itree.zip/Sprachen/Go/go-channels.go` (test single file)
+- `sedrila maintainer --check-programs -- /tmp/progtest` (test all programs)
+- `sedrila maintainer --check-programs altdir/itree.zip/Sprachen/Go/go-channels.go /tmp/progtest` (test single file)
 
 
 ### 3.1 Prerequisites
@@ -102,7 +106,7 @@ sedrila author /tmp/build
 sedrila author --include_stage beta /tmp/build
 
 # Then run program tests
-sedrila maintainer --check-programs
+sedrila maintainer --check-programs -- /tmp/progtest
 ```
 
 Without building first, the checker will report "Total Programs: 0" because it cannot find program files.

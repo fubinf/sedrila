@@ -6,12 +6,15 @@ necessarily developing new tasks.
 """
 import argparse
 import os
-
 import sys
 from pathlib import Path
 
 import base as b
+import cache
 import sdrl.constants as c
+import sdrl.course
+import sdrl.directory as dir
+import sdrl.elements
 
 
 meaning = """Maintain course quality with checks that are not suitable at build time.
@@ -24,12 +27,17 @@ def add_arguments(subparser: argparse.ArgumentParser):
                            help="SeDriLa configuration description YAML file")
     subparser.add_argument('--log', default="INFO", choices=b.loglevels.keys(),
                            help="Log level for logging to stdout (default: INFO)")
+    subparser.add_argument('--include-stage', metavar="stage", default='draft',
+                           help="include parts with this and higher 'stage:' entries in the checking "
+                                "(default: 'draft' which includes all stages)")
     subparser.add_argument('--check-links', nargs='?', const='all', metavar="markdown_file",
                            help="Check accessibility of external links. Use without argument to check all course files, or specify a single markdown file to check")
     subparser.add_argument('--check-programs', nargs='?', const='all', metavar="program_file",
                            help="Test exemplary programs against protocol files. Use without argument to test all programs, or specify a single program file to test")
     subparser.add_argument('--batch', action='store_true',
                            help="Use batch/CI-friendly output: concise output, only show failures, complete error list at end")
+    subparser.add_argument('targetdir',
+                           help="Directory for build output and reports")
 
 
 def execute(pargs: argparse.Namespace):
@@ -50,7 +58,7 @@ def execute(pargs: argparse.Namespace):
 
 
 def check_links_command(pargs: argparse.Namespace):
-    """Execute link checking (lightweight, no course build)."""
+    """Execute link checking using build system for file identification."""
     try:
         import sdrl.linkchecker as linkchecker
     except ImportError as e:
@@ -58,45 +66,136 @@ def check_links_command(pargs: argparse.Namespace):
         return
     
     if pargs.check_links == 'all':
-        # Check all course files
+        # Check all course files using build system
         b.info("Checking links in all course files...")
         
-        # Parse course structure (lightweight, no build)
-        course_info = parse_course_structure(pargs.config)
+        # Create course object using build system (only parse structure, no full build)
+        targetdir_s = pargs.targetdir
+        targetdir_i = targetdir_s + "_i"
         
-        # Find all markdown files
-        markdown_files = find_markdown_files(
-            course_info['chapterdir'], 
-            course_info['chapters']
-        )
+        # Prepare directories
+        os.makedirs(targetdir_s, exist_ok=True)
+        os.makedirs(targetdir_i, exist_ok=True)
         
-        b.info(f"Found {len(markdown_files)} markdown files to check")
-        
-        # Extract links from all files
-        extractor = linkchecker.LinkExtractor()
-        all_links = []
-        
-        for filepath in markdown_files:
-            links = extractor.extract_links_from_file(filepath)
-            all_links.extend(links)
-        
-        if not all_links:
-            b.info("No external links found to check.")
-            return
-        
-        # Check all links
-        checker = linkchecker.LinkChecker()
-        batch_mode = getattr(pargs, 'batch', False)
-        results = checker.check_links(all_links, show_progress=True, batch_mode=batch_mode)
-        
-        # Generate and display report
-        reporter = linkchecker.LinkCheckReporter()
-        reporter.print_summary(results)
-        
-        # Save detailed reports with fixed names
-        if results:
-            reporter.generate_json_report(results)
-            reporter.generate_markdown_report(results)
+        try:
+            # Create course builder to leverage existing file identification logic
+            the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=False)
+            b.set_register_files_callback(the_cache.set_file_dirty)
+            directory = dir.Directory(the_cache)
+            the_course = sdrl.course.Coursebuilder(
+                configfile=pargs.config, 
+                context=pargs.config, 
+                include_stage=pargs.include_stage,
+                targetdir_s=targetdir_s,
+                targetdir_i=targetdir_i,
+                directory=directory
+            )
+            
+            # Initialize stage filtering for all parts using the build system
+            # Process topmatter and evaluate stages (same as MetadataDerivation.do_build())
+            import itertools
+            allparts = list(itertools.chain(
+                directory.get_all(sdrl.course.Chapter),
+                directory.get_all(sdrl.course.Taskgroup),
+                directory.get_all(sdrl.course.Task)
+            ))
+            for part in allparts:
+                topmatter_elem = directory.get_the(sdrl.elements.Topmatter, part.name)
+                topmatter_elem.do_build()  # Read and parse the YAML topmatter
+                part.process_topmatter(part.sourcefile, topmatter_elem.value, the_course)
+            
+            # Extract markdown files from course structure (respects stages and taskgroups)
+            markdown_files = extract_markdown_files_from_course(the_course)
+            
+            # Add altdir files using simple path replacement
+            markdown_files = add_altdir_files(markdown_files, the_course.chapterdir, the_course.altdir)
+            
+            b.info(f"Found {len(markdown_files)} markdown files to check")
+            
+            # Extract links from all files
+            extractor = linkchecker.LinkExtractor()
+            all_links = []
+            
+            for filepath in markdown_files:
+                links = extractor.extract_links_from_file(filepath)
+                all_links.extend(links)
+            
+            if not all_links:
+                b.info("No external links found to check.")
+                the_cache.close()
+                b.info("=" * 60)
+                return
+            
+            # Check all links
+            checker = linkchecker.LinkChecker()
+            batch_mode = getattr(pargs, 'batch', False)
+            results = checker.check_links(all_links, show_progress=True, batch_mode=batch_mode)
+            
+            # Generate and display report
+            reporter = linkchecker.LinkCheckReporter()
+            reporter.print_summary(results)
+            
+            # Generate report content (in memory via temp files)
+            if results:
+                try:
+                    import tempfile
+                    
+                    # Generate JSON report content via temp file
+                    with tempfile.NamedTemporaryFile(mode='w+', suffix='.json', delete=False, encoding='utf-8') as tmp_json:
+                        tmp_json_path = tmp_json.name
+                    reporter.generate_json_report(results, output_file=tmp_json_path)
+                    with open(tmp_json_path, 'r', encoding='utf-8') as f:
+                        json_content = f.read()
+                    os.unlink(tmp_json_path)  # Clean up temp file
+                    
+                    # Generate Markdown report content via temp file
+                    with tempfile.NamedTemporaryFile(mode='w+', suffix='.md', delete=False, encoding='utf-8') as tmp_md:
+                        tmp_md_path = tmp_md.name
+                    reporter.generate_markdown_report(results, output_file=tmp_md_path)
+                    with open(tmp_md_path, 'r', encoding='utf-8') as f:
+                        md_content = f.read()
+                    os.unlink(tmp_md_path)  # Clean up temp file
+                    
+                    # Create ReportFile objects as build products
+                    json_report = directory.make_the(
+                        sdrl.elements.ReportFile,
+                        "link_check_report.json",
+                        content=json_content,
+                        markdown_files=markdown_files,
+                        targetdir_s=targetdir_s,
+                        targetdir_i=targetdir_i
+                    )
+                    
+                    md_report = directory.make_the(
+                        sdrl.elements.ReportFile,
+                        "link_check_report.md",
+                        content=md_content,
+                        markdown_files=markdown_files,
+                        targetdir_s=targetdir_s,
+                        targetdir_i=targetdir_i
+                    )
+                    
+                    # Build the report files (writes to disk)
+                    json_report.do_build()
+                    md_report.do_build()
+                    
+                    b.info(f"Reports generated as build products:")
+                    b.info(f"  JSON: {json_report.outputfile_s}")
+                    b.info(f"  Markdown: {md_report.outputfile_s}")
+                    
+                except Exception as e:
+                    b.error(f"Failed to generate report files: {e}")
+                    import traceback
+                    traceback.print_exc()
+            
+            # Close cache and clean up
+            the_cache.close()
+            
+        except Exception as e:
+            b.error(f"Failed to initialize course structure: {e}")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
         
         # Check for failures and exit with appropriate status
         failed_count = sum(1 for r in results if not r.success)
@@ -104,7 +203,7 @@ def check_links_command(pargs: argparse.Namespace):
             sys.exit(1)
         
     else:
-        # Check specific file
+        # Check specific file (no build system needed)
         results = check_single_file(pargs.check_links)
         
         # Check for failures and exit with appropriate status
@@ -114,76 +213,69 @@ def check_links_command(pargs: argparse.Namespace):
                 sys.exit(1)
 
 
-def parse_course_structure(configfile: str) -> dict:
+def extract_markdown_files_from_course(course: sdrl.course.Coursebuilder) -> list[str]:
     """
-    Lightweight parse of course structure from sedrila.yaml.
-    Does NOT build the course - only extracts directory paths.
-    
-    Returns:
-        dict with 'chapterdir' and 'chapters' keys
-    """
-    if not os.path.exists(configfile):
-        b.error(f"Configuration file not found: {configfile}")
-        return {'chapterdir': 'ch', 'chapters': []}
-    
-    config = b.slurp_yaml(configfile)
-    chapterdir = config.get('chapterdir', 'ch')
-    chapters = config.get('chapters', [])
-    
-    b.debug(f"Parsed config: chapterdir={chapterdir}, {len(chapters)} chapters")
-    
-    return {
-        'chapterdir': chapterdir,
-        'chapters': chapters
-    }
-
-
-def find_markdown_files(chapterdir: str, chapters: list) -> list[str]:
-    """
-    Scan filesystem for all task markdown files based on sedrila.yaml structure.
-    Does NOT build the course - only walks the directory tree.
+    Extract markdown file paths from course structure.
+    Respects stages filtering and only includes configured taskgroups.
     
     Args:
-        chapterdir: Base directory for chapters (e.g., 'ch')
-        chapters: List of chapter dictionaries from sedrila.yaml
+        course: Coursebuilder object with parsed course structure
     
     Returns:
-        List of markdown file paths (absolute paths as strings)
+        List of markdown file paths from taskgroups (includes index.md and task .md files)
     """
     files = []
-    chapterdir_path = Path(chapterdir)
     
-    if not chapterdir_path.exists():
-        b.error(f"Chapter directory not found: {chapterdir}")
-        return files
-    
-    for chapter in chapters:
-        chapter_name = chapter.get('name')
-        if not chapter_name:
+    for chapter in course.chapters:
+        # Skip chapters filtered by stages
+        if chapter.to_be_skipped:
+            b.debug(f"Skipping chapter {chapter.name} (filtered by stage)")
             continue
-        
-        chapter_path = chapterdir_path / chapter_name
-        if not chapter_path.exists():
-            b.warning(f"Chapter directory not found: {chapter_path}")
-            continue
-        
-        taskgroups = chapter.get('taskgroups', [])
-        for taskgroup in taskgroups:
-            taskgroup_name = taskgroup.get('name') if isinstance(taskgroup, dict) else taskgroup
-            if not taskgroup_name:
+            
+        for taskgroup in chapter.taskgroups:
+            # Skip taskgroups filtered by stages
+            if taskgroup.to_be_skipped:
+                b.debug(f"Skipping taskgroup {taskgroup.name} (filtered by stage)")
                 continue
             
-            tg_path = chapter_path / taskgroup_name
-            if not tg_path.exists():
-                b.warning(f"Taskgroup directory not found: {tg_path}")
-                continue
+            # Add taskgroup index.md
+            if os.path.exists(taskgroup.sourcefile):
+                files.append(taskgroup.sourcefile)
             
-            # Find all .md files except index.md
-            for md_file in tg_path.glob('*.md'):
-                if md_file.name != 'index.md':
-                    files.append(str(md_file.absolute()))
+            # Add all task .md files
+            for task in taskgroup.tasks:
+                if not task.to_be_skipped:
+                    if os.path.exists(task.sourcefile):
+                        files.append(task.sourcefile)
     
     return files
+
+
+def add_altdir_files(files: list[str], chapterdir: str, altdir: str) -> list[str]:
+    """
+    Add altdir files using simple path replacement.
+    For each file in chapterdir, check if corresponding file exists in altdir.
+    
+    Args:
+        files: List of file paths from chapterdir
+        chapterdir: Base directory for chapters (e.g., 'ch')
+        altdir: Alternative directory (e.g., 'alt')
+    
+    Returns:
+        List with both chapterdir and altdir files
+    """
+    result = list(files)  # Start with original files
+    
+    for filepath in files:
+        # Simple path prefix replacement
+        alt_filepath = filepath.replace(chapterdir, altdir, 1)
+        
+        # Only add if altdir file actually exists
+        if os.path.exists(alt_filepath) and alt_filepath not in result:
+            result.append(alt_filepath)
+            b.debug(f"Found altdir file: {alt_filepath}")
+    
+    return result
 
 
 def check_single_file(filepath: str):
@@ -254,18 +346,90 @@ def check_programs_command(pargs: argparse.Namespace):
         
         course_root = Path.cwd()
         
-        # Get batch mode from command line argument
+        # Get targetdir and batch mode
+        targetdir_s = pargs.targetdir
+        targetdir_i = targetdir_s + "_i"
         batch_mode = getattr(pargs, 'batch', False)
         
-        # Initialize checker (uses annotation-based configuration from task .md files)
-        checker = programchecker.ProgramChecker(course_root=course_root, parallel_execution=True)
+        # Ensure targetdir exists
+        os.makedirs(targetdir_s, exist_ok=True)
+        os.makedirs(targetdir_i, exist_ok=True)
         
-        # Run tests with appropriate verbosity
-        show_progress = not batch_mode  # Less verbose in batch mode
-        results = checker.test_all_programs(show_progress=show_progress, batch_mode=batch_mode)
+        # Create a temporary directory for intermediate report generation
+        import tempfile
+        import shutil
+        temp_report_dir = tempfile.mkdtemp(prefix='sedrila_progtest_')
         
-        # Generate reports
-        checker.generate_reports(results, batch_mode=batch_mode)
+        try:
+            # Initialize cache and directory for build system
+            the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=False)
+            b.set_register_files_callback(the_cache.set_file_dirty)
+            directory = dir.Directory(the_cache)
+            
+            # Initialize checker (uses annotation-based configuration from task .md files)
+            checker = programchecker.ProgramChecker(
+                course_root=course_root,
+                parallel_execution=True,
+                report_dir=temp_report_dir  # Write to temp dir first
+            )
+            
+            # Run tests with appropriate verbosity
+            show_progress = not batch_mode  # Less verbose in batch mode
+            results = checker.test_all_programs(show_progress=show_progress, batch_mode=batch_mode)
+            
+            # Generate reports to temp directory
+            try:
+                checker.generate_reports(results, batch_mode=batch_mode)
+                
+                # Read report content from temp files
+                json_temp_path = os.path.join(temp_report_dir, "program_test_report.json")
+                md_temp_path = os.path.join(temp_report_dir, "program_test_report.md")
+                
+                with open(json_temp_path, 'r', encoding='utf-8') as f:
+                    json_content = f.read()
+                
+                with open(md_temp_path, 'r', encoding='utf-8') as f:
+                    md_content = f.read()
+                
+                # Create ReportFile objects as build products
+                json_report = directory.make_the(
+                    sdrl.elements.ReportFile,
+                    "program_test_report.json",
+                    content=json_content,
+                    markdown_files=None,  # Program tests don't directly depend on markdown files
+                    targetdir_s=targetdir_s,
+                    targetdir_i=targetdir_i
+                )
+                
+                md_report = directory.make_the(
+                    sdrl.elements.ReportFile,
+                    "program_test_report.md",
+                    content=md_content,
+                    markdown_files=None,
+                    targetdir_s=targetdir_s,
+                    targetdir_i=targetdir_i
+                )
+                
+                # Build the report files (writes to disk)
+                json_report.do_build()
+                md_report.do_build()
+                
+                b.info(f"Reports generated as build products:")
+                b.info(f"  JSON: {json_report.outputfile_s}")
+                b.info(f"  Markdown: {md_report.outputfile_s}")
+                
+            except Exception as e:
+                b.error(f"Failed to generate report files: {e}")
+                import traceback
+                traceback.print_exc()
+            
+            # Close cache
+            the_cache.close()
+            
+        finally:
+            # Clean up temporary directory
+            if os.path.exists(temp_report_dir):
+                shutil.rmtree(temp_report_dir)
         
         # Check for failures and exit with appropriate status
         failed_count = sum(1 for r in results if not r.success and not r.skipped)
