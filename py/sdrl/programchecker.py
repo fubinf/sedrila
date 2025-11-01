@@ -180,14 +180,16 @@ class ProgramChecker:
     # Default timeout for program execution
     DEFAULT_TIMEOUT = 30
     
-    def __init__(self, course_root: Path = None, parallel_execution: bool = True):
+    def __init__(self, course_root: Path = None, parallel_execution: bool = True, report_dir: str = None):
         """Initialize ProgramChecker.
         
         Args:
             course_root: Root directory of the course (defaults to current directory)
             parallel_execution: Whether to run tests in parallel (default: True)
+            report_dir: Directory for report output (defaults to current directory)
         """
         self.course_root = course_root or Path.cwd()
+        self.report_dir = report_dir or str(Path.cwd())
         self.results = []
         self.skipped_programs = []  # Track programs skipped by markup
         self.parallel_execution = parallel_execution
@@ -997,11 +999,10 @@ class ProgramChecker:
             ]
         }
         
-        report_file = "program_test_report.json"
+        report_file = os.path.join(self.report_dir, "program_test_report.json")
         try:
             with open(report_file, 'w', encoding='utf-8') as f:
                 json.dump(report_data, f, indent=2, ensure_ascii=False)
-            b.info(f"JSON report saved to: {report_file}")
         except Exception as e:
             b.error(f"Failed to save JSON report: {e}")
     
@@ -1108,11 +1109,10 @@ Generated: {timestamp}
         else:
             report_content += "\nNo passed tests.\n"
         
-        report_file = "program_test_report.md"
+        report_file = os.path.join(self.report_dir, "program_test_report.md")
         try:
             with open(report_file, 'w', encoding='utf-8') as f:
                 f.write(report_content)
-            b.info(f"Markdown report saved to: {report_file}")
         except Exception as e:
             b.error(f"Failed to save Markdown report: {e}")
     

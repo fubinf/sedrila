@@ -9,7 +9,7 @@ It operates directly on source files for faster execution.
 ## 1. Basic command structure
 
 ```bash
-sedrila maintainer [options]
+sedrila maintainer [options] targetdir
 ```
 
 Unlike `sedrila author`, the maintainer does not:
@@ -18,27 +18,37 @@ Unlike `sedrila author`, the maintainer does not:
 - Generate student/instructor websites
 - Create cache files
 
-Instead, it performs quality checks directly on source markdown and protocol files.
+Instead, it performs quality checks using the course structure parsing capability of the build system
+to correctly identify which files should be checked according to the course configuration.
 
 Function options:
 - `--check-links [markdown_file]`: Check URLs for availability
-- 
+- `--check-programs [program_file]`: Test programs
 
 Common options:
 - `--config <configfile>`: Specify configuration file (default: `sedrila.yaml`)
+- `--include-stage <stage>`: Include parts with this and higher stage entries (default: `draft` which includes all stages)
 - `--log <level>`: Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- `--batch`: Use batch/CI-friendly output
+- `targetdir`: Directory for build output and reports
 
 ## 2. Link Checking: `--check-links`
 
-- Option `--check-links [markdown_file]` validates external HTTP/HTTPS links found in markdown files.
-  Without an argument, it checks all course files. With a file argument, it checks only that specific file.
-  Uses HEAD requests by default for efficiency, falling back to GET only when content validation is needed.
-  Generates fixed-name reports: `link_check_report.json` and `link_check_report.md` in the current directory.
-  Supports custom link validation rules via HTML comments in markdown files.
-  Avoids checking duplicate URLs and includes comprehensive statistics in the main report.
-  Examples: 
-  - `sedrila maintainer --check-links` (check all course files)
-  - `sedrila maintainer --check-links ch/Chapter1/Task1.md` (check one specific file)
+Option `--check-links [markdown_file]` validates external HTTP/HTTPS links found in markdown files.
+Without an argument, it checks all course files using the build system to identify files 
+(respects `sedrila.yaml` configuration, only checks configured taskgroups). 
+With a file argument, it checks only that specific file.
+Uses the `--include-stage` option to control which development stages are checked (default: `draft`, which includes all stages).
+Checks both `chapterdir` and `altdir` files (altdir files discovered via path replacement).
+Uses HEAD requests by default for efficiency, falling back to GET only when content validation is needed.
+Generates fixed-name reports: `link_check_report.json` and `link_check_report.md` in `targetdir`.
+Supports custom link validation rules via HTML comments in markdown files.
+Avoids checking duplicate URLs and includes comprehensive statistics in reports.
+When checking all files, use `--` to separate options from the positional `targetdir` argument.
+Examples:
+- `sedrila maintainer --check-links -- /tmp/linkcheck` (check all course files, all stages)
+- `sedrila maintainer --include-stage beta --check-links -- /tmp/linkcheck` (check only beta stage)
+- `sedrila maintainer --check-links ch/Chapter1/Task1.md /tmp/linkcheck` (check one specific file)
 
 ### 2.1 Link validation rules
 
@@ -79,11 +89,16 @@ Without an argument, it tests all programs. With a file argument, it tests only 
 - **Default behavior**: Programs with found test pairs are automatically tested if no markup is present
 - **Markup-based configuration**: Use HTML comments in task `.md` files to control test behavior (skip, partial skip, command override)
 - **Multi-command testing**: Executes ALL testable commands from `.prot` files and verifies output
-- **Report generation**: Creates `program_test_report.json` and `program_test_report.md` in the current directory
+- **Report generation**: Creates `program_test_report.json` and `program_test_report.md` in `targetdir`
   
 Examples:
-- `sedrila maintainer --check-programs` (test all programs)
-- `sedrila maintainer --check-programs altdir/itree.zip/Sprachen/Go/go-channels.go` (test single file)
+- `sedrila maintainer --check-programs -- /tmp/progtest` (test all programs)
+- `sedrila maintainer --check-programs altdir/itree.zip/Sprachen/Go/go-channels.go /tmp/progtest` (test single file)
+
+Maybe TODO?
+- Stage filtering (`--include-stage`) is not yet implemented for program testing
+- The checker tests all programs found in `itree.zip`, regardless of the `--include-stage` parameter
+- Unlike `--check-links`, which filters files at runtime, `--check-programs` depends on what was built into `itree.zip`
 
 
 ### 3.1 Prerequisites
@@ -100,7 +115,7 @@ sedrila author /tmp/build
 sedrila author --include_stage beta /tmp/build
 
 # Then run program tests
-sedrila maintainer --check-programs
+sedrila maintainer --check-programs -- /tmp/progtest
 ```
 
 Without building first, the checker will report "Total Programs: 0" because it cannot find program files.
