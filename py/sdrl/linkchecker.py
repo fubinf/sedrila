@@ -645,8 +645,6 @@ class LinkCheckReporter:
         # Write JSON report
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(report_data, f, indent=2, ensure_ascii=False)
-        
-        b.info(f"Detailed JSON report saved to: {output_file}")
     
     def generate_markdown_report(self, results: list[LinkCheckResult], output_file: str = "link_check_report.md") -> None:
         """Generate a simplified Markdown report with fixed filename."""
@@ -714,8 +712,6 @@ class LinkCheckReporter:
                     status = "[PASS]" if result.success else "[FAIL]"
                     f.write(f"  {status} {result.link.line_number}: {result.link.url}  \n")
                 f.write("\n")
-        
-        b.info(f"Detailed Markdown report saved to: {output_file}")
     
     @staticmethod
     def group_by_file(results: list[LinkCheckResult]) -> dict[str, list[LinkCheckResult]]:

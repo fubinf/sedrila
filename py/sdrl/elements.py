@@ -501,6 +501,45 @@ class CopiedFile(Outputfile):
         shutil.copy(self.sourcefile, self.outputfile_i)
 
 
+class ReportFile(Outputfile):
+    """Maintainer report file as a build product.
+    
+    Reports are written to targetdir_s only (not instructor dir).
+    A subsequent author build will remove these report files via purge_leftover_outputfiles.
+    """
+    
+    def __init__(self, name: str, content: str = "", markdown_files: list[str] = None, **kwargs):
+        """Initialize report file.
+        
+        Args:
+            name: Filename (e.g., "link_check_report.json")
+            content: Report content to write
+            markdown_files: Optional list of markdown files this report depends on
+            **kwargs: Additional arguments (targetdir_s, targetdir_i, directory)
+        """
+        super().__init__(name, **kwargs)
+        self.report_content = content
+        # Add dependencies on source markdown files (enables incremental building)
+        self._add_file_dependencies(markdown_files or [])
+    
+    def _add_file_dependencies(self, markdown_files: list[str]) -> None:
+        """Add dependencies on markdown files, similar to CopiedFile pattern."""
+        for md_file in markdown_files:
+            if not os.path.exists(md_file):
+                continue
+            try:
+                sourcefile_elem = self.directory.get_the(Sourcefile, md_file)
+                self.add_dependency(sourcefile_elem)
+            except Exception:
+                pass  # Dependency tracking is optional, silently skip errors
+    
+    def do_build(self):
+        """Write report content to targetdir_s only (following CopiedFile pattern)."""
+        b.debug(f"generating report '{self.outputfile_s}'")
+        b.spit(self.outputfile_s, self.report_content)
+        # Do NOT write to targetdir_i (reports are for maintainers, not instructors)
+
+
 class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task and their Builders, see course.py
     """Outputs identified by a name, possible targets of PARTREF."""
     TOC_LEVEL = 0  # indent level in table of contents
