@@ -180,8 +180,8 @@ def check_links_command(pargs: argparse.Namespace):
                     md_report.do_build()
                     
                     b.info(f"Reports generated as build products:")
-                    b.info(f"  JSON: {json_report.outputfile_s}")
-                    b.info(f"  Markdown: {md_report.outputfile_s}")
+                    b.info(f"  JSON: {json_report.outputfile_i}")
+                    b.info(f"  Markdown: {md_report.outputfile_i}")
                     
                 except Exception as e:
                     b.error(f"Failed to generate report files: {e}")
@@ -415,8 +415,8 @@ def check_programs_command(pargs: argparse.Namespace):
                 md_report.do_build()
                 
                 b.info(f"Reports generated as build products:")
-                b.info(f"  JSON: {json_report.outputfile_s}")
-                b.info(f"  Markdown: {md_report.outputfile_s}")
+                b.info(f"  JSON: {json_report.outputfile_i}")
+                b.info(f"  Markdown: {md_report.outputfile_i}")
                 
             except Exception as e:
                 b.error(f"Failed to generate report files: {e}")
