@@ -504,7 +504,8 @@ class CopiedFile(Outputfile):
 class ReportFile(Outputfile):
     """Maintainer report file as a build product.
     
-    Reports are written to targetdir_s only (not instructor dir).
+    Reports are written to targetdir_i only (instructor/maintainer directory).
+    Reports are for maintainers, not for students, so they don't belong in targetdir_s.
     A subsequent author build will remove these report files via purge_leftover_outputfiles.
     """
     
@@ -533,11 +534,17 @@ class ReportFile(Outputfile):
             except Exception:
                 pass  # Dependency tracking is optional, silently skip errors
     
+    def check_existing_resource(self):
+        """Check only targetdir_i (reports are for maintainers, not students)."""
+        if not os.path.exists(self.outputfile_i):
+            self.state = c.State.MISSING
+        else:
+            self.state = c.State.AS_BEFORE
+    
     def do_build(self):
-        """Write report content to targetdir_s only (following CopiedFile pattern)."""
-        b.debug(f"generating report '{self.outputfile_s}'")
-        b.spit(self.outputfile_s, self.report_content)
-        # Do NOT write to targetdir_i (reports are for maintainers, not instructors)
+        """Write report content to targetdir_i only."""
+        b.debug(f"generating report '{self.outputfile_i}'")
+        b.spit(self.outputfile_i, self.report_content)
 
 
 class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task and their Builders, see course.py

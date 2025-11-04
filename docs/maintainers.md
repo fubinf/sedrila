@@ -33,20 +33,33 @@ Common options:
 - `--include-stage <stage>`: Include parts with this and higher stage entries (default: `draft` which includes all stages)
 - `--log <level>`: Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - `--batch`: Use batch/CI-friendly output
-- `targetdir`: Directory for build output and reports
+Positional arguments:
+- `targetdir`: Directory for build output and reports (required)
 
 ## 2. Link Checking: `--check-links`
 
-- Option `--check-links [markdown_file]` validates external HTTP/HTTPS links found in markdown files.
-  Without an argument, it checks all course files. With a file argument, it checks only that specific file.
-  Uses HEAD requests by default for efficiency, falling back to GET only when content validation is needed.
-  Generates fixed-name reports: `link_check_report.json` and `link_check_report.md` in the current directory.
-  Supports custom link validation rules via HTML comments in markdown files.
-  Avoids checking duplicate URLs and includes comprehensive statistics in the main report.
-  Examples: 
+Option `--check-links [markdown_file]` validates external HTTP/HTTPS links found in markdown files.
 
-  - `sedrila maintainer --check-links` (check all course files)
-  - `sedrila maintainer --check-links ch/Chapter1/Task1.md` (check one specific file)
+Link checking is implemented as a `maintainer` subcommand but leverages 
+the `author` build system infrastructure for file identification. 
+This design reuses existing logic (DRY principle) rather than reimplementing course structure parsing. 
+When checking all files, the command creates a lightweight `Coursebuilder` instance to parse `sedrila.yaml` 
+and identify which markdown files need checking. 
+
+Without an argument, it checks all course files using the build system to identify files 
+(respects `sedrila.yaml` configuration, only checks configured taskgroups). 
+With a file argument, it checks only that specific file.
+Uses the `--include-stage` option to control which development stages are checked (default: `draft`, which includes all stages).
+Checks both `chapterdir` and `altdir` files (altdir files discovered via path replacement).
+Uses HEAD requests by default for efficiency, falling back to GET only when content validation is needed.
+Generates fixed-name reports: `link_check_report.json` and `link_check_report.md` in `targetdir_i` (instructor directory).
+Supports custom link validation rules via HTML comments in markdown files.
+Avoids checking duplicate URLs and includes comprehensive statistics in reports.
+When checking all files, use `--` to separate options from the positional `targetdir` argument.
+Examples:
+- `sedrila maintainer --check-links -- /tmp/linkcheck` (check all course files, all stages)
+- `sedrila maintainer --include-stage beta --check-links -- /tmp/linkcheck` (check only beta stage)
+- `sedrila maintainer --check-links ch/Chapter1/Task1.md /tmp/linkcheck` (check one specific file)
 
 ### 2.1 Link validation rules
 
@@ -76,16 +89,15 @@ The validation rule applies (only) to the next link found.
 
 ## 3. Program Testing: `--check-programs`
 
-Option `--check-programs [program_file]` tests exemplary programs from `itree.zip` against their corresponding protocol files.
+Option `--check-programs [program_file]` tests exemplary programs from `altdir/itree.zip` against their corresponding protocol files.
 Without an argument, it tests all programs. With a file argument, it tests only that specific file.
   
-**How it works:**
-
-- **Automatic test pair discovery**: Scans `itree.zip` for program files and finds corresponding `.prot` files in `altdir/ch/`
+How it works:
+- **Automatic test pair discovery**: Scans `altdir/itree.zip` (directory or ZIP file) for program files and finds corresponding `.prot` files in `altdir/ch/`
 - **Default behavior**: Programs with found test pairs are automatically tested if no markup is present
 - **Markup-based configuration**: Use HTML comments in task `.md` files to control test behavior (skip, partial skip, command override)
 - **Multi-command testing**: Executes ALL testable commands from `.prot` files and verifies output
-- **Report generation**: Creates `program_test_report.json` and `program_test_report.md` in `targetdir`
+- **Report generation**: Creates `program_test_report.json` and `program_test_report.md` in `targetdir_i` (instructor directory)
   
 Examples:
 - `sedrila maintainer --check-programs -- /tmp/progtest` (test all programs)
@@ -96,20 +108,24 @@ Examples:
 
 #### 3.1.1. Build
 
-**Important**: Program testing requires `itree.zip` to be built first. This directory is created during course building:
+**Important**: Program testing requires `altdir/itree.zip` to exist. This can be either:
+- A **directory** `altdir/itree.zip/` containing source program files
+- A **ZIP file** `altdir/itree.zip` created during course building
+
+To create the ZIP file, build the course first:
 
 ```bash
-# Option 1: Complete build (tests all stages)
+# Complete build (tests all stages)
 sedrila author /tmp/build
 
-# Option 2: Beta stage only (faster, for quick testing)
+# Beta stage only (faster, for quick testing)
 sedrila author --include_stage beta /tmp/build
 
 # Then run program tests
 sedrila maintainer --check-programs -- /tmp/progtest
 ```
 
-Without building first, the checker will report "Total Programs: 0" because it cannot find program files.
+Without building first, the checker will report "Total Programs: 0" if `altdir/itree.zip` does not exist.
 
 In a GitHub Action, **complete build** should be performed before testing to ensure full coverage.
 
@@ -118,86 +134,92 @@ In a GitHub Action, **complete build** should be performed before testing to ens
 
 Program testing requires the following environment:
 
+These requirements evolve as new program types are added to the course. The list below reflects the current set of testable programs.
+
 **Required:**
 
 - **Python**: 3.11 or higher
 - **Go**: 1.23 or higher (for Go programs)
-- **Built course**: `itree.zip` directory must exist in `altdir/`
+- **Program files**: `altdir/itree.zip` must exist (either as a directory with source files or as a built ZIP file)
 
 **Python packages (Sedrila dependencies):**
+In pyproject.toml: `[tool.poetry.dependencies]` and `[tool.poetry.group.dev.dependencies]`
 
-- Core: argparse_subcommand, blessed, bottle, GitPython, Jinja2, Markdown, PyYAML, requests, rich
-- Data/Scientific: matplotlib, numpy, pandas, Pygments
-- Markdown: mdx_linkify
-
-**Python packages (for example programs):**
-
+**Python packages (additional required):**
 - FastAPI programs: fastapi, pydantic, uvicorn
-- Testing: pytest
 
-In GitHub Actions, all dependencies are automatically installed. For local testing, ensure these packages are available in your environment.
+For local testing, ensure these packages are available in your environment.
 
 
 ### 3.2 General behavior
 
-**Multi-command testing:**
+#### 3.2.1 Multi-command testing
 
-- Parses and tests **ALL testable commands** from each `.prot` file
+The program checker parses and tests **ALL testable commands** from each `.prot` file:
+
 - Each command is executed sequentially with output comparison
 - Test only passes if ALL commands succeed
 - Detailed reporting shows status for each individual command
 - Failed tests show which specific command(s) failed with error details
 
-**Automatic cleanup:**
 
-- Cleans up generated files before and after each test to ensure clean environment
-- Removes database files (`.db`, `.sqlite`, `.sqlite3`)
-- Removes log files (`.log`), temporary files (`.tmp`)
-- Removes Python cache (`__pycache__`, `.pyc`)
-- Prevents test failures caused by residual files from previous runs
-- Ensures consistency between single program and full course testing
+#### 3.2.2 Automatic cleanup
 
-**Test output and reporting:**
+Generated files are cleaned up before and after each test to ensure a clean environment:
 
-- Displays total programs found and test pairs identified
-- Shows programs passed, failed, and skipped (with detailed categories)
-- For multi-command programs:
-  - Lists each command with numbered index
-  - Shows individual pass/fail status (✓ [PASS] or ✗ [FAIL])
-  - Includes error details for failed commands
-  - Separates tested commands from skipped commands
-- Calculates success rate based on all programs
-- Tracks execution time for each command and overall test
-- Provides detailed failure reasons and manual testing requirements
-- Generates both JSON and Markdown reports with categorized sections (Failed Tests, Skipped Tests, Passed Tests)
+- Database files (`.db`, `.sqlite`, `.sqlite3`)
+- Log files (`.log`), temporary files (`.tmp`)
+- Python cache (`__pycache__`, `.pyc`)
 
-**CI/Batch Mode**
+This prevents test failures caused by residual files from previous runs
+and ensures consistency between single program and full course testing.
 
-- **Batch mode output** (`--batch`): Concise output suitable for automated testing
-- **Exit status**: Returns non-zero (1) when tests fail, zero (0) on success
-- **Complete error list at end**: All failed tests are summarized at the end of output for quick error identification
-- **Report generation**: JSON and Markdown reports are always generated for detailed analysis
-- **Scheduled execution**: 
 
-  - Link checking: Every Sunday at 03:00 UTC (`maintainer-linkchecker.yml`)
-  - Program testing: Every Sunday at 03:30 UTC (`maintainer-programchecker.yml`)
-  - Both workflows use the `--batch` flag for CI-friendly output
+#### 3.2.3 Test output and reporting
+
+The checker provides comprehensive test reports that display the total number of programs found
+and test pairs identified. It shows which programs passed, failed, and were skipped, with detailed
+categorization for each status.
+
+For multi-command programs, the output lists each command with a numbered index and shows 
+individual pass/fail status (✓ [PASS] or ✗ [FAIL]). Error details are included for failed commands,
+and tested commands are clearly separated from skipped ones.
+
+The checker calculates a success rate based on all programs, tracks execution time for each 
+command and the overall test run, and provides detailed failure reasons along with manual 
+testing requirements when applicable.
+
+Both JSON and Markdown reports are generated with categorized sections (Failed Tests, 
+Skipped Tests, Passed Tests) for detailed analysis.
+
+
+#### 3.2.4 CI/Batch mode
+
+For automated testing environments, the `--batch` flag produces concise output suitable 
+for CI systems. The exit status is non-zero (1) when tests fail and zero (0) on success.
+
+All failed tests are summarized at the end of the output for quick error identification,
+making it easy to spot issues in automated test runs.
+JSON and Markdown reports are always generated regardless of output mode.
+
+Scheduled execution runs link checking every Sunday at 03:00 UTC and program testing 
+at 03:30 UTC (see `maintainer-linkchecker.yml` and `maintainer-programchecker.yml`).
+Both workflows use the `--batch` flag for CI-friendly output.
 
 
 ### 3.3. Program testing markup
 
 By default, programs are tested automatically. 
-You can control test behavior using HTML comment markup in task `.md` files (typically placed before the `[INSTRUCTOR]` section).
+You can control test behavior using HTML comment markup in task `.md` files.
+The markup can be placed anywhere in the file; a common convention is to place it before the `[INSTRUCTOR]` section.
 
 
-#### 3.3.1. SKIP markup (manual testing)
+#### 3.3.1. SKIP markup (manual testing): `@PROGRAM_TEST_SKIP`
 
 Use for programs with non-deterministic output, interactive input, environment-specific output, or complex shell operations.
 
 ```markdown
 <!-- @PROGRAM_TEST_SKIP: reason="Concurrent execution order is non-deterministic" manual_test_required=true -->
-
-[INSTRUCTOR::...]
 ```
 
 Parameters:
@@ -206,14 +228,12 @@ Parameters:
 - `manual_test_required=true`: Marks program for manual testing
 
 
-#### 3.3.2. PARTIAL markup (manual/automation mix)
+#### 3.3.2. PARTIAL markup (manual/automation mix): `@PROGRAM_TEST_PARTIAL`
 
 Use when some commands are testable while others require manual verification.
 
 ```markdown
 <!-- @PROGRAM_TEST_PARTIAL: skip_commands_with="Traceback,MemoryError" skip_reason="Different stack depths lead to inconsistent output" testable_note="Other commands can be automatically tested" -->
-
-[INSTRUCTOR::...]
 ```
 
 Parameters:
@@ -223,14 +243,12 @@ Parameters:
 - `testable_note="text"`: Note about which commands are testable
 
 
-#### 3.3.3. OVERRIDE markup (expected command mismatches)
+#### 3.3.3. OVERRIDE markup (expected command mismatches): `@PROGRAM_TEST_OVERRIDE`
 
 Use when `.prot` files reference incorrect command names.
 
 ```markdown
 <!-- @PROGRAM_TEST_OVERRIDE: original_command="go run main.go" correct_command="go run go-channels.go" reason=".prot file uses main.go but actual file is go-channels.go" -->
-
-[INSTRUCTOR::...]
 ```
 
 Parameters:
@@ -240,6 +258,23 @@ Parameters:
 - `reason="text"`: Explanation for the override
 
 
-#### 3.3.4. no markup ("normal" automated testing)
+#### 3.3.4. General PROGRAM_TEST markup (reserved for future use): `@PROGRAM_TEST`
+
+This is a general-purpose markup reserved for future extensions.
+Currently, it supports a `notes` parameter for documentation purposes, but this parameter is not used by the test runner.
+
+```markdown
+<!-- @PROGRAM_TEST: notes="Additional information about this program test" -->
+```
+
+Parameters:
+- `notes="text"`: Documentation notes (currently not used by the test runner)
+
+**Behavior:** Programs with this markup are tested normally, exactly like programs without any markup.
+The markup serves only as a placeholder for potential future functionality.
+
+
+#### 3.3.5. No markup (normal automated testing)
 
 Programs with deterministic output require no special markup and are tested automatically.
+This is functionally equivalent to using `@PROGRAM_TEST` with documentation notes.
