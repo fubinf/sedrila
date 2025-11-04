@@ -34,7 +34,7 @@ Common options:
 - `--log <level>`: Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - `--batch`: Use batch/CI-friendly output
 Positional arguments:
-- `targetdir`: Directory for build output and reports (required)
+- `targetdir`: Directory for build output and reports (required). Reports are written to `targetdir_i` (which is `targetdir` with `_i` suffix appended, e.g., `/tmp/output` → `/tmp/output_i`)
 
 ## 2. Link Checking: `--check-links`
 
@@ -52,7 +52,7 @@ With a file argument, it checks only that specific file.
 Uses the `--include-stage` option to control which development stages are checked (default: `draft`, which includes all stages).
 Checks both `chapterdir` and `altdir` files (altdir files discovered via path replacement).
 Uses HEAD requests by default for efficiency, falling back to GET only when content validation is needed.
-Generates fixed-name reports: `link_check_report.json` and `link_check_report.md` in `targetdir_i` (instructor directory).
+Generates fixed-name reports: `link_check_report.json` and `link_check_report.md` in `targetdir_i`.
 Supports custom link validation rules via HTML comments in markdown files.
 Avoids checking duplicate URLs and includes comprehensive statistics in reports.
 When checking all files, use `--` to separate options from the positional `targetdir` argument.
@@ -97,7 +97,7 @@ How it works:
 - **Default behavior**: Programs with found test pairs are automatically tested if no markup is present
 - **Markup-based configuration**: Use HTML comments in task `.md` files to control test behavior (skip, partial skip, command override)
 - **Multi-command testing**: Executes ALL testable commands from `.prot` files and verifies output
-- **Report generation**: Creates `program_test_report.json` and `program_test_report.md` in `targetdir_i` (instructor directory)
+- **Report generation**: Creates `program_test_report.json` and `program_test_report.md` in `targetdir_i`
   
 Examples:
 - `sedrila maintainer --check-programs -- /tmp/progtest` (test all programs)
