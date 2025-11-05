@@ -1,5 +1,80 @@
 # Internal technical notes
 
+## 0. Veeery high-level overview
+
+There are three main roles in sedrila,
+each with a corresponding CLI subcommand `author`, `student`, `instructor`. 
+
+- Authors work on the source representation of a course and generate the course website.
+- Students visit the website, work on tasks, commit results to a git repo, and request
+  judgment from an instructor.
+  Students describe themselves in a file `student.yaml` once and 
+  describe each submission (list of task names) in a file `submission.yaml`.
+  Students give instructors commit rights on their repo.
+- Instructors pull a student repo, review the submission via a built-in webapp, mark tasks
+  as accepted or rejected in `submission.yaml` and record this in the student's repo via
+  a signed commit.
+
+
+### 0.1 `sedrila author`: Source representation
+
+```
+MyChapter/MyTaskGroup/MyTask.md  # extended Markdown, YAML metadata header
+...
+sedrila.yaml  # course configuration file, e.g. instructors and their public keys
+```
+
+
+### 0.2 Website
+
+```
+MyTask.html  # rendered task
+...
+course.json  # course metadata from sedrila.yaml and tasks
+```
+
+
+### 0.3 `sedrila student`: Student git repo
+
+```
+student.yaml:
+    course_url: https://www.inf.fu-berlin.de/inst/ag-se/teaching/K-ProPra-2025-04
+    student_gituser: abc715
+    student_id: '557890'
+    student_name: J.R. Student
+submission.yaml:
+    MyTask: CHECK
+MyChapter/MyTaskGroup/MyTask.md
+MyChapter/MyTaskGroup/MyTask.prot
+MyChapter/MyTaskGroup/MyTask.py
+```
+
+commit messages:
+
+- _"%MyTask 1:10h"_ for a task result
+- _"submission.yaml"_ for a submission
+
+
+### 0.4 `sedrila instructor`: Instructor commit contents
+
+The `sedrila instructor` command reads `student.yaml`, retrieves `course.json` from `course_url`,
+identifies valid task names, intersects them with `submission.yaml` contents,
+and offers those tasks for review in the webapp. 
+When a task is accepted or rejected, the `CHECK` entry in `submission.yaml` gets replaced:
+
+```
+submission.yaml:
+    MyTask: ACCEPT
+```
+
+commit message (signed commit):
+
+- _"submission.yaml checked"_
+
+Next time a student visits the webapp, it will show a table of not only the student worktimes
+invested into tasks, but also their acceptance status and the timevalue of accepted tasks.
+
+
 ## 1. Requirements-level design decisions
 
 - We use YAML for handwritten structured data and JSON for machine-generated structured data.
@@ -47,11 +122,10 @@ is based on the following ideas:
   and a few others.
 - The script that computes the "value earned" effort hours 
     - finds all `submission.yaml checked` commits that were made by an instructor
-    - extract the list of accepted tasks from them, and
-    - tabulate those tasks and compute the sum of their timevalues (taken from `course.json`).
+    - extracts the list of accepted tasks from them, and
+    - tabulates those tasks and computes the sum of their timevalues (taken from `course.json`).
 - That script can also tabulate what the instructor did not accept, which makes practical
   a rule that says a task will only count if it gets accepted no later than upon second (or third?) try.
-  No such mechanism is implemented so far, though.
 
 
 ## 3. Instructors student work acceptance process architecture
@@ -124,8 +198,6 @@ from lowest to highest:
     - 2.4 build mechanism: `sdrl.elements`, `sdrl.directory`, `sdrl.partbuilder`
 - Layer 3 (integration layer): `sdrl.course`, `sdrl.participant`
 - Layer 4 (control layer, main business logic): `sdrl.subcmd.*`
-
-TODO 3: use deply for actual checks of correct layering
 
 
 ## 6. Simplicity principles, style
