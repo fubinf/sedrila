@@ -124,6 +124,10 @@ def cmd_commit_and_push(ctx: sdrl.participant.Context):
 def prepare_workdir(workdir: str):
     b.info(f"----- Prepare '{workdir}'")
     with contextlib.chdir(workdir):
+        # ----- obtain c.PARTICIPANT_FILE if possible:
+        if not os.path.isfile(c.PARTICIPANT_FILE):
+            b.info(f"--- Pulling repo for obtaining '{c.PARTICIPANT_FILE}'")
+            sgit.pull()
         # ----- obtain instructor key fingerprints:
         if not os.path.isfile(c.PARTICIPANT_FILE):
             b.critical(f"'{workdir}': '{c.PARTICIPANT_FILE}' is missing.")
