@@ -6,7 +6,34 @@ The `sedrila maintainer` subcommand provides lightweight tools for maintaining t
 of a SeDriLa course without building the course. 
 It operates directly on source files for faster execution.
 
-## 1. Basic command structure
+## 1. Purpose and use cases
+
+Course content degrades over time: External links break, example programs fail as dependencies evolve.
+The `sedrila maintainer` subcommand provides automated quality checks for:
+
+- Link checking: Validate HTTP/HTTPS URLs in markdown files
+- Program testing: Run example programs and verify their output
+
+Unlike `sedrila author` (full course build generating HTML), maintainer tools perform 
+quality checks only, operating directly on source files for speed.
+Use in local development, CI pipelines, or scheduled maintenance runs.
+
+## 2. Prerequisites
+
+For checking all files: Requires a valid `sedrila.yaml` configuration file in the current directory 
+(or specify via `--config <configfile>`).
+The configuration file must define `chapterdir` and other course structure settings.
+For checking single files: Only that specific file needs to exist.
+
+Function-specific requirements:
+- Link checking: Active internet connection
+- Program testing: Runtime environments for tested languages (Python 3.11+, Go 1.23+, etc.) 
+  and program files in `altdir/itree.zip` (see section 5.1).
+  Currently assumes `altdir/` exists in current directory; 
+  Maybe TODO: The checker uses `altdir` setting from configuration to locate test files.
+
+
+## 3. Basic command structure
 
 ```bash
 sedrila maintainer [options] targetdir
@@ -34,9 +61,9 @@ Common options:
 - `--log <level>`: Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - `--batch`: Use batch/CI-friendly output
 Positional arguments:
-- `targetdir`: Directory for build output and reports (required). Reports are written to `targetdir_i` (which is `targetdir` with `_i` suffix appended, e.g., `/tmp/output` → `/tmp/output_i`)
+- `targetdir`: Base directory for reports (required). Reports are written to `targetdir_i` (targetdir + "_i" suffix), following sedrila's convention of separating instructor content from student content.
 
-## 2. Link Checking: `--check-links`
+## 4. Link Checking: `--check-links`
 
 Option `--check-links [markdown_file]` validates external HTTP/HTTPS links found in markdown files.
 
@@ -61,7 +88,7 @@ Examples:
 - `sedrila maintainer --include-stage beta --check-links -- /tmp/linkcheck` (check only beta stage)
 - `sedrila maintainer --check-links ch/Chapter1/Task1.md /tmp/linkcheck` (check one specific file)
 
-### 2.1 Link validation rules
+### 4.1 Link validation rules
 
 By default, links are considered successful if they return 2xx or 3xx status codes.
 You can specify custom validation rules using HTML comments before links:
@@ -87,26 +114,26 @@ Available rule parameters:
 The validation rule applies (only) to the next link found.
 
 
-## 3. Program Testing: `--check-programs`
+## 5. Program Testing: `--check-programs`
 
 Option `--check-programs [program_file]` tests exemplary programs from `altdir/itree.zip` against their corresponding protocol files.
 Without an argument, it tests all programs. With a file argument, it tests only that specific file.
   
 How it works:
-- **Automatic test pair discovery**: Scans `altdir/itree.zip` (directory or ZIP file) for program files and finds corresponding `.prot` files in `altdir/ch/`
-- **Default behavior**: Programs with found test pairs are automatically tested if no markup is present
-- **Markup-based configuration**: Use HTML comments in task `.md` files to control test behavior (skip, partial skip, command override)
-- **Multi-command testing**: Executes ALL testable commands from `.prot` files and verifies output
-- **Report generation**: Creates `program_test_report.json` and `program_test_report.md` in `targetdir_i`
+- Scans `altdir/itree.zip` (directory or ZIP file) for program files and finds corresponding `.prot` files in `altdir/ch/`
+- Programs with found test pairs are automatically tested if no markup is present
+- Use HTML comments in task `.md` files to control test behavior (skip, partial skip, command override)
+- Executes ALL testable commands from `.prot` files and verifies output
+- Creates `program_test_report.json` and `program_test_report.md` in `targetdir_i`
   
 Examples:
 - `sedrila maintainer --check-programs -- /tmp/progtest` (test all programs)
 - `sedrila maintainer --check-programs altdir/itree.zip/Sprachen/Go/go-channels.go /tmp/progtest` (test single file)
 
 
-### 3.1 Prerequisites
+### 5.1 Prerequisites
 
-#### 3.1.1. Build
+#### 5.1.1 Build
 
 **Important**: Program testing requires `altdir/itree.zip` to exist. This can be either:
 - A **directory** `altdir/itree.zip/` containing source program files
@@ -130,7 +157,7 @@ Without building first, the checker will report "Total Programs: 0" if `altdir/i
 In a GitHub Action, **complete build** should be performed before testing to ensure full coverage.
 
 
-#### 3.1.2. Operating environment
+#### 5.1.2 Operating environment
 
 Program testing requires the following environment:
 
@@ -151,9 +178,9 @@ In pyproject.toml: `[tool.poetry.dependencies]` and `[tool.poetry.group.dev.depe
 For local testing, ensure these packages are available in your environment.
 
 
-### 3.2 General behavior
+### 5.2 General behavior
 
-#### 3.2.1 Multi-command testing
+#### 5.2.1 Multi-command testing
 
 The program checker parses and tests **ALL testable commands** from each `.prot` file:
 
@@ -163,7 +190,7 @@ The program checker parses and tests **ALL testable commands** from each `.prot`
 - Failed tests show which specific command(s) failed with error details
 
 
-#### 3.2.2 Automatic cleanup
+#### 5.2.2 Automatic cleanup
 
 Generated files are cleaned up before and after each test to ensure a clean environment:
 
@@ -175,7 +202,7 @@ This prevents test failures caused by residual files from previous runs
 and ensures consistency between single program and full course testing.
 
 
-#### 3.2.3 Test output and reporting
+#### 5.2.3 Test output and reporting
 
 The checker provides comprehensive test reports that display the total number of programs found
 and test pairs identified. It shows which programs passed, failed, and were skipped, with detailed
@@ -193,7 +220,7 @@ Both JSON and Markdown reports are generated with categorized sections (Failed T
 Skipped Tests, Passed Tests) for detailed analysis.
 
 
-#### 3.2.4 CI/Batch mode
+#### 5.2.4 CI/Batch mode
 
 For automated testing environments, the `--batch` flag produces concise output suitable 
 for CI systems. The exit status is non-zero (1) when tests fail and zero (0) on success.
@@ -207,14 +234,14 @@ at 03:30 UTC (see `maintainer-linkchecker.yml` and `maintainer-programchecker.ym
 Both workflows use the `--batch` flag for CI-friendly output.
 
 
-### 3.3. Program testing markup
+### 5.3 Program testing markup
 
 By default, programs are tested automatically. 
 You can control test behavior using HTML comment markup in task `.md` files.
 The markup can be placed anywhere in the file; a common convention is to place it before the `[INSTRUCTOR]` section.
 
 
-#### 3.3.1. SKIP markup (manual testing): `@PROGRAM_TEST_SKIP`
+#### 5.3.1 SKIP markup (manual testing): `@PROGRAM_TEST_SKIP`
 
 Use for programs with non-deterministic output, interactive input, environment-specific output, or complex shell operations.
 
@@ -228,7 +255,7 @@ Parameters:
 - `manual_test_required=true`: Marks program for manual testing
 
 
-#### 3.3.2. PARTIAL markup (manual/automation mix): `@PROGRAM_TEST_PARTIAL`
+#### 5.3.2 PARTIAL markup (manual/automation mix): `@PROGRAM_TEST_PARTIAL`
 
 Use when some commands are testable while others require manual verification.
 
@@ -243,7 +270,7 @@ Parameters:
 - `testable_note="text"`: Note about which commands are testable
 
 
-#### 3.3.3. OVERRIDE markup (expected command mismatches): `@PROGRAM_TEST_OVERRIDE`
+#### 5.3.3 OVERRIDE markup (expected command mismatches): `@PROGRAM_TEST_OVERRIDE`
 
 Use when `.prot` files reference incorrect command names.
 
@@ -258,7 +285,7 @@ Parameters:
 - `reason="text"`: Explanation for the override
 
 
-#### 3.3.4. General PROGRAM_TEST markup (reserved for future use): `@PROGRAM_TEST`
+#### 5.3.4 General PROGRAM_TEST markup (reserved for future use): `@PROGRAM_TEST`
 
 This is a general-purpose markup reserved for future extensions.
 Currently, it supports a `notes` parameter for documentation purposes, but this parameter is not used by the test runner.
@@ -274,7 +301,7 @@ Parameters:
 The markup serves only as a placeholder for potential future functionality.
 
 
-#### 3.3.5. No markup (normal automated testing)
+#### 5.3.5 No markup (normal automated testing)
 
 Programs with deterministic output require no special markup and are tested automatically.
 This is functionally equivalent to using `@PROGRAM_TEST` with documentation notes.

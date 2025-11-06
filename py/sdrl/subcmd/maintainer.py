@@ -37,7 +37,7 @@ def add_arguments(subparser: argparse.ArgumentParser):
     subparser.add_argument('--batch', action='store_true',
                            help="Use batch/CI-friendly output: concise output, only show failures, complete error list at end")
     subparser.add_argument('targetdir',
-                           help="Directory for build output and reports")
+                           help="Directory for maintenance reports")
 
 
 def execute(pargs: argparse.Namespace):
@@ -69,7 +69,7 @@ def check_links_command(pargs: argparse.Namespace):
         # Check all course files using build system
         b.info("Checking links in all course files...")
         
-        # Create course object using build system (only parse structure, no full build)
+        # Auto-derive targetdir_s and targetdir_i from user input
         targetdir_s = pargs.targetdir
         targetdir_i = targetdir_s + "_i"
         
@@ -346,7 +346,7 @@ def check_programs_command(pargs: argparse.Namespace):
         
         course_root = Path.cwd()
         
-        # Get targetdir and batch mode
+        # Auto-derive targetdir_s and targetdir_i from user input
         targetdir_s = pargs.targetdir
         targetdir_i = targetdir_s + "_i"
         batch_mode = getattr(pargs, 'batch', False)

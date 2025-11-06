@@ -465,26 +465,29 @@ class LinkCheckReporter:
         
         return stats
     
-    @staticmethod
-    def _categorize_error(error_message: str) -> str:
-        """Categorize error messages for statistics."""
+    def _categorize_error(self, error_message: str) -> str:
+        """Categorize error messages for statistics.
+        
+        Returns HTTP status code (e.g., '404', '403') or error type (timeout, connection, ssl).
+        """
         error_lower = error_message.lower()
+        
+        # Non-HTTP status code errors
         if 'timeout' in error_lower or 'timed out' in error_lower:
             return 'timeout'
-        elif '404' in error_lower or 'not found' in error_lower:
-            return '404_not_found'
-        elif '403' in error_lower or 'forbidden' in error_lower:
-            return '403_forbidden'
-        elif '405' in error_lower or 'method not allowed' in error_lower:
-            return '405_method_not_allowed'
-        elif '500' in error_lower or 'server error' in error_lower:
-            return '500_server_error'
         elif 'connection' in error_lower:
-            return 'connection_error'
+            return 'connection'
         elif 'ssl' in error_lower or 'certificate' in error_lower:
-            return 'ssl_error'
-        else:
-            return 'other'
+            return 'ssl'
+        
+        # HTTP status codes - extract the actual status code
+        import re
+        # Look for HTTP status code pattern (e.g., "HTTP 404", "403", etc.)
+        status_match = re.search(r'\b(4\d{2}|5\d{2})\b', error_message)
+        if status_match:
+            return status_match.group(1)
+        
+        return 'other'
     
     def print_summary(self, results: list[LinkCheckResult]) -> None:
         """Print a summary of link checking results with integrated statistics."""
