@@ -69,9 +69,17 @@ Option `--check-links [markdown_file]` validates external HTTP/HTTPS links found
 
 Link checking is implemented as a `maintainer` subcommand but leverages 
 the `author` build system infrastructure for file identification. 
-This design reuses existing logic (DRY principle) rather than reimplementing course structure parsing. 
-When checking all files, the command creates a lightweight `Coursebuilder` instance to parse `sedrila.yaml` 
-and identify which markdown files need checking. 
+This design follows the DRY (Don't Repeat Yourself) principle by reusing existing build system logic 
+rather than reimplementing course structure parsing and metadata processing.
+
+When checking all files, the command:
+1. Creates a `Coursebuilder` instance to parse `sedrila.yaml`
+2. Builds only the essential elements needed for file identification:
+   - `Sourcefile`: Registers all source files
+   - `Topmatter`: Parses YAML metadata from markdown files
+   - `MetadataDerivation`: Processes metadata and evaluates stage filtering
+3. Extracts the list of markdown files that need checking (respecting configuration and stages)
+4. Checks links and generates reports as build products 
 
 Without an argument, it checks all course files using the build system to identify files 
 (respects `sedrila.yaml` configuration, only checks configured taskgroups). 
@@ -88,7 +96,14 @@ Examples:
 - `sedrila maintainer --include-stage beta --check-links -- /tmp/linkcheck` (check only beta stage)
 - `sedrila maintainer --check-links ch/Chapter1/Task1.md /tmp/linkcheck` (check one specific file)
 
-### 4.1 Link validation rules
+### 4.1 Technical implementation note
+
+The implementation reuses the build system's metadata processing logic (DRY principle):
+- Builds only essential elements: `Sourcefile`, `Topmatter`, `MetadataDerivation`
+- This automatically handles stage filtering via `evaluate_stage()`
+- Ensures `maintainer` and `author` behavior stay synchronized without code duplication
+
+### 4.2 Link validation rules
 
 By default, links are considered successful if they return 2xx or 3xx status codes.
 You can specify custom validation rules using HTML comments before links:

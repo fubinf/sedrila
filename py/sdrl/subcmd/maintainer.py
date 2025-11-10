@@ -57,6 +57,34 @@ def execute(pargs: argparse.Namespace):
     b.error("No maintenance command specified. Use --check-links, --check-programs, or see --help for options.")
 
 
+def _build_metadata_only(directory: dir.Directory):
+    """
+    Build only the elements needed for metadata and stage evaluation.
+    This follows the DRY principle by reusing the build system.
+    
+    Builds: Sourcefile, Topmatter, MetadataDerivation
+    This ensures that:
+    - All source files are registered
+    - YAML topmatter is parsed
+    - Metadata is copied into Parts (via process_topmatter)
+    - Stage filtering is evaluated (via evaluate_stage)
+    """
+    import sdrl.elements as el
+    import sdrl.course
+    
+    # Build in dependency order (same as directory.managed_types)
+    build_types = [
+        el.Sourcefile,      # Register source files
+        el.Topmatter,       # Parse YAML topmatter
+        sdrl.course.MetadataDerivation,  # Process metadata and evaluate stages
+    ]
+    
+    for element_type in build_types:
+        b.debug(f"Building all Elements of type {element_type.__name__}")
+        for elem in directory.get_all(element_type):
+            elem.build()
+
+
 def check_links_command(pargs: argparse.Namespace):
     """Execute link checking using build system for file identification."""
     try:
@@ -91,18 +119,10 @@ def check_links_command(pargs: argparse.Namespace):
                 directory=directory
             )
             
-            # Initialize stage filtering for all parts using the build system
-            # Process topmatter and evaluate stages (same as MetadataDerivation.do_build())
-            import itertools
-            allparts = list(itertools.chain(
-                directory.get_all(sdrl.course.Chapter),
-                directory.get_all(sdrl.course.Taskgroup),
-                directory.get_all(sdrl.course.Task)
-            ))
-            for part in allparts:
-                topmatter_elem = directory.get_the(sdrl.elements.Topmatter, part.name)
-                topmatter_elem.do_build()  # Read and parse the YAML topmatter
-                part.process_topmatter(part.sourcefile, topmatter_elem.value, the_course)
+            # Build only the elements needed for file identification (DRY principle)
+            # This builds: Sourcefile, Topmatter, and MetadataDerivation
+            # MetadataDerivation.do_build() handles topmatter processing and stage evaluation
+            _build_metadata_only(directory)
             
             # Extract markdown files from course structure (respects stages and taskgroups)
             markdown_files = extract_markdown_files_from_course(the_course)
