@@ -3,6 +3,8 @@ Markdown rendering with sedrila-specific bells and/or whistles.
 """
 import os
 import re
+import typing as tg
+from typing import TYPE_CHECKING
 
 import markdown
 import markdown.extensions as mde
@@ -14,6 +16,11 @@ import sdrl.macros as macros
 import sdrl.replacements as replacements
 import sdrl.snippetchecker as snippetchecker
 
+if TYPE_CHECKING:
+    import sdrl.course
+
+# Current course context for Markdown processing (fallback when self.md.course is unset)
+current_course = None
 # see bottom for initialization code
 
 
@@ -53,49 +60,20 @@ class SedrilaPreprocessor(mdpre.Preprocessor):
     
     def expand_snippet_inclusions(self, content: str) -> str:
         """Expand @INCLUDE_SNIPPET directives by inserting snippet content from other files."""
-        context_file = self.md.context_sourcefile
+        course = self.md.course or current_course
+        if not course:
+            return content
         
+        context_file = self.md.context_sourcefile
         b.debug(f"expand_snippet_inclusions called for: {context_file}")
         
-        # For sedrila, context_file is often a relative path like "ch/Web/Django/django-project.md"
-        # We need to find the project root (the directory we're running from)
-        
-        if os.path.isabs(context_file):
-            # Absolute path - extract project root
-            if '/ch/' in context_file:
-                basedir = context_file.split('/ch/')[0]
-            elif '/altdir/' in context_file:
-                basedir = context_file.split('/altdir/')[0]
-            else:
-                # Go up until we find altdir
-                basedir = os.path.dirname(context_file)
-                while basedir and basedir != '/':
-                    if os.path.exists(os.path.join(basedir, 'altdir')):
-                        break
-                    basedir = os.path.dirname(basedir)
-        else:
-            # Relative path - use current working directory as project root
-            basedir = os.getcwd()
-            
-            # Verify this is correct by checking if altdir exists
-            if not os.path.exists(os.path.join(basedir, 'altdir')):
-                # Try to find the correct base directory
-                test_dir = basedir
-                while test_dir and test_dir != '/':
-                    if os.path.exists(os.path.join(test_dir, 'altdir')):
-                        basedir = test_dir
-                        break
-                    test_dir = os.path.dirname(test_dir)
-        
-        b.debug(f"Derived basedir: {basedir}")
-        
         # Check if content contains @INCLUDE_SNIPPET before processing
-        if '@INCLUDE_SNIPPET' in content:
-            b.debug("Found @INCLUDE_SNIPPET in content, processing...")
-        else:
+        if '@INCLUDE_SNIPPET' not in content:
             b.debug("No @INCLUDE_SNIPPET found in content")
+            return content
         
-        result = snippetchecker.expand_snippet_inclusion(content, context_file, basedir)
+        b.debug("Found @INCLUDE_SNIPPET in content, processing...")
+        result = snippetchecker.expand_snippet_inclusion(content, context_file, course)
         
         if result != content:
             b.debug("Content was modified by snippet expansion")
@@ -117,30 +95,12 @@ class SedrilaPostprocessor(mdpost.Postprocessor):
     
     def expand_snippet_inclusions_post(self, text: str) -> str:
         """Fallback snippet processing in postprocessor stage."""
+        course = self.md.course or current_course
+        if not course:
+            return text
+        
         context_file = self.md.context_sourcefile
-        
-        if os.path.isabs(context_file):
-            if '/ch/' in context_file:
-                basedir = context_file.split('/ch/')[0]
-            elif '/altdir/' in context_file:
-                basedir = context_file.split('/altdir/')[0]
-            else:
-                basedir = os.path.dirname(context_file)
-                while basedir and basedir != '/':
-                    if os.path.exists(os.path.join(basedir, 'altdir')):
-                        break
-                    basedir = os.path.dirname(basedir)
-        else:
-            basedir = os.getcwd()
-            if not os.path.exists(os.path.join(basedir, 'altdir')):
-                test_dir = basedir
-                while test_dir and test_dir != '/':
-                    if os.path.exists(os.path.join(test_dir, 'altdir')):
-                        basedir = test_dir
-                        break
-                    test_dir = os.path.dirname(test_dir)
-        
-        return snippetchecker.expand_snippet_inclusion(text, context_file, basedir)
+        return snippetchecker.expand_snippet_inclusion(text, context_file, course)
 
 
 class SedrilaMarkdown(markdown.Markdown):
@@ -148,8 +108,13 @@ class SedrilaMarkdown(markdown.Markdown):
     context_sourcefile: str
     partname: str
     blockmacro_topmatter: dict[str, str]
+    course: tg.Optional['sdrl.course.Coursebuilder']  # For accessing chapterdir/altdir
     includefiles: set[str]  # [INCLUDE::...], [PROT::...] will add a filename here
     termrefs: set[str]  # [TERMREF::...] will add a term alias here
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.course = None
 
 
 def render_markdown(context_sourcefile: str, partname: str, markdown_markup: str, 

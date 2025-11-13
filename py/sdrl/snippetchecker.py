@@ -134,7 +134,7 @@ class SnippetReference:
     """Represents a reference to a code snippet."""
     snippet_id: str
     source_file: str
-    referenced_file: str
+    referenced_file: str | None
     line_number: int
 
 
@@ -154,7 +154,7 @@ class SnippetReferenceExtractor:
         """Extract all @INCLUDE_SNIPPET references from content."""
         references = []
         pattern = re.compile(
-            r'^@INCLUDE_SNIPPET:\s*(?P<id>\w+)\s+from\s+(?P<file>.+?)\s*$',
+            r'^@INCLUDE_SNIPPET:\s*(?P<id>\w+)(?:\s+from\s+(?P<file>.+?))?\s*$',
             re.MULTILINE
         )
         
@@ -164,7 +164,7 @@ class SnippetReferenceExtractor:
                 references.append(SnippetReference(
                     snippet_id=match.group('id'),
                     source_file=filename,
-                    referenced_file=match.group('file').strip(),
+                    referenced_file=match.group('file').strip() if match.group('file') else None,
                     line_number=line_num
                 ))
         
@@ -181,62 +181,109 @@ class SnippetReferenceExtractor:
         return self.extract_references_from_content(content, filepath)
 
 
+def _resolve_snippet_path(referenced_file: str | None, source_file: str, course) -> str:
+    """
+    Resolve a snippet file path using course configuration.
+    
+    Two path styles are supported:
+    1. altdir/ prefix: resolved relative to the project root (e.g., altdir/solutions/file.py)
+    2. Omitted path: derive the matching file inside altdir by exchanging the chapterdir prefix
+    
+    Args:
+        referenced_file: The file path from @INCLUDE_SNIPPET directive
+        source_file: The task file containing the reference
+        course: Coursebuilder object with chapterdir, altdir, and configfile attributes
+    
+    Returns:
+        Resolved absolute path to the snippet file
+    """
+    project_root = os.path.dirname(os.path.abspath(course.configfile))
+    
+    if referenced_file:
+        altdir_prefix = f"{course.altdir}/"
+        if referenced_file.startswith(altdir_prefix):
+            fullpath = os.path.join(project_root, referenced_file)
+        else:
+            raise ValueError(
+                f"Unsupported snippet path '{referenced_file}'. "
+                "Use an 'altdir/' path or omit the path to use the matching altdir file."
+            )
+    else:
+        fullpath = _derive_altdir_path(source_file, course, project_root)
+    
+    return os.path.normpath(fullpath)
+
+
+def _derive_altdir_path(source_file: str, course, project_root: str) -> str:
+    """Derive the matching file in altdir by exchanging the chapterdir prefix."""
+    if os.path.isabs(source_file):
+        rel_path = os.path.relpath(source_file, project_root)
+    else:
+        rel_path = os.path.normpath(source_file)
+    
+    # Already inside altdir
+    if rel_path.startswith(f"{course.altdir}/"):
+        return os.path.join(project_root, rel_path)
+    
+    chapter_prefix = course.chapterdir.rstrip('/')
+    if chapter_prefix:
+        prefix = f"{chapter_prefix}/"
+        if rel_path.startswith(prefix):
+            rel_rest = rel_path[len(prefix):]
+        else:
+            rel_rest = rel_path
+    else:
+        rel_rest = rel_path.lstrip("/\\")
+    
+    altdir_rel = os.path.join(course.altdir, rel_rest)
+    return os.path.join(project_root, altdir_rel)
+
+
 class SnippetValidator:
     """Validates snippet references and definitions."""
     
-    def validate_file_references(self, filepath: str, base_directory: str) -> list[SnippetValidationResult]:
-        """Validate all snippet references in a file."""
+    def validate_file_references(self, filepath: str, course) -> list[SnippetValidationResult]:
+        """
+        Validate all snippet references in a file.
+        
+        Args:
+            filepath: Path to the task file containing snippet references
+            course: Coursebuilder object with chapterdir, altdir, and configfile attributes
+        """
         extractor = SnippetReferenceExtractor()
         references = extractor.extract_references_from_file(filepath)
         
         results = []
         for ref in references:
-            result = self._validate_single_reference(ref, base_directory)
+            result = self._validate_single_reference(ref, course)
             results.append(result)
         
         return results
     
-    def _validate_single_reference(self, reference: SnippetReference, base_directory: str) -> SnippetValidationResult:
+    def _validate_single_reference(self, reference: SnippetReference, course) -> SnippetValidationResult:
         """Validate a single snippet reference."""
-        # Resolve the file path
-        # base_directory should be the directory containing the task file
-        # For altdir/ paths, we need to go up to the project root
-        
-        if reference.referenced_file.startswith('altdir/'):
-            # Path is relative to project root
-            # We need to find the project root (the directory containing both ch/ and altdir/)
-            
-            # Go up from base_directory until we find a directory that contains 'altdir'
-            project_root = base_directory
-            while project_root and project_root != '/':
-                if os.path.exists(os.path.join(project_root, 'altdir')):
-                    break
-                project_root = os.path.dirname(project_root)
-            
-            if not project_root or project_root == '/':
-                # Fallback: assume base_directory is under ch/, go up to parent
-                if '/ch/' in base_directory:
-                    project_root = base_directory.split('/ch/')[0]
-                else:
-                    project_root = base_directory
-            
-            fullpath = os.path.join(project_root, reference.referenced_file)
-        elif os.path.isabs(reference.referenced_file):
-            # Absolute path
-            fullpath = reference.referenced_file  
-        else:
-            # Relative to the source file's directory
-            source_dir = os.path.dirname(reference.source_file)
-            fullpath = os.path.join(source_dir, reference.referenced_file)
-        
-        fullpath = os.path.normpath(fullpath)
-        
-        # Check if file exists
-        if not os.path.exists(fullpath):
+        # Resolve the file path using course configuration
+        try:
+            fullpath = _resolve_snippet_path(
+                reference.referenced_file,
+                reference.source_file,
+                course
+            )
+        except ValueError as exc:
             return SnippetValidationResult(
                 reference=reference,
                 success=False,
-                error_message=f"File not found: {reference.referenced_file}"
+                error_message=str(exc)
+            )
+        
+        # Check if file exists
+        if not os.path.exists(fullpath):
+            project_root = os.path.dirname(os.path.abspath(course.configfile))
+            display_path = reference.referenced_file or os.path.relpath(fullpath, project_root)
+            return SnippetValidationResult(
+                reference=reference,
+                success=False,
+                error_message=f"File not found: {display_path}"
             )
         
         # Find the snippet
@@ -313,22 +360,29 @@ class SnippetValidator:
             return [f"Error parsing snippets: {str(e)}"]
 
 
-def expand_snippet_inclusion(content: str, context_file: str, basedir: str) -> str:
+def expand_snippet_inclusion(content: str, context_file: str, course) -> str:
     """
     Expand @INCLUDE_SNIPPET directives in content.
     
-    Format: @INCLUDE_SNIPPET: snippet_id from path/to/file.md
+    Format:
+      @INCLUDE_SNIPPET: snippet_id
+      @INCLUDE_SNIPPET: snippet_id from altdir/path/to/file.md
     
-    The path resolution works as follows:
-    - If path starts with 'altdir/', it's resolved relative to the project root (basedir)
-    - Otherwise, it's resolved relative to the context file's directory
+    When no path is given, the snippet file is derived by exchanging the course's
+    chapterdir prefix with altdir.
+    
+    Args:
+        content: The content containing @INCLUDE_SNIPPET directives
+        context_file: The file containing the directive
+        course: Coursebuilder object with chapterdir, altdir, and configfile attributes
     """
     # Debug output
-    b.debug(f"expand_snippet_inclusion called for {context_file}, basedir={basedir}")
+    project_root = os.path.dirname(os.path.abspath(course.configfile))
+    b.debug(f"expand_snippet_inclusion called for {context_file}, project_root={project_root}")
     
-    # Pattern: @INCLUDE_SNIPPET: snippet_id from filepath
+    # Pattern: @INCLUDE_SNIPPET: snippet_id [from filepath]
     pattern = re.compile(
-        r'^@INCLUDE_SNIPPET:\s*(?P<id>\w+)\s+from\s+(?P<file>.+?)\s*$',
+        r'^@INCLUDE_SNIPPET:\s*(?P<id>\w+)(?:\s+from\s+(?P<file>.+?))?\s*$',
         re.MULTILINE
     )
     
@@ -348,27 +402,19 @@ def expand_snippet_inclusion(content: str, context_file: str, basedir: str) -> s
     
     def replace_snippet(match: re.Match) -> str:
         snippet_id = match.group('id')
-        snippet_file = match.group('file').strip()
+        snippet_file = match.group('file')
+        if snippet_file:
+            snippet_file = snippet_file.strip()
         
         b.debug(f"Processing snippet inclusion: id='{snippet_id}', file='{snippet_file}'")
         
-        if snippet_file.startswith('altdir/'):
-            # Path is relative to project root
-            fullpath = os.path.join(basedir, snippet_file)
-            b.debug(f"Using altdir path: basedir='{basedir}' + snippet_file='{snippet_file}' -> '{fullpath}'")
-        elif os.path.isabs(snippet_file):
-            # Absolute path
-            fullpath = snippet_file
-            b.debug(f"Using absolute path: '{fullpath}'")
-        else:
-            # Relative to the context file's directory
-            context_dir = os.path.dirname(context_file)
-            fullpath = os.path.join(context_dir, snippet_file)
-            b.debug(f"Using relative path: context_dir='{context_dir}' + snippet_file='{snippet_file}' -> '{fullpath}'")
-        
-        # Normalize the path
-        fullpath = os.path.normpath(fullpath)
-        b.debug(f"Normalized path: '{fullpath}'")
+        # Use _resolve_snippet_path for consistent path resolution
+        try:
+            fullpath = _resolve_snippet_path(snippet_file, context_file, course)
+        except ValueError as exc:
+            b.warning(str(exc), file=context_file)
+            return f"<!-- ERROR: {exc} -->"
+        b.debug(f"Resolved path: '{fullpath}'")
         b.debug(f"File exists: {os.path.exists(fullpath)}")
         
         # Extract the snippet

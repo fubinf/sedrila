@@ -138,43 +138,51 @@ of the same file.
 
 ### 2.3 Protocol checking
 
-For tasks that require command-line execution logs (`.prot` files), `sedrila` provides automated 
-protocol checking functionality. This helps instructors verify student submissions against 
-author-provided examples.
+For tasks that require command-line execution logs (`.prot` files), `sedrila` provides protocol checking functionality. 
+This helps instructors verify student submissions against author-provided solutions.
 
-**Basic usage:**
+Basic usage:
 ```bash
 sedrila instructor --check-protocols student_file.prot author_file.prot
 ```
 
-This compares a student's protocol file with the author's example and displays a console summary 
+This compares a student's protocol file with the author's solution and displays a console summary 
 of passed/failed/manual-check-required entries with detailed error messages for each mismatch
 
-**Example:**
+Example:
 ```bash
 sedrila instructor --check-protocols \
   student-repo/taskname.prot \
   course-repo/altdir/ch/Chapter/Taskgroup/taskname.prot
 ```
 
-**Understanding the results:**
+About Path
+Todo: The final implementation of the Path handling maybe still needs further discussion; 
+the current implementation is documented here: 
+- `student-repo/taskname.prot`: Path to student submitted files. 
+- `course-repo/.../taskname.prot`: Path to solution `prot` file.
+- The CLI uses the supplied paths, whether absolute or relative 
+  (resolved against the directory from which the command is executed, typically the course repository). 
+  Ensure that these paths correctly reference the intended files.
+- For now we keep this plain “type the paths you need” approach.
 
 The comparison checks each command entry based on author-defined rules (`@PROT_CHECK` annotations):
-- **Passed**: Command and output match according to rules
-- **Failed**: Command or output mismatch
-- **Manual check required**: Entries marked with `output=skip` or `command=skip`
+- `Passed`: Command and output match according to rules
+- `Failed`: Command or output mismatch
+- `Manual check required`: Entries explicitly marked for instructor review
 
-**Typical workflow:**
+Manual check requirements:
+- Entries marked with `command=manual` or `output=manual` always require manual check
+- These entries pass automatically but are flagged for instructor review
+- Use `manual_note` parameter to provide specific instructions for manual checking
 
-1. Student submits their `.prot` file in their repository
-2. Run protocol comparison to see immediate results in the console
-3. Review the output:
-   - Check failed entries for obvious errors (detailed error messages are shown)
-   - Review manual-check entries (marked with "Manual check required")
-4. Provide feedback to student based on findings
+Skip behavior:
+- Entries marked with `command=skip` or `output=skip` skip checking entirely
+- Skip means the check always passes without requiring manual review
+- Use `skip` for commands with no meaningful output (e.g., `cd`)
 
-**Important notes:**
-- Tasks with variable output (HTTP responses, timestamps, etc.) typically use `output=skip`
-- Such entries will always be marked "manual check required"
+Important notes:
 - Failed entries show detailed error messages (e.g., "command mismatch", "output mismatch")
+- Tasks with variable output (HTTP responses, timestamps, etc.) should use `output=manual` 
+  rather than `output=skip` to ensure instructor review
 - This feature complements (not replaces) the normal submission checking workflow

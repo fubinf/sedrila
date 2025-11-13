@@ -17,6 +17,7 @@ import typing as tg
 from pathlib import Path
 
 import base as b
+import cache
 import mycrypt
 import sdrl.constants as c
 import sdrl.elements as el
@@ -774,9 +775,67 @@ class MetadataDerivation(el.Step):
 class SnippetValidation(el.Step):
     """Validate code snippet references and definitions in course files."""
     course: Coursebuilder
+    
+    # ----- File types to exclude from snippet validation (binary, generated, or system files)
+    EXCLUDED_EXTENSIONS = {'.zip', '.tar', '.gz', '.bz2', '.xz', '.7z',
+                          '.exe', '.bin', '.so', '.dll', '.dylib',
+                          '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.ico', '.svg',
+                          '.pdf', '.doc', '.docx', '.xls', '.xlsx',
+                          '.pyc', '.pyo', '.o', '.a', '.class',
+                          '.db', '.sqlite', '.sqlite3'}
+    EXCLUDED_NAMES = {'.DS_Store', 'Thumbs.db', '__pycache__'}
+
+    def _iter_solution_files(self, task) -> tg.Iterator[str]:
+        """Iterate over solution files in altdir for a given task."""
+        task_dir = os.path.dirname(task.sourcefile)
+        alt_task_dir = task_dir.replace(self.course.chapterdir, self.course.altdir, 1)
+        
+        if not os.path.exists(alt_task_dir):
+            return
+        
+        for file in os.listdir(alt_task_dir):
+            if (file.startswith('.') or 
+                file in self.EXCLUDED_NAMES or
+                any(file.endswith(ext) for ext in self.EXCLUDED_EXTENSIONS)):
+                continue
+            solution_path = os.path.join(alt_task_dir, file)
+            if os.path.isfile(solution_path):
+                yield solution_path
+
+    def check_existing_resource(self):
+        """Implement incremental build: only validate when dependencies change."""
+        # ----- Start by assuming nothing has changed
+        self.state = cache.State.AS_BEFORE
+        for dep in self.my_dependencies():
+            # Ensure dependency state is initialized
+            if not hasattr(dep, 'state'):
+                dep.check_existing_resource()
+            if dep.state != cache.State.AS_BEFORE:
+                self.state = cache.State.HAS_CHANGED
+                break
+
+    def my_dependencies(self) -> tg.Iterable['el.Element']:
+        """Declare dependencies on ALL tasks (like answer-task correspondence checking)."""
+        deps = []
+        
+        # ----- Add dependencies on ALL task source files and solution files (regardless of stage)
+        # This ensures we validate all files and report warnings for excluded stages
+        for task in self.course.taskdict.values():
+            # Depend on task markdown file
+            sourcefile_elem = self.directory.get_the(el.Sourcefile, task.sourcefile)
+            if sourcefile_elem:
+                deps.append(sourcefile_elem)
+            
+            # Depend on solution files in altdir
+            for solution_path in self._iter_solution_files(task):
+                # Get existing Sourcefile or create if it doesn't exist yet
+                sourcefile_elem = self.directory.make_or_get_the(el.Sourcefile, solution_path)
+                deps.append(sourcefile_elem)
+        
+        return deps
 
     def do_build(self):
-        """Validate snippet references and definitions, reporting errors directly."""
+        """Validate snippet references and definitions, reporting errors or warnings based on stage."""
         try:
             import sdrl.snippetchecker as snippetchecker
         except ImportError as e:
@@ -786,85 +845,79 @@ class SnippetValidation(el.Step):
         # ----- validate snippet definitions in solution files:
         validator = snippetchecker.SnippetValidator()
         for task in self.course.taskdict.values():
-            if task.to_be_skipped:
-                continue
-            
-            task_dir = os.path.dirname(task.sourcefile)
-            alt_task_dir = task_dir.replace(self.course.chapterdir, self.course.altdir, 1)
-            
-            if os.path.exists(alt_task_dir):
-                # Exclude binary and system files (use exclusion approach for language-agnostic validation)
-                excluded_extensions = {'.zip', '.tar', '.gz', '.bz2', '.xz', '.7z',
-                                      '.exe', '.bin', '.so', '.dll', '.dylib',
-                                      '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.ico', '.svg',
-                                      '.pdf', '.doc', '.docx', '.xls', '.xlsx',
-                                      '.pyc', '.pyo', '.o', '.a', '.class',
-                                      '.db', '.sqlite', '.sqlite3'}
-                excluded_names = {'.DS_Store', 'Thumbs.db', '__pycache__'}
-                
-                for file in os.listdir(alt_task_dir):
-                    # Skip hidden files, excluded files, and binary files
-                    if (file.startswith('.') or 
-                        file in excluded_names or
-                        any(file.endswith(ext) for ext in excluded_extensions)):
-                        continue
-                    
-                    solution_path = os.path.join(alt_task_dir, file)
-                    if os.path.isfile(solution_path):
-                        errors = validator._validate_snippet_markers_in_file(solution_path)
-                        for error in errors:
-                            b.error(error, file=solution_path)
+            # Report function based on whether task is included in current build stage
+            report_func = b.warning if task.to_be_skipped else b.error
+            for solution_path in self._iter_solution_files(task):
+                errors = validator._validate_snippet_markers_in_file(solution_path)
+                for error in errors:
+                    report_func(error, file=solution_path)
         
         # ----- validate snippet references in task files:
         for task in self.course.taskdict.values():
-            if task.to_be_skipped:
-                continue
+            # Report function based on whether task is included in current build stage
+            report_func = b.warning if task.to_be_skipped else b.error
             
-            # Extract project root for resolving snippet paths
-            if os.path.isabs(task.sourcefile):
-                base_directory = task.sourcefile.split('/' + self.course.chapterdir)[0] \
-                    if '/' + self.course.chapterdir in task.sourcefile else os.path.dirname(task.sourcefile)
-            else:
-                base_directory = os.getcwd()
-            
-            results = validator.validate_file_references(task.sourcefile, base_directory)
+            results = validator.validate_file_references(
+                task.sourcefile,
+                self.course
+            )
             for result in results:
                 if not result.success:
-                    b.error(result.error_message, file=f"{result.reference.source_file}:{result.reference.line_number}")
+                    report_func(result.error_message, file=f"{result.reference.source_file}:{result.reference.line_number}")
 
 
 class ProtocolValidation(el.Step):
     """Validate protocol check annotations in .prot files."""
     course: Coursebuilder
 
+    def check_existing_resource(self):
+        """Implement incremental build: only validate when dependencies change."""
+        self.state = cache.State.AS_BEFORE
+        for dep in self.my_dependencies():
+            if not hasattr(dep, 'state'):
+                dep.check_existing_resource()
+            if dep.state != cache.State.AS_BEFORE:
+                self.state = cache.State.HAS_CHANGED
+                break
+
+    def my_dependencies(self) -> tg.Iterable['el.Element']:
+        """Declare dependencies on ALL protocol files in the course."""
+        deps = []
+        for task in self.course.taskdict.values():
+            prot_file = self._get_protocol_file(task)
+            if prot_file:
+                sourcefile_elem = self.directory.make_or_get_the(el.Sourcefile, prot_file)
+                deps.append(sourcefile_elem)
+        return deps
+
+    def _get_protocol_file(self, task: 'Taskbuilder') -> str | None:
+        """Find the protocol file for a given task (taskname.prot belongs to task 'taskname')."""
+        task_dir = os.path.dirname(task.sourcefile)
+        alt_task_dir = task_dir.replace(self.course.chapterdir, self.course.altdir, 1)
+        expected_prot_filename = f"{task.name}.prot"
+        
+        for search_dir in [task_dir, alt_task_dir]:
+            if os.path.exists(search_dir):
+                prot_path = os.path.join(search_dir, expected_prot_filename)
+                if os.path.exists(prot_path):
+                    return prot_path
+        return None
+
     def do_build(self):
-        """Validate protocol annotations, reporting errors directly."""
+        """Validate protocol annotations, reporting errors or warnings based on stage."""
         try:
             import sdrl.protocolchecker as protocolchecker
         except ImportError as e:
             b.error(f"Cannot import protocol checking modules: {e}")
             return
         
-        # ----- find all .prot files in the course:
-        protocol_files = []
-        for task in self.course.taskdict.values():
-            task_dir = os.path.dirname(task.sourcefile)
-            alt_task_dir = task_dir.replace(self.course.chapterdir, self.course.altdir, 1)
-            
-            for search_dir in [task_dir, alt_task_dir]:
-                if os.path.exists(search_dir):
-                    for file in os.listdir(search_dir):
-                        if file.endswith('.prot'):
-                            protocol_path = os.path.join(search_dir, file)
-                            if protocol_path not in protocol_files:
-                                protocol_files.append(protocol_path)
-        
-        if not protocol_files:
-            return  # No protocol files to validate
-        
-        # ----- validate protocol annotations:
+        # ----- validate protocol annotations for all tasks:
         validator = protocolchecker.ProtocolValidator()
-        for prot_file in protocol_files:
-            errors = validator.validate_file(prot_file)
-            for error in errors:
-                b.error(error)
+        for task in self.course.taskdict.values():
+            # Report function based on whether task is included in current build stage
+            report_func = b.warning if task.to_be_skipped else b.error
+            prot_file = self._get_protocol_file(task)
+            if prot_file:
+                errors = validator.validate_file(prot_file)
+                for error in errors:
+                    report_func(error, file=prot_file)

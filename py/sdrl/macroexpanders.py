@@ -141,6 +141,10 @@ def prot_html(content: str) -> str:
     result = ["\n<table class='vwr-table'>"]
     PROMPTSEEN, OUTPUT = (1, 2)
     state = State(s=OUTPUT, promptcount = 0)
+    # Filter out @PROT_CHECK markup before rendering (they are metadata, not part of displayed protocol)
+    # Note: Use protocolchecker.filter_prot_check_annotations() to filter these annotations
+    import sdrl.protocolchecker as protocolchecker
+    content = protocolchecker.filter_prot_check_annotations(content)
     for line in content.split('\n'):
         line = line.rstrip()  # get rid of newline
         mm = promptmatch(line)

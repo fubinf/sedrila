@@ -14,8 +14,8 @@ import base as b
 @dataclass
 class CheckRule:
     """Validation rule for a specific command or output."""
-    command_type: str = "exact"  # exact, regex, multi_variant, skip
-    output_type: str = "exact"   # exact, regex, flexible, skip
+    command_type: str = "exact"  # exact, regex, multi_variant, skip, manual
+    output_type: str = "exact"   # exact, regex, flexible, skip, manual
     variants: tg.Optional[list[str]] = None  # For multi_variant command type
     regex_pattern: tg.Optional[str] = None   # For regex types
     manual_check_note: tg.Optional[str] = None  # Note for manual checking
@@ -44,8 +44,8 @@ class ProtocolFile:
 @dataclass
 class CheckResult:
     """Result of comparing a student entry with an author entry."""
-    student_entry: ProtocolEntry
-    author_entry: ProtocolEntry
+    student_entry: tg.Optional[ProtocolEntry]
+    author_entry: tg.Optional[ProtocolEntry]
     command_match: bool
     output_match: bool
     success: bool
@@ -54,13 +54,32 @@ class CheckResult:
     manual_check_note: tg.Optional[str] = None
 
 
+def filter_prot_check_annotations(content: str) -> str:
+    """
+    Remove @PROT_CHECK markup lines from protocol content for display purposes.
+    These markups are metadata for validation and should not appear in rendered HTML.
+    
+    Args:
+        content: Raw protocol file content
+        
+    Returns:
+        Content with @PROT_CHECK lines removed
+    """
+    lines = []
+    prot_check_pattern = re.compile(r'^\s*#\s*@PROT_CHECK:')
+    for line in content.split('\n'):
+        if not prot_check_pattern.match(line):
+            lines.append(line)
+    return '\n'.join(lines)
+
+
 class ProtocolExtractor:
     """Extracts command entries from protocol files."""
     
     # Regex patterns for protocol format
     COMMAND_PATTERN = r'^\$\s+(.+)$'  # $ command only
     CHECK_ANNOTATION_PATTERN = r'^#\s*@PROT_CHECK:\s*(.+)$'
-    PROMPT_PATTERN = r'^\S+@\S+\s+\S+\s+\d{2}:\d{2}:\d{2}\s+\d+$'  # user@host /path HH:MM:SS seq
+    PROMPT_PATTERN = r'^(?:\([^)]+\)\s+)?\S+@\S+\s+\S+\s+\d{2}:\d{2}:\d{2}\s+\d+$'  # (env) user@host /path HH:MM:SS seq (optional env prefix with space)
     
     def __init__(self):
         self.command_regex = re.compile(self.COMMAND_PATTERN)
@@ -192,11 +211,11 @@ class ProtocolValidator:
         errors = []
         
         # Validate command type
-        if rule.command_type not in ['exact', 'regex', 'multi_variant', 'skip']:
+        if rule.command_type not in ['exact', 'regex', 'multi_variant', 'skip', 'manual']:
             errors.append(f"line {line_num}: Invalid command type '{rule.command_type}'")
         
         # Validate output type
-        if rule.output_type not in ['exact', 'regex', 'flexible', 'skip']:
+        if rule.output_type not in ['exact', 'regex', 'flexible', 'skip', 'manual']:
             errors.append(f"line {line_num}: Invalid output type '{rule.output_type}'")
         
         # Validate regex pattern if needed
@@ -273,8 +292,8 @@ class ProtocolChecker:
         """Compare a single student entry with author entry."""
         rule = author_entry.check_rule or CheckRule()  # Use default rule if none specified
         
-        # Check if this requires manual checking
-        if rule.command_type == 'skip' or rule.output_type == 'skip':
+        # Handle manual check cases first, explicit manual check requirement
+        if rule.command_type == 'manual' or rule.output_type == 'manual':
             return CheckResult(
                 student_entry=student_entry,
                 author_entry=author_entry,
@@ -285,11 +304,17 @@ class ProtocolChecker:
                 manual_check_note=rule.manual_check_note or "Manual check required"
             )
         
-        # Check command
-        command_match = self._compare_command(student_entry.command, author_entry.command, rule)
+        # Compare command (skip means truly skip, don't check)
+        if rule.command_type == 'skip':
+            command_match = True  # Skip command checking
+        else:
+            command_match = self._compare_command(student_entry.command, author_entry.command, rule)
         
-        # Check output
-        output_match = self._compare_output(student_entry.output, author_entry.output, rule)
+        # Compare output (skip means truly skip, don't check)
+        if rule.output_type == 'skip':
+            output_match = True  # Skip output checking
+        else:
+            output_match = self._compare_output(student_entry.output, author_entry.output, rule)
         
         success = command_match and output_match
         error_message = None

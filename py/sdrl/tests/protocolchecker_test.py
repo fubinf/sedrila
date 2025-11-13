@@ -195,7 +195,7 @@ $ pwd
         
         # Second entry - should pass (skip output, regex command match)
         assert results[1].success, f"Second entry should pass (skip output, regex command)"
-        assert results[1].requires_manual_check, f"Second entry should require manual check"
+        assert not results[1].requires_manual_check, f"Second entry should NOT require manual check (skip doesn't need manual check)"
         
         # Third entry - should pass (exact match)
         assert results[2].success, f"Third entry should pass with exact match"
@@ -436,4 +436,179 @@ def test_empty_protocol_file():
     assert len(protocol.entries) == 0, "Empty file should have no entries"
     assert protocol.total_entries == 0
 
+
+def test_manual_check_markup():
+    """Test protocol check markup with manual type."""
+    sample_content = """# @PROT_CHECK: command=manual, output=exact
+user@host /home/user 10:00:00 1
+$ ls -la
+total 16
+drwxr-xr-x 2 user user 4096 Jan 1 12:00 .
+
+# @PROT_CHECK: command=exact, output=manual, manual_note=Check output format
+user@host /home/user 10:01:00 2
+$ echo "test"
+test output
+
+# @PROT_CHECK: command=manual, output=manual, manual_note=Verify both command and output
+user@host /home/user 10:02:00 3
+$ pwd
+/home/user
+"""
+    
+    extractor = protocolchecker.ProtocolExtractor()
+    protocol = extractor.extract_from_content(sample_content)
+    
+    assert protocol.total_entries == 3, f"Expected 3 entries, got {protocol.total_entries}"
+    
+    # Check first entry markup (command=manual, no manual_note specified)
+    rule1 = protocol.entries[0].check_rule
+    assert rule1 is not None, "First entry should have a check rule"
+    assert rule1.command_type == "manual", f"Expected command_type 'manual', got '{rule1.command_type}'"
+    assert rule1.output_type == "exact", f"Expected output_type 'exact', got '{rule1.output_type}'"
+    assert rule1.manual_check_note is None, f"Expected manual_check_note to be None when not specified, got '{rule1.manual_check_note}'"
+    
+    # Check second entry markup (output=manual)
+    rule2 = protocol.entries[1].check_rule
+    assert rule2 is not None, "Second entry should have a check rule"
+    assert rule2.command_type == "exact", f"Expected command_type 'exact', got '{rule2.command_type}'"
+    assert rule2.output_type == "manual", f"Expected output_type 'manual', got '{rule2.output_type}'"
+    assert rule2.manual_check_note == "Check output format", f"Expected manual_note 'Check output format', got '{rule2.manual_check_note}'"
+    
+    # Check third entry markup (both manual)
+    rule3 = protocol.entries[2].check_rule
+    assert rule3 is not None, "Third entry should have a check rule"
+    assert rule3.command_type == "manual", f"Expected command_type 'manual', got '{rule3.command_type}'"
+    assert rule3.output_type == "manual", f"Expected output_type 'manual', got '{rule3.output_type}'"
+    assert rule3.manual_check_note == "Verify both command and output", f"Expected manual_note 'Verify both command and output', got '{rule3.manual_check_note}'"
+
+
+def test_comparison_with_manual_check():
+    """Test protocol comparison with manual check markup."""
+    # Author file with manual check markup
+    author_content = """# @PROT_CHECK: command=manual, output=exact
+author@server /home/author 10:00:00 1
+$ ls -la
+total 16
+drwxr-xr-x 2 user user 4096 Jan 1 12:00 .
+
+# @PROT_CHECK: command=exact, output=manual, manual_note=Please verify output format
+author@server /home/author 10:01:00 2
+$ echo "test"
+test output
+
+# @PROT_CHECK: command=exact, output=skip
+author@server /home/author 10:02:00 3
+$ pwd
+/home/user
+"""
+    
+    # Student file: manual entries should pass but require manual check
+    student_content = """student@laptop /home/student 14:30:00 1
+$ ls -la
+total 16
+drwxr-xr-x 2 user user 4096 Jan 1 12:00 .
+
+student@laptop /home/student 14:31:00 2
+$ echo "test"
+different output format
+
+student@laptop /home/student 14:32:00 3
+$ pwd
+/different/path
+"""
+    
+    # Create temporary files
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot', delete=False) as f:
+        f.write(author_content)
+        author_file = f.name
+    
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot', delete=False) as f:
+        f.write(student_content)
+        student_file = f.name
+    
+    try:
+        checker = protocolchecker.ProtocolChecker()
+        results = checker.compare_files(student_file, author_file)
+        
+        assert len(results) == 3, f"Expected 3 results, got {len(results)}"
+        
+        # First entry: command=manual, should pass and require manual check
+        assert results[0].success, f"First entry should pass (manual command)"
+        assert results[0].requires_manual_check, f"First entry should require manual check"
+        assert results[0].command_match, f"First entry should have command_match=True"
+        assert results[0].output_match, f"First entry should have output_match=True"
+        assert results[0].manual_check_note == "Manual check required", f"Expected default manual note, got '{results[0].manual_check_note}'"
+        
+        # Second entry: output=manual, should pass and require manual check even if output differs
+        assert results[1].success, f"Second entry should pass (manual output)"
+        assert results[1].requires_manual_check, f"Second entry should require manual check"
+        assert results[1].manual_check_note == "Please verify output format", f"Expected manual note, got '{results[1].manual_check_note}'"
+        assert results[1].command_match, f"Second entry should have command_match=True"
+        assert results[1].output_match, f"Second entry should have output_match=True (manual overrides comparison)"
+        
+        # Third entry: output=skip, should pass but NOT require manual check
+        # Note: command matches exactly, output is skipped (different path is OK)
+        assert results[2].success, f"Third entry should pass (skip output)"
+        assert not results[2].requires_manual_check, f"Third entry should NOT require manual check (skip doesn't need manual check)"
+        assert results[2].command_match, f"Third entry should have command_match=True"
+        assert results[2].output_match, f"Third entry should have output_match=True (skip always passes)"
+        
+    finally:
+        os.unlink(author_file)
+        os.unlink(student_file)
+
+
+def test_comparison_with_output_regex():
+    """Ensure regex-based output matching behaves as documented."""
+    author_content = """# @PROT_CHECK: command=exact, output=regex, regex=^Result: \\d{3}$\n"""
+    author_content += """author@server /home/author 09:00:00 1\n$ echo "placeholder"\nResult: 123\n"""
+    
+    student_content = """student@host /tmp 10:00:00 1\n$ echo "placeholder"\nResult: 987\n"""
+    
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot', delete=False) as f:
+        f.write(author_content)
+        author_file = f.name
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot', delete=False) as f:
+        f.write(student_content)
+        student_file = f.name
+    
+    try:
+        checker = protocolchecker.ProtocolChecker()
+        results = checker.compare_files(student_file, author_file)
+        assert len(results) == 1, "Should produce exactly one comparison result"
+        assert results[0].success, "Regex output matcher should accept any output fitting the pattern"
+    finally:
+        os.unlink(author_file)
+        os.unlink(student_file)
+
+
+def test_comparison_with_multi_variant_commands():
+    """Ensure multi_variant command rules accept any listed variant and reject others."""
+    author_content = """# @PROT_CHECK: command=multi_variant, variants="ls|pwd", output=exact\n"""
+    author_content += """author@server /home/author 09:00:00 1\n$ ls\nfile.txt\n"""
+    author_content += """# @PROT_CHECK: command=multi_variant, variants="ls|pwd", output=exact\n"""
+    author_content += """author@server /home/author 09:05:00 2\n$ ls\nfile.txt\n"""
+    
+    student_content = """student@host /tmp 10:00:00 1\n$ pwd\nfile.txt\n"""
+    student_content += """student@host /tmp 10:05:00 2\n$ cat\nfile.txt\n"""
+    
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot', delete=False) as f:
+        f.write(author_content)
+        author_file = f.name
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot', delete=False) as f:
+        f.write(student_content)
+        student_file = f.name
+    
+    try:
+        checker = protocolchecker.ProtocolChecker()
+        results = checker.compare_files(student_file, author_file)
+        assert len(results) == 2, "Should produce two results for two entries"
+        assert results[0].success, "First entry should pass because 'pwd' is an allowed variant"
+        assert not results[1].success, "Second entry should fail because 'cat' is not an allowed variant"
+        assert not results[1].command_match, "Failure should come from command mismatch"
+        assert results[1].output_match, "Output still matches exactly even though command fails"
+    finally:
+        os.unlink(author_file)
+        os.unlink(student_file)
 

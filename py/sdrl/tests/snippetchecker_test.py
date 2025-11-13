@@ -2,8 +2,42 @@
 import tempfile
 import os
 from pathlib import Path
+import yaml
 
 import sdrl.snippetchecker as snippetchecker
+
+
+class MockCourse:
+    """Mock course object for testing snippet functionality."""
+    def __init__(self, configfile: str, chapterdir: str = "ch", altdir: str = "altdir"):
+        self.configfile = configfile
+        self.chapterdir = chapterdir
+        self.altdir = altdir
+
+
+def _create_test_config(base_dir: str, chapterdir: str = "ch", altdir: str = "altdir") -> str:
+    """
+    Create a minimal sedrila.yaml config file for testing.
+    
+    Returns:
+        Path to the created config file
+    """
+    config = {
+        'title': 'Test Course',
+        'name': 'test-course',
+        'chapterdir': chapterdir,
+        'altdir': altdir,
+        'stages': ['draft', 'alpha', 'beta'],
+        'instructors': [],
+        'allowed_attempts': '2',
+        'chapters': []
+    }
+    
+    config_path = os.path.join(base_dir, 'sedrila.yaml')
+    with open(config_path, 'w') as f:
+        yaml.dump(config, f)
+    
+    return config_path
 
 
 def test_snippet_extraction():
@@ -63,13 +97,17 @@ And here's how to define a function:
 
 @INCLUDE_SNIPPET: function_example from examples/demo.py
 
+Reference without explicit path:
+
+@INCLUDE_SNIPPET: implicit_example
+
 More task content here.
 """
     
     ref_extractor = snippetchecker.SnippetReferenceExtractor()
     references = ref_extractor.extract_references_from_content(sample_content, "task.md")
     
-    assert len(references) == 2, f"Expected 2 references, got {len(references)}"
+    assert len(references) == 3, f"Expected 3 references, got {len(references)}"
     
     # Check first reference
     ref1 = references[0]
@@ -81,37 +119,51 @@ More task content here.
     ref2 = references[1]
     assert ref2.snippet_id == "function_example", f"Expected 'function_example', got '{ref2.snippet_id}'"
     assert ref2.referenced_file == "examples/demo.py", f"Expected 'examples/demo.py', got '{ref2.referenced_file}'"
+    
+    # Check third reference (implicit path)
+    ref3 = references[2]
+    assert ref3.snippet_id == "implicit_example", f"Expected 'implicit_example', got '{ref3.snippet_id}'"
+    assert ref3.referenced_file is None, "Implicit reference should have no explicit file"
 
 
 def test_snippet_validation_success():
     """Test successful snippet validation when references are valid."""
-    # Create temporary solution file
-    solution_content = """# Solution file
-<!-- @SNIPPET_START: test_snippet -->
+    solution_content = """<!-- @SNIPPET_START: test_snippet -->
 def test_function():
     return "Hello, World!"
 <!-- @SNIPPET_END: test_snippet -->
 """
     
-    # Create temporary task file
-    task_content = """# Task file
-@INCLUDE_SNIPPET: test_snippet from solution.py
-"""
-    
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Write solution file
-        solution_file = os.path.join(temp_dir, "solution.py")
-        with open(solution_file, 'w', encoding='utf-8') as f:
+        task_file = os.path.join(temp_dir, "ch", "lesson", "task.md")
+        answer_file = os.path.join(temp_dir, "altdir", "lesson", "task.md")
+        os.makedirs(os.path.dirname(task_file), exist_ok=True)
+        os.makedirs(os.path.dirname(answer_file), exist_ok=True)
+        
+        with open(answer_file, 'w', encoding='utf-8') as f:
             f.write(solution_content)
         
-        # Write task file
-        task_file = os.path.join(temp_dir, "task.md")
+        task_content = "@INCLUDE_SNIPPET: test_snippet"
         with open(task_file, 'w', encoding='utf-8') as f:
             f.write(task_content)
         
+        # Create config file and create a mock course object
+        config_path = _create_test_config(temp_dir)
+        
+        # Create a minimal course-like object for testing
+        class MockCourse:
+            def __init__(self, config_path):
+                with open(config_path, 'r') as f:
+                    config = yaml.safe_load(f)
+                self.chapterdir = config.get('chapterdir', 'ch')
+                self.altdir = config.get('altdir', 'altdir')
+                self.configfile = config_path
+        
+        mock_course = MockCourse(config_path)
+        
         # Validate
         validator = snippetchecker.SnippetValidator()
-        results = validator.validate_file_references(task_file, temp_dir)
+        results = validator.validate_file_references(task_file, mock_course)
         
         assert len(results) == 1, f"Expected 1 result, got {len(results)}"
         
@@ -124,19 +176,30 @@ def test_function():
 
 def test_snippet_validation_missing_file():
     """Test snippet validation when referenced file doesn't exist."""
-    task_content = """# Task file
-@INCLUDE_SNIPPET: missing_snippet from nonexistent.py
-"""
-    
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Write task file only (no solution file)
-        task_file = os.path.join(temp_dir, "task.md")
+        task_file = os.path.join(temp_dir, "ch", "lesson", "task.md")
+        os.makedirs(os.path.dirname(task_file), exist_ok=True)
+        task_content = "@INCLUDE_SNIPPET: missing_snippet"
         with open(task_file, 'w', encoding='utf-8') as f:
             f.write(task_content)
         
+        # Create config file and create a mock course object
+        config_path = _create_test_config(temp_dir)
+        
+        # Create a minimal course-like object for testing
+        class MockCourse:
+            def __init__(self, config_path):
+                with open(config_path, 'r') as f:
+                    config = yaml.safe_load(f)
+                self.chapterdir = config.get('chapterdir', 'ch')
+                self.altdir = config.get('altdir', 'altdir')
+                self.configfile = config_path
+        
+        mock_course = MockCourse(config_path)
+        
         # Validate
         validator = snippetchecker.SnippetValidator()
-        results = validator.validate_file_references(task_file, temp_dir)
+        results = validator.validate_file_references(task_file, mock_course)
         
         assert len(results) == 1, f"Expected 1 result, got {len(results)}"
         
@@ -147,32 +210,42 @@ def test_snippet_validation_missing_file():
 
 def test_snippet_validation_missing_snippet():
     """Test snippet validation when snippet ID doesn't exist in file."""
-    # Create solution file without the referenced snippet
-    solution_content = """# Solution file
-<!-- @SNIPPET_START: other_snippet -->
+    solution_content = """<!-- @SNIPPET_START: other_snippet -->
 def other_function():
     pass
 <!-- @SNIPPET_END: other_snippet -->
 """
     
-    task_content = """# Task file
-@INCLUDE_SNIPPET: missing_snippet from solution.py
-"""
-    
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Write solution file
-        solution_file = os.path.join(temp_dir, "solution.py")
-        with open(solution_file, 'w', encoding='utf-8') as f:
+        task_file = os.path.join(temp_dir, "ch", "lesson", "task.md")
+        answer_file = os.path.join(temp_dir, "altdir", "lesson", "task.md")
+        os.makedirs(os.path.dirname(task_file), exist_ok=True)
+        os.makedirs(os.path.dirname(answer_file), exist_ok=True)
+        
+        with open(answer_file, 'w', encoding='utf-8') as f:
             f.write(solution_content)
         
-        # Write task file
-        task_file = os.path.join(temp_dir, "task.md")
+        task_content = "@INCLUDE_SNIPPET: missing_snippet"
         with open(task_file, 'w', encoding='utf-8') as f:
             f.write(task_content)
         
+        # Create config file and create a mock course object
+        config_path = _create_test_config(temp_dir)
+        
+        # Create a minimal course-like object for testing
+        class MockCourse:
+            def __init__(self, config_path):
+                with open(config_path, 'r') as f:
+                    config = yaml.safe_load(f)
+                self.chapterdir = config.get('chapterdir', 'ch')
+                self.altdir = config.get('altdir', 'altdir')
+                self.configfile = config_path
+        
+        mock_course = MockCourse(config_path)
+        
         # Validate
         validator = snippetchecker.SnippetValidator()
-        results = validator.validate_file_references(task_file, temp_dir)
+        results = validator.validate_file_references(task_file, mock_course)
         
         assert len(results) == 1, f"Expected 1 result, got {len(results)}"
         
@@ -254,7 +327,7 @@ more second code
     
     extractor = snippetchecker.SnippetExtractor()
     
-    # Test nested snippets - current implementation handles outer snippet only
+    # Test nested snippets: current implementation handles outer snippet only
     nested_snippets, _ = extractor.extract_snippets_from_content(nested_content, "nested.py", collect_errors=False)
     # Current behavior: outer snippet includes inner markers as content
     snippet_ids = [s.snippet_id for s in nested_snippets]
@@ -343,10 +416,8 @@ def broken_function():
 
 
 def test_snippet_inclusion_expansion():
-    """Test expansion of @INCLUDE_SNIPPET directives in content."""
-    # Create snippet definition file
-    solution_content = """# Solution file
-<!-- @SNIPPET_START: test_func -->
+    """Test expansion with implicit altdir path resolution."""
+    solution_content = """<!-- @SNIPPET_START: test_func -->
 def test_function():
     return 42
 <!-- @SNIPPET_END: test_func -->
@@ -357,41 +428,37 @@ def hello():
 <!-- @SNIPPET_END: hello_func -->
 """
     
-    # Create content with snippet references
     task_content = """# Task Description
 
 Implement the following function:
 
-@INCLUDE_SNIPPET: test_func from solution.py
+@INCLUDE_SNIPPET: test_func
 
 And also this one:
 
-@INCLUDE_SNIPPET: hello_func from solution.py
+@INCLUDE_SNIPPET: hello_func
 
 Good luck!
 """
     
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Write solution file
-        solution_file = os.path.join(temp_dir, "solution.py")
-        with open(solution_file, 'w', encoding='utf-8') as f:
+        task_file = os.path.join(temp_dir, "ch", "Web", "Django", "task.md")
+        answer_file = os.path.join(temp_dir, "altdir", "Web", "Django", "task.md")
+        os.makedirs(os.path.dirname(task_file), exist_ok=True)
+        os.makedirs(os.path.dirname(answer_file), exist_ok=True)
+        
+        with open(answer_file, 'w', encoding='utf-8') as f:
             f.write(solution_content)
         
-        # Expand snippet inclusions
-        task_file = os.path.join(temp_dir, "task.md")
-        result = snippetchecker.expand_snippet_inclusion(task_content, task_file, temp_dir)
+        config_path = _create_test_config(temp_dir)
+        course = MockCourse(config_path)
+        result = snippetchecker.expand_snippet_inclusion(task_content, task_file, course)
         
-        # Verify expansion worked
         assert "def test_function():" in result, "Should contain expanded test_func snippet"
         assert "return 42" in result, "Should contain test_func content"
         assert "def hello():" in result, "Should contain expanded hello_func snippet"
         assert 'print("Hello, World!")' in result, "Should contain hello_func content"
-        
-        # Verify directives were replaced
-        assert "@INCLUDE_SNIPPET: test_func" not in result, "Directive should be replaced"
-        assert "@INCLUDE_SNIPPET: hello_func" not in result, "Directive should be replaced"
-        
-        # Verify surrounding text is preserved
+        assert "@INCLUDE_SNIPPET" not in result, "Directive should be replaced"
         assert "# Task Description" in result, "Should preserve text before snippet"
         assert "Good luck!" in result, "Should preserve text after snippet"
 
@@ -419,11 +486,13 @@ def from_altdir():
         with open(solution_file, 'w', encoding='utf-8') as f:
             f.write(solution_content)
         
-        # Expand (basedir is temp_dir, simulating project root)
+        # Expand (project root is temp_dir)
         task_file = os.path.join(temp_dir, "ch", "task.md")
         os.makedirs(os.path.dirname(task_file), exist_ok=True)
         
-        result = snippetchecker.expand_snippet_inclusion(task_content, task_file, temp_dir)
+        config_path = _create_test_config(temp_dir)
+        course = MockCourse(config_path)
+        result = snippetchecker.expand_snippet_inclusion(task_content, task_file, course)
         
         # Verify altdir path was resolved correctly
         assert "def from_altdir():" in result, "Should expand snippet from altdir"
@@ -433,14 +502,14 @@ def from_altdir():
 
 def test_snippet_inclusion_missing_file():
     """Test error handling when referenced file doesn't exist."""
-    task_content = """# Task
-@INCLUDE_SNIPPET: missing_snippet from nonexistent.py
-"""
-    
     with tempfile.TemporaryDirectory() as temp_dir:
-        task_file = os.path.join(temp_dir, "task.md")
+        task_file = os.path.join(temp_dir, "ch", "lesson", "task.md")
+        os.makedirs(os.path.dirname(task_file), exist_ok=True)
         
-        result = snippetchecker.expand_snippet_inclusion(task_content, task_file, temp_dir)
+        task_content = "@INCLUDE_SNIPPET: missing_snippet"
+        config_path = _create_test_config(temp_dir)
+        course = MockCourse(config_path)
+        result = snippetchecker.expand_snippet_inclusion(task_content, task_file, course)
         
         # Should return error comment
         assert "<!-- ERROR:" in result, "Should contain error comment"
@@ -455,57 +524,38 @@ def exists():
 <!-- @SNIPPET_END: existing_snippet -->
 """
     
-    task_content = """# Task
-@INCLUDE_SNIPPET: nonexistent_id from solution.py
-"""
-    
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Write solution file
-        solution_file = os.path.join(temp_dir, "solution.py")
-        with open(solution_file, 'w', encoding='utf-8') as f:
+        task_file = os.path.join(temp_dir, "ch", "topic", "task.md")
+        answer_file = os.path.join(temp_dir, "altdir", "topic", "task.md")
+        os.makedirs(os.path.dirname(task_file), exist_ok=True)
+        os.makedirs(os.path.dirname(answer_file), exist_ok=True)
+        
+        with open(answer_file, 'w', encoding='utf-8') as f:
             f.write(solution_content)
         
-        task_file = os.path.join(temp_dir, "task.md")
-        
-        result = snippetchecker.expand_snippet_inclusion(task_content, task_file, temp_dir)
+        task_content = "@INCLUDE_SNIPPET: nonexistent_id"
+        config_path = _create_test_config(temp_dir)
+        course = MockCourse(config_path)
+        result = snippetchecker.expand_snippet_inclusion(task_content, task_file, course)
         
         # Should return error comment
         assert "<!-- ERROR:" in result, "Should contain error comment"
         assert "not found" in result, "Error should mention snippet not found"
 
 
-def test_snippet_inclusion_relative_path():
-    """Test snippet inclusion with relative path."""
-    solution_content = """<!-- @SNIPPET_START: relative_snippet -->
-def relative_function():
-    return "relative"
-<!-- @SNIPPET_END: relative_snippet -->
-"""
-    
-    task_content = """# Task
-@INCLUDE_SNIPPET: relative_snippet from ../solutions/code.py
-"""
-    
+def test_snippet_inclusion_unsupported_path():
+    """Unsupported explicit paths should produce an error comment."""
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create directory structure: temp_dir/tasks/task.md, temp_dir/solutions/code.py
-        tasks_dir = os.path.join(temp_dir, "tasks")
-        solutions_dir = os.path.join(temp_dir, "solutions")
-        os.makedirs(tasks_dir, exist_ok=True)
-        os.makedirs(solutions_dir, exist_ok=True)
+        task_file = os.path.join(temp_dir, "ch", "module", "task.md")
+        os.makedirs(os.path.dirname(task_file), exist_ok=True)
         
-        # Write solution file
-        solution_file = os.path.join(solutions_dir, "code.py")
-        with open(solution_file, 'w', encoding='utf-8') as f:
-            f.write(solution_content)
+        task_content = "@INCLUDE_SNIPPET: relative_snippet from ../solutions/code.py"
+        config_path = _create_test_config(temp_dir)
+        course = MockCourse(config_path)
+        result = snippetchecker.expand_snippet_inclusion(task_content, task_file, course)
         
-        # Expand (task file is in tasks/ directory)
-        task_file = os.path.join(tasks_dir, "task.md")
-        
-        result = snippetchecker.expand_snippet_inclusion(task_content, task_file, temp_dir)
-        
-        # Verify relative path resolution worked
-        assert "def relative_function():" in result, "Should resolve relative path"
-        assert 'return "relative"' in result, "Should contain snippet content"
+        assert "<!-- ERROR:" in result
+        assert "Unsupported snippet path" in result
 
 
 def test_circular_reference_detection():
@@ -533,7 +583,9 @@ def test_circular_reference_detection():
         # This would cause infinite loop if not handled
         # Currently, expand_snippet_inclusion doesn't detect cycles
         # This test documents the current behavior and can be updated when cycle detection is added
-        result = snippetchecker.expand_snippet_inclusion(file1_content, file1, temp_dir)
+        config_path = _create_test_config(temp_dir, chapterdir="", altdir="altdir")
+        course = MockCourse(config_path, chapterdir="", altdir="altdir")
+        result = snippetchecker.expand_snippet_inclusion(file1_content, file1, course)
         
         # Should return an error comment or original content
         # (Currently no cycle detection implemented, so this documents expected behavior)

@@ -656,33 +656,7 @@ into the Markdown input stream at this point.
 base directories; see 1.14 "Confidential contents" for details.
 
 
-#### 1.9.4 `@INCLUDE_SNIPPET`
-
-`@INCLUDE_SNIPPET: snippet_id from filename`: inserts a specific marked code snippet from a file
-into the Markdown input stream at this point.
-
-- This is a preprocessor directive (not a macro in square brackets) that enables reusing code snippets
-  from solution files directly in task descriptions.
-- Snippets must be marked in the source file using HTML comment markers:
-  ```markdown
-  <!-- @SNIPPET_START: snippet_id -->
-  code content here
-  <!-- @SNIPPET_END: snippet_id -->
-  ```
-- Optional language specification: `<!-- @SNIPPET_START: snippet_id lang=python -->`
-- `filename` follows the same path resolution rules as `[INCLUDE]`:
-  - Relative paths are resolved from the directory containing the file with the reference
-  - Paths starting with `altdir/` are resolved from the project root
-  - Absolute paths starting with `/` are resolved from `chapterdir`
-- The snippet content (excluding the HTML comment markers) is inserted verbatim, preserving formatting
-- During `sedrila author` build, all `@INCLUDE_SNIPPET` directives are expanded automatically
-- Use `sedrila author --validate-snippets` to verify all snippet references are valid
-- This approach ensures code examples in task descriptions always match the actual solution code,
-  preventing inconsistencies when solution code is updated
-- Particularly useful for tutorial-style tasks where students need to see specific parts of example code
-
-
-#### 1.9.5 `[PROT]`
+#### 1.9.4 `[PROT]`
 
 Include a rendered command protocol.
 `[PROT::filename.prot]`: works much like `[INCLUDE]` and obeys the same rules for the filenames.
@@ -712,7 +686,7 @@ in yet another manner, all based on CSS classes which you can find in the output
 Line structure and spaces are preserved.
 
 
-#### 1.9.6 `[TOC]`, `[DIFF]`
+#### 1.9.5 `[TOC]`, `[DIFF]`
 
 - `[TOC]`: Generates a table of contents from the Markdown headings present in the file.
   For the glossary, ignores headings and instead makes an alphabetical list of all term entries 
@@ -922,19 +896,59 @@ Both versions will by default exclude all tasks, taskgroups, and chapters that h
     - Make sure you adjust your config file if chapter/taskgroup directories were renamed.
     - After a rename, perform a build to check validity.
 
-#### 2.2.1 Protocol check annotations
+### 2.3 Automatic validation during builds
 
-During `sedrila author` builds, all `@PROT_CHECK` annotation syntax is validated **automatically and incrementally**.
-This checks parameter types (command/output: exact/regex/multi_variant/flexible/skip) and regex validity.
-Invalid annotations result in build errors.
+The `sedrila author` command validates course content incrementally during each build.
+Validation runs only when relevant files change and respects the `--include_stage` setting.
 
-**Note**: This validates annotation syntax only. For comparing student protocols with author protocols,
-use `sedrila instructor --check-protocols`.
+#### 2.3.1 Code snippet validation: `@INCLUDE_SNIPPET`
 
-Protocol files (`.prot`) contain command-line execution logs. Authors can add `@PROT_CHECK` annotations
-to specify validation rules for comparing student submissions with expected examples.
+`@INCLUDE_SNIPPET: snippet_id` inserts a snippet from the solution file in `altdir` to task file.(`{altdir}/.../Task.md` → `{chapterdir}/.../Task.md`).  
+`@INCLUDE_SNIPPET: snippet_id from filename` keeps the explicit form and is useful when you need to point to a different `altdir/...` file.
 
-**Annotation syntax:**
+Mark snippets in solution files with HTML comments:
+
+```markdown
+<!-- @SNIPPET_START: snippet_id -->
+code content here
+<!-- @SNIPPET_END: snippet_id -->
+```
+
+Optional language specification:
+```markdown
+<!-- @SNIPPET_START: snippet_id lang=python -->
+```
+
+Use markup in task files, both methods can be used in the same task file:
+- `@INCLUDE_SNIPPET: snippet_id`
+- `@INCLUDE_SNIPPET: snippet_id from altdir/../task.md`
+
+Path resolution (Corresponding to the two forms above):
+1. No explicit path: the same relative location is assumed, but under `altdir` instead of `chapterdir`
+- example: `@INCLUDE_SNIPPET: snippet_id`
+2. Paths starting with `altdir/`: Resolved relative to the project root (directory containing `sedrila.yaml`)
+- example: `@INCLUDE_SNIPPET: snippet_id from altdir/../task.md`
+
+The snippet content (excluding the HTML comment markers) is inserted verbatim, preserving formatting.
+
+Automatic validation during builds:
+- Checks that referenced snippet IDs exist in the specified files
+- Verifies snippet markers are properly formed (no unclosed or mismatched markers)
+- Reports invalid references with file and line numbers
+- Validates all tasks but respects `--include_stage` for error reporting:
+  - Tasks matching the stage filter: **errors**
+  - Tasks excluded by the stage filter: **warnings**
+- Runs incrementally: validation triggers only when task or solution files change
+- Persistent errors are always reported in every build
+
+#### 2.3.2 Protocol markup validation: `@PROT_CHECK`
+
+Protocol files contain command-line execution logs with optional `@PROT_CHECK` markups
+that specify validation rules for comparing student submissions with author examples.
+For actual comparison of student protocols, use `sedrila instructor --check-protocols`.
+For detailed refer to `instructors.md` section 2.3
+
+Markup syntax:
 ```bash
 # @PROT_CHECK: parameter1=value1, parameter2=value2
 user@host /path 10:00:00 1
@@ -942,101 +956,49 @@ $ command
 output
 ```
 
-**Command matching types:**
-- `command=exact` - Require exact command match (default)
-- `command=regex, regex="pattern"` - Match command using regex pattern
-- `command=multi_variant, variants="cmd1|cmd2|cmd3"` - Accept multiple command variants
-- `command=skip` - Skip command checking, mark for manual review
+Command matching types:
+- `command=exact`: Require exact command match (default)
+- `command=regex, regex="pattern"`: Match command using regex pattern
+- `command=multi_variant, variants="cmd1|cmd2|cmd3"`: Accept multiple command variants
+- `command=skip`: Skip command checking entirely (always passes)
+- `command=manual`: Mark entry for manual review (always passes, requires instructor check)
 
-**Output matching types:**
-- `output=exact` - Require exact output match (default)
-- `output=flexible` - Ignore whitespace differences and empty lines
-- `output=regex, regex="pattern"` - Match output using regex pattern
-- `output=skip` - Skip output checking, mark for manual review
+Output matching types:
+- `output=exact`: Require exact output match (default)
+- `output=flexible`: Ignore whitespace differences and empty lines
+- `output=regex, regex="pattern"`: Match output using regex pattern
+- `output=skip`: Skip output checking entirely (always passes)
+- `output=manual`: Mark entry for manual review (always passes, requires instructor check)
 
-**Additional parameters:**
-- `regex="pattern"` - Regex pattern for command or output matching (required when using regex type)
-- `variants="cmd1|cmd2|cmd3"` - Pipe-separated list of acceptable command variants (required for multi_variant)
-- `manual_note="message"` - Note for manual checking instructions
+Additional parameters:
+- `regex="pattern"`: Regex pattern for command or output matching (required when using regex type)
+- `variants="cmd1|cmd2|cmd3"`: Pipe-separated list of acceptable command variants (required for multi_variant)
+- `manual_note="message"`: Note for manual checking instructions
 
-**Example annotations:**
+Example markup syntax:
 ```bash
-# Accept different file names matching pattern
-# @PROT_CHECK: command=regex, regex=nc.*POST-form\.crlf, output=skip, manual_note="Check form fields"
-$ nc httpbin.org 80 <http-POST-form.crlf
-HTTP/1.1 200 OK
-...
-
-# Allow multiple correct commands
-# @PROT_CHECK: command=multi_variant, variants="pwd|echo $PWD", output=flexible
-$ pwd
-/home/user
-
-# Flexible output matching (ignore whitespace)
 # @PROT_CHECK: command=exact, output=flexible
+user@host /path 10:00:00 1
 $ ls -la
 total 16
 drwxr-xr-x 2 user user 4096 Jan 1 12:00 .
 ```
 
-**Important notes:**
-- Annotations must appear before the prompt line (before `user@host` line)
-- When `output=skip` is used, the entire check is skipped (including command checking) and marked for manual review
-- Protocol files typically include prompt lines in output, which differ between students and authors
-- For tasks with variable output (timestamps, IPs, etc.), use `output=skip` or `output=flexible`
+All `@PROT_CHECK` markup in `.prot` files are validated automatically:
+- Checks parameter types (command/output: exact/regex/multi_variant/flexible/skip/manual)
+- Validates regex patterns for syntax errors
+- Reports invalid markups with file and line numbers
+- Validates all tasks but respects `--include_stage` for error reporting:
+  - Tasks matching the stage filter: **errors**
+  - Tasks excluded by the stage filter: **warnings**
+- Runs incrementally: validation triggers only when `.prot` files change
+- Persistent errors are always reported in every build
 
-#### 2.2.2 Snippet inclusion with `@INCLUDE_SNIPPET`
+Note on `skip` vs `manual`:
+- Use `skip` when you want to skip checking entirely (e.g., commands with no meaningful output like `cd`)
+- Use `manual` when the entry needs instructor review (e.g., variable output like HTTP responses with timestamps)
 
-During `sedrila author` builds, all `@INCLUDE_SNIPPET` references are validated **automatically and incrementally**.
-This checks that referenced snippet IDs exist in the specified files and that snippet markers are properly formed
-(no unclosed or mismatched markers). Invalid references result in build errors. Respects `--include_stage` setting.
-
-The `@INCLUDE_SNIPPET` directive enables reusing code snippets from solution files directly in task descriptions,
-ensuring code examples always match actual solution code.
-
-**Directive syntax:**
-```markdown
-@INCLUDE_SNIPPET: snippet_id from filename
-```
-
-**Marking snippets in source files:**
-```markdown
-<!-- @SNIPPET_START: snippet_id -->
-code content here
-<!-- @SNIPPET_END: snippet_id -->
-```
-
-**Optional language specification:**
-```markdown
-<!-- @SNIPPET_START: snippet_id lang=python -->
-```
-
-**Path resolution** (same as `[INCLUDE]` macro):
-- Relative paths are resolved from the directory containing the file with the reference
-- Paths starting with `altdir/` are resolved from the project root
-- Absolute paths starting with `/` are resolved from `chapterdir`
-
-**Example usage:**
-
-In a solution file `altdir/ch/Python/hello-solution.py`:
-```python
-<!-- @SNIPPET_START: greeting lang=python -->
-def say_hello(name):
-    return f"Hello, {name}!"
-<!-- @SNIPPET_END: greeting -->
-```
-
-In a task file `ch/Python/hello-task.md`:
-```markdown
-Here's the function you should implement:
-
-@INCLUDE_SNIPPET: greeting from altdir/ch/Python/hello-solution.py
-```
-
-The snippet content (excluding the HTML comment markers) is inserted verbatim during build, preserving formatting.
-See section 1.9.4 for more details.
-
-### 2.3 Copying the build output
+### 2.4 Copying the build output
 
 If you are using an Apache webserver and have provided a suitable `htaccess_template`
 in your config, you could copy the entire output directory as-is to a place where the
@@ -1053,12 +1015,11 @@ the student website (i.e., copy `*.*`: `instructor` is the only entry that has n
 to a public place and then copy the visible contents of `instructor` to an access-protected place
 (the cache files are the only ones whose names start with a dot).
 
-### 2.4 Working with a development setup of sedrila
+### 2.5 Working with a development setup of sedrila
 
 If you use a development setup with a source installation of sedrila,
 use a shell alias such as 
 `alias sedrila='python /my/work/dir/sedrila/py/sedrila.py'`.
-
 
 ## 3. Customization of a sedrila course
 
