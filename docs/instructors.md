@@ -163,7 +163,7 @@ the current implementation is documented here:
 - `course-repo/.../taskname.prot`: Path to solution `prot` file.
 - The CLI uses the supplied paths, whether absolute or relative 
   (resolved against the directory from which the command is executed, typically the course repository). 
-  Ensure that these paths correctly reference the intended files.
+- Please ensure that these paths correctly reference the intended files.
 - For now we keep this plain “type the paths you need” approach.
 
 The comparison checks each command entry based on author-defined rules (`@PROT_CHECK` annotations):
