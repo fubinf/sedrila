@@ -25,6 +25,7 @@ Element
       Topmatter
     Outputfile
       CopiedFile
+      ReportFile
       Part
         Course
           CourseSI
