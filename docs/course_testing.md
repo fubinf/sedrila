@@ -48,16 +48,19 @@ External link validation is integrated into `sedrila maintainer` (a dedicated ma
 
 ```bash
 # Full link validation with detailed reports (checks all course files)
-sedrila maintainer --check-links
+sedrila maintainer --check-links -- /tmp/linkcheck
 
 # Test single file (development/debugging)
-sedrila maintainer --check-links /path/to/file.md
+sedrila maintainer --check-links /path/to/file.md /tmp/linkcheck
 
 # Specify custom config file
-sedrila maintainer --config custom-sedrila.yaml --check-links
+sedrila maintainer --config custom-sedrila.yaml --check-links -- /tmp/linkcheck
+
+# Check only beta stage content
+sedrila maintainer --include-stage beta --check-links -- /tmp/linkcheck
 ```
 
-**Note**: Unlike `sedrila author`, the `maintainer` subcommand does not require an output directory and does not respect `--include_stage` flags. It directly parses `sedrila.yaml` and checks all files listed there.
+**Note**: The `maintainer` subcommand requires a target directory for reports (similar to `sedrila author`). Reports are written to `targetdir_i` (specified directory + "_i" suffix), following sedrila's convention. When checking all files, use `--` to separate options from the directory argument.
 
 ### Custom Validation Rules
 
@@ -272,25 +275,25 @@ sedrila author --include_stage beta /tmp/build
 **Test all programs:**
 ```bash
 # Test all programs with detailed output
-sedrila maintainer --check-programs
+sedrila maintainer --check-programs -- /tmp/progtest
 
 # Batch/CI mode (concise output, errors at end)
-sedrila maintainer --check-programs --batch
+sedrila maintainer --check-programs --batch -- /tmp/progtest
 ```
 
 **Test single program:**
 ```bash
 # Test specific program file
-sedrila maintainer --check-programs altdir/itree.zip/Sprachen/Go/go-channels.go
+sedrila maintainer --check-programs altdir/itree.zip/Sprachen/Go/go-channels.go /tmp/progtest
 
 # Or with relative path
-sedrila maintainer --check-programs altdir/itree.zip/Bibliotheken/Python-Standardbibliothek/m_sqlite3.py
+sedrila maintainer --check-programs altdir/itree.zip/Bibliotheken/Python-Standardbibliothek/m_sqlite3.py /tmp/progtest
 ```
 
 **Custom configuration:**
 ```bash
 # Specify custom config file
-sedrila maintainer --config custom-sedrila.yaml --check-programs
+sedrila maintainer --config custom-sedrila.yaml --check-programs -- /tmp/progtest
 ```
 
 ##### Features

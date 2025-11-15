@@ -25,6 +25,7 @@ Element
       Topmatter
     Outputfile
       CopiedFile
+      ReportFile
       Part
         Course
           CourseSI
@@ -498,6 +499,52 @@ class CopiedFile(Outputfile):
         shutil.copy(self.sourcefile, self.outputfile_s)
         b.debug(f"copying '{self.sourcefile}'\t-> '{self.targetdir_i}'")
         shutil.copy(self.sourcefile, self.outputfile_i)
+
+
+class ReportFile(Outputfile):
+    """Maintainer report file as a build product.
+    
+    Reports are written to targetdir_i only (instructor/maintainer directory).
+    Reports are for maintainers, not for students, so they don't belong in targetdir_s.
+    A subsequent author build will remove these report files via purge_leftover_outputfiles.
+    """
+    
+    def __init__(self, name: str, content: str = "", markdown_files: list[str] = None, **kwargs):
+        """Initialize report file.
+        
+        Args:
+            name: Filename (e.g., "link_check_report.json")
+            content: Report content to write
+            markdown_files: Optional list of markdown files this report depends on
+            **kwargs: Additional arguments (targetdir_s, targetdir_i, directory)
+        """
+        super().__init__(name, **kwargs)
+        self.report_content = content
+        # Add dependencies on source markdown files (enables incremental building)
+        self._add_file_dependencies(markdown_files or [])
+    
+    def _add_file_dependencies(self, markdown_files: list[str]) -> None:
+        """Add dependencies on markdown files, similar to CopiedFile pattern."""
+        for md_file in markdown_files:
+            if not os.path.exists(md_file):
+                continue
+            try:
+                sourcefile_elem = self.directory.get_the(Sourcefile, md_file)
+                self.add_dependency(sourcefile_elem)
+            except Exception:
+                pass  # Dependency tracking is optional, silently skip errors
+    
+    def check_existing_resource(self):
+        """Check only targetdir_i (reports are for maintainers, not students)."""
+        if not os.path.exists(self.outputfile_i):
+            self.state = c.State.MISSING
+        else:
+            self.state = c.State.AS_BEFORE
+    
+    def do_build(self):
+        """Write report content to targetdir_i only."""
+        b.debug(f"generating report '{self.outputfile_i}'")
+        b.spit(self.outputfile_i, self.report_content)
 
 
 class Part(Outputfile):  # abstract class for Course, Chapter, Taskgroup, Task and their Builders, see course.py
