@@ -22,6 +22,9 @@ instructors:
     webaccount: oinstr
     keyfingerprint: ABCDEF0123
     pubkey: .
+    status: |
+      Currently reviewing submissions from last week.
+      Response time may be 2-3 days.
 htaccess_template: |
     Require ldap-user {userlist_quotes_spaces}
 allowed_attempts: "2 + 0.5/h"

@@ -146,18 +146,21 @@ https://github.com/fubinf/propra-inf/blob/main/sedrila.yaml (content in German, 
 
 #### 1.1.4 Entries for `sedrila instructor` and `sedrila student`
 
-- `instructors`: The source of truth for who can give students credit 
-  for their work. A list of dictionaries, each of which has the following entries:  
-  `nameish`: the personal name or nickname of the instructor so students know who they can talk to,  
-  `email`: the email address of the instructor to which students send their submission requests,  
+- `instructors`: The source of truth for who can give students credit
+  for their work. A list of dictionaries, each of which has the following entries:
+  `nameish`: the personal name or nickname of the instructor so students know who they can talk to,
+  `email`: the email address of the instructor to which students send their submission requests,
   `gitaccount`: username on the git server that students must allow read/write access of their
-  repository so the instructor can deposit their signed _"submission.yaml checked"_ commits 
-  of accepted submissions,    
+  repository so the instructor can deposit their signed _"submission.yaml checked"_ commits
+  of accepted submissions,
   `webaccount`: username on the webserver to which the webserver should grant access to the
-  instructor part of the website,    
+  instructor part of the website,
   `keyfingerprint`: fingerprint of the GPG key by which the instructor will sign their commits,
-  which shows up in git listings and is used by sedrila for signature validation,    
-  `pubkey`: The GPG public key used for validate instructor signatures as a PGP PUBLIC KEY BLOCK.
+  which shows up in git listings and is used by sedrila for signature validation,
+  `pubkey`: The GPG public key used for validate instructor signatures as a PGP PUBLIC KEY BLOCK,
+  `status` (optional): A brief message or detailed paragraph about the instructor's current availability
+  (e.g., "on vacation" or a longer explanation). This is displayed to students when viewing instructors
+  during submission. Supports multiline text using YAML multiline syntax (`|` or `>`).
 - `former_instructors` (optional): a second list just like `instructors`,
   with the same structure and meaning of entries. 
   The only difference is that the `former_instructors` will not be mentioned in the list of 

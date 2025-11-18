@@ -2,17 +2,17 @@
 
 
 ## Version 2.11.0 (upcoming)
+- `author`, `student`: add field `instructor.status` in `sedrila.yaml`. Show it when students submit.
 - ...
 
 
-## Version 2.10.2 (upcoming)
+## Version 2.10.2 (2025-10-23)
 - `student`, `instructor`: new webapp, #14: better ordering of tasks
 - `student`, `instructor`: new webapp, #19: fixed issue with CSS mimetype
 - `student`, `instructor`: new webapp, #25: fixed issue with Umlauts in filenames
 - `student`, `instructor`: new webapp, #26: reduced duration of the occasional unwanted service pauses
 - `student`, `instructor`: new webapp: fixed crash when webapp was started a second time
 - `student`, `instructor`: new webapp, #14: tasks with no worktime entry are now shown correctly
-- ...
 
 
 ## Version 2.10.1 (2025-10-14)

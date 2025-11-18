@@ -213,3 +213,8 @@ def _show_instructors(course, with_gitaccount=False):
         b.info(f"  {instructor['nameish']} <{instructor['email']}>")
         if with_gitaccount:
             b.info(f"     git account: {instructor['gitaccount']}")
+        if status := instructor.get('status', None):
+            # Display status with proper indentation for multiline text
+            status_lines = status.strip().split('\n')
+            for line in status_lines:
+                b.info(f"     {line}")
