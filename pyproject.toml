@@ -10,6 +10,7 @@ license = "MIT"
 authors = ["Lutz Prechelt <prechelt@inf.fu-berlin.de>"]
 readme = "README.md"
 homepage = "https://github.com/fubinf/sedrila"
+documentation = "https://sedrila.readthedocs.io/"
 repository = "https://github.com/fubinf/sedrila"
 keywords = ["static site generator, learning management system"]
 classifiers = [  # https://pypi.org/classifiers/
