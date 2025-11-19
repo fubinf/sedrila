@@ -1,12 +1,18 @@
 # sedrila CHANGELOG
 
 
-## Version 2.11.0 (upcoming)
-- `author`, `student`: add field `instructor.status` in `sedrila.yaml`. Show it when students submit.
-- make file reading robust against files not using the prescribed UTF-8 encoding
-- `student`, `instructor`: new webapp: no longer uses sedrila-style markdown rendering, so no longer
-  gets irritated when something accidentally looks like a sedrila macro call
+## Version 2.12.0 (upcoming)
 - ...
+
+
+## Version 2.11.1 (2025-11-19)
+- `student`, `instructor`: Webapp now renders source code files properly again.
+
+## Version 2.11.0 (2025-11-19)
+- `author`, `student`: add field `instructor.status` in `sedrila.yaml`. Show it when students submit.
+- `student`, `instructor`: the webapp no longer uses sedrila-style markdown rendering, so no longer
+  gets irritated when something accidentally looks like a sedrila macro call
+- make file reading robust against files not using the prescribed UTF-8 encoding
 
 
 ## Version 2.10.2 (2025-10-23)
