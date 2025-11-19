@@ -667,7 +667,7 @@ class LinkCheckReporter:
             
             # Top domains
             if stats.domains:
-                f.write("## Top Domains\n\n")
+                f.write("## Top Link Target Domains\n\n")
                 f.write("| Domain | Links | Percentage |\n")
                 f.write("|--------|-------|------------|\n")
                 sorted_domains = sorted(stats.domains.items(), key=lambda x: x[1], reverse=True)
@@ -680,7 +680,7 @@ class LinkCheckReporter:
             failed_results = [r for r in results if not r.success]
             if failed_results:
                 f.write("## Failed Links\n\n")
-                f.write("| Error Type | URL | File | Line |\n")
+                f.write("| Status | URL | File | Line |\n")
                 f.write("|------------|-----|------|------|\n")
                 
                 # Sort by error type first, then by filename
@@ -702,7 +702,7 @@ class LinkCheckReporter:
                 f.write(f"### {file_path}\n\n")
                 for result in sorted(file_results, key=lambda x: x.link.line_number):
                     status = "[PASS]" if result.success else "[FAIL]"
-                    f.write(f"  {status} {result.link.line_number}: {result.link.url}\n")
+                    f.write(f"  {status} {result.link.line_number}: {result.link.url}  \n")
                 f.write("\n")
         
         b.info(f"Detailed Markdown report saved to: {output_file}")
