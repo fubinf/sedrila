@@ -1,14 +1,14 @@
 """Browse the virtual file system of a sdrl.participant.Context; see submissions and mark them."""
 import base64
-import itertools
 import os
 import pathlib
 import subprocess
+import traceback
 import typing as tg
 import html
-from urllib.parse import urlencode
 
 import bottle  # https://bottlepy.org/docs/dev/
+import markdown
 
 import base as b
 import sdrl.argparser
@@ -540,8 +540,10 @@ def serve_task(taskname: str, path: str | None = None):
 
     try:
         file_markup = html_for_file(ctx.studentlist, path) if path else "no files"
-    except:
-        file_markup = html.escape("<binary>")
+    except Exception as ex:
+        tb_lines = traceback.format_exception(type(ex), ex, ex.__traceback__)
+        tb_text = ''.join(tb_lines)
+        file_markup = f"<pre>{html.escape(tb_text)}</pre>"
 
     body = f"""
         <main id="task-main">
@@ -631,10 +633,8 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
             append_diff()
     # ----- render:
     the_toc, the_lines = '\n'.join(toc), '\n'.join(lines)
-    markdown = f"{the_lines}"
-    macros.switch_part("webapp")
-    mddict = md.render_markdown(mypath, filename, markdown, b.Mode.STUDENT, dict())
-    return mddict['html']
+    the_html = markdown.Markdown().reset().convert(the_lines)
+    return the_html
 
 
 def html_for_page(title: str, course_url: str, body: str) -> str:

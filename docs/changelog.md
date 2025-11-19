@@ -4,6 +4,8 @@
 ## Version 2.11.0 (upcoming)
 - `author`, `student`: add field `instructor.status` in `sedrila.yaml`. Show it when students submit.
 - make file reading robust against files not using the prescribed UTF-8 encoding
+- `student`, `instructor`: new webapp: no longer uses sedrila-style markdown rendering, so no longer
+  gets irritated when something accidentally looks like a sedrila macro call
 - ...
 
 
