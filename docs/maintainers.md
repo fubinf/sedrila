@@ -66,11 +66,7 @@ Available rule parameters:
 - `timeout=N`: Use custom timeout in seconds
 - `ignore_ssl=true`: Skip SSL certificate validation
 
-The validation rule applies to the next link found and is then reset.
-
-**Important:** There is no central whitelist for trusted domains. If a link is expected to return
-non-2xx/3xx status codes (e.g., 403), you must explicitly declare this with a `LINK_CHECK` comment.
-The checker will still make the request to verify the actual status code.
+The validation rule applies (only) to the next link found.
 
 
 ## 3. Program Testing: `--check-programs`
