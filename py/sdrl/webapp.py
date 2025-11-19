@@ -8,13 +8,11 @@ import typing as tg
 import html
 
 import bottle  # https://bottlepy.org/docs/dev/
-import markdown
 
 import base as b
 import sdrl.argparser
 import sdrl.constants as c
 import sdrl.course
-import sdrl.macros as macros
 import sdrl.macroexpanders as macroexpanders
 import sdrl.markdown as md
 import sdrl.participant
@@ -633,7 +631,7 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
             append_diff()
     # ----- render:
     the_toc, the_lines = '\n'.join(toc), '\n'.join(lines)
-    the_html = markdown.Markdown().reset().convert(the_lines)
+    the_html = md.render_plain_markdown(the_lines)
     return the_html
 
 
