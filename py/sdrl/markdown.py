@@ -167,9 +167,17 @@ def render_markdown(context_sourcefile: str, partname: str, markdown_markup: str
     html = md.reset().convert(markdown_markup)
     return dict(html=html, includefiles=md.includefiles, termrefs=md.termrefs)
 
+
+def render_plain_markdown(markdown_markup: str) -> str:
+    """Markdown-to-HTML rendering without sedrila macros (etc.)"""
+    my_extensions = extensions[1:]  # all except SedrilaExtension
+    processor = markdown.Markdown(extensions=my_extensions, extension_configs=extension_configs)
+    return processor.reset().convert(markdown_markup)
+
+
 # ######### initialization:
 
-extensions = [SedrilaExtension(), 
+extensions = [SedrilaExtension(), # must be first, see render_plain_markdown()
               'attr_list', 'codehilite', 'fenced_code',
               'sane_lists', 'tables', 'toc', 'smarty',
               ]
