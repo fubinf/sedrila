@@ -125,10 +125,10 @@ def slurp(resource: str) -> str:
             response = requests.get(resource)
             return response.text
         else:
-            with open(resource, 'rt', encoding='utf8') as f:
+            with open(resource, 'rt', encoding='utf8', errors='replace') as f:
                 return f.read()
     except:  # noqa
-        critical(f"'{resource}' does not exist")
+        critical(f"'{resource}' does not exist or is not a plain file")
 
 
 def slurp_bytes(resource: str) -> bytes:
