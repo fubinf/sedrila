@@ -445,7 +445,7 @@ def serve_sedrila_update():
 
     if not student.set_state(taskname, new_state):
         bottle.response.status = 404
-        return "invalid task or state"
+        return f"invalid task ({taskname}) or state ({new_state})"
 
     if "return_file" in data:
         return bottle.redirect(f"/tasks/{taskname}/{html.unescape(data.return_file)}")
