@@ -279,26 +279,24 @@ code there
     validator = snippetchecker.SnippetValidator()
     
     # Test valid content
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', encoding='utf-8') as f:
         f.write(valid_content)
+        f.flush()
+        os.fsync(f.fileno())
         valid_file = f.name
-    
-    try:
+
         errors = validator._validate_snippet_markers_in_file(valid_file)
         assert len(errors) == 0, f"Expected no errors for valid content, got {len(errors)}: {errors}"
-    finally:
-        os.unlink(valid_file)
     
     # Test invalid content
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', encoding='utf-8') as f:
         f.write(invalid_content)
+        f.flush()
+        os.fsync(f.fileno())
         invalid_file = f.name
-    
-    try:
+
         errors = validator._validate_snippet_markers_in_file(invalid_file)
         assert len(errors) > 0, f"Expected errors for invalid content, got {len(errors)}"
-    finally:
-        os.unlink(invalid_file)
 
 
 def test_nested_and_overlapping_snippets():

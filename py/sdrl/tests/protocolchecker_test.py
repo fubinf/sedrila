@@ -116,26 +116,24 @@ test
     validator = protocolchecker.ProtocolValidator()
     
     # Test valid content
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot') as f:
         f.write(valid_content)
+        f.flush()
+        os.fsync(f.fileno())
         valid_file = f.name
-    
-    try:
+
         errors = validator.validate_file(valid_file)
         assert len(errors) == 0, f"Expected no errors for valid content, got {len(errors)}: {errors}"
-    finally:
-        os.unlink(valid_file)
-    
+
     # Test invalid content
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot') as f:
         f.write(invalid_content)
+        f.flush()
+        os.fsync(f.fileno())
         invalid_file = f.name
-    
-    try:
+
         errors = validator.validate_file(invalid_file)
         assert len(errors) > 0, f"Expected errors for invalid content, got {len(errors)}"
-    finally:
-        os.unlink(invalid_file)
 
 
 def test_comparison():
@@ -176,33 +174,29 @@ $ pwd
 """
     
     # Create temporary files
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot', delete=False) as f:
-        f.write(author_content)
-        author_file = f.name
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot', delete=False) as f:
-        f.write(student_content)
-        student_file = f.name
-    
-    try:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot') as author_f, \
+         tempfile.NamedTemporaryFile(mode='w', suffix='.prot') as student_f:
+        author_f.write(author_content)
+        author_f.flush()
+        os.fsync(author_f.fileno())
+        student_f.write(student_content)
+        student_f.flush()
+        os.fsync(student_f.fileno())
+
         checker = protocolchecker.ProtocolChecker()
-        results = checker.compare_files(student_file, author_file)
-        
+        results = checker.compare_files(student_f.name, author_f.name)
+
         assert len(results) == 3, f"Expected 3 results, got {len(results)}"
-        
+
         # First entry - should pass (flexible output matching)
         assert results[0].success, f"First entry should pass with flexible output matching"
-        
+
         # Second entry - should pass (skip output, regex command match)
         assert results[1].success, f"Second entry should pass (skip output, regex command)"
         assert not results[1].requires_manual_check, f"Second entry should NOT require manual check (skip doesn't need manual check)"
-        
+
         # Third entry - should pass (exact match)
         assert results[2].success, f"Third entry should pass with exact match"
-        
-    finally:
-        os.unlink(author_file)
-        os.unlink(student_file)
 
 
 def test_protocol_with_prompt_lines():
@@ -281,29 +275,25 @@ $ ls -la
 """
     
     # Create temporary files
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot', delete=False) as f:
-        f.write(author_content)
-        author_file = f.name
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot', delete=False) as f:
-        f.write(student_content)
-        student_file = f.name
-    
-    try:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot') as author_f, \
+         tempfile.NamedTemporaryFile(mode='w', suffix='.prot') as student_f:
+        author_f.write(author_content)
+        author_f.flush()
+        os.fsync(author_f.fileno())
+        student_f.write(student_content)
+        student_f.flush()
+        os.fsync(student_f.fileno())
+
         checker = protocolchecker.ProtocolChecker()
-        results = checker.compare_files(student_file, author_file)
-        
+        results = checker.compare_files(student_f.name, author_f.name)
+
         assert len(results) == 2, f"Expected 2 results, got {len(results)}"
-        
+
         # First entry - should pass (regex command match, skip output)
         assert results[0].success, f"First entry should pass with regex command matching"
-        
+
         # Second entry - should pass (exact command match, flexible output)
         assert results[1].success, f"Second entry should pass with flexible output matching"
-        
-    finally:
-        os.unlink(author_file)
-        os.unlink(student_file)
 
 
 def test_module_integration_points():
@@ -519,44 +509,40 @@ $ pwd
 """
     
     # Create temporary files
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot', delete=False) as f:
-        f.write(author_content)
-        author_file = f.name
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot', delete=False) as f:
-        f.write(student_content)
-        student_file = f.name
-    
-    try:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot') as author_f, \
+         tempfile.NamedTemporaryFile(mode='w', suffix='.prot') as student_f:
+        author_f.write(author_content)
+        author_f.flush()
+        os.fsync(author_f.fileno())
+        student_f.write(student_content)
+        student_f.flush()
+        os.fsync(student_f.fileno())
+
         checker = protocolchecker.ProtocolChecker()
-        results = checker.compare_files(student_file, author_file)
-        
+        results = checker.compare_files(student_f.name, author_f.name)
+
         assert len(results) == 3, f"Expected 3 results, got {len(results)}"
-        
+
         # First entry: command=manual, should pass and require manual check
         assert results[0].success, f"First entry should pass (manual command)"
         assert results[0].requires_manual_check, f"First entry should require manual check"
         assert results[0].command_match, f"First entry should have command_match=True"
         assert results[0].output_match, f"First entry should have output_match=True"
         assert results[0].manual_check_note == "Manual check required", f"Expected default manual note, got '{results[0].manual_check_note}'"
-        
+
         # Second entry: output=manual, should pass and require manual check even if output differs
         assert results[1].success, f"Second entry should pass (manual output)"
         assert results[1].requires_manual_check, f"Second entry should require manual check"
         assert results[1].manual_check_note == "Please verify output format", f"Expected manual note, got '{results[1].manual_check_note}'"
         assert results[1].command_match, f"Second entry should have command_match=True"
         assert results[1].output_match, f"Second entry should have output_match=True (manual overrides comparison)"
-        
+
         # Third entry: output=skip, should pass but NOT require manual check
         # Note: command matches exactly, output is skipped (different path is OK)
         assert results[2].success, f"Third entry should pass (skip output)"
         assert not results[2].requires_manual_check, f"Third entry should NOT require manual check (skip doesn't need manual check)"
         assert results[2].command_match, f"Third entry should have command_match=True"
         assert results[2].output_match, f"Third entry should have output_match=True (skip always passes)"
-        
-    finally:
-        os.unlink(author_file)
-        os.unlink(student_file)
 
 
 def test_comparison_with_output_regex():
@@ -566,21 +552,19 @@ def test_comparison_with_output_regex():
     
     student_content = """student@host /tmp 10:00:00 1\n$ echo "placeholder"\nResult: 987\n"""
     
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot', delete=False) as f:
-        f.write(author_content)
-        author_file = f.name
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot', delete=False) as f:
-        f.write(student_content)
-        student_file = f.name
-    
-    try:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot') as author_f, \
+         tempfile.NamedTemporaryFile(mode='w', suffix='.prot') as student_f:
+        author_f.write(author_content)
+        author_f.flush()
+        os.fsync(author_f.fileno())
+        student_f.write(student_content)
+        student_f.flush()
+        os.fsync(student_f.fileno())
+
         checker = protocolchecker.ProtocolChecker()
-        results = checker.compare_files(student_file, author_file)
+        results = checker.compare_files(student_f.name, author_f.name)
         assert len(results) == 1, "Should produce exactly one comparison result"
         assert results[0].success, "Regex output matcher should accept any output fitting the pattern"
-    finally:
-        os.unlink(author_file)
-        os.unlink(student_file)
 
 
 def test_comparison_with_multi_variant_commands():
@@ -593,22 +577,20 @@ def test_comparison_with_multi_variant_commands():
     student_content = """student@host /tmp 10:00:00 1\n$ pwd\nfile.txt\n"""
     student_content += """student@host /tmp 10:05:00 2\n$ cat\nfile.txt\n"""
     
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot', delete=False) as f:
-        f.write(author_content)
-        author_file = f.name
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot', delete=False) as f:
-        f.write(student_content)
-        student_file = f.name
-    
-    try:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.prot') as author_f, \
+         tempfile.NamedTemporaryFile(mode='w', suffix='.prot') as student_f:
+        author_f.write(author_content)
+        author_f.flush()
+        os.fsync(author_f.fileno())
+        student_f.write(student_content)
+        student_f.flush()
+        os.fsync(student_f.fileno())
+
         checker = protocolchecker.ProtocolChecker()
-        results = checker.compare_files(student_file, author_file)
+        results = checker.compare_files(student_f.name, author_f.name)
         assert len(results) == 2, "Should produce two results for two entries"
         assert results[0].success, "First entry should pass because 'pwd' is an allowed variant"
         assert not results[1].success, "Second entry should fail because 'cat' is not an allowed variant"
         assert not results[1].command_match, "Failure should come from command mismatch"
         assert results[1].output_match, "Output still matches exactly even though command fails"
-    finally:
-        os.unlink(author_file)
-        os.unlink(student_file)
 
