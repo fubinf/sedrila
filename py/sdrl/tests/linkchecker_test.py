@@ -1,6 +1,6 @@
 # pytest tests for linkchecker
+import os
 import tempfile
-import os.path
 
 import sdrl.linkchecker as linkchecker
 
@@ -16,11 +16,12 @@ def test_404_gets_reported():
 This is a test link that should return 404: [Broken Link]({test_url})
 """
     
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', encoding='utf-8') as f:
         f.write(test_content)
+        f.flush()
+        os.fsync(f.fileno())
         temp_file = f.name
-    
-    try:
+
         # Extract links
         extractor = linkchecker.LinkExtractor()
         links = extractor.extract_links_from_file(temp_file)
@@ -39,13 +40,6 @@ This is a test link that should return 404: [Broken Link]({test_url})
         assert not result.success, "404 link should be reported as failed"
         assert result.status_code == 404, f"Expected 404, got {result.status_code}"
         assert "404" in (result.error_message or ""), "Error message should mention 404"
-        
-    finally:
-        # Cleanup
-        try:
-            os.unlink(temp_file)
-        except:
-            pass
 
 
 def test_404_suppressed():
@@ -60,11 +54,12 @@ def test_404_suppressed():
 This link is expected to return 404: [Expected 404]({test_url})
 """
     
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', encoding='utf-8') as f:
         f.write(test_content)
+        f.flush()
+        os.fsync(f.fileno())
         temp_file = f.name
-    
-    try:
+
         # Extract links
         extractor = linkchecker.LinkExtractor()
         links = extractor.extract_links_from_file(temp_file)
@@ -87,13 +82,6 @@ This link is expected to return 404: [Expected 404]({test_url})
         # Should be reported as successful because 404 was expected
         assert result.success, "Expected 404 link should be reported as successful"
         assert result.status_code == 404, f"Should still return 404, got {result.status_code}"
-        
-    finally:
-        # Cleanup
-        try:
-            os.unlink(temp_file)
-        except:
-            pass
 
 
 def test_content_check_works():
@@ -111,11 +99,12 @@ This link should contain "SeDriLa": [SeDriLa Docs]({test_url_valid})
 This link should not contain the required text: [Should Fail Content Check]({test_url_valid})
 """
     
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', encoding='utf-8') as f:
         f.write(test_content)
+        f.flush()
+        os.fsync(f.fileno())
         temp_file = f.name
-    
-    try:
+
         # Extract links
         extractor = linkchecker.LinkExtractor()
         links = extractor.extract_links_from_file(temp_file)
@@ -147,13 +136,6 @@ This link should not contain the required text: [Should Fail Content Check]({tes
         assert not result2.success, "Link with missing content should fail"
         assert result2.status_code == 200, "Should still return 200 OK from server"
         assert "Required text" in (result2.error_message or ""), "Error should mention required text"
-        
-    finally:
-        # Cleanup
-        try:
-            os.unlink(temp_file)
-        except:
-            pass
 
 
 def test_validation_rule_parsing():
@@ -167,11 +149,12 @@ Test link: [Test](https://example.com)
 Another link: [Test2](https://example.org)
 """
     
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', encoding='utf-8') as f:
         f.write(test_content)
+        f.flush()
+        os.fsync(f.fileno())
         temp_file = f.name
-    
-    try:
+
         extractor = linkchecker.LinkExtractor()
         links = extractor.extract_links_from_file(temp_file)
         
@@ -188,13 +171,6 @@ Another link: [Test2](https://example.org)
         rule2 = links[1].validation_rule
         assert rule2 is not None, "Should have validation rule"
         assert rule2.required_text == "hello world", "Should require 'hello world'"
-        
-    finally:
-        # Cleanup
-        try:
-            os.unlink(temp_file)
-        except:
-            pass
 
 
 def test_href_macro_extraction():
@@ -208,11 +184,12 @@ HREF macro: [HREF::https://sedrila.readthedocs.io]
 Another HREF: [HREF::https://github.com/fubinf/sedrila]
 """
     
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', encoding='utf-8') as f:
         f.write(test_content)
+        f.flush()
+        os.fsync(f.fileno())
         temp_file = f.name
-    
-    try:
+
         extractor = linkchecker.LinkExtractor()
         links = extractor.extract_links_from_file(temp_file)
         
@@ -228,13 +205,6 @@ Another HREF: [HREF::https://github.com/fubinf/sedrila]
         href_links = [link for link in links if link.url.startswith("https://sedrila.readthedocs.io")]
         assert len(href_links) == 1, "Should find sedrila HREF link"
         assert href_links[0].text == href_links[0].url, "HREF macro should use URL as text"
-        
-    finally:
-        # Cleanup
-        try:
-            os.unlink(temp_file)
-        except:
-            pass
 
 
 def test_batch_mode_output():
@@ -244,11 +214,12 @@ def test_batch_mode_output():
 Regular link: [Test](https://example.com)
 """
     
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', encoding='utf-8') as f:
         f.write(test_content)
+        f.flush()
+        os.fsync(f.fileno())
         temp_file = f.name
-    
-    try:
+
         extractor = linkchecker.LinkExtractor()
         links = extractor.extract_links_from_file(temp_file)
         
@@ -261,12 +232,6 @@ Regular link: [Test](https://example.com)
         
         # Batch mode doesn't change result structure, only output verbosity
         assert results[0].link.url == "https://example.com"
-        
-    finally:
-        try:
-            os.unlink(temp_file)
-        except:
-            pass
 
 
 def test_deduplication():
@@ -278,11 +243,12 @@ Second link: [Link2](https://example.com)
 Third link: [Link3](https://example.com)
 """
     
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', encoding='utf-8') as f:
         f.write(test_content)
+        f.flush()
+        os.fsync(f.fileno())
         temp_file = f.name
-    
-    try:
+
         extractor = linkchecker.LinkExtractor()
         links = extractor.extract_links_from_file(temp_file)
         
@@ -298,12 +264,6 @@ Third link: [Link3](https://example.com)
         
         # All should reference the same URL
         assert all(r.link.url == "https://example.com" for r in results)
-        
-    finally:
-        try:
-            os.unlink(temp_file)
-        except:
-            pass
 
 
 # ============================================================================
