@@ -151,40 +151,11 @@ def check_links_command(pargs: argparse.Namespace):
             batch_mode = getattr(pargs, 'batch', False)
             results = checker.check_links(all_links, show_progress=True, batch_mode=batch_mode)
             
-            # Generate and display report
             reporter = linkchecker.LinkCheckReporter()
-            reporter.print_summary(results)
             
-            # Generate report content (in memory via temp files)
             if results:
                 try:
-                    import tempfile
-                    
-                    # Generate JSON report content via temp file
-                    with tempfile.NamedTemporaryFile(mode='w+', suffix='.json', delete=False, encoding='utf-8') as tmp_json:
-                        tmp_json_path = tmp_json.name
-                    reporter.generate_json_report(results, output_file=tmp_json_path)
-                    with open(tmp_json_path, 'r', encoding='utf-8') as f:
-                        json_content = f.read()
-                    os.unlink(tmp_json_path)  # Clean up temp file
-                    
-                    # Generate Markdown report content via temp file
-                    with tempfile.NamedTemporaryFile(mode='w+', suffix='.md', delete=False, encoding='utf-8') as tmp_md:
-                        tmp_md_path = tmp_md.name
-                    reporter.generate_markdown_report(results, output_file=tmp_md_path)
-                    with open(tmp_md_path, 'r', encoding='utf-8') as f:
-                        md_content = f.read()
-                    os.unlink(tmp_md_path)  # Clean up temp file
-                    
-                    # Create ReportFile objects as build products
-                    json_report = directory.make_the(
-                        sdrl.elements.ReportFile,
-                        "link_check_report.json",
-                        content=json_content,
-                        markdown_files=markdown_files,
-                        targetdir_s=targetdir_s,
-                        targetdir_i=targetdir_i
-                    )
+                    md_content = reporter.render_markdown_report(results)
                     
                     md_report = directory.make_the(
                         sdrl.elements.ReportFile,
@@ -195,12 +166,9 @@ def check_links_command(pargs: argparse.Namespace):
                         targetdir_i=targetdir_i
                     )
                     
-                    # Build the report files (writes to disk)
-                    json_report.do_build()
                     md_report.do_build()
                     
-                    b.info(f"Reports generated as build products:")
-                    b.info(f"  JSON: {json_report.outputfile_i}")
+                    b.info("Report generated as build product:")
                     b.info(f"  Markdown: {md_report.outputfile_i}")
                     
                 except Exception as e:
@@ -345,9 +313,11 @@ def check_single_file(filepath: str):
     checker = linkchecker.LinkChecker()
     results = checker.check_links(links, show_progress=True)
     
-    # Display summary (no report files for single file testing)
-    reporter = linkchecker.LinkCheckReporter()
-    reporter.print_summary(results)
+    # Display Markdown summary (no report files for single file testing)
+    if results:
+        reporter = linkchecker.LinkCheckReporter()
+        markdown_report = reporter.render_markdown_report(results)
+        print(markdown_report)
     
     return results
 
