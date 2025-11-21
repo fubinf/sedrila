@@ -514,7 +514,7 @@ class ReportFile(Outputfile):
         """Initialize report file.
         
         Args:
-            name: Filename (e.g., "link_check_report.json")
+            name: Filename (e.g., "link_check_report.md")
             content: Report content to write
             markdown_files: Optional list of markdown files this report depends on
             **kwargs: Additional arguments (targetdir_s, targetdir_i, directory)

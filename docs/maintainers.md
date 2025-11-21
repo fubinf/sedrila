@@ -26,6 +26,7 @@ The configuration file must define `chapterdir` and other course structure setti
 For checking single files: Only that specific file needs to exist.
 
 Function-specific requirements:
+
 - Link checking: Active internet connection
 - Program testing: Runtime environments for tested languages (Python 3.11+, Go 1.23+, etc.) 
   and program files in `altdir/itree.zip` (see section 5.1).
@@ -60,7 +61,9 @@ Common options:
 - `--include-stage <stage>`: Include parts with this and higher stage entries (default: `draft` which includes all stages)
 - `--log <level>`: Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - `--batch`: Use batch/CI-friendly output
+
 Positional arguments:
+
 - `targetdir`: Base directory for reports (required). Reports are written to `targetdir_i` (targetdir + "_i" suffix), following sedrila's convention of separating instructor content from student content.
 
 ## 4. Link Checking: `--check-links`
@@ -87,7 +90,7 @@ With a file argument, it checks only that specific file.
 Uses the `--include-stage` option to control which development stages are checked (default: `draft`, which includes all stages).
 Checks both `chapterdir` and `altdir` files (altdir files discovered via path replacement).
 Uses HEAD requests by default for efficiency, falling back to GET only when content validation is needed.
-Generates fixed-name reports: `link_check_report.json` and `link_check_report.md` in `targetdir_i`.
+Generates a fixed-name markdown report: `link_check_report.md` in `targetdir_i`.
 Supports custom link validation rules via HTML comments in markdown files.
 Avoids checking duplicate URLs and includes comprehensive statistics in reports.
 When checking all files, use `--` to separate options from the positional `targetdir` argument.
@@ -127,7 +130,10 @@ Available rule parameters:
 - `ignore_ssl=true`: Skip SSL certificate validation
 
 The validation rule applies (only) to the next link found.
+<<<<<<< HEAD
 
+=======
+>>>>>>> ff3b89a (`--check-links`: improve output/CI display, feedback implemented)
 
 ## 5. Program Testing: `--check-programs`
 
@@ -135,6 +141,7 @@ Option `--check-programs [program_file]` tests exemplary programs from `altdir/i
 Without an argument, it tests all programs. With a file argument, it tests only that specific file.
   
 How it works:
+
 - Scans `altdir/itree.zip` (directory or ZIP file) for program files and finds corresponding `.prot` files in `altdir/ch/`
 - Programs with found test pairs are automatically tested if no markup is present
 - Use HTML comments in task `.md` files to control test behavior (skip, partial skip, command override)
@@ -142,8 +149,15 @@ How it works:
 - Creates `program_test_report.json` and `program_test_report.md` in `targetdir_i`
   
 Examples:
+
 - `sedrila maintainer --check-programs -- /tmp/progtest` (test all programs)
 - `sedrila maintainer --check-programs altdir/itree.zip/Sprachen/Go/go-channels.go /tmp/progtest` (test single file)
+
+Maybe TODO?
+
+- Stage filtering (`--include-stage`) is not yet implemented for program testing
+- The checker now tests all programs found in `altdir/itree.zip`, regardless of the `--include-stage` parameter
+- Unlike `--check-links`, which filters files at runtime based on stage and course configuration, `--check-programs` tests all programs found in `altdir/itree.zip`
 
 
 ### 5.1 Prerequisites
