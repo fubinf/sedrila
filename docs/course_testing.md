@@ -90,7 +90,6 @@ The validation rule applies to the next link found and is then reset.
 ### Output
 
 Reports are generated with fixed names for easy integration:
-- JSON report: `link_check_report.json`
 - Markdown report: `link_check_report.md`
 - Console summary with integrated statistics
 

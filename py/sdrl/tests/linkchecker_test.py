@@ -635,3 +635,85 @@ def test_add_altdir_files_only_existing():
         # Should only have the original file
         assert len(all_files) == 1, f"Expected 1 file, got {len(all_files)}"
         assert test_file_ch in all_files
+
+
+def test_error_categorization_prefers_status_code():
+    """Ensure status codes take precedence over textual error parsing."""
+    reporter = linkchecker.LinkCheckReporter()
+    link = linkchecker.ExternalLink(
+        url="https://example.com",
+        text="Example",
+        source_file="file.md",
+        line_number=1
+    )
+    
+    # Even if the message contains other hints, the actual status should win.
+    result = linkchecker.LinkCheckResult(
+        link=link,
+        success=False,
+        status_code=404,
+        error_message="Request timed out with status 404"
+    )
+    assert reporter._categorize_error(result) == "404"
+    
+    # Without a status code, the categorization should fall back to message parsing.
+    timeout_result = linkchecker.LinkCheckResult(
+        link=link,
+        success=False,
+        status_code=None,
+        error_message="connection timeout reached"
+    )
+    assert reporter._categorize_error(timeout_result) == "timeout"
+
+
+def test_failed_links_sorted_by_url_in_report():
+    """Failed links table should be sorted by URL and top domains should show failure counts."""
+    reporter = linkchecker.LinkCheckReporter()
+    
+    link_fail_b = linkchecker.ExternalLink(
+        url="https://example.com/zeta",
+        text="Zeta",
+        source_file="b.md",
+        line_number=5
+    )
+    link_fail_a = linkchecker.ExternalLink(
+        url="https://example.com/alpha",
+        text="Alpha",
+        source_file="a.md",
+        line_number=3
+    )
+    link_fail_other = linkchecker.ExternalLink(
+        url="https://another.org/resource",
+        text="Other",
+        source_file="c.md",
+        line_number=2
+    )
+    link_pass = linkchecker.ExternalLink(
+        url="https://example.com/ok",
+        text="Ok",
+        source_file="d.md",
+        line_number=9
+    )
+    
+    results = [
+        linkchecker.LinkCheckResult(link=link_fail_b, success=False, status_code=500, error_message="HTTP 500"),
+        linkchecker.LinkCheckResult(link=link_fail_a, success=False, status_code=404, error_message="HTTP 404"),
+        linkchecker.LinkCheckResult(link=link_fail_other, success=False, status_code=502, error_message="HTTP 502"),
+        linkchecker.LinkCheckResult(link=link_pass, success=True, status_code=200),
+    ]
+    
+    markdown = reporter.render_markdown_report(results)
+    
+    # Verify the Top Domains table reflects failed link counts.
+    assert "| Domain | Links | #Failed Links |" in markdown
+    assert "| example.com | 3 | 2 |" in markdown
+    assert "| another.org | 1 | 1 |" in markdown
+    
+    # Extract failed link rows and ensure they are ordered by URL.
+    failed_section = markdown.split("## Failed Links")[1]
+    rows = [
+        line for line in failed_section.splitlines()
+        if line.startswith("|") and "http" in line
+    ]
+    urls = [row.split("|")[2].strip() for row in rows]
+    assert urls == sorted(urls), "Failed links should be sorted alphabetically by URL"
