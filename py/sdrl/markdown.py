@@ -1,7 +1,6 @@
 """
 Markdown rendering with sedrila-specific bells and/or whistles.
 """
-import os
 import re
 import typing as tg
 from typing import TYPE_CHECKING
@@ -14,14 +13,6 @@ import markdown.postprocessors as mdpost
 import base as b
 import sdrl.macros as macros
 import sdrl.replacements as replacements
-import sdrl.snippetchecker as snippetchecker
-
-if TYPE_CHECKING:
-    import sdrl.course
-
-# Current course context for Markdown processing (fallback when self.md.course is unset)
-current_course = None
-# see bottom for initialization code
 
 
 class SedrilaExtension(mde.Extension):
@@ -35,7 +26,6 @@ class SedrilaPreprocessor(mdpre.Preprocessor):
         content = "\n".join(lines)  # we work on the entire markup at once
         content = self.perhaps_suppress_instructorinfo(content)  
         content = self.make_replacements(content)
-        content = self.expand_snippet_inclusions(content)
         content = macros.expand_macros(self.md.context_sourcefile, self.md.partname, content,
                                        is_early_phase=True)
         return content.split("\n")
@@ -58,49 +48,10 @@ class SedrilaPreprocessor(mdpre.Preprocessor):
             return replacements.get_replacement(self.md.context_sourcefile, mm.group(2), mm.group(1))            
         return re.sub(replacements.replacement_expr_re, the_repl, content, flags=re.DOTALL)
     
-    def expand_snippet_inclusions(self, content: str) -> str:
-        """Expand @INCLUDE_SNIPPET directives by inserting snippet content from other files."""
-        course = self.md.course or current_course
-        if not course:
-            return content
-        
-        context_file = self.md.context_sourcefile
-        b.debug(f"expand_snippet_inclusions called for: {context_file}")
-        
-        # Check if content contains @INCLUDE_SNIPPET before processing
-        if '@INCLUDE_SNIPPET' not in content:
-            b.debug("No @INCLUDE_SNIPPET found in content")
-            return content
-        
-        b.debug("Found @INCLUDE_SNIPPET in content, processing...")
-        result = snippetchecker.expand_snippet_inclusion(content, context_file, course)
-        
-        if result != content:
-            b.debug("Content was modified by snippet expansion")
-        else:
-            b.debug("Content unchanged after snippet expansion")
-        
-        return result
-
-
 class SedrilaPostprocessor(mdpost.Postprocessor):
     def run(self, text: str) -> str:
-        # Also process snippets in postprocessor stage to catch any missed cases
-        if '@INCLUDE_SNIPPET' in text:
-            b.debug("Found @INCLUDE_SNIPPET in postprocessor, re-processing...")
-            text = self.expand_snippet_inclusions_post(text)
-        
         text = macros.expand_macros(self.md.context_sourcefile, self.md.partname, text)
         return text
-    
-    def expand_snippet_inclusions_post(self, text: str) -> str:
-        """Fallback snippet processing in postprocessor stage."""
-        course = self.md.course or current_course
-        if not course:
-            return text
-        
-        context_file = self.md.context_sourcefile
-        return snippetchecker.expand_snippet_inclusion(text, context_file, course)
 
 
 class SedrilaMarkdown(markdown.Markdown):

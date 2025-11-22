@@ -2,8 +2,11 @@
 import tempfile
 import os
 from pathlib import Path
+import types
 import yaml
+import zipfile
 
+import sdrl.macros as macros
 import sdrl.snippetchecker as snippetchecker
 
 
@@ -13,6 +16,7 @@ class MockCourse:
         self.configfile = configfile
         self.chapterdir = chapterdir
         self.altdir = altdir
+        self.itreedir = os.path.join(os.path.dirname(configfile), "itreedir")
 
 
 def _create_test_config(base_dir: str, chapterdir: str = "ch", altdir: str = "altdir") -> str:
@@ -41,26 +45,26 @@ def _create_test_config(base_dir: str, chapterdir: str = "ch", altdir: str = "al
 
 
 def test_snippet_extraction():
-    """Test basic snippet extraction from solution files with HTML comment format."""
+    """Test basic snippet extraction from solution files with inline comment syntax."""
     sample_content = """# Example solution file
 def helper_function():
     return "helper"
 
-<!-- @SNIPPET_START: basic_loop -->
+# SNIPPET::basic_loop
 for i in range(10):
     print(f"Number: {i}")
-<!-- @SNIPPET_END: basic_loop -->
+# ENDSNIPPET
 
 def another_function():
     pass
 
-<!-- @SNIPPET_START: function_example lang=python -->
+# SNIPPET::function_example lang=python
 def calculate_sum(a, b):
     return a + b
 
 result = calculate_sum(5, 3)
 print(result)
-<!-- @SNIPPET_END: function_example -->
+# ENDSNIPPET
 
 # Rest of the file
 print("End of file")
@@ -85,53 +89,37 @@ print("End of file")
     assert snippet2.language == "python", f"Expected language 'python', got '{snippet2.language}'"
 
 
-def test_snippet_reference_extraction():
-    """Test extraction of snippet references from task files."""
-    sample_content = """# Task Description
+def test_snippet_reference_extraction_macro():
+    """Test extraction of snippet references from SNIPPET macros."""
+    sample_content = """Intro text
+[SNIPPET::ALT::basic_loop]
 
-This is how to implement a basic loop:
+Inline example [SNIPPET::ALT:examples/demo.py::function_example]
 
-@INCLUDE_SNIPPET: basic_loop from solution.py
-
-And here's how to define a function:
-
-@INCLUDE_SNIPPET: function_example from examples/demo.py
-
-Reference without explicit path:
-
-@INCLUDE_SNIPPET: implicit_example
-
-More task content here.
+Relative reuse [SNIPPET::lesson/solution.py::helper_example]
 """
-    
+
     ref_extractor = snippetchecker.SnippetReferenceExtractor()
     references = ref_extractor.extract_references_from_content(sample_content, "task.md")
-    
-    assert len(references) == 3, f"Expected 3 references, got {len(references)}"
-    
-    # Check first reference
-    ref1 = references[0]
-    assert ref1.snippet_id == "basic_loop", f"Expected 'basic_loop', got '{ref1.snippet_id}'"
-    assert ref1.referenced_file == "solution.py", f"Expected 'solution.py', got '{ref1.referenced_file}'"
-    assert ref1.source_file == "task.md", f"Expected 'task.md', got '{ref1.source_file}'"
-    
-    # Check second reference
-    ref2 = references[1]
-    assert ref2.snippet_id == "function_example", f"Expected 'function_example', got '{ref2.snippet_id}'"
-    assert ref2.referenced_file == "examples/demo.py", f"Expected 'examples/demo.py', got '{ref2.referenced_file}'"
-    
-    # Check third reference (implicit path)
-    ref3 = references[2]
-    assert ref3.snippet_id == "implicit_example", f"Expected 'implicit_example', got '{ref3.snippet_id}'"
-    assert ref3.referenced_file is None, "Implicit reference should have no explicit file"
+
+    assert len(references) == 3
+
+    assert references[0].snippet_id == "basic_loop"
+    assert references[0].filespec == "ALT:"
+
+    assert references[1].snippet_id == "function_example"
+    assert references[1].filespec == "ALT:examples/demo.py"
+
+    assert references[2].snippet_id == "helper_example"
+    assert references[2].filespec == "lesson/solution.py"
 
 
 def test_snippet_validation_success():
-    """Test successful snippet validation when references are valid."""
-    solution_content = """<!-- @SNIPPET_START: test_snippet -->
+    """Test successful snippet validation when SNIPPET macro references are valid."""
+    solution_content = """# SNIPPET::test_snippet
 def test_function():
     return "Hello, World!"
-<!-- @SNIPPET_END: test_snippet -->
+# ENDSNIPPET
 """
     
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -143,7 +131,7 @@ def test_function():
         with open(answer_file, 'w', encoding='utf-8') as f:
             f.write(solution_content)
         
-        task_content = "@INCLUDE_SNIPPET: test_snippet"
+        task_content = "[SNIPPET::ALT::test_snippet]"
         with open(task_file, 'w', encoding='utf-8') as f:
             f.write(task_content)
         
@@ -158,6 +146,7 @@ def test_function():
                 self.chapterdir = config.get('chapterdir', 'ch')
                 self.altdir = config.get('altdir', 'altdir')
                 self.configfile = config_path
+                self.itreedir = os.path.join(os.path.dirname(config_path), "itreedir")
         
         mock_course = MockCourse(config_path)
         
@@ -179,7 +168,7 @@ def test_snippet_validation_missing_file():
     with tempfile.TemporaryDirectory() as temp_dir:
         task_file = os.path.join(temp_dir, "ch", "lesson", "task.md")
         os.makedirs(os.path.dirname(task_file), exist_ok=True)
-        task_content = "@INCLUDE_SNIPPET: missing_snippet"
+        task_content = "[SNIPPET::ALT::missing_snippet]"
         with open(task_file, 'w', encoding='utf-8') as f:
             f.write(task_content)
         
@@ -194,6 +183,7 @@ def test_snippet_validation_missing_file():
                 self.chapterdir = config.get('chapterdir', 'ch')
                 self.altdir = config.get('altdir', 'altdir')
                 self.configfile = config_path
+                self.itreedir = os.path.join(os.path.dirname(config_path), "itreedir")
         
         mock_course = MockCourse(config_path)
         
@@ -210,10 +200,10 @@ def test_snippet_validation_missing_file():
 
 def test_snippet_validation_missing_snippet():
     """Test snippet validation when snippet ID doesn't exist in file."""
-    solution_content = """<!-- @SNIPPET_START: other_snippet -->
+    solution_content = """<!-- SNIPPET::other_snippet -->
 def other_function():
     pass
-<!-- @SNIPPET_END: other_snippet -->
+<!-- ENDSNIPPET -->
 """
     
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -225,7 +215,7 @@ def other_function():
         with open(answer_file, 'w', encoding='utf-8') as f:
             f.write(solution_content)
         
-        task_content = "@INCLUDE_SNIPPET: missing_snippet"
+        task_content = "[SNIPPET::ALT::missing_snippet]"
         with open(task_file, 'w', encoding='utf-8') as f:
             f.write(task_content)
         
@@ -240,6 +230,7 @@ def other_function():
                 self.chapterdir = config.get('chapterdir', 'ch')
                 self.altdir = config.get('altdir', 'altdir')
                 self.configfile = config_path
+                self.itreedir = os.path.join(os.path.dirname(config_path), "itreedir")
         
         mock_course = MockCourse(config_path)
         
@@ -259,18 +250,18 @@ def test_snippet_marker_validation():
     """Test validation of snippet markers in files."""
     # Valid content
     valid_content = """# Valid file
-<!-- @SNIPPET_START: snippet1 -->
+# SNIPPET::snippet1
 code here
-<!-- @SNIPPET_END: snippet1 -->
+# ENDSNIPPET
 
-<!-- @SNIPPET_START: snippet2 lang=python -->
+// SNIPPET::snippet2 lang=python
 more code
-<!-- @SNIPPET_END: snippet2 -->
+// ENDSNIPPET
 """
     
     # Invalid content - unclosed snippet (simpler case)
     invalid_content = """# Invalid file
-<!-- @SNIPPET_START: unclosed_snippet -->
+# SNIPPET::unclosed_snippet
 code here
 code there
 # This snippet is never closed
@@ -301,41 +292,46 @@ code there
 
 def test_nested_and_overlapping_snippets():
     """Test handling of nested and overlapping snippet markers."""
-    # Content with nested snippets (should warn)
+    # Content with nested snippets (should support both snippets)
     nested_content = """# File with nested snippets
-<!-- @SNIPPET_START: outer -->
+# SNIPPET::outer
 outer code
-<!-- @SNIPPET_START: inner -->
+// SNIPPET::inner
 inner code
-<!-- @SNIPPET_END: inner -->
+// ENDSNIPPET
 more outer code
-<!-- @SNIPPET_END: outer -->
+# ENDSNIPPET
 """
     
-    # Content with overlapping snippets (should warn)
+    # Content with overlapping snippets (should report errors)
     overlapping_content = """# File with overlapping snippets
-<!-- @SNIPPET_START: first -->
+# SNIPPET::first
 first code
-<!-- @SNIPPET_START: second -->
+# SNIPPET::second
 overlapping code
-<!-- @SNIPPET_END: first -->
+# ENDSNIPPET::first
 more second code
-<!-- @SNIPPET_END: second -->
+# ENDSNIPPET::second
 """
     
     extractor = snippetchecker.SnippetExtractor()
     
-    # Test nested snippets: current implementation handles outer snippet only
-    nested_snippets, _ = extractor.extract_snippets_from_content(nested_content, "nested.py", collect_errors=False)
-    # Current behavior: outer snippet includes inner markers as content
-    snippet_ids = [s.snippet_id for s in nested_snippets]
-    assert "outer" in snippet_ids, "Should extract outer snippet"
-    # Note: nested snippets not currently supported separately
+    nested_snippets, nested_errors = extractor.extract_snippets_from_content(
+        nested_content,
+        "nested.py",
+        collect_errors=True
+    )
+    snippet_ids = {s.snippet_id for s in nested_snippets}
+    assert nested_errors == [], f"Nested snippets should not raise errors: {nested_errors}"
+    assert snippet_ids == {"outer", "inner"}, f"Expected both snippets, got {snippet_ids}"
     
-    # Test overlapping snippets
-    overlapping_snippets, _ = extractor.extract_snippets_from_content(overlapping_content, "overlapping.py", collect_errors=False)
-    # Should handle overlapping markers (behavior may vary but shouldn't crash)
+    overlapping_snippets, overlap_errors = extractor.extract_snippets_from_content(
+        overlapping_content,
+        "overlapping.py",
+        collect_errors=True
+    )
     assert isinstance(overlapping_snippets, list), "Should return list of snippets"
+    assert overlap_errors, "Overlapping snippets should report errors"
 
 
 def test_multiple_references_in_single_file():
@@ -343,16 +339,16 @@ def test_multiple_references_in_single_file():
     task_content = """# Complex Task
 
 First, implement the helper:
-@INCLUDE_SNIPPET: helper from utils.py
+[SNIPPET::ALT:utils.py::helper]
 
 Then use it in the main function:
-@INCLUDE_SNIPPET: main_function from solution.py
+[SNIPPET::ALT:solution.py::main_function]
 
 And add error handling:
-@INCLUDE_SNIPPET: error_handling from solution.py
+[SNIPPET::ALT:solution.py::error_handling]
 
 Finally, test it:
-@INCLUDE_SNIPPET: test_case from tests.py
+[SNIPPET::tests.py::test_case]
 """
     
     ref_extractor = snippetchecker.SnippetReferenceExtractor()
@@ -362,13 +358,13 @@ Finally, test it:
     
     # Check all references are found
     expected_refs = [
-        ("helper", "utils.py"),
-        ("main_function", "solution.py"),
-        ("error_handling", "solution.py"),
+        ("helper", "ALT:utils.py"),
+        ("main_function", "ALT:solution.py"),
+        ("error_handling", "ALT:solution.py"),
         ("test_case", "tests.py")
     ]
     
-    actual_refs = [(r.snippet_id, r.referenced_file) for r in references]
+    actual_refs = [(r.snippet_id, r.filespec) for r in references]
     
     for expected in expected_refs:
         assert expected in actual_refs, f"Expected reference {expected} not found in {actual_refs}"
@@ -382,16 +378,16 @@ def test_directory_validation():
         # Valid file
         valid_file = os.path.join(temp_dir, "valid.py")
         with open(valid_file, 'w') as f:
-            f.write("""<!-- @SNIPPET_START: valid_snippet -->
+            f.write("""<!-- SNIPPET::valid_snippet -->
 def valid_function():
     pass
-<!-- @SNIPPET_END: valid_snippet -->
+<!-- ENDSNIPPET -->
 """)
         
         # Invalid file
         invalid_file = os.path.join(temp_dir, "invalid.py")
         with open(invalid_file, 'w') as f:
-            f.write("""<!-- @SNIPPET_START: unclosed_snippet -->
+            f.write("""<!-- SNIPPET::unclosed_snippet -->
 def broken_function():
     pass
 # Missing end marker
@@ -413,181 +409,337 @@ def broken_function():
         assert no_snippet_file not in file_errors or not file_errors[no_snippet_file], "File without snippets should have no errors"
 
 
-def test_snippet_inclusion_expansion():
-    """Test expansion with implicit altdir path resolution."""
-    solution_content = """<!-- @SNIPPET_START: test_func -->
-def test_function():
-    return 42
-<!-- @SNIPPET_END: test_func -->
-
-<!-- @SNIPPET_START: hello_func lang=python -->
-def hello():
-    print("Hello, World!")
-<!-- @SNIPPET_END: hello_func -->
+def test_snippet_macro_expansion_records_dependency():
+    """[SNIPPET::...] should expand and record includefiles just like INCLUDE."""
+    solution_content = """# SNIPPET::macro_snip
+def from_macro():
+    return 7 * 6
+# ENDSNIPPET
 """
-    
-    task_content = """# Task Description
 
-Implement the following function:
-
-@INCLUDE_SNIPPET: test_func
-
-And also this one:
-
-@INCLUDE_SNIPPET: hello_func
-
-Good luck!
-"""
-    
-    with tempfile.TemporaryDirectory() as temp_dir:
-        task_file = os.path.join(temp_dir, "ch", "Web", "Django", "task.md")
-        answer_file = os.path.join(temp_dir, "altdir", "Web", "Django", "task.md")
-        os.makedirs(os.path.dirname(task_file), exist_ok=True)
-        os.makedirs(os.path.dirname(answer_file), exist_ok=True)
-        
-        with open(answer_file, 'w', encoding='utf-8') as f:
-            f.write(solution_content)
-        
-        config_path = _create_test_config(temp_dir)
-        course = MockCourse(config_path)
-        result = snippetchecker.expand_snippet_inclusion(task_content, task_file, course)
-        
-        assert "def test_function():" in result, "Should contain expanded test_func snippet"
-        assert "return 42" in result, "Should contain test_func content"
-        assert "def hello():" in result, "Should contain expanded hello_func snippet"
-        assert 'print("Hello, World!")' in result, "Should contain hello_func content"
-        assert "@INCLUDE_SNIPPET" not in result, "Directive should be replaced"
-        assert "# Task Description" in result, "Should preserve text before snippet"
-        assert "Good luck!" in result, "Should preserve text after snippet"
-
-
-def test_snippet_inclusion_with_altdir():
-    """Test snippet inclusion from altdir/ path."""
-    # Create directory structure: basedir/altdir/solutions/
-    solution_content = """<!-- @SNIPPET_START: altdir_snippet -->
-def from_altdir():
-    return "altdir works"
-<!-- @SNIPPET_END: altdir_snippet -->
-"""
-    
-    task_content = """# Task
-@INCLUDE_SNIPPET: altdir_snippet from altdir/solutions/helper.py
-"""
-    
-    with tempfile.TemporaryDirectory() as temp_dir:
-        # Create altdir structure
-        altdir_path = os.path.join(temp_dir, "altdir", "solutions")
-        os.makedirs(altdir_path, exist_ok=True)
-        
-        # Write solution file in altdir
-        solution_file = os.path.join(altdir_path, "helper.py")
-        with open(solution_file, 'w', encoding='utf-8') as f:
-            f.write(solution_content)
-        
-        # Expand (project root is temp_dir)
-        task_file = os.path.join(temp_dir, "ch", "task.md")
-        os.makedirs(os.path.dirname(task_file), exist_ok=True)
-        
-        config_path = _create_test_config(temp_dir)
-        course = MockCourse(config_path)
-        result = snippetchecker.expand_snippet_inclusion(task_content, task_file, course)
-        
-        # Verify altdir path was resolved correctly
-        assert "def from_altdir():" in result, "Should expand snippet from altdir"
-        assert 'return "altdir works"' in result, "Should contain snippet content"
-        assert "@INCLUDE_SNIPPET" not in result, "Directive should be replaced"
-
-
-def test_snippet_inclusion_missing_file():
-    """Test error handling when referenced file doesn't exist."""
     with tempfile.TemporaryDirectory() as temp_dir:
         task_file = os.path.join(temp_dir, "ch", "lesson", "task.md")
-        os.makedirs(os.path.dirname(task_file), exist_ok=True)
-        
-        task_content = "@INCLUDE_SNIPPET: missing_snippet"
-        config_path = _create_test_config(temp_dir)
-        course = MockCourse(config_path)
-        result = snippetchecker.expand_snippet_inclusion(task_content, task_file, course)
-        
-        # Should return error comment
-        assert "<!-- ERROR:" in result, "Should contain error comment"
-        assert "not found" in result, "Error should mention file not found"
-
-
-def test_snippet_inclusion_missing_snippet_id():
-    """Test error handling when snippet ID doesn't exist."""
-    solution_content = """<!-- @SNIPPET_START: existing_snippet -->
-def exists():
-    pass
-<!-- @SNIPPET_END: existing_snippet -->
-"""
-    
-    with tempfile.TemporaryDirectory() as temp_dir:
-        task_file = os.path.join(temp_dir, "ch", "topic", "task.md")
-        answer_file = os.path.join(temp_dir, "altdir", "topic", "task.md")
+        answer_file = os.path.join(temp_dir, "altdir", "lesson", "task.md")
         os.makedirs(os.path.dirname(task_file), exist_ok=True)
         os.makedirs(os.path.dirname(answer_file), exist_ok=True)
-        
+
         with open(answer_file, 'w', encoding='utf-8') as f:
             f.write(solution_content)
-        
-        task_content = "@INCLUDE_SNIPPET: nonexistent_id"
+
         config_path = _create_test_config(temp_dir)
         course = MockCourse(config_path)
-        result = snippetchecker.expand_snippet_inclusion(task_content, task_file, course)
-        
-        # Should return error comment
-        assert "<!-- ERROR:" in result, "Should contain error comment"
-        assert "not found" in result, "Error should mention snippet not found"
+
+        md_mock = types.SimpleNamespace(includefiles=set())
+        macrocall = macros.Macrocall(
+            md=md_mock,
+            filename=task_file,
+            partname="lesson_task",
+            macrocall_text="[SNIPPET::ALT::macro_snip]",
+            macroname="SNIPPET",
+            arg1="ALT:",
+            arg2="macro_snip"
+        )
+
+        result = snippetchecker.expand_snippet_macro(course, macrocall)
+
+        assert "return 7 * 6" in result
+        expected_path = os.path.normpath(answer_file)
+        assert expected_path in md_mock.includefiles
 
 
-def test_snippet_inclusion_unsupported_path():
-    """Unsupported explicit paths should produce an error comment."""
+def test_snippet_macro_itree_zip_extraction():
+    """ITREE snippets should work even if the configured itreedir is a zip file."""
+    snippet_source = """# SNIPPET::zip_snip
+print("from zip")
+# ENDSNIPPET
+"""
+
     with tempfile.TemporaryDirectory() as temp_dir:
-        task_file = os.path.join(temp_dir, "ch", "module", "task.md")
+        # Prepare course structure
+        chapter_dir = os.path.join(temp_dir, "ch", "Basis", "IDE")
+        os.makedirs(chapter_dir, exist_ok=True)
+        os.makedirs(os.path.join(temp_dir, "out", "instructor"), exist_ok=True)
+        config_path = _create_test_config(temp_dir)
+
+        # Write zipped itreedir
+        zip_path = os.path.join(temp_dir, "itree.zip")
+        with zipfile.ZipFile(zip_path, 'w') as zf:
+            zf.writestr("Basis/IDE/code.py", snippet_source)
+
+        # Dummy source markdown file to resolve relative paths
+        task_file = os.path.join(chapter_dir, "task.md")
+        with open(task_file, 'w', encoding='utf-8') as f:
+            f.write("Task content")
+
+        course = types.SimpleNamespace(
+            configfile=config_path,
+            chapterdir="ch",
+            altdir="altdir",
+            itreedir="itree.zip",
+            targetdir_i="out/instructor"
+        )
+
+        errors = []
+        snippet, fullpath = snippetchecker._load_snippet(
+            "zip_snip",
+            "ITREE:/Basis/IDE/code.py",
+            task_file,
+            course,
+            notify_error=errors.append
+        )
+
+        assert not errors, f"Unexpected errors: {errors}"
+        assert snippet is not None
+        assert 'print("from zip")' in snippet.content
+
+        expected_extracted = os.path.join(temp_dir, "out", "instructor", "itree", "Basis", "IDE", "code.py")
+        assert os.path.exists(expected_extracted), "Expected extracted itree file"
+        assert os.path.normpath(fullpath) == os.path.normpath(expected_extracted)
+
+
+def test_snippet_macro_with_lang_wraps_code_block():
+    """Snippet with lang metadata should be wrapped in fenced block."""
+    solution_content = """# SNIPPET::macro_lang lang=python
+print("wrapped")
+# ENDSNIPPET
+"""
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        task_file = os.path.join(temp_dir, "ch", "lesson", "task.md")
+        answer_file = os.path.join(temp_dir, "altdir", "lesson", "task.md")
         os.makedirs(os.path.dirname(task_file), exist_ok=True)
-        
-        task_content = "@INCLUDE_SNIPPET: relative_snippet from ../solutions/code.py"
+        os.makedirs(os.path.dirname(answer_file), exist_ok=True)
+
+        with open(answer_file, 'w', encoding='utf-8') as f:
+            f.write(solution_content)
+
         config_path = _create_test_config(temp_dir)
         course = MockCourse(config_path)
-        result = snippetchecker.expand_snippet_inclusion(task_content, task_file, course)
-        
-        assert "<!-- ERROR:" in result
-        assert "Unsupported snippet path" in result
+
+        md_mock = types.SimpleNamespace(includefiles=set())
+        macrocall = macros.Macrocall(
+            md=md_mock,
+            filename=task_file,
+            partname="lesson_task",
+            macrocall_text="[SNIPPET::ALT::macro_lang]",
+            macroname="SNIPPET",
+            arg1="ALT:",
+            arg2="macro_lang"
+        )
+
+        result = snippetchecker.expand_snippet_macro(course, macrocall)
+
+        expected = "```python\nprint(\"wrapped\")\n```"
+        assert result == expected
 
 
-def test_circular_reference_detection():
-    """Test detection of circular snippet references."""
-    import tempfile
-    
-    # Create files with circular references
-    file1_content = """# File 1
-@INCLUDE_SNIPPET: snippet2 from file2.md
+def test_snippet_macro_lang_skips_existing_fence():
+    """Snippets that already contain fenced blocks should not be double wrapped."""
+    solution_content = """# SNIPPET::macro_lang_fenced lang=python
+```python
+print("already fenced")
+```
+# ENDSNIPPET
 """
-    
-    file2_content = """# File 2
-@INCLUDE_SNIPPET: snippet1 from file1.md
-"""
-    
+
     with tempfile.TemporaryDirectory() as temp_dir:
-        file1 = os.path.join(temp_dir, "file1.md")
-        file2 = os.path.join(temp_dir, "file2.md")
-        
-        with open(file1, 'w', encoding='utf-8') as f:
-            f.write(file1_content)
-        with open(file2, 'w', encoding='utf-8') as f:
-            f.write(file2_content)
-        
-        # This would cause infinite loop if not handled
-        # Currently, expand_snippet_inclusion doesn't detect cycles
-        # This test documents the current behavior and can be updated when cycle detection is added
-        config_path = _create_test_config(temp_dir, chapterdir="", altdir="altdir")
-        course = MockCourse(config_path, chapterdir="", altdir="altdir")
-        result = snippetchecker.expand_snippet_inclusion(file1_content, file1, course)
-        
-        # Should return an error comment or original content
-        # (Currently no cycle detection implemented, so this documents expected behavior)
-        assert "@INCLUDE_SNIPPET" in result or "ERROR" in result
+        task_file = os.path.join(temp_dir, "ch", "lesson", "task.md")
+        answer_file = os.path.join(temp_dir, "altdir", "lesson", "task.md")
+        os.makedirs(os.path.dirname(task_file), exist_ok=True)
+        os.makedirs(os.path.dirname(answer_file), exist_ok=True)
+
+        with open(answer_file, 'w', encoding='utf-8') as f:
+            f.write(solution_content)
+
+        config_path = _create_test_config(temp_dir)
+        course = MockCourse(config_path)
+
+        md_mock = types.SimpleNamespace(includefiles=set())
+        macrocall = macros.Macrocall(
+            md=md_mock,
+            filename=task_file,
+            partname="lesson_task",
+            macrocall_text="[SNIPPET::ALT::macro_lang_fenced]",
+            macroname="SNIPPET",
+            arg1="ALT:",
+            arg2="macro_lang_fenced"
+        )
+
+        result = snippetchecker.expand_snippet_macro(course, macrocall)
+
+        expected = "```python\nprint(\"already fenced\")\n```"
+        assert result == expected
+
+
+def test_snippet_macro_without_lang_wraps_code_block():
+    """Snippet without lang metadata should still be fenced."""
+    solution_content = """# SNIPPET::macro_plain
+print("plain")
+# ENDSNIPPET
+"""
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        task_file = os.path.join(temp_dir, "ch", "lesson", "task.md")
+        answer_file = os.path.join(temp_dir, "altdir", "lesson", "task.md")
+        os.makedirs(os.path.dirname(task_file), exist_ok=True)
+        os.makedirs(os.path.dirname(answer_file), exist_ok=True)
+
+        with open(answer_file, 'w', encoding='utf-8') as f:
+            f.write(solution_content)
+
+        config_path = _create_test_config(temp_dir)
+        course = MockCourse(config_path)
+
+        md_mock = types.SimpleNamespace(includefiles=set())
+        macrocall = macros.Macrocall(
+            md=md_mock,
+            filename=task_file,
+            partname="lesson_task",
+            macrocall_text="[SNIPPET::ALT::macro_plain]",
+            macroname="SNIPPET",
+            arg1="ALT:",
+            arg2="macro_plain"
+        )
+
+        result = snippetchecker.expand_snippet_macro(course, macrocall)
+
+        expected = "```\nprint(\"plain\")\n```"
+        assert result == expected
+
+
+def test_snippet_macro_plain_skips_existing_fence():
+    """Pre-fenced snippets without lang metadata should remain unchanged."""
+    solution_content = """# SNIPPET::macro_plain_fenced
+```python
+print("already fenced plain")
+```
+# ENDSNIPPET
+"""
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        task_file = os.path.join(temp_dir, "ch", "lesson", "task.md")
+        answer_file = os.path.join(temp_dir, "altdir", "lesson", "task.md")
+        os.makedirs(os.path.dirname(task_file), exist_ok=True)
+        os.makedirs(os.path.dirname(answer_file), exist_ok=True)
+
+        with open(answer_file, 'w', encoding='utf-8') as f:
+            f.write(solution_content)
+
+        config_path = _create_test_config(temp_dir)
+        course = MockCourse(config_path)
+
+        md_mock = types.SimpleNamespace(includefiles=set())
+        macrocall = macros.Macrocall(
+            md=md_mock,
+            filename=task_file,
+            partname="lesson_task",
+            macrocall_text="[SNIPPET::ALT::macro_plain_fenced]",
+            macroname="SNIPPET",
+            arg1="ALT:",
+            arg2="macro_plain_fenced"
+        )
+
+        result = snippetchecker.expand_snippet_macro(course, macrocall)
+
+        expected = "```python\nprint(\"already fenced plain\")\n```"
+        assert result == expected
+
+
+def test_snippet_macro_missing_file():
+    """Missing snippet file should trigger macro error."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        config_path = _create_test_config(temp_dir)
+        course = MockCourse(config_path)
+        task_file = os.path.join(temp_dir, "ch", "lesson", "task.md")
+        os.makedirs(os.path.dirname(task_file), exist_ok=True)
+
+        md_mock = types.SimpleNamespace(includefiles=set())
+        macrocall = macros.Macrocall(
+            md=md_mock,
+            filename=task_file,
+            partname="lesson_task",
+            macrocall_text="[SNIPPET::ALT:lesson/missing.py::missing_snippet]",
+            macroname="SNIPPET",
+            arg1="ALT:lesson/missing.py",
+            arg2="missing_snippet"
+        )
+        errors = []
+        macrocall.error = errors.append
+
+        result = snippetchecker.expand_snippet_macro(course, macrocall)
+
+        assert result == ""
+        assert errors, "Expected error for missing file"
+        assert "File not found" in errors[0]
+
+
+def test_snippet_macro_missing_snippet_id():
+    """Missing snippet in existing file should trigger error."""
+    solution_content = """# SNIPPET::existing_snippet
+def exists():
+    return 1
+# ENDSNIPPET
+"""
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        task_file = os.path.join(temp_dir, "ch", "lesson", "task.md")
+        answer_file = os.path.join(temp_dir, "altdir", "lesson", "task.md")
+        os.makedirs(os.path.dirname(task_file), exist_ok=True)
+        os.makedirs(os.path.dirname(answer_file), exist_ok=True)
+
+        with open(answer_file, 'w', encoding='utf-8') as f:
+            f.write(solution_content)
+
+        config_path = _create_test_config(temp_dir)
+        course = MockCourse(config_path)
+
+        md_mock = types.SimpleNamespace(includefiles=set())
+        macrocall = macros.Macrocall(
+            md=md_mock,
+            filename=task_file,
+            partname="lesson_task",
+            macrocall_text="[SNIPPET::ALT::missing_snippet]",
+            macroname="SNIPPET",
+            arg1="ALT:",
+            arg2="missing_snippet"
+        )
+        errors = []
+        macrocall.error = errors.append
+
+        result = snippetchecker.expand_snippet_macro(course, macrocall)
+
+        assert result == ""
+        assert errors, "Expected error for missing snippet"
+        assert "missing_snippet" in errors[0]
+
+
+def test_snippet_macro_invalid_path_prefix():
+    """ITREE prefix without configured itreedir should error."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        config_path = _create_test_config(temp_dir)
+        course = MockCourse(config_path)
+        course.itreedir = None
+        task_file = os.path.join(temp_dir, "ch", "lesson", "task.md")
+        os.makedirs(os.path.dirname(task_file), exist_ok=True)
+
+        md_mock = types.SimpleNamespace(includefiles=set())
+        macrocall = macros.Macrocall(
+            md=md_mock,
+            filename=task_file,
+            partname="lesson_task",
+            macrocall_text="[SNIPPET::ITREE:foo.py::snippet]",
+            macroname="SNIPPET",
+            arg1="ITREE:foo.py",
+            arg2="snippet"
+        )
+        errors = []
+        macrocall.error = errors.append
+
+        result = snippetchecker.expand_snippet_macro(course, macrocall)
+
+        assert result == ""
+        assert errors, "Expected error for invalid filespec"
+        assert "ITREE" in errors[0]
 
 
 def test_snippet_with_special_characters():
@@ -595,10 +747,10 @@ def test_snippet_with_special_characters():
     import tempfile
     
     content = """# Solution
-<!-- @SNIPPET_START: special_chars -->
+# SNIPPET::special_chars
 def test():
     return "Special: <>&\"'äöü 日本語"
-<!-- @SNIPPET_END: special_chars -->
+# ENDSNIPPET
 """
     
     extractor = snippetchecker.SnippetExtractor()

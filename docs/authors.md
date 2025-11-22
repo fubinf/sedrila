@@ -901,35 +901,54 @@ Both versions will by default exclude all tasks, taskgroups, and chapters that h
 The `sedrila author` command validates course content incrementally during each build.
 Validation runs only when relevant files change and respects the `--include_stage` setting.
 
-#### 2.3.1 Code snippet validation: `@INCLUDE_SNIPPET`
+#### 2.3.1 Code snippet validation: `[SNIPPET::filespec::snippetname]`
 
-`@INCLUDE_SNIPPET: snippet_id` inserts a snippet from the solution file in `altdir` to task file.(`{altdir}/.../Task.md` → `{chapterdir}/.../Task.md`).  
-`@INCLUDE_SNIPPET: snippet_id from filename` keeps the explicit form and is useful when you need to point to a different `altdir/...` file.
-
-Mark snippets in solution files with HTML comments:
+`[SNIPPET::filespec::snippetname]` mirrors the syntax of `[INCLUDE::…]`:  
+`filespec` accepts absolute or relative paths, uses prefixes `ALT:` and `ITREE:` for the respective trees. `snippetname` must be a conventional identifier (letters, digits, underscores only).  
+Use the `SNIPPET` macro to insert code snippets:
 
 ```markdown
-<!-- @SNIPPET_START: snippet_id -->
-code content here
-<!-- @SNIPPET_END: snippet_id -->
+[SNIPPET::ALT::mysnippet]          <!-- mirrors current task filename under altdir -->
+[SNIPPET::ITREE:demo.py::mysnippet]  <!-- relative path -->
+[SNIPPET::ITREE:Basis/IDE/demo.py::mysnippet]  <!-- absolute path -->
 ```
 
-Optional language specification:
-```markdown
-<!-- @SNIPPET_START: snippet_id lang=python -->
+`filespec` follows the same rules as `[INCLUDE::...]`:
+
+1. Plain relative or absolute paths are resolved relative to the task file’s location in `chapterdir`.
+2. Prefix `ALT:` switches to the corresponding path under `altdir`.
+3. Prefix `ITREE:` targets `itreedir`.
+4. An empty `filespec` (`[SNIPPET::::snippet]`) reuses the current filename and directory.
+5. Short forms such as `[SNIPPET::ITREE::mysnippet]` reuse the current task’s relative path under `itreedir`. Supplying only the filename (`[SNIPPET::ITREE:demo.py::mysnippet]`) or a full absolute path (`[SNIPPET::ITREE:Basis/IDE/demo.py::mysnippet]`) works exactly the same way as with `[INCLUDE]`.
+
+When expanding, the macro now wraps snippet contents inside fenced code blocks:
+
+- `lang=python` on the declaration line emits ```python fenced blocks.
+- Missing `lang=` still produces triple backticks without a language hint.
+- If the snippet body already starts with three backticks (common in Markdown stored in `altdir`), it is inserted unchanged.
+
+Mark snippets inside solution files with single-line comments whose contents are `SNIPPET::name` and `ENDSNIPPET` (optionally `ENDSNIPPET::name`). Supported comment syntaxes include the usual one-line markers of many languages (`#`, `//`, `--`, `;`, `!`, `'`, …) as well as HTML comments `<!-- -->` for Markdown files. Examples:
+
+```python
+# SNIPPET::mysnippet
+def helper():
+    return 42
+# ENDSNIPPET
 ```
 
-Use markup in task files, both methods can be used in the same task file:
-- `@INCLUDE_SNIPPET: snippet_id`
-- `@INCLUDE_SNIPPET: snippet_id from altdir/../task.md`
+```c
+// SNIPPET::loop_example
+for (int i = 0; i < n; ++i) {
+    printf("%d\n", i);
+}
+// ENDSNIPPET
+```
 
-Path resolution (Corresponding to the two forms above):
-1. No explicit path: the same relative location is assumed, but under `altdir` instead of `chapterdir`
-- example: `@INCLUDE_SNIPPET: snippet_id`
-2. Paths starting with `altdir/`: Resolved relative to the project root (directory containing `sedrila.yaml`)
-- example: `@INCLUDE_SNIPPET: snippet_id from altdir/../task.md`
+(Optional but very recommended) add `lang=python` after the snippet name if you want to store the language metadata: `# SNIPPET::mysnippet lang=python`. This ensures the snippet is highlighted in the proper way for its language.
 
-The snippet content (excluding the HTML comment markers) is inserted verbatim, preserving formatting.
+Snippet content (excluding marker lines) is inserted verbatim, preserving formatting, and the referenced file is tracked as a dependency just like for `[INCLUDE::...]`.
+If `itreedir` points to a zip, it is extracted once into the instructor directory `course.targetdir_i/<zipname>` and then used like a normal directory.
+If it already is a directory, it is used directly.
 
 Automatic validation during builds:
 - Checks that referenced snippet IDs exist in the specified files
@@ -939,7 +958,7 @@ Automatic validation during builds:
   - Tasks matching the stage filter: **errors**
   - Tasks excluded by the stage filter: **warnings**
 - Runs incrementally: validation triggers only when task or solution files change
-- Persistent errors are always reported in every build
+- Persistent errors are always reported in every build (regardless of stage)
 
 #### 2.3.2 Protocol markup validation: `@PROT_CHECK`
 

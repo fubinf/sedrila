@@ -5,9 +5,16 @@ Allows extracting code snippets from solution files and including them in task f
 import dataclasses
 import os
 import re
-from typing import Optional
+import shutil
+import zipfile
+from typing import Callable, Optional
 
 import base as b
+import sdrl.constants as c
+import sdrl.macros as macros
+
+IDENTIFIER_RE = re.compile(r'^[A-Za-z0-9_]+$')
+_ITREE_EXTRACTION_CACHE: dict[str, tuple[str, float]] = {}
 
 
 @dataclasses.dataclass
@@ -23,86 +30,164 @@ class CodeSnippet:
 
 class SnippetExtractor:
     """Extracts code snippets from files."""
-    
-    # Pattern for HTML comment style: <!-- @SNIPPET_START: snippet_id lang=python -->
-    SNIPPET_START_RE = re.compile(
-        r'<!--\s*@SNIPPET_START:\s*(?P<id>\w+)(?:\s+lang=(?P<lang>\w+))?\s*-->'
+
+    GENERIC_START_RE = re.compile(
+        r'^SNIPPET::(?P<id>[A-Za-z0-9_]+)(?:\s+lang=(?P<lang>[\w\-]+))?$'
     )
-    SNIPPET_END_RE = re.compile(
-        r'<!--\s*@SNIPPET_END:\s*(?P<id>\w+)\s*-->'
+    GENERIC_END_RE = re.compile(
+        r'^ENDSNIPPET(?:\s*::\s*(?P<id>[A-Za-z0-9_]+))?$'
     )
-    
-    def extract_snippets_from_content(self, content: str, filename: str, collect_errors: bool = False) -> tuple[list[CodeSnippet], list[str]]:
+    BLOCK_WRAPPERS = (
+        ("<!--", "-->"),
+        ("/*", "*/"),
+        ("(*", "*)"),
+        ("{-", "-}"),
+        ("{#", "#}"),
+    )
+    SINGLE_LINE_PREFIXES = (
+        "//",
+        "--",
+        "#",
+        ";",
+        "!",
+        "%",
+        "'",
+    )
+    END_MARKER_SENTINEL = object()
+
+    @dataclasses.dataclass
+    class _SnippetContext:
+        snippet_id: str
+        marker_line: int
+        start_line: int
+        lines: list[str]
+        language: Optional[str]
+
+    def extract_snippets_from_content(
+        self,
+        content: str,
+        filename: str,
+        collect_errors: bool = False
+    ) -> tuple[list[CodeSnippet], list[str]]:
         """
-        Extract all snippets from file content.
-        
-        Args:
-            content: The file content
-            filename: The filename (for error messages)
-            collect_errors: If True, collect errors instead of just warning
-            
-        Returns:
-            Tuple of (snippets, errors) where errors is empty if collect_errors=False
+        Extract all snippets from file content based on SNIPPET markers.
         """
-        snippets = []
-        errors = []
+        snippets: list[CodeSnippet] = []
+        errors: list[str] = []
         lines = content.split('\n')
-        
-        i = 0
-        while i < len(lines):
-            line = lines[i]
-            start_match = self.SNIPPET_START_RE.search(line)
-            
-            if start_match:
-                snippet_id = start_match.group('id')
-                language = start_match.group('lang')
-                start_line = i + 1
-                
-                # Find the corresponding end marker
-                snippet_lines = []
-                i += 1
-                found_end = False
-                
-                while i < len(lines):
-                    line = lines[i]
-                    end_match = self.SNIPPET_END_RE.search(line)
-                    
-                    if end_match:
-                        end_id = end_match.group('id')
-                        if end_id == snippet_id:
-                            found_end = True
-                            end_line = i
-                            snippet_content = '\n'.join(snippet_lines)
-                            snippets.append(CodeSnippet(
-                                snippet_id=snippet_id,
-                                content=snippet_content,
-                                source_file=filename,
-                                start_line=start_line,
-                                end_line=end_line,
-                                language=language
-                            ))
-                            break
-                        else:
-                            error_msg = f"Mismatched snippet end marker: expected '{snippet_id}', got '{end_id}' at line {i+1}"
-                            if collect_errors:
-                                errors.append(error_msg)
-                            else:
-                                b.warning(error_msg, file=filename)
-                    else:
-                        snippet_lines.append(line)
-                    
-                    i += 1
-                
-                if not found_end:
-                    error_msg = f"Unclosed snippet '{snippet_id}' starting at line {start_line}"
-                    if collect_errors:
-                        errors.append(error_msg)
-                    else:
-                        b.warning(error_msg, file=filename)
-            
-            i += 1
-        
+        stack: list[SnippetExtractor._SnippetContext] = []
+
+        for index, line in enumerate(lines):
+            line_number = index + 1
+            start_info = self._match_start_marker(line)
+            if start_info:
+                snippet_id, language = start_info
+                ctx = self._SnippetContext(
+                    snippet_id=snippet_id,
+                    marker_line=line_number,
+                    start_line=line_number + 1,
+                    lines=[],
+                    language=language
+                )
+                stack.append(ctx)
+                continue
+            end_match = self._match_end_marker(line)
+            if end_match is not None:
+                end_id = None if end_match is self.END_MARKER_SENTINEL else end_match
+                if not stack:
+                    self._report_error(
+                        errors,
+                        collect_errors,
+                        filename,
+                        f"Unexpected ENDSNIPPET at line {line_number}"
+                    )
+                    continue
+                current = stack[-1]
+                if end_id and end_id != current.snippet_id:
+                    self._report_error(
+                        errors,
+                        collect_errors,
+                        filename,
+                        f"Mismatched snippet end marker: expected '{current.snippet_id}', "
+                        f"got '{end_id}' at line {line_number}"
+                    )
+                    continue
+                stack.pop()
+                snippet_content = '\n'.join(current.lines)
+                snippets.append(CodeSnippet(
+                    snippet_id=current.snippet_id,
+                    content=snippet_content,
+                    source_file=filename,
+                    start_line=current.start_line,
+                    end_line=line_number - 1,
+                    language=current.language
+                ))
+                continue
+            if stack:
+                for ctx in stack:
+                    ctx.lines.append(line)
+        for ctx in stack:
+            self._report_error(
+                errors,
+                collect_errors,
+                filename,
+                f"Unclosed snippet '{ctx.snippet_id}' starting at line {ctx.marker_line}"
+            )
         return snippets, errors
+
+    def _match_start_marker(self, line: str) -> Optional[tuple[str, Optional[str]]]:
+        normalized = self._normalize_comment_line(line)
+        if not normalized:
+            return None
+        match = self.GENERIC_START_RE.fullmatch(normalized)
+        if match:
+            return match.group('id'), match.group('lang')
+        return None
+
+    def _match_end_marker(self, line: str) -> Optional[object]:
+        normalized = self._normalize_comment_line(line)
+        if not normalized:
+            return None
+        match = self.GENERIC_END_RE.fullmatch(normalized)
+        if match:
+            end_id = match.group('id')
+            return end_id if end_id else self.END_MARKER_SENTINEL
+        return None
+
+    def _normalize_comment_line(self, line: str) -> str:
+        stripped = line.strip()
+        if not stripped:
+            return ""
+        for start, end in self.BLOCK_WRAPPERS:
+            if stripped.startswith(start) and stripped.endswith(end):
+                stripped = stripped[len(start):-len(end)].strip()
+                break
+        while True:
+            lowered = stripped.lower()
+            if lowered.startswith("rem "):
+                stripped = stripped[3:].lstrip()
+                continue
+            removed_prefix = False
+            for prefix in self.SINGLE_LINE_PREFIXES:
+                if stripped.startswith(prefix):
+                    stripped = stripped[len(prefix):].lstrip()
+                    removed_prefix = True
+                    break
+            if not removed_prefix:
+                break
+        return stripped.strip()
+
+    def _report_error(
+        self,
+        errors: list[str],
+        collect_errors: bool,
+        filename: str,
+        message: str
+    ):
+        if collect_errors:
+            errors.append(message)
+        else:
+            b.warning(message, file=filename)
     
     def extract_snippets_from_file(self, filepath: str) -> list[CodeSnippet]:
         """Extract all snippets from a file."""
@@ -115,27 +200,13 @@ class SnippetExtractor:
         
         snippets, _ = self.extract_snippets_from_content(content, filepath, collect_errors=False)
         return snippets
-
-
-def find_snippet_in_file(snippet_id: str, filepath: str) -> Optional[CodeSnippet]:
-    """Find a specific snippet in a file."""
-    extractor = SnippetExtractor()
-    snippets = extractor.extract_snippets_from_file(filepath)
-    
-    for snippet in snippets:
-        if snippet.snippet_id == snippet_id:
-            return snippet
-    
-    return None
-
-
 @dataclasses.dataclass
 class SnippetReference:
     """Represents a reference to a code snippet."""
     snippet_id: str
     source_file: str
-    referenced_file: str | None
     line_number: int
+    filespec: str | None = None
 
 
 @dataclasses.dataclass
@@ -149,27 +220,36 @@ class SnippetValidationResult:
 
 class SnippetReferenceExtractor:
     """Extracts snippet references from task files."""
-    
-    def extract_references_from_content(self, content: str, filename: str) -> list[SnippetReference]:
-        """Extract all @INCLUDE_SNIPPET references from content."""
-        references = []
-        pattern = re.compile(
-            r'^@INCLUDE_SNIPPET:\s*(?P<id>\w+)(?:\s+from\s+(?P<file>.+?))?\s*$',
-            re.MULTILINE
-        )
-        
-        for line_num, line in enumerate(content.split('\n'), 1):
-            match = pattern.search(line)
-            if match:
-                references.append(SnippetReference(
-                    snippet_id=match.group('id'),
-                    source_file=filename,
-                    referenced_file=match.group('file').strip() if match.group('file') else None,
-                    line_number=line_num
-                ))
-        
-        return references
-    
+
+    MACRO_PATTERN = re.compile(macros.macro_regexp)
+    def extract_references_from_content(
+        self,
+        content: str,
+        filename: str
+    ) -> list[SnippetReference]:
+        """Extract all snippet references from content."""
+        references_with_pos: list[tuple[int, SnippetReference]] = []
+
+        for match in self.MACRO_PATTERN.finditer(content):
+            if match.group('name') != 'SNIPPET':
+                continue
+            snippet_id = (match.group('arg2') or "").strip()
+            if not snippet_id or not IDENTIFIER_RE.fullmatch(snippet_id):
+                continue
+            filespec_raw = (match.group('arg1') or "").strip()
+            filespec = filespec_raw or None
+            if filespec is not None:
+                filespec = _normalize_filespec_value(filespec)
+            reference = SnippetReference(
+                snippet_id=snippet_id,
+                source_file=filename,
+                line_number=content.count('\n', 0, match.start()) + 1,
+                filespec=filespec,
+            )
+            references_with_pos.append((match.start(), reference))
+        references_with_pos.sort(key=lambda item: item[0])
+        return [ref for _, ref in references_with_pos]
+
     def extract_references_from_file(self, filepath: str) -> list[SnippetReference]:
         """Extract all snippet references from a file."""
         if not os.path.exists(filepath):
@@ -181,62 +261,179 @@ class SnippetReferenceExtractor:
         return self.extract_references_from_content(content, filepath)
 
 
-def _resolve_snippet_path(referenced_file: str | None, source_file: str, course) -> str:
-    """
-    Resolve a snippet file path using course configuration.
-    
-    Two path styles are supported:
-    1. altdir/ prefix: resolved relative to the project root (e.g., altdir/solutions/file.py)
-    2. Omitted path: derive the matching file inside altdir by exchanging the chapterdir prefix
-    
-    Args:
-        referenced_file: The file path from @INCLUDE_SNIPPET directive
-        source_file: The task file containing the reference
-        course: Coursebuilder object with chapterdir, altdir, and configfile attributes
-    
-    Returns:
-        Resolved absolute path to the snippet file
-    """
-    project_root = os.path.dirname(os.path.abspath(course.configfile))
-    
-    if referenced_file:
-        altdir_prefix = f"{course.altdir}/"
-        if referenced_file.startswith(altdir_prefix):
-            fullpath = os.path.join(project_root, referenced_file)
+def _normalize_filespec_value(filespec: str) -> str:
+    """Normalize shorthand filespecs such as 'ALT' to 'ALT:'."""
+    trimmed = filespec.strip()
+    shorthand = {
+        c.AUTHOR_ALTDIR_PREFIX.rstrip(':'): c.AUTHOR_ALTDIR_PREFIX,
+        c.AUTHOR_ITREEDIR_PREFIX.rstrip(':'): c.AUTHOR_ITREEDIR_PREFIX,
+    }
+    return shorthand.get(trimmed, trimmed)
+
+def _project_root(course) -> str:
+    return os.path.dirname(os.path.abspath(course.configfile))
+
+def _resolve_course_path(course, path_value: str) -> str:
+    if os.path.isabs(path_value):
+        return os.path.normpath(path_value)
+    return os.path.normpath(os.path.join(_project_root(course), path_value))
+
+def _get_targetdir_i_root(course) -> Optional[str]:
+    targetdir_i = getattr(course, 'targetdir_i', None)
+    if not targetdir_i:
+        return None
+    abs_targetdir = _resolve_course_path(course, targetdir_i)
+    os.makedirs(abs_targetdir, exist_ok=True)
+    return abs_targetdir
+
+def _determine_itree_extract_destination(course, zip_path: str) -> str:
+    base_dir = _get_targetdir_i_root(course)
+    if not base_dir:
+        base_dir = os.path.dirname(zip_path)
+    base_name = os.path.splitext(os.path.basename(zip_path))[0]
+    destination = os.path.join(base_dir, base_name)
+    return os.path.normpath(destination)
+
+def _extract_itreedir_zip(course, zip_path: str) -> str:
+    zip_path = os.path.normpath(zip_path)
+    try:
+        mtime = os.path.getmtime(zip_path)
+    except OSError:
+        return zip_path
+    cached = _ITREE_EXTRACTION_CACHE.get(zip_path)
+    if cached and cached[1] == mtime and os.path.isdir(cached[0]):
+        return cached[0]
+    destination = _determine_itree_extract_destination(course, zip_path)
+    if os.path.isdir(destination):
+        shutil.rmtree(destination)
+    elif os.path.exists(destination):
+        os.remove(destination)
+    os.makedirs(destination, exist_ok=True)
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        zip_ref.extractall(destination)
+    _ITREE_EXTRACTION_CACHE[zip_path] = (destination, mtime)
+    return destination
+
+def _ensure_itreedir_root(course) -> Optional[str]:
+    """Ensure the instructor tree root, extracting a zip if needed."""
+    itreedir = getattr(course, 'itreedir', None)
+    if not itreedir:
+        return None
+    configured_path = _resolve_course_path(course, itreedir)
+    if os.path.isdir(configured_path):
+        return configured_path
+    if os.path.isfile(configured_path):
+        return _extract_itreedir_zip(course, configured_path)
+    return configured_path
+
+def _resolve_include_style_path(filespec: str, source_file: str, course) -> str:
+    """Resolve filespecs that follow INCLUDE semantics."""
+    filespec = _normalize_filespec_value(filespec)
+    keyword_re = f"{c.AUTHOR_ALTDIR_PREFIX}|{c.AUTHOR_ITREEDIR_PREFIX}"
+    arg_re = r"(?P<kw>" + keyword_re + r")?(?P<slash>/)?(?P<incfile>.*)"
+    match = re.fullmatch(arg_re, filespec)
+    if not match:
+        raise ValueError(f"Invalid snippet path '{filespec}'")
+
+    kw = match.group("kw")
+    is_abs = match.group("slash") is not None
+    inc_filepath = match.group("incfile")
+
+    project_root = _project_root(course)
+    chapter_root = os.path.normpath(os.path.join(project_root, course.chapterdir))
+    altdir_root = os.path.normpath(os.path.join(project_root, course.altdir))
+    itreedir_root = _ensure_itreedir_root(course)
+
+    source_abs = source_file if os.path.isabs(source_file) else os.path.normpath(
+        os.path.join(project_root, source_file)
+    )
+    source_dir = os.path.dirname(source_abs)
+    source_basename = os.path.basename(source_abs)
+    rel_dir_from_chapter = os.path.relpath(source_dir, chapter_root)
+
+    if kw == c.AUTHOR_ALTDIR_PREFIX:
+        base_root = altdir_root
+        rel_dir = rel_dir_from_chapter
+        target_dir = os.path.normpath(os.path.join(base_root, rel_dir))
+    elif kw == c.AUTHOR_ITREEDIR_PREFIX:
+        if not itreedir_root:
+            raise ValueError("Snippet path prefix 'ITREE:' cannot be resolved")
+        base_root = itreedir_root
+        rel_dir = rel_dir_from_chapter
+
+        if is_abs or (inc_filepath and inc_filepath.startswith(os.path.join(rel_dir, ""))):
+            target_dir = base_root
         else:
-            raise ValueError(
-                f"Unsupported snippet path '{referenced_file}'. "
-                "Use an 'altdir/' path or omit the path to use the matching altdir file."
-            )
+            target_dir = os.path.normpath(os.path.join(base_root, rel_dir))
     else:
-        fullpath = _derive_altdir_path(source_file, course, project_root)
-    
+        base_root = chapter_root
+        target_dir = source_dir
+
+    if is_abs:
+        target_dir = base_root
+
+    fullpath = os.path.join(target_dir, inc_filepath or source_basename)
     return os.path.normpath(fullpath)
 
 
-def _derive_altdir_path(source_file: str, course, project_root: str) -> str:
-    """Derive the matching file in altdir by exchanging the chapterdir prefix."""
-    if os.path.isabs(source_file):
-        rel_path = os.path.relpath(source_file, project_root)
-    else:
-        rel_path = os.path.normpath(source_file)
-    
-    # Already inside altdir
-    if rel_path.startswith(f"{course.altdir}/"):
-        return os.path.join(project_root, rel_path)
-    
-    chapter_prefix = course.chapterdir.rstrip('/')
-    if chapter_prefix:
-        prefix = f"{chapter_prefix}/"
-        if rel_path.startswith(prefix):
-            rel_rest = rel_path[len(prefix):]
-        else:
-            rel_rest = rel_path
-    else:
-        rel_rest = rel_path.lstrip("/\\")
-    
-    altdir_rel = os.path.join(course.altdir, rel_rest)
-    return os.path.join(project_root, altdir_rel)
+def _display_snippet_path(filespec: str | None, fullpath: str, course) -> str:
+    """Return a human-friendly path for diagnostics."""
+    if filespec:
+        return filespec
+    project_root = os.path.dirname(os.path.abspath(course.configfile))
+    try:
+        return os.path.relpath(fullpath, project_root)
+    except ValueError:
+        return fullpath
+
+
+def _load_snippet(
+    snippet_id: str,
+    filespec: str | None,
+    source_file: str,
+    course,
+    notify_error: Callable[[str], None]
+) -> tuple[Optional[CodeSnippet], Optional[str]]:
+    """
+    Resolve and load a snippet, reporting errors via notify_error.
+    """
+    try:
+        fullpath = _resolve_include_style_path(filespec or "", source_file, course)
+    except ValueError as exc:
+        notify_error(str(exc))
+        return None, None
+
+    if not os.path.exists(fullpath):
+        notify_error(f"File not found: {_display_snippet_path(filespec, fullpath, course)}")
+        return None, None
+
+    extractor = SnippetExtractor()
+    snippets = extractor.extract_snippets_from_file(fullpath)
+    for snippet in snippets:
+        if snippet.snippet_id == snippet_id:
+            return snippet, fullpath
+    available_ids = [s.snippet_id for s in snippets]
+    notify_error(
+        f"Snippet '{snippet_id}' not found in "
+        f"'{_display_snippet_path(filespec, fullpath, course)}'. "
+        f"Available snippets: {available_ids}"
+    )
+    return None, None
+
+
+def _format_snippet_for_macro(snippet: CodeSnippet) -> str:
+    """Format snippet content for macro expansion, honoring optional language metadata."""
+    # Avoid double-wrapping if the snippet already contains a fenced block.
+    stripped = snippet.content.lstrip()
+    if stripped.startswith("```"):
+        return snippet.content
+
+    content = snippet.content
+    if not content.endswith('\n'):
+        content += '\n'
+
+    lang = snippet.language or ""
+    return f"```{lang}\n{content}```"
 
 
 class SnippetValidator:
@@ -262,45 +459,22 @@ class SnippetValidator:
     
     def _validate_single_reference(self, reference: SnippetReference, course) -> SnippetValidationResult:
         """Validate a single snippet reference."""
-        # Resolve the file path using course configuration
-        try:
-            fullpath = _resolve_snippet_path(
-                reference.referenced_file,
-                reference.source_file,
-                course
-            )
-        except ValueError as exc:
-            return SnippetValidationResult(
-                reference=reference,
-                success=False,
-                error_message=str(exc)
-            )
-        
-        # Check if file exists
-        if not os.path.exists(fullpath):
-            project_root = os.path.dirname(os.path.abspath(course.configfile))
-            display_path = reference.referenced_file or os.path.relpath(fullpath, project_root)
-            return SnippetValidationResult(
-                reference=reference,
-                success=False,
-                error_message=f"File not found: {display_path}"
-            )
-        
-        # Find the snippet
-        snippet = find_snippet_in_file(reference.snippet_id, fullpath)
-        
+        errors: list[str] = []
+        snippet, _ = _load_snippet(
+            reference.snippet_id,
+            reference.filespec,
+            reference.source_file,
+            course,
+            notify_error=errors.append
+        )
+
         if snippet is None:
-            # Get available snippets for error message
-            extractor = SnippetExtractor()
-            available = extractor.extract_snippets_from_file(fullpath)
-            available_ids = [s.snippet_id for s in available]
-            
             return SnippetValidationResult(
                 reference=reference,
                 success=False,
-                error_message=f"Snippet '{reference.snippet_id}' not found in '{reference.referenced_file}'. Available snippets: {available_ids}"
+                error_message=errors[0] if errors else "Unknown snippet error"
             )
-        
+
         return SnippetValidationResult(
             reference=reference,
             success=True,
@@ -360,96 +534,31 @@ class SnippetValidator:
             return [f"Error parsing snippets: {str(e)}"]
 
 
-def expand_snippet_inclusion(content: str, context_file: str, course) -> str:
+
+def expand_snippet_macro(course, macrocall) -> str:
     """
-    Expand @INCLUDE_SNIPPET directives in content.
-    
-    Format:
-      @INCLUDE_SNIPPET: snippet_id
-      @INCLUDE_SNIPPET: snippet_id from altdir/path/to/file.md
-    
-    When no path is given, the snippet file is derived by exchanging the course's
-    chapterdir prefix with altdir.
-    
-    Args:
-        content: The content containing @INCLUDE_SNIPPET directives
-        context_file: The file containing the directive
-        course: Coursebuilder object with chapterdir, altdir, and configfile attributes
+    Macro expander for [SNIPPET::filespec::snippet_id].
     """
-    # Debug output
-    project_root = os.path.dirname(os.path.abspath(course.configfile))
-    b.debug(f"expand_snippet_inclusion called for {context_file}, project_root={project_root}")
-    
-    # Pattern: @INCLUDE_SNIPPET: snippet_id [from filepath]
-    pattern = re.compile(
-        r'^@INCLUDE_SNIPPET:\s*(?P<id>\w+)(?:\s+from\s+(?P<file>.+?))?\s*$',
-        re.MULTILINE
+    filespec = (macrocall.arg1 or "").strip()
+    snippet_id = (macrocall.arg2 or "").strip()
+    if not snippet_id:
+        macrocall.error("Snippet name must not be empty")
+        return ""
+    if not IDENTIFIER_RE.fullmatch(snippet_id):
+        macrocall.error("Snippet name must use letters, digits, or underscores only")
+        return ""
+
+    snippet, fullpath = _load_snippet(
+        snippet_id,
+        filespec,
+        macrocall.filename,
+        course,
+        notify_error=macrocall.error
     )
-    
-    # Check if pattern matches anything
-    matches = list(pattern.finditer(content))
-    if matches:
-        b.debug(f"Found {len(matches)} snippet inclusions")
-        for i, match in enumerate(matches):
-            b.debug(f"  Match {i+1}: id='{match.group('id')}', file='{match.group('file')}'")
-    else:
-        b.debug("No @INCLUDE_SNIPPET patterns found in content")
-        # Show the first few lines of content for debugging
-        lines = content.split('\n')[:10]
-        b.debug(f"Content preview (first 10 lines):")
-        for i, line in enumerate(lines, 1):
-            b.debug(f"  {i:2}: {line}")
-    
-    def replace_snippet(match: re.Match) -> str:
-        snippet_id = match.group('id')
-        snippet_file = match.group('file')
-        if snippet_file:
-            snippet_file = snippet_file.strip()
-        
-        b.debug(f"Processing snippet inclusion: id='{snippet_id}', file='{snippet_file}'")
-        
-        # Use _resolve_snippet_path for consistent path resolution
-        try:
-            fullpath = _resolve_snippet_path(snippet_file, context_file, course)
-        except ValueError as exc:
-            b.warning(str(exc), file=context_file)
-            return f"<!-- ERROR: {exc} -->"
-        b.debug(f"Resolved path: '{fullpath}'")
-        b.debug(f"File exists: {os.path.exists(fullpath)}")
-        
-        # Extract the snippet
-        snippet = find_snippet_in_file(snippet_id, fullpath)
-        
-        if snippet is None:
-            # Check what snippets are available
-            extractor = SnippetExtractor()
-            available = extractor.extract_snippets_from_file(fullpath)
-            available_ids = [s.snippet_id for s in available]
-            
-            b.warning(
-                f"Snippet '{snippet_id}' not found in '{fullpath}'. "
-                f"Available snippets: {available_ids}",
-                file=context_file
-            )
-            return f"<!-- ERROR: Snippet '{snippet_id}' not found in '{snippet_file}' -->"
-        
-        # Return the snippet content (which should already be in markdown code block format)
-        b.debug(f"Returning snippet content: {repr(snippet.content[:100])}")
-        return snippet.content
-    
-    result = pattern.sub(replace_snippet, content)
-    
-    # Debug: show the result around where @INCLUDE_SNIPPET was
-    if result != content:
-        b.debug("Content changed after snippet expansion")
-        # Find where the change occurred by comparing line by line
-        orig_lines = content.split('\n')
-        result_lines = result.split('\n')
-        for i, (orig, new) in enumerate(zip(orig_lines, result_lines)):
-            if orig != new and '@INCLUDE_SNIPPET' in orig:
-                b.debug(f"Line {i+1} changed from: {repr(orig)}")
-                b.debug(f"                    to: {repr(new[:100])}")
-    else:
-        b.debug("No change detected after snippet expansion")
-    
-    return result
+
+    if snippet is None:
+        return ""
+
+    if hasattr(macrocall.md, "includefiles"):
+        macrocall.md.includefiles.add(os.path.normpath(fullpath))
+    return _format_snippet_for_macro(snippet)

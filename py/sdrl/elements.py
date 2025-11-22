@@ -318,17 +318,8 @@ class Body(Piece):  # abstract class
         includeslist.handle_value_and_state(includes)
 
     def render(self, content: str, render_mode: b.Mode) -> dict:
-        previous_course = getattr(md, 'course', None)
-        from sdrl import markdown as markdown_module
-        md.course = self.course
-        markdown_module.current_course = self.course
-        try:
-            return md.render_markdown(self.sourcefile, self.name, content, render_mode,
-                                      self.course.blockmacro_topmatter)
-        finally:
-            md.course = previous_course
-            markdown_module.current_course = previous_course
-
+        return md.render_markdown(self.sourcefile, self.name, content, render_mode,
+                                  self.course.blockmacro_topmatter)
 
 class Body_s(Body):
     """Student HTML page text content.  Byproducts: IncludeList_s, Termreflist."""
