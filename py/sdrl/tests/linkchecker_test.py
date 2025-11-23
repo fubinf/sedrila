@@ -3,7 +3,7 @@ import contextlib
 import itertools
 import os
 import tempfile
-
+import textwrap # for code formatting
 import pytest
 
 import base as b
@@ -106,8 +106,8 @@ def test_status_rule_controls_result(tmp_path, monkeypatch, comment, expect_succ
     """Validate that LINK_CHECK status overrides success evaluation."""
     url = TEST_URL_SEDRILA_404
     markdown = f"""# Test File
-{comment}Broken link: [Target]({url})
-"""
+    {comment}Broken link: [Target]({url})
+    """
     path = write_markdown(tmp_path, markdown)
     extractor = linkchecker.LinkExtractor()
     links = extractor.extract_links_from_file(path)
@@ -129,12 +129,13 @@ def test_status_rule_controls_result(tmp_path, monkeypatch, comment, expect_succ
 
 def test_content_rule(tmp_path, monkeypatch):
     """Ensure required text validation passes/fails as expected."""
-    url = TEST_URL_SEDRILA
+    url1 = TEST_URL_SEDRILA
+    url2 = f"{TEST_URL_SEDRILA}/docs"
     markdown = f"""# Test File
 <!-- LINK_CHECK: content="{TEST_CONTENT_SEDRILA}" -->
-Good link: [Docs]({url})
+Good link: [Docs]({url1})
 <!-- LINK_CHECK: content="{TEST_CONTENT_NONEXISTENT}" -->
-Bad link: [Docs again]({url})
+Bad link: [Docs again]({url2})
 """
     path = write_markdown(tmp_path, markdown)
     extractor = linkchecker.LinkExtractor()
@@ -142,8 +143,8 @@ Bad link: [Docs again]({url})
     rule_texts = [link.validation_rule.required_text for link in links]
     assert rule_texts == [TEST_CONTENT_SEDRILA, TEST_CONTENT_NONEXISTENT]
     stub_requests(monkeypatch, [
-        FakeResponse(url, status_code=200, text=f"...{TEST_CONTENT_SEDRILA}..."),
-        FakeResponse(url, status_code=200, text="nothing to see"),
+        FakeResponse(url1, status_code=200, text=f"...{TEST_CONTENT_SEDRILA}..."),
+        FakeResponse(url2, status_code=200, text="nothing to see"),
     ])
     results = linkchecker.LinkChecker().check_links(links, show_progress=False)
     by_text = {res.link.validation_rule.required_text: res for res in results}
@@ -154,12 +155,12 @@ Bad link: [Docs again]({url})
 def test_extractor_parses_rules_and_macros(tmp_path):
     """Confirm the extractor reads LINK_CHECK rules and HREF macros."""
     markdown = f"""# Test File
-<!-- LINK_CHECK: status=301, timeout=15, ignore_ssl=true -->
-Regular link: [Regular]({TEST_URL_EXAMPLE})
-<!-- LINK_CHECK: content="hello world" -->
-Another link: [Another](https://example.org)
-Macro link: [HREF::https://github.com/fubinf/sedrila]
-"""
+    <!-- LINK_CHECK: status=301, timeout=15, ignore_ssl=true -->
+    Regular link: [Regular]({TEST_URL_EXAMPLE})
+    <!-- LINK_CHECK: content="hello world" -->
+    Another link: [Another](https://example.org)
+    Macro link: [HREF::https://github.com/fubinf/sedrila]
+    """
     path = write_markdown(tmp_path, markdown)
     extractor = linkchecker.LinkExtractor()
     links = extractor.extract_links_from_file(path)
@@ -178,10 +179,10 @@ Macro link: [HREF::https://github.com/fubinf/sedrila]
 def test_check_links_deduplicates_in_batch_mode(tmp_path, monkeypatch):
     """Only one HTTP call should run for duplicate URLs."""
     markdown = f"""# Test File
-First link: [Link1]({TEST_URL_EXAMPLE})
-Second link: [Link2]({TEST_URL_EXAMPLE})
-Third link: [Link3]({TEST_URL_EXAMPLE})
-"""
+    First link: [Link1]({TEST_URL_EXAMPLE})
+    Second link: [Link2]({TEST_URL_EXAMPLE})
+    Third link: [Link3]({TEST_URL_EXAMPLE})
+    """
     path = write_markdown(tmp_path, markdown)
     extractor = linkchecker.LinkExtractor()
     links = extractor.extract_links_from_file(path)
@@ -196,6 +197,47 @@ Third link: [Link3]({TEST_URL_EXAMPLE})
     assert len(checked) == 1, f"Expected 1 unique check, but made {len(checked)} requests"
     assert len(results) == len(links), f"Expected {len(links)} results, got {len(results)}"
     assert all(res.link.url == TEST_URL_EXAMPLE for res in results)
+
+
+def test_uses_get_for_content_validation(tmp_path, monkeypatch):
+    """LinkChecker should use GET when content validation is needed, HEAD otherwise."""
+    used_methods = []
+    def fake_request(self, method, url, **_kwargs):
+        used_methods.append(method)
+        return FakeResponse(url, status_code=200, text="content")
+    monkeypatch.setattr(linkchecker.requests.Session, "request", fake_request)
+    # HEAD
+    link_no_content = linkchecker.ExternalLink(
+        url=TEST_URL_EXAMPLE, text="Test", source_file="test.md", line_number=1)
+    # GET
+    link_with_content = linkchecker.ExternalLink(
+        url=f"{TEST_URL_EXAMPLE}/page", text="Test", source_file="test.md", line_number=2,
+        validation_rule=linkchecker.LinkValidationRule(required_text="content"))
+    checker = linkchecker.LinkChecker()
+    checker.check_link(link_no_content)
+    checker.check_link(link_with_content)
+    assert used_methods == ['HEAD', 'GET'], f"Expected ['HEAD', 'GET'], got {used_methods}"
+
+
+def test_extract_links_from_empty_file(tmp_path):
+    """Empty files should return empty link list."""
+    path = write_markdown(tmp_path, "")
+    extractor = linkchecker.LinkExtractor()
+    links = extractor.extract_links_from_file(path)
+    assert len(links) == 0, f"Expected 0 links from empty file, got {len(links)}"
+
+
+def test_multiple_links_on_same_line(tmp_path):
+    """Multiple links on the same line should all be extracted."""
+    markdown = f"""# Test File
+    Here are two links: [First]({TEST_URL_EXAMPLE}) and [Second]({TEST_URL_SEDRILA})
+    """
+    path = write_markdown(tmp_path, markdown)
+    extractor = linkchecker.LinkExtractor()
+    links = extractor.extract_links_from_file(path)
+    assert len(links) == 2, f"Expected 2 links, got {len(links)}"
+    urls = {link.url for link in links}
+    assert urls == {TEST_URL_EXAMPLE, TEST_URL_SEDRILA}
 
 
 def create_test_course_structure(base_dir):
@@ -226,86 +268,95 @@ def create_test_course_structure(base_dir):
     with open(os.path.join(base_dir, 'sedrila.yaml'), 'w') as f:
         yaml.dump(config, f)
     with open(os.path.join(ch_dir, 'glossary.md'), 'w') as f:
-        f.write("""title: Glossary
----
-# Glossary
-""")
+        f.write(textwrap.dedent("""
+            title: Glossary
+            ---
+            # Glossary
+        """).lstrip())
     chapter1_dir = os.path.join(ch_dir, 'Chapter1')
     os.makedirs(chapter1_dir, exist_ok=True)
     with open(os.path.join(chapter1_dir, 'index.md'), 'w') as f:
-        f.write("""title: Chapter 1
----
-# Chapter 1
-""")
+        f.write(textwrap.dedent("""
+            title: Chapter 1
+            ---
+            # Chapter 1
+        """).lstrip())
     tga_dir = os.path.join(ch_dir, 'Chapter1', 'TaskgroupA')
     os.makedirs(tga_dir, exist_ok=True)
     with open(os.path.join(tga_dir, 'index.md'), 'w') as f:
-        f.write("""title: Taskgroup A
-stage: beta
----
-# Taskgroup A
+        f.write(textwrap.dedent("""
+            title: Taskgroup A
+            stage: beta
+            ---
+            # Taskgroup A
 
-Link in taskgroup: [Example](https://example.com)
-""")
+            Link in taskgroup: [Example](https://example.com)
+        """).lstrip())
     with open(os.path.join(tga_dir, 'Task1.md'), 'w') as f:
-        f.write("""title: Task 1
-stage: beta
-timevalue: 1.0
-difficulty: 2
----
-# Task 1
+        f.write(textwrap.dedent("""
+            title: Task 1
+            stage: beta
+            timevalue: 1.0
+            difficulty: 2
+            ---
+            # Task 1
 
-Link in task: [GitHub](https://github.com)
-""")
+            Link in task: [GitHub](https://github.com)
+        """).lstrip())
     tgb_dir = os.path.join(ch_dir, 'Chapter1', 'TaskgroupB')
     os.makedirs(tgb_dir, exist_ok=True)
     with open(os.path.join(tgb_dir, 'index.md'), 'w') as f:
-        f.write("""title: Taskgroup B
-stage: alpha
----
-# Taskgroup B
+        f.write(textwrap.dedent("""
+            title: Taskgroup B
+            stage: alpha
+            ---
+            # Taskgroup B
 
-Another link: [Python](https://python.org)
-""")
+            Another link: [Python](https://python.org)
+        """).lstrip())
     with open(os.path.join(tgb_dir, 'Task2.md'), 'w') as f:
-        f.write("""title: Task 2
-stage: alpha
-timevalue: 1.5
-difficulty: 3
----
-# Task 2
+        f.write(textwrap.dedent("""
+            title: Task 2
+            stage: alpha
+            timevalue: 1.5
+            difficulty: 3
+            ---
+            # Task 2
 
-Yet another link: [ReadTheDocs](https://readthedocs.org)
-""")
+            Yet another link: [ReadTheDocs](https://readthedocs.org)
+        """).lstrip())
     tgc_dir = os.path.join(ch_dir, 'Chapter1', 'TaskgroupC')
     os.makedirs(tgc_dir, exist_ok=True)
     with open(os.path.join(tgc_dir, 'index.md'), 'w') as f:
-        f.write("""title: Taskgroup C
-stage: draft
----
-# Taskgroup C
+        f.write(textwrap.dedent("""
+            title: Taskgroup C
+            stage: draft
+            ---
+            # Taskgroup C
 
-Draft link: [Wikipedia](https://wikipedia.org)
-""")
+            Draft link: [Wikipedia](https://wikipedia.org)
+        """).lstrip())
     alt_tga_dir = os.path.join(alt_dir, 'Chapter1', 'TaskgroupA')
     os.makedirs(alt_tga_dir, exist_ok=True)
     with open(os.path.join(alt_tga_dir, 'index.md'), 'w') as f:
-        f.write("""title: Taskgroup A Alt
-stage: beta
----
-# Taskgroup A (Alt version)
+        f.write(textwrap.dedent("""
+            title: Taskgroup A Alt
+            stage: beta
+            ---
+            # Taskgroup A (Alt version)
 
-Alt link: [MDN](https://developer.mozilla.org)
-""")
+            Alt link: [MDN](https://developer.mozilla.org)
+        """).lstrip())
     not_in_config_dir = os.path.join(ch_dir, 'Chapter1', 'NotInConfig')
     os.makedirs(not_in_config_dir, exist_ok=True)
     with open(os.path.join(not_in_config_dir, 'index.md'), 'w') as f:
-        f.write("""title: Not In Config
----
-# This should be ignored
+        f.write(textwrap.dedent("""
+            title: Not In Config
+            ---
+            # This should be ignored
 
-This file is not in sedrila.yaml: [Should Be Ignored](https://ignored.com)
-""")
+            This file is not in sedrila.yaml: [Should Be Ignored](https://ignored.com)
+        """).lstrip())
     return base_dir
 
 
