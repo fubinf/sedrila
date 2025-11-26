@@ -1,10 +1,37 @@
 # pytest tests for programchecker
 import tempfile
 import os
-import json
+import zipfile
 from pathlib import Path
 
 import sdrl.programchecker as programchecker
+
+
+class DummyTask:
+    def __init__(self, sourcefile: Path):
+        self.sourcefile = str(sourcefile)
+        self.to_be_skipped = False
+
+
+class DummyTaskgroup:
+    def __init__(self, tasks):
+        self.tasks = tasks
+        self.to_be_skipped = False
+        self.sourcefile = ""
+
+
+class DummyChapter:
+    def __init__(self, taskgroups):
+        self.taskgroups = taskgroups
+        self.to_be_skipped = False
+
+
+class DummyCourse:
+    def __init__(self, chapterdir: Path, altdir: Path, itreedir: Path, chapters):
+        self.chapterdir = str(chapterdir)
+        self.altdir = str(altdir)
+        self.itreedir = str(itreedir)
+        self.chapters = chapters
 
 
 def test_program_test_config():
@@ -113,59 +140,49 @@ ValueError: Test error
         os.unlink(f.name)
 
 
-def test_find_program_test_pairs():
-    """Test finding program-protocol pairs."""
+def test_build_configs_from_targets():
+    """Test building configs from manually specified targets."""
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
-        
-        # Create mock itree structure
-        itree_path = temp_path / "itree"
-        itree_path.mkdir()
-        (itree_path / "Sprachen" / "Python").mkdir(parents=True)
-        (itree_path / "Sprachen" / "Go").mkdir(parents=True)
-        
-        # Create program files
-        python_prog = itree_path / "Sprachen" / "Python" / "test.py"
-        go_prog = itree_path / "Sprachen" / "Go" / "test.go"
-        
+        python_prog = temp_path / "test.py"
+        go_prog = temp_path / "test_go.go"
         python_prog.write_text("print('Hello')")
-        go_prog.write_text("package main\nfunc main() { }")
+        go_prog.write_text("package main\nfunc main() {}")
         
-        # Create corresponding .prot files
-        altdir_path = temp_path / "altdir"
-        (altdir_path / "ch" / "Sprachen" / "Python").mkdir(parents=True)
-        (altdir_path / "ch" / "Sprachen" / "Go").mkdir(parents=True)
-        
-        python_prot = altdir_path / "ch" / "Sprachen" / "Python" / "test.prot"
-        go_prot = altdir_path / "ch" / "Sprachen" / "Go" / "test.prot"
-        
+        python_prot = temp_path / "test.prot"
+        go_prot = temp_path / "test_go.prot"
         python_prot.write_text("""user@host /path 10:00:00 1
 $ python test.py
 Hello
 """)
         go_prot.write_text("""user@host /path 10:00:00 1
-$ go run test.go
+$ go run test_go.go
 """)
+        python_task = temp_path / "python_task.md"
+        go_task = temp_path / "go_task.md"
+        python_task.write_text("# Python Task")
+        go_task.write_text("# Go Task")
         
-        # Test finding pairs
-        checker = programchecker.ProgramChecker(course_root=temp_path)
-        configs = checker.find_program_test_pairs(itree_path, altdir_path)
+        targets = [
+            programchecker.ProgramTestTarget(
+                task_file=python_task,
+                program_file=python_prog,
+                protocol_file=python_prot
+            ),
+            programchecker.ProgramTestTarget(
+                task_file=go_task,
+                program_file=go_prog,
+                protocol_file=go_prot
+            ),
+        ]
+        
+        checker = programchecker.ProgramChecker()
+        configs = checker.build_configs_from_targets(targets)
         
         assert len(configs) == 2
-        
-        # Check that we found both pairs
-        program_names = {config.program_name for config in configs}
-        assert "test" in program_names
-        
-        # Check command_tests are populated
-        for config in configs:
-            assert len(config.command_tests) > 0
-            # Check that we have valid commands
-            if "python" in config.command_tests[0].command:
-                assert config.command_tests[0].command == "python test.py"
-                assert "Hello" in config.command_tests[0].expected_output
-            elif "go run" in config.command_tests[0].command:
-                assert config.command_tests[0].command == "go run test.go"
+        commands = {config.program_name: config.command_tests[0].command for config in configs}
+        assert commands["test"] == "python test.py"
+        assert commands["test_go"] == "go run test_go.go"
 
 
 def test_program_checker_initialization():
@@ -182,46 +199,22 @@ def test_program_checker_initialization():
     assert checker.parallel_execution is False
 
 
-def test_json_report_generation():
-    """Test JSON report generation."""
+def test_generate_reports_creates_markdown_only():
+    """ProgramChecker.generate_reports should emit only markdown output."""
+    import tempfile
     with tempfile.TemporaryDirectory() as temp_dir:
-        original_cwd = os.getcwd()
-        os.chdir(temp_dir)  # Change to temp directory for report files
-        
-        try:
-            # Create sample test results
-            results = [
-                programchecker.ProgramTestResult(
-                    program_name="test1",
-                    success=True,
-                    execution_time=1.0
-                ),
-                programchecker.ProgramTestResult(
-                    program_name="test2",
-                    success=False,
-                    error_message="Test error",
-                    execution_time=0.5
-                )
-            ]
-            
-            checker = programchecker.ProgramChecker()
-            checker.generate_json_report(results)
-            
-            # Check that JSON report was created
-            assert os.path.exists("program_test_report.json")
-            
-            # Verify JSON content
-            with open("program_test_report.json", 'r') as f:
-                report_data = json.load(f)
-            
-            assert report_data['total_tests'] == 2
-            assert report_data['passed'] == 1
-            assert report_data['failed'] == 1
-            assert len(report_data['all_results']) == 2
-            assert len(report_data['failed_tests']) == 1
-            assert len(report_data['passed_tests']) == 1
-        finally:
-            os.chdir(original_cwd)
+        results = [
+            programchecker.ProgramTestResult(
+                program_name="foo",
+                success=True,
+                execution_time=0.1
+            )
+        ]
+        checker = programchecker.ProgramChecker(report_dir=temp_dir)
+        checker.generate_reports(results, batch_mode=True)
+        md_path = Path(temp_dir) / "program_test_report.md"
+        assert md_path.exists()
+        assert not (Path(temp_dir) / "program_test_report.json").exists()
 
 
 def test_markdown_report_generation():
@@ -307,31 +300,33 @@ def test_parallel_vs_sequential_execution():
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
         
-        # Create mock itree structure with multiple programs
-        itree_path = temp_path / "itree"
-        (itree_path / "test1").mkdir(parents=True)
-        (itree_path / "test2").mkdir(parents=True)
+        program1 = temp_path / "hello1.py"
+        program2 = temp_path / "hello2.py"
+        program1.write_text("print('Hello 1')")
+        program2.write_text("print('Hello 2')")
         
-        # Create simple programs
-        (itree_path / "test1" / "hello1.py").write_text("print('Hello 1')")
-        (itree_path / "test2" / "hello2.py").write_text("print('Hello 2')")
+        prot1 = temp_path / "hello1.prot"
+        prot2 = temp_path / "hello2.prot"
+        prot1.write_text("$ python hello1.py\nHello 1")
+        prot2.write_text("$ python hello2.py\nHello 2")
         
-        # Create corresponding .prot files
-        altdir_path = temp_path / "altdir"
-        (altdir_path / "ch" / "test1").mkdir(parents=True)
-        (altdir_path / "ch" / "test2").mkdir(parents=True)
+        task1 = temp_path / "task1.md"
+        task2 = temp_path / "task2.md"
+        task1.write_text("# Task 1")
+        task2.write_text("# Task 2")
         
-        (altdir_path / "ch" / "test1" / "hello1.prot").write_text("$ python hello1.py\nHello 1")
-        (altdir_path / "ch" / "test2" / "hello2.prot").write_text("$ python hello2.py\nHello 2")
+        targets = [
+            programchecker.ProgramTestTarget(task_file=task1, program_file=program1, protocol_file=prot1),
+            programchecker.ProgramTestTarget(task_file=task2, program_file=program2, protocol_file=prot2),
+        ]
         
-        # Test sequential execution
-        checker_seq = programchecker.ProgramChecker(course_root=temp_path, parallel_execution=False)
-        configs = checker_seq.find_program_test_pairs(itree_path, altdir_path)
-        results_seq = checker_seq._run_tests_sequential(configs, show_progress=False)
+        checker_seq = programchecker.ProgramChecker(parallel_execution=False)
+        configs_seq = checker_seq.build_configs_from_targets(targets)
+        results_seq = checker_seq._run_tests_sequential(configs_seq, show_progress=False)
         
-        # Test parallel execution
-        checker_par = programchecker.ProgramChecker(course_root=temp_path, parallel_execution=True)
-        results_par = checker_par._run_tests_parallel(configs, show_progress=False)
+        checker_par = programchecker.ProgramChecker(parallel_execution=True)
+        configs_par = checker_par.build_configs_from_targets(targets)
+        results_par = checker_par._run_tests_parallel(configs_par, show_progress=False)
         
         # Results should be the same (when sorted)
         results_seq.sort(key=lambda r: r.program_name)
@@ -343,15 +338,50 @@ def test_parallel_vs_sequential_execution():
             assert seq_result.success == par_result.success
 
 
-def test_protocol_driven_discovery():
-    """Test that program discovery is driven by .prot files (language-agnostic)."""
-    checker = programchecker.ProgramChecker()
-    
-    # The checker should not have hardcoded language extensions
-    assert not hasattr(checker, 'SUPPORTED_EXTENSIONS') or checker.SUPPORTED_EXTENSIONS is None
-    
-    # Instead, it discovers programs by finding .prot files
-    # Any program with a corresponding .prot file can be tested, regardless of language
+def test_extract_program_test_targets():
+    """Test extracting program targets from task markup."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        chapterdir = temp_path / "ch"
+        altdir = temp_path / "altdir" / "ch"
+        itreedir = temp_path / "altdir" / "itree.zip"
+        (chapterdir / "Chapter1").mkdir(parents=True)
+        (altdir / "Chapter1").mkdir(parents=True)
+        (itreedir / "Chapter1").mkdir(parents=True)
+        
+        program_path = itreedir / "Chapter1" / "task.py"
+        program_path.write_text("print('hi')")
+        prot_path = altdir / "Chapter1" / "task.prot"
+        prot_path.write_text("$ python task.py\nhi")
+        
+        task_path = chapterdir / "Chapter1" / "task.md"
+        task_content = """# Task
+<!-- @PROGRAM_TEST: notes="demo" -->
+"""
+        task_path.write_text(task_content)
+        
+        task = DummyTask(task_path)
+        taskgroup = DummyTaskgroup([task])
+        chapter = DummyChapter([taskgroup])
+        course = DummyCourse(chapterdir, temp_path / "altdir" / "ch", itreedir, [chapter])
+        
+        targets = programchecker.extract_program_test_targets(course)
+        assert len(targets) == 1
+        assert targets[0].program_file == program_path
+        assert targets[0].protocol_file == prot_path
+        
+        zip_path = temp_path / "itree_archive.zip"
+        with zipfile.ZipFile(zip_path, 'w') as zip_ref:
+            for root, _, files in os.walk(itreedir):
+                for file in files:
+                    full_path = Path(root) / file
+                    arcname = full_path.relative_to(itreedir)
+                    zip_ref.write(full_path, arcname)
+        course_zip = DummyCourse(chapterdir, temp_path / "altdir" / "ch", zip_path, [chapter])
+        zip_targets = programchecker.extract_program_test_targets(course_zip)
+        assert len(zip_targets) == 1
+        assert zip_targets[0].program_file.name == "task.py"
+        assert zip_targets[0].protocol_file == prot_path
 
 
 def test_missing_files_handling():
@@ -492,6 +522,8 @@ Some task description.
 
 <!-- @PROGRAM_TEST_SKIP: reason="Test reason" manual_test_required="true" -->
 
+<!-- @PROGRAM_TEST -->
+
 More content here.
 """
     
@@ -506,6 +538,7 @@ More content here.
         assert annotation.skip is True, "Should extract skip=True"
         assert annotation.skip_reason == "Test reason", "Should extract skip reason"
         assert annotation.manual_test_required is True, "Should extract manual_test_required"
+        assert annotation.has_markup is True, "Generic marker without params should count"
     finally:
         os.unlink(md_file)
 

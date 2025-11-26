@@ -7,10 +7,9 @@ successfully and produce expected output.
 """
 
 import subprocess as sp
-import json
 import os
-import tempfile
 import time
+import tempfile
 import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
@@ -20,6 +19,13 @@ import shutil
 import re
 
 import base as b
+import sdrl.course
+
+PROGRAM_FILE_EXCLUDE_SUFFIXES = {
+    '.md', '.markdown', '.yaml', '.yml', '.txt', '.json', '.prot',
+    '.cfg', '.conf', '.ini', '.xml', '.html'
+}
+_ITREE_EXTRACTION_CACHE: dict[str, tuple[Path, float]] = {}
 
 @dataclass
 class ProgramTestAnnotation:
@@ -36,6 +42,7 @@ class ProgramTestAnnotation:
     correct_command: str = ""
     override_reason: str = ""
     notes: str = ""
+    has_markup: bool = False
 
 class AnnotationExtractor:
     """Extracts program test markup from task .md files."""
@@ -51,18 +58,19 @@ class AnnotationExtractor:
         r'<!--\s*@PROGRAM_TEST_OVERRIDE:\s*(.+?)\s*-->', re.DOTALL
     )
     PROGRAM_TEST_RE = re.compile(
-        r'<!--\s*@PROGRAM_TEST:\s*(.+?)\s*-->', re.DOTALL
+        r'<!--\s*@PROGRAM_TEST(?::\s*(.+?))?\s*-->', re.DOTALL
     )
     
-    def extract_annotations_from_file(self, md_filepath: str) -> ProgramTestAnnotation:
+    def extract_annotations_from_file(self, md_filepath: str, content: Optional[str] = None) -> ProgramTestAnnotation:
         """Extract program test markup from a task .md file."""
         if not os.path.exists(md_filepath):
             b.debug(f"Task file not found: {md_filepath}")
             return ProgramTestAnnotation()
         
         try:
-            with open(md_filepath, 'r', encoding='utf-8') as f:
-                content = f.read()
+            if content is None:
+                with open(md_filepath, 'r', encoding='utf-8') as f:
+                    content = f.read()
         except Exception as e:
             b.warning(f"Cannot read task file {md_filepath}: {e}")
             return ProgramTestAnnotation()
@@ -73,25 +81,31 @@ class AnnotationExtractor:
         skip_match = self.PROGRAM_TEST_SKIP_RE.search(content)
         if skip_match:
             annotation.skip = True
+            annotation.has_markup = True
             self._parse_skip_params(skip_match.group(1), annotation)
         
         # Check for PARTIAL annotation
         partial_match = self.PROGRAM_TEST_PARTIAL_RE.search(content)
         if partial_match:
             annotation.partial_skip = True
+            annotation.has_markup = True
             self._parse_partial_params(partial_match.group(1), annotation)
         
         # Check for OVERRIDE annotation
         override_match = self.PROGRAM_TEST_OVERRIDE_RE.search(content)
         if override_match:
             annotation.command_override = True
+            annotation.has_markup = True
             self._parse_override_params(override_match.group(1), annotation)
         
         # Check for general PROGRAM_TEST annotation
         test_match = self.PROGRAM_TEST_RE.search(content)
         if test_match:
-            self._parse_test_params(test_match.group(1), annotation)
-        
+            annotation.has_markup = True
+            params_text = test_match.group(1)
+            if params_text:
+                self._parse_test_params(params_text, annotation)
+
         return annotation
     
     def _parse_skip_params(self, params_text: str, annotation: ProgramTestAnnotation):
@@ -152,6 +166,139 @@ class ProgramTestConfig:
     command_tests: List[CommandTest] = field(default_factory=list)
     timeout: int = 30
     annotation: ProgramTestAnnotation = field(default_factory=ProgramTestAnnotation)
+
+
+@dataclass
+class ProgramTestTarget:
+    """Mapping between a task, its program file, and associated protocol."""
+    task_file: Path
+    program_file: Path
+    protocol_file: Path
+
+
+def _relative_task_path(chapterdir: Path, task_path: Path) -> Optional[Path]:
+    """Return the task path relative to chapterdir, or None if mismatched."""
+    try:
+        return task_path.relative_to(chapterdir)
+    except Exception as exc:
+        b.warning(f"Cannot derive relative path for {task_path}: {exc}")
+        return None
+
+
+def _default_protocol_path(altdir_chapter: Path, relative_task_path: Path) -> Path:
+    """Compute default protocol path by replacing root and suffix."""
+    return (altdir_chapter / relative_task_path).with_suffix('.prot')
+
+
+def _find_program_file(itree_root: Path, relative_task_path: Path) -> Optional[Path]:
+    """Find the program file matching the task stem under itree."""
+    program_dir = itree_root / relative_task_path.parent
+    if not program_dir.exists():
+        return None
+    stem = relative_task_path.stem
+    candidates = sorted(
+        [p for p in program_dir.iterdir()
+         if p.is_file() and p.stem == stem and p.suffix.lower() not in PROGRAM_FILE_EXCLUDE_SUFFIXES]
+    )
+    return candidates[0] if candidates else None
+
+
+def _extract_itree_zip(zip_path: Path) -> Optional[Path]:
+    """Extract an itree zip archive and return the extraction directory."""
+    try:
+        mtime = zip_path.stat().st_mtime
+    except OSError:
+        return None
+    cache_key = str(zip_path.resolve())
+    cached = _ITREE_EXTRACTION_CACHE.get(cache_key)
+    if cached and cached[1] == mtime and cached[0].exists():
+        return cached[0]
+    extract_dir = Path(tempfile.mkdtemp(prefix="programchecker_itree_"))
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        zip_ref.extractall(extract_dir)
+    _ITREE_EXTRACTION_CACHE[cache_key] = (extract_dir, mtime)
+    return extract_dir
+
+
+def _prepare_itree_directory(itree_path: Path) -> Optional[Path]:
+    """Ensure that the itree path points to a usable directory."""
+    if itree_path.is_dir():
+        return itree_path
+    if itree_path.is_file():
+        return _extract_itree_zip(itree_path)
+    return None
+
+
+def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[ProgramTestTarget]:
+    """Collect program/protocol pairs from task markdown files based on manual markup."""
+    targets: List[ProgramTestTarget] = []
+    seen_pairs: set[tuple[Path, Path]] = set()
+    annotation_extractor = AnnotationExtractor()
+    chapterdir_value = getattr(course, 'chapterdir', None)
+    altdir_value = getattr(course, 'altdir', None)
+    itreedir_value = getattr(course, 'itreedir', None)
+    if not chapterdir_value or not altdir_value or not itreedir_value:
+        b.error("Course configuration missing chapterdir/altdir/itreedir settings")
+        return targets
+    chapterdir_path = Path(chapterdir_value)
+    altdir_chapter_path = Path(altdir_value)
+    raw_itreedir_path = Path(itreedir_value)
+    if not chapterdir_path.exists():
+        b.error(f"chapterdir not found: {chapterdir_path}")
+        return targets
+    if not altdir_chapter_path.exists():
+        b.error(f"altdir (chapter) not found: {altdir_chapter_path}")
+        return targets
+    itree_root = _prepare_itree_directory(raw_itreedir_path)
+    if not itree_root or not itree_root.exists():
+        b.error(f"itreedir not found: {raw_itreedir_path}")
+        return targets
+    for chapter in course.chapters:
+        if chapter.to_be_skipped:
+            continue
+        for taskgroup in chapter.taskgroups:
+            if taskgroup.to_be_skipped:
+                continue
+            for task in taskgroup.tasks:
+                if task.to_be_skipped:
+                    continue
+                source_path = Path(task.sourcefile)
+                if not source_path.exists():
+                    b.warning(f"Task file not found for program tests: {source_path}")
+                    continue
+                try:
+                    content = source_path.read_text(encoding='utf-8')
+                except Exception as exc:
+                    b.warning(f"Cannot read task file {source_path}: {exc}")
+                    continue
+                annotation = annotation_extractor.extract_annotations_from_file(
+                    str(source_path), content=content
+                )
+                if not annotation.has_markup:
+                    b.debug(f"No PROGRAM_TEST markup found in {source_path}; skipping program tests")
+                    continue
+                rel_path = _relative_task_path(chapterdir_path, source_path)
+                if rel_path is None:
+                    continue
+                protocol_path = _default_protocol_path(altdir_chapter_path, rel_path)
+                if not protocol_path.exists():
+                    b.warning(f"Protocol file not found for {source_path}: {protocol_path}")
+                    continue
+                program_path = _find_program_file(itree_root, rel_path)
+                if not program_path:
+                    b.warning(f"Program file not found for {source_path} in {raw_itreedir_path}")
+                    continue
+                pair_key = (program_path, protocol_path)
+                if pair_key in seen_pairs:
+                    b.debug(f"Duplicate program test reference ignored: {program_path}")
+                    continue
+                seen_pairs.add(pair_key)
+                targets.append(ProgramTestTarget(
+                    task_file=source_path,
+                    program_file=program_path,
+                    protocol_file=protocol_path
+                ))
+    return targets
     
 @dataclass
 class ProgramTestResult:
@@ -272,107 +419,55 @@ class ProgramChecker:
                     return True, annotation.partial_skip_reason or f'Contains {keyword}'
         return False, ""
     
-    def find_program_test_pairs(self, itree_path: Path, altdir_path: Path) -> List[ProgramTestConfig]:
-        """Find all program-protocol file pairs for testing."""
-        configs = []
-        
-        if not itree_path.exists():
-            b.error(f"itree directory not found: {itree_path}")
-            return configs
-        
-        # Check if itree is a zip file or directory
-        if itree_path.is_file():
-            # It's a zip file, need to extract
-            with tempfile.TemporaryDirectory() as temp_dir:
-                temp_path = Path(temp_dir)
-                
-                try:
-                    with zipfile.ZipFile(itree_path, 'r') as zip_ref:
-                        zip_ref.extractall(temp_path)
-                except Exception as e:
-                    b.error(f"Failed to extract {itree_path}: {e}")
-                    return configs
-                
-                itree_root = temp_path
-        else:
-            # It's a directory, use directly
-            itree_root = itree_path
-        
-        # Find all files in itree directory (language-independent approach)
-        # The programs in itree.zip are decisive, not the .prot files
-        all_files = list(itree_root.rglob('*'))
-        
-        # Filter: only regular files, exclude documentation/config files
-        excluded_extensions = {'.md', '.yaml', '.yml', '.txt', '.json', '.prot', 
-                              '.gitignore', '.cfg', '.conf', '.ini', '.xml', '.html'}
-        excluded_names = {'README', 'LICENSE', 'Makefile', '.git', '.gitkeep'}
-        
-        program_files = []
-        for file_path in all_files:
-            if not file_path.is_file():
+    def build_configs_from_targets(self, targets: List[ProgramTestTarget]) -> List[ProgramTestConfig]:
+        """Build ProgramTestConfig objects from manually identified targets."""
+        configs: List[ProgramTestConfig] = []
+        seen_pairs: set[tuple[Path, Path]] = set()
+        for target in targets:
+            pair_key = (target.program_file, target.protocol_file)
+            if pair_key in seen_pairs:
+                b.debug(f"Duplicate target ignored: {target.program_file}")
                 continue
-            if file_path.suffix.lower() in excluded_extensions:
+            seen_pairs.add(pair_key)
+            annotation = self.annotation_extractor.extract_annotations_from_file(str(target.task_file))
+            should_skip, skip_reason = self._should_skip_program(annotation)
+            program_name = target.program_file.stem
+            if should_skip:
+                skipped_result = ProgramTestResult(
+                    program_name=program_name,
+                    success=False,
+                    skipped=True,
+                    error_message=skip_reason or 'Configured to skip',
+                    skip_category="config_skip"
+                )
+                self.skipped_programs.append(skipped_result)
                 continue
-            if file_path.name in excluded_names:
+            command_tests = self.parse_command_tests_from_prot(
+                target.protocol_file,
+                target.program_file.name,
+                annotation
+            )
+            if not command_tests:
+                b.debug(f"No testable commands found in {target.protocol_file}")
                 continue
-            program_files.append(file_path)
-        
-        b.info(f"Found {len(program_files)} program files in itree directory")
-        
-        # For each program file, try to find corresponding .prot file
-        for program_file in program_files:
-            # Program name without extension
-            program_name = program_file.stem
-            
-            # Find corresponding .prot file
-            rel_path = program_file.relative_to(itree_root)
-            prot_path = altdir_path / "ch" / rel_path.with_suffix('.prot')
-            
-            if prot_path.exists():
-                # Get markup from task .md file
-                annotation = self._get_annotation_for_program(program_file, itree_root)
-                
-                # Check if this program should be completely skipped
-                should_skip, skip_reason = self._should_skip_program(annotation)
-                if should_skip:
-                    b.info(f"Skipping {program_name}: {skip_reason}")
-                    # Create a skipped result for this program
-                    skipped_result = ProgramTestResult(
-                        program_name=program_name,
-                        success=False,
-                        skipped=True,
-                        error_message=skip_reason,
-                        skip_category="config_skip"
-                    )
-                    self.skipped_programs.append(skipped_result)
-                    continue
-                
-                # Parse command tests from .prot file
-                command_tests = self.parse_command_tests_from_prot(prot_path, program_file.name, annotation)
-                
-                if command_tests:
-                    config = ProgramTestConfig(
-                        program_path=program_file,
-                        program_name=program_name,
-                        expected_protocol_file=prot_path,
-                        working_dir=program_file.parent,
-                        command_tests=command_tests,
-                        annotation=annotation
-                    )
-                    configs.append(config)
-                    
-                    # Log command analysis
-                    total_commands = len(command_tests)
-                    testable_commands = len([ct for ct in command_tests if not ct.has_errors and not ct.needs_interaction and not ct.has_redirection])
-                    b.debug(f"Found test pair: {program_name} <-> {prot_path.name} ({testable_commands}/{total_commands} testable commands)")
-                else:
-                    b.debug(f"No testable commands found in {prot_path} for {program_name}")
-            else:
-                b.debug(f"No .prot file found for {program_name} at {prot_path}")
-        
-        # Calculate total test pairs (including skipped ones)
-        total_pairs = len(configs) + len(self.skipped_programs)
-        b.info(f"Found {total_pairs} program-protocol test pairs ({len(configs)} to test, {len(self.skipped_programs)} skipped by markup)")
+            config = ProgramTestConfig(
+                program_path=target.program_file,
+                program_name=program_name,
+                expected_protocol_file=target.protocol_file,
+                working_dir=target.program_file.parent,
+                command_tests=command_tests,
+                annotation=annotation
+            )
+            configs.append(config)
+            total_commands = len(command_tests)
+            testable_commands = len([
+                ct for ct in command_tests
+                if not ct.has_errors and not ct.needs_interaction and not ct.has_redirection
+            ])
+            b.debug(
+                f"Configured test pair: {program_name} <-> {target.protocol_file.name} "
+                f"({testable_commands}/{total_commands} testable commands)"
+            )
         return configs
     
     def parse_command_tests_from_prot(self, prot_file: Path, program_name: str, annotation: ProgramTestAnnotation) -> List[CommandTest]:
@@ -637,7 +732,6 @@ class ProgramChecker:
             
             return ProgramTestResult(
                 program_name=config.program_name,
-                language=config.language,
                 success=False,
                 error_message="No command tests found in .prot file",
                 skipped=True,
@@ -781,57 +875,29 @@ class ProgramChecker:
         
         return actual_clean == expected_clean
     
-    def test_all_programs(self, show_progress: bool = False, batch_mode: bool = False) -> List[ProgramTestResult]:
-        """Test all programs found in itree.
-        
-        Args:
-            show_progress: Show detailed progress for each test
-            batch_mode: Use batch/CI-friendly output (less verbose)
-        """
-        # Find itree directory and altdir
-        itree_path = self.course_root / "altdir" / "itree.zip"
-        altdir = self.course_root / "altdir"
-        
-        # Debug: print paths for troubleshooting (only if not in batch mode)
-        if show_progress and not batch_mode:
-            b.debug(f"Course root: {self.course_root}")
-            b.debug(f"Looking for itree at: {itree_path}")
-            b.debug(f"Looking for altdir at: {altdir}")
-        
-        if not itree_path.exists():
-            b.error(f"itree directory not found at {itree_path}")
+    def test_all_programs(self, targets: Optional[List[ProgramTestTarget]] = None,
+                          show_progress: bool = False, batch_mode: bool = False) -> List[ProgramTestResult]:
+        """Execute tests for all provided program targets."""
+        self.skipped_programs = []
+        if targets is None:
+            b.error("Program test targets must be provided when running test_all_programs.")
             return []
-        
-        if not altdir.exists():
-            b.error(f"altdir not found at {altdir}")
-            return []
-        
-        # Get all test configurations
-        configs = self.find_program_test_pairs(itree_path, altdir)
-        
-        # Calculate total programs (testable + skipped)
+        configs = self.build_configs_from_targets(targets)
         total_programs = len(configs) + len(self.skipped_programs)
-        
         if total_programs == 0:
-            b.warning("No program-protocol test pairs found")
+            b.warning("No program-protocol test targets found. Nothing to test.")
+            self.results = []
             return []
-        
-        results = []
-        
         if batch_mode:
-            # Batch mode: concise output
             b.info(f"Testing {len(configs)} programs ({len(self.skipped_programs)} skipped by markup)...")
         else:
             b.info(f"Starting program tests for {total_programs} programs...")
             b.info(f"  - {len(configs)} programs to test")
             b.info(f"  - {len(self.skipped_programs)} programs skipped by markup")
-        
         if self.parallel_execution and len(configs) > 1:
             results = self._run_tests_parallel(configs, show_progress, batch_mode)
         else:
             results = self._run_tests_sequential(configs, show_progress, batch_mode)
-        
-        # Combine test results with skipped programs for complete statistics
         all_results = results + self.skipped_programs
         self.results = all_results
         return all_results
@@ -936,75 +1002,11 @@ class ProgramChecker:
         if results is None:
             results = self.results
         
-        # Generate JSON report
-        self.generate_json_report(results)
-        
         # Generate Markdown report
         self.generate_markdown_report(results)
         
         # Print summary
         self.print_summary(results, batch_mode=batch_mode)
-    
-    def generate_json_report(self, results: List[ProgramTestResult]) -> None:
-        """Generate JSON report."""
-        failed_tests = [r for r in results if not r.success and not r.skipped]
-        skipped_tests = [r for r in results if r.skipped]
-        passed_tests = [r for r in results if r.success]
-        
-        report_data = {
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "total_tests": len(results),
-            "passed": len(passed_tests),
-            "failed": len(failed_tests),
-            "skipped": len(skipped_tests),
-            "total_execution_time": sum(r.execution_time for r in results),
-            "failed_tests": [
-                {
-                    "program_name": r.program_name,
-                    "error_message": r.error_message,
-                    "execution_time": r.execution_time,
-                }
-                for r in failed_tests
-            ],
-            "skipped_tests": [
-                {
-                    "program_name": r.program_name,
-                    "skip_reason": r.error_message,
-                    "skip_category": r.skip_category,
-                }
-                for r in skipped_tests
-            ],
-            "passed_tests": [
-                {
-                    "program_name": r.program_name,
-                    "execution_time": r.execution_time,
-                }
-                for r in passed_tests
-            ],
-            "all_results": [
-                {
-                    "program_name": r.program_name,
-                    "success": r.success,
-                    "skipped": r.skipped,
-                    "execution_time": r.execution_time,
-                    "exit_code": r.exit_code,
-                    "error_message": r.error_message,
-                    "missing_dependencies": r.missing_dependencies,
-                    "actual_output_preview": r.actual_output[:200] if r.actual_output else "",
-                    "expected_output_preview": r.expected_output[:200] if r.expected_output else "",
-                    "command_override": r.command_override,
-                    "override_details": r.override_details if r.command_override else None
-                }
-                for r in results
-            ]
-        }
-        
-        report_file = os.path.join(self.report_dir, "program_test_report.json")
-        try:
-            with open(report_file, 'w', encoding='utf-8') as f:
-                json.dump(report_data, f, indent=2, ensure_ascii=False)
-        except Exception as e:
-            b.error(f"Failed to save JSON report: {e}")
     
     def generate_markdown_report(self, results: List[ProgramTestResult]) -> None:
         """Generate Markdown report."""
@@ -1132,94 +1134,25 @@ Generated: {timestamp}
         skipped_config = sum(1 for r in results if r.skipped and r.skip_category == "config_skip")
         skipped_partial = sum(1 for r in results if r.skip_category == "partial_skip")
         skipped_runtime = sum(1 for r in results if r.skipped and r.skip_category == "runtime_skip")
-        total_time = sum(r.execution_time for r in results)
+        total_skipped = skipped_config + skipped_partial + skipped_runtime
         
-        if not batch_mode:
-            b.info("=" * 60)
-            b.info("PROGRAM TEST SUMMARY")
-            b.info("=" * 60)
+        summary_line = (
+            f"Programs: {len(results)} | Passed: {passed} | Failed: {failed} | Skipped: {total_skipped}"
+        )
+        b.info(summary_line)
+        if total_skipped and not batch_mode:
+            b.info(
+                f"    (Markup: {skipped_config}, Partial: {skipped_partial}, Runtime: {skipped_runtime})"
+            )
+        success_rate = (passed / len(results) * 100) if results else 0.0
+        b.info(f"Success Rate: {success_rate:.1f}%")
         
-        # Basic statistics (always shown)
-        b.info(f"Total Programs: {len(results)}")
-        b.info(f"  - Passed:      {passed}")
-        b.info(f"  - Failed:      {failed}")
-        if not batch_mode:
-            b.info(f"  - Skipped (annotation): {skipped_config}")
-            b.info(f"  - Partial Skip: {skipped_partial}")
-            b.info(f"  - Skipped (runtime): {skipped_runtime}")
-        b.info(f"Success Rate: {(passed / len(results) * 100):.1f}%")
-        if total_time > 0 and not batch_mode:
-            b.info(f"Test Execution Time: {total_time:.2f}s")
-        
-        # Complete error list at the end
-        if failed > 0:
-            if not batch_mode:
-                b.info("")
-            b.info("=" * 60)
-            b.info(f"FAILED TESTS ({failed} total):")
-            b.info("=" * 60)
+        if failed:
+            header = f"Failed Programs ({failed})"
+            b.info(header)
             for result in results:
                 if not result.success and not result.skipped:
-                    b.error(f"  FAIL: {result.program_name}: {result.error_message}")
-        
-        if skipped_config > 0:
-            b.info("")
-            b.info("Skipped Tests (by markup):")
-            for result in results:
-                if result.skipped and result.skip_category == "config_skip":
-                    b.info(f"  SKIP: {result.program_name}: {result.error_message}")
-        
-        if skipped_partial > 0:
-            b.info("")
-            b.info("Partial Skip Tests (some commands tested, some skipped):")
-            for result in results:
-                if result.skip_category == "partial_skip" and result.partial_skip_details:
-                    details = result.partial_skip_details
-                    tested = details.get("tested_commands", [])
-                    skipped = details.get("skipped_commands", [])
-                    skip_reason = details.get("skip_reason", "")
-                    testable_note = details.get("testable_note", "")
-                    
-                    status = "PASS" if result.success else "FAIL"
-                    b.info(f"  {status}: {result.program_name}")
-                    
-                    if tested:
-                        b.info(f"      ✓ Tested Commands ({len(tested)}):")
-                        for cmd_info in tested:
-                            b.info(f"        - [{cmd_info['status']}] {cmd_info['command']}")
-                    
-                    if skipped:
-                        b.info(f"      ✗ Requires Manual Testing ({len(skipped)}):")
-                        for cmd_info in skipped:
-                            b.info(f"        - {cmd_info['command']}")
-                        if skip_reason:
-                            b.info(f"        Reason: {skip_reason}")
-                    
-                    if testable_note:
-                        b.info(f"      Note: {testable_note}")
-        
-        if skipped_runtime > 0:
-            b.info("")
-            b.info("Skipped Tests (at runtime):")
-            for result in results:
-                if result.skipped and result.skip_category == "runtime_skip":
-                    deps = ", ".join(result.missing_dependencies) if result.missing_dependencies else "N/A"
-                    b.info(f"  SKIP: {result.program_name}: {result.error_message} [Missing: {deps}]")
-        
-        # Show programs with command override
-        override_programs = [r for r in results if r.command_override]
-        if override_programs and not batch_mode:
-            b.info("")
-            b.info("Programs with Command Override:")
-            for result in override_programs:
-                status = "PASS" if result.success else ("SKIP" if result.skipped else "FAIL")
-                b.info(f"  [{status}] {result.program_name}")
-                if result.override_details:
-                    b.info(f"      Original: {result.override_details.get('original_command', 'N/A')}")
-                    b.info(f"      Override: {result.override_details.get('correct_command', 'N/A')}")
-                    b.info(f"      Reason: {result.override_details.get('reason', 'N/A')}")
-        
-        b.info("=" * 60)
+                    b.error(f"  - {result.program_name}: {result.error_message}")
 
 
 def test_single_program_file(program_path: str) -> None:
@@ -1306,6 +1239,27 @@ def test_single_program_file(program_path: str) -> None:
         b.info(f"Running test for {program_name}")
         b.info(f"Found {len(command_tests)} command(s) in .prot file")
         result = checker.run_program_test(config)
+        
+        # Per-command actual vs expected output (for debugging)
+        b.info("")
+        b.info("DETAILED PER-COMMAND OUTPUT (for debugging)")
+        checker._cleanup_generated_files(config.working_dir, config.program_name)
+        for idx, cmd_test in enumerate(config.command_tests, 1):
+            if cmd_test.has_errors or cmd_test.needs_interaction or cmd_test.has_redirection:
+                b.info(f"{idx}. Command: {cmd_test.command}")
+                b.info("   Status: SKIPPED (non-testable in automation)")
+                b.info("")
+                continue
+            single_result = checker.run_single_command_test(config, cmd_test)
+            status = "PASS" if single_result.success else "FAIL"
+            b.info(f"{idx}. Command: {cmd_test.command}")
+            b.info(f"   Status: {status}")
+            b.info("   Expected output:")
+            b.info(single_result.expected_output or "<empty>")
+            b.info("   Actual output:")
+            b.info(single_result.actual_output or "<empty>")
+            b.info("")
+        checker._cleanup_generated_files(config.working_dir, config.program_name)
         
         # Display detailed results
         if result.partial_skip_details:

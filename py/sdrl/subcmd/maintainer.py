@@ -334,8 +334,6 @@ def check_programs_command(pargs: argparse.Namespace):
         # Test all programs
         b.info("Testing exemplary programs...")
         
-        course_root = Path.cwd()
-        
         # Auto-derive targetdir_s and targetdir_i from user input
         targetdir_s = pargs.targetdir
         targetdir_i = targetdir_s + "_i"
@@ -355,41 +353,38 @@ def check_programs_command(pargs: argparse.Namespace):
             the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=False)
             b.set_register_files_callback(the_cache.set_file_dirty)
             directory = dir.Directory(the_cache)
+            the_course = sdrl.course.Coursebuilder(
+                configfile=pargs.config,
+                context=pargs.config,
+                include_stage=pargs.include_stage,
+                targetdir_s=targetdir_s,
+                targetdir_i=targetdir_i,
+                directory=directory
+            )
+            _build_metadata_only(directory)
+            targets = programchecker.extract_program_test_targets(the_course)
             
             # Initialize checker (uses annotation-based configuration from task .md files)
             checker = programchecker.ProgramChecker(
-                course_root=course_root,
                 parallel_execution=True,
                 report_dir=temp_report_dir  # Write to temp dir first
             )
             
             # Run tests with appropriate verbosity
             show_progress = not batch_mode  # Less verbose in batch mode
-            results = checker.test_all_programs(show_progress=show_progress, batch_mode=batch_mode)
+            results = checker.test_all_programs(
+                targets=targets,
+                show_progress=show_progress,
+                batch_mode=batch_mode
+            )
             
             # Generate reports to temp directory
             try:
                 checker.generate_reports(results, batch_mode=batch_mode)
                 
-                # Read report content from temp files
-                json_temp_path = os.path.join(temp_report_dir, "program_test_report.json")
                 md_temp_path = os.path.join(temp_report_dir, "program_test_report.md")
-                
-                with open(json_temp_path, 'r', encoding='utf-8') as f:
-                    json_content = f.read()
-                
                 with open(md_temp_path, 'r', encoding='utf-8') as f:
                     md_content = f.read()
-                
-                # Create ReportFile objects as build products
-                json_report = directory.make_the(
-                    sdrl.elements.ReportFile,
-                    "program_test_report.json",
-                    content=json_content,
-                    markdown_files=None,  # Program tests don't directly depend on markdown files
-                    targetdir_s=targetdir_s,
-                    targetdir_i=targetdir_i
-                )
                 
                 md_report = directory.make_the(
                     sdrl.elements.ReportFile,
@@ -399,13 +394,9 @@ def check_programs_command(pargs: argparse.Namespace):
                     targetdir_s=targetdir_s,
                     targetdir_i=targetdir_i
                 )
-                
-                # Build the report files (writes to disk)
-                json_report.do_build()
                 md_report.do_build()
                 
-                b.info(f"Reports generated as build products:")
-                b.info(f"  JSON: {json_report.outputfile_i}")
+                b.info("Report generated as build product:")
                 b.info(f"  Markdown: {md_report.outputfile_i}")
                 
             except Exception as e:
