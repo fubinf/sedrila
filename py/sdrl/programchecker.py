@@ -1060,13 +1060,9 @@ Generated: {timestamp}
         report_content += "\n## Skipped Tests (by markup)\n"
         
         if skipped_config:
+            report_content += "\n| Program | Reason |\n|---------|--------|\n"
             for result in skipped_config:
-                report_content += f"""
-### {result.program_name}
-
-- **Reason**: {result.error_message}
-
-"""
+                report_content += f"| {result.program_name} | {result.error_message or ''} |\n"
         else:
             report_content += "\nNo tests skipped by markup.\n"
         
@@ -1084,30 +1080,26 @@ Generated: {timestamp}
         # Add command override section
         override_tests = [r for r in results if r.command_override]
         if override_tests:
-            report_content += "\n## Programs with Command Override\n"
+            report_content += "\n## Programs with Command Override\n\n"
+            report_content += "| Program | Status | Original | Override | Reason | Execution Time |\n"
+            report_content += "|---------|--------|----------|----------|--------|----------------|\n"
             for result in override_tests:
                 status = "PASS" if result.success else ("SKIP" if result.skipped else "FAIL")
-                report_content += f"""
-### {result.program_name} - {status}
-
-- **Original Command**: `{result.override_details.get('original_command', 'N/A')}`
-- **Overridden Command**: `{result.override_details.get('correct_command', 'N/A')}`
-- **Reason**: {result.override_details.get('reason', 'N/A')}
-- **Execution Time**: {result.execution_time:.2f}s
-
-"""
+                details = result.override_details or {}
+                report_content += (
+                    f"| {result.program_name} | {status} | "
+                    f"`{details.get('original_command', 'N/A')}` | "
+                    f"`{details.get('correct_command', 'N/A')}` | "
+                    f"{details.get('reason', 'N/A')} | "
+                    f"{result.execution_time:.2f}s |\n"
+                )
         
         report_content += "\n## Passed Tests\n"
         
         if passed_tests:
+            report_content += "\n| Program | Execution Time |\n|---------|----------------|\n"
             for result in passed_tests:
-                override_note = " *(with command override)*" if result.command_override else ""
-                report_content += f"""
-### {result.program_name}{override_note}
-
-- **Execution Time**: {result.execution_time:.2f}s
-
-"""
+                report_content += f"| {result.program_name} | {result.execution_time:.2f}s |\n"
         else:
             report_content += "\nNo passed tests.\n"
         
