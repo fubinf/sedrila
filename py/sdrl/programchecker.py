@@ -1239,28 +1239,6 @@ def test_single_program_file(program_path: str) -> None:
         b.info(f"Running test for {program_name}")
         b.info(f"Found {len(command_tests)} command(s) in .prot file")
         result = checker.run_program_test(config)
-        
-        # Per-command actual vs expected output (for debugging)
-        b.info("")
-        b.info("DETAILED PER-COMMAND OUTPUT (for debugging)")
-        checker._cleanup_generated_files(config.working_dir, config.program_name)
-        for idx, cmd_test in enumerate(config.command_tests, 1):
-            if cmd_test.has_errors or cmd_test.needs_interaction or cmd_test.has_redirection:
-                b.info(f"{idx}. Command: {cmd_test.command}")
-                b.info("   Status: SKIPPED (non-testable in automation)")
-                b.info("")
-                continue
-            single_result = checker.run_single_command_test(config, cmd_test)
-            status = "PASS" if single_result.success else "FAIL"
-            b.info(f"{idx}. Command: {cmd_test.command}")
-            b.info(f"   Status: {status}")
-            b.info("   Expected output:")
-            b.info(single_result.expected_output or "<empty>")
-            b.info("   Actual output:")
-            b.info(single_result.actual_output or "<empty>")
-            b.info("")
-        checker._cleanup_generated_files(config.working_dir, config.program_name)
-        
         # Display detailed results
         if result.partial_skip_details:
             details = result.partial_skip_details
