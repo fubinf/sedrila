@@ -41,7 +41,6 @@ sedrila maintainer [options] targetdir
 ```
 
 Unlike `sedrila author`, the maintainer does not:
-
 - Build HTML files
 - Process templates or macros
 - Generate student/instructor websites
@@ -130,10 +129,6 @@ Available rule parameters:
 - `ignore_ssl=true`: Skip SSL certificate validation
 
 The validation rule applies (only) to the next link found.
-<<<<<<< HEAD
-
-=======
->>>>>>> ff3b89a (`--check-links`: improve output/CI display, feedback implemented)
 
 ## 5. Program Testing: `--check-programs`
 
@@ -193,7 +188,6 @@ Program testing requires the following environment:
 These requirements evolve as new program types are added to the course. The list below reflects the current set of testable programs.
 
 **Required:**
-
 - **Python**: 3.11 or higher
 - **Go**: 1.23 or higher (for Go programs)
 - **Program files**: `altdir/itree.zip` must exist (either as a directory with source files or as a built ZIP file)
