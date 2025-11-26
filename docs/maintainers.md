@@ -146,7 +146,7 @@ How it works:
 - Programs with found test pairs are automatically tested if no markup is present
 - Use HTML comments in task `.md` files to control test behavior (skip, partial skip, command override)
 - Executes ALL testable commands from `.prot` files and verifies output
-- Creates `program_test_report.json` and `program_test_report.md` in `targetdir_i`
+- Creates `program_test_report.md` in `targetdir_i`
   
 Examples:
 
