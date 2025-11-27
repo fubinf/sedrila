@@ -9,8 +9,6 @@ successfully and produce expected output.
 import subprocess as sp
 import os
 import time
-import tempfile
-import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -25,8 +23,6 @@ PROGRAM_FILE_EXCLUDE_SUFFIXES = {
     '.md', '.markdown', '.yaml', '.yml', '.txt', '.json', '.prot',
     '.cfg', '.conf', '.ini', '.xml', '.html'
 }
-_ITREE_EXTRACTION_CACHE: dict[str, tuple[Path, float]] = {}
-
 @dataclass
 class ProgramTestAnnotation:
     """Program test markup from task .md file."""
@@ -203,32 +199,6 @@ def _find_program_file(itree_root: Path, relative_task_path: Path) -> Optional[P
     return candidates[0] if candidates else None
 
 
-def _extract_itree_zip(zip_path: Path) -> Optional[Path]:
-    """Extract an itree zip archive and return the extraction directory."""
-    try:
-        mtime = zip_path.stat().st_mtime
-    except OSError:
-        return None
-    cache_key = str(zip_path.resolve())
-    cached = _ITREE_EXTRACTION_CACHE.get(cache_key)
-    if cached and cached[1] == mtime and cached[0].exists():
-        return cached[0]
-    extract_dir = Path(tempfile.mkdtemp(prefix="programchecker_itree_"))
-    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-        zip_ref.extractall(extract_dir)
-    _ITREE_EXTRACTION_CACHE[cache_key] = (extract_dir, mtime)
-    return extract_dir
-
-
-def _prepare_itree_directory(itree_path: Path) -> Optional[Path]:
-    """Ensure that the itree path points to a usable directory."""
-    if itree_path.is_dir():
-        return itree_path
-    if itree_path.is_file():
-        return _extract_itree_zip(itree_path)
-    return None
-
-
 def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[ProgramTestTarget]:
     """Collect program/protocol pairs from task markdown files based on manual markup."""
     targets: List[ProgramTestTarget] = []
@@ -249,10 +219,13 @@ def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[Prog
     if not altdir_chapter_path.exists():
         b.error(f"altdir (chapter) not found: {altdir_chapter_path}")
         return targets
-    itree_root = _prepare_itree_directory(raw_itreedir_path)
-    if not itree_root or not itree_root.exists():
+    if not raw_itreedir_path.exists():
         b.error(f"itreedir not found: {raw_itreedir_path}")
         return targets
+    if not raw_itreedir_path.is_dir():
+        b.error(f"itreedir must be a directory: {raw_itreedir_path}")
+        return targets
+    itree_root = raw_itreedir_path
     for chapter in course.chapters:
         if chapter.to_be_skipped:
             continue
@@ -1148,7 +1121,8 @@ Generated: {timestamp}
 
 
 def test_single_program_file(program_path: str) -> None:
-    """Test a single program file (for development/debugging)."""
+    """Test a single program file (for development/debugging, after development will be deleted).
+    because it still use hardcoded path but not Coursebuilder"""
     try:
         # Initialize checker with current working directory as course root
         checker = ProgramChecker(course_root=Path.cwd())
@@ -1177,36 +1151,26 @@ def test_single_program_file(program_path: str) -> None:
             b.error(f"altdir not found at {altdir}")
             return
             
-        # Extract relative path from itree structure
-        try:
-            # If path contains itree.zip, get path after it
-            path_parts = program_file.parts
-            if 'itree.zip' in path_parts:
-                itree_idx = path_parts.index('itree.zip')
-                rel_parts = path_parts[itree_idx + 1:]
-                rel_path = Path(*rel_parts) if rel_parts else Path(program_file.name)
-            else:
-                # Fallback: use just the filename
-                rel_path = Path(program_file.name)
-                
-            prot_path = altdir / "ch" / rel_path.with_suffix('.prot')
-            
-            if not prot_path.exists():
-                b.error(f"Corresponding .prot file not found: {prot_path}")
-                return
-                
-        except Exception as e:
-            b.error(f"Could not determine .prot file location: {e}")
+        itree_dir = altdir / "itree.zip"
+        if not itree_dir.exists():
+            b.error(f"itreedir directory not found at {itree_dir}")
+            return
+        if not itree_dir.is_dir():
+            b.error(f"itreedir path must be a directory: {itree_dir}")
             return
         
-        # Get annotation from task .md file
-        # Need to determine itree root for mapping
-        if 'itree.zip' in path_parts:
-            itree_idx = path_parts.index('itree.zip')
-            itree_root = Path(*path_parts[:itree_idx+1])
-        else:
-            # Fallback: assume we're in altdir/itree.zip directory
-            itree_root = altdir / "itree.zip"
+        try:
+            rel_path = program_file.resolve().relative_to(itree_dir.resolve())
+        except ValueError:
+            b.error(f"Program file must reside inside {itree_dir}")
+            return
+        
+        prot_path = altdir / "ch" / rel_path.with_suffix('.prot')
+        if not prot_path.exists():
+            b.error(f"Corresponding .prot file not found: {prot_path}")
+            return
+        
+        itree_root = itree_dir
         
         annotation = checker._get_annotation_for_program(program_file, itree_root)
         
