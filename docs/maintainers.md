@@ -29,9 +29,8 @@ Function-specific requirements:
 
 - Link checking: Active internet connection
 - Program testing: Runtime environments for tested languages (Python 3.11+, Go 1.23+, etc.) 
-  and program files in `altdir/itree.zip` (see section 5.1).
-  Currently assumes `altdir/` exists in current directory; 
-  Maybe TODO: The checker uses `altdir` setting from configuration to locate test files.
+  The course configuration must provide compatible `chapterdir`, `altdir`, and `itreedir`
+  settings so that task markdowns, protocol files, and program sources can be matched.
 
 
 ## 3. Basic command structure
@@ -63,7 +62,8 @@ Common options:
 
 Positional arguments:
 
-- `targetdir`: Base directory for reports (required). Reports are written to `targetdir_i` (targetdir + "_i" suffix), following sedrila's convention of separating instructor content from student content.
+- `targetdir`: Base directory for reports (required). Reports are written to `targetdir_i` (targetdir + "_i" suffix), 
+  following sedrila's convention of separating instructor content from student content.
 
 ## 4. Link Checking: `--check-links`
 
@@ -132,65 +132,37 @@ The validation rule applies (only) to the next link found.
 
 ## 5. Program Testing: `--check-programs`
 
-Option `--check-programs [program_file]` tests exemplary programs from `altdir/itree.zip` against their corresponding protocol files.
-Without an argument, it tests all programs. With a file argument, it tests only that specific file.
+Option `--check-programs [program_file]` tests exemplary programs located in the `itreedir` against their corresponding protocol (`.prot`) files under `altdir`.
+Without an argument, it tests all programs whose tasks are explicitly marked with program test markup.
+With a file argument, it tests only that specific program file as a development/debug helper.
   
 How it works:
 
-- Scans `altdir/itree.zip` (directory or ZIP file) for program files and finds corresponding `.prot` files in `altdir/ch/`
-- Programs with found test pairs are automatically tested if no markup is present
+- Uses the course configuration (`chapterdir`, `altdir`, `itreedir`) to locate task markdown files,
+  protocol files, and program sources.
+- Considers only those tasks whose `.md` files contain program test markup (see section 5.3),
+  and derives program/protocol pairs from their relative paths.
 - Use HTML comments in task `.md` files to control test behavior (skip, partial skip, command override)
 - Executes ALL testable commands from `.prot` files and verifies output
 - Creates `program_test_report.md` in `targetdir_i`
   
 Examples:
 
-- `sedrila maintainer --check-programs -- /tmp/progtest` (test all programs)
-- `sedrila maintainer --check-programs altdir/itree.zip/Sprachen/Go/go-channels.go /tmp/progtest` (test single file)
-
-Maybe TODO?
-
-- Stage filtering (`--include-stage`) is not yet implemented for program testing
-- The checker now tests all programs found in `altdir/itree.zip`, regardless of the `--include-stage` parameter
-- Unlike `--check-links`, which filters files at runtime based on stage and course configuration, `--check-programs` tests all programs found in `altdir/itree.zip`
+- `sedrila maintainer --check-programs -- /tmp/progtest` (test all marked programs, all stages)
+- `sedrila maintainer --include-stage beta --check-programs -- /tmp/progtest` (check only beta stage marked programs)
+- `sedrila maintainer --check-programs path/to/program.go /tmp/progtest` (test single file)
 
 
-### 5.1 Prerequisites
-
-#### 5.1.1 Build
-
-**Important**: Program testing requires `altdir/itree.zip` to exist. This can be either:
-- A **directory** `altdir/itree.zip/` containing source program files
-- A **ZIP file** `altdir/itree.zip` created during course building
-
-To create the ZIP file, build the course first:
-
-```bash
-# Complete build (tests all stages)
-sedrila author /tmp/build
-
-# Beta stage only (faster, for quick testing)
-sedrila author --include_stage beta /tmp/build
-
-# Then run program tests
-sedrila maintainer --check-programs -- /tmp/progtest
-```
-
-Without building first, the checker will report "Total Programs: 0" if `altdir/itree.zip` does not exist.
-
-In a GitHub Action, **complete build** should be performed before testing to ensure full coverage.
-
-
-#### 5.1.2 Operating environment
+### 5.1 Operating environment
 
 Program testing requires the following environment:
 
 These requirements evolve as new program types are added to the course. The list below reflects the current set of testable programs.
 
 **Required:**
-- **Python**: 3.11 or higher
+- **Python**: 3.11 or higher, python and python3 both must available, because both will be used in existing `.prot` files.
 - **Go**: 1.23 or higher (for Go programs)
-- **Program files**: `altdir/itree.zip` must exist (either as a directory with source files or as a built ZIP file)
+- **Program files**: `itreedir` must exist as a directory with source files
 
 **Python packages (Sedrila dependencies):**
 In pyproject.toml: `[tool.poetry.dependencies]` and `[tool.poetry.group.dev.dependencies]`
@@ -228,7 +200,7 @@ and ensures consistency between single program and full course testing.
 #### 5.2.3 Test output and reporting
 
 The checker provides comprehensive test reports that display the total number of programs found
-and test pairs identified. It shows which programs passed, failed, and were skipped, with detailed
+and their test status. It shows which programs passed, failed, and were skipped, with detailed
 categorization for each status.
 
 For multi-command programs, the output lists each command with a numbered index and shows 
@@ -239,7 +211,7 @@ The checker calculates a success rate based on all programs, tracks execution ti
 command and the overall test run, and provides detailed failure reasons along with manual 
 testing requirements when applicable.
 
-Both JSON and Markdown reports are generated with categorized sections (Failed Tests, 
+Markdown reports are generated with categorized sections (Failed Tests, 
 Skipped Tests, Passed Tests) for detailed analysis.
 
 
@@ -250,7 +222,7 @@ for CI systems. The exit status is non-zero (1) when tests fail and zero (0) on 
 
 All failed tests are summarized at the end of the output for quick error identification,
 making it easy to spot issues in automated test runs.
-JSON and Markdown reports are always generated regardless of output mode.
+Markdown reports are always generated regardless of output mode.
 
 Scheduled execution runs link checking every Sunday at 03:00 UTC and program testing 
 at 03:30 UTC (see `maintainer-linkchecker.yml` and `maintainer-programchecker.yml`).
@@ -259,8 +231,8 @@ Both workflows use the `--batch` flag for CI-friendly output.
 
 ### 5.3 Program testing markup
 
-By default, programs are tested automatically. 
-You can control test behavior using HTML comment markup in task `.md` files.
+Program tests are opt-in and are enabled via HTML comment markup in task `.md` files.
+Only tasks that contain such markup participate in automatic program testing.
 The markup can be placed anywhere in the file; a common convention is to place it before the `[INSTRUCTOR]` section.
 
 

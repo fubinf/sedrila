@@ -1,7 +1,6 @@
 # pytest tests for programchecker
 import tempfile
 import os
-import zipfile
 from pathlib import Path
 
 import sdrl.programchecker as programchecker
@@ -370,19 +369,6 @@ def test_extract_program_test_targets():
         assert targets[0].program_file == program_path
         assert targets[0].protocol_file == prot_path
         
-        zip_path = temp_path / "itree_archive.zip"
-        with zipfile.ZipFile(zip_path, 'w') as zip_ref:
-            for root, _, files in os.walk(itreedir):
-                for file in files:
-                    full_path = Path(root) / file
-                    arcname = full_path.relative_to(itreedir)
-                    zip_ref.write(full_path, arcname)
-        course_zip = DummyCourse(chapterdir, temp_path / "altdir" / "ch", zip_path, [chapter])
-        zip_targets = programchecker.extract_program_test_targets(course_zip)
-        assert len(zip_targets) == 1
-        assert zip_targets[0].program_file.name == "task.py"
-        assert zip_targets[0].protocol_file == prot_path
-
 
 def test_missing_files_handling():
     """Test handling of missing files and directories."""
