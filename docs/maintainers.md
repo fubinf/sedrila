@@ -61,17 +61,17 @@ the `author` build system infrastructure for file identification.
 
 When checking all files, the command:
 
-1. Creates a `Coursebuilder` instance to parse `sedrila.yaml`
+Creates a `Coursebuilder` instance to parse `sedrila.yaml`
 
-2. Builds only the essential elements needed for file identification:
+Builds only the essential elements needed for file identification:
 
 - `Sourcefile`: Registers all source files
 - `Topmatter`: Parses YAML metadata from markdown files
 - `MetadataDerivation`: Processes metadata and evaluates stage filtering
 
-3. Extracts the list of markdown files that need checking (respecting configuration and stages)
+Extracts the list of markdown files that need checking (respecting configuration and stages)
 
-4. Checks links and generates reports as build products 
+Checks links and generates reports as build products 
 
 - Without a file argument, it checks all course files using the build system to identify files. 
 (respects `sedrila.yaml` configuration, only checks configured taskgroups). 
