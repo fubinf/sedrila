@@ -5,8 +5,6 @@ Allows extracting code snippets from solution files and including them in task f
 import dataclasses
 import os
 import re
-import shutil
-import zipfile
 from typing import Callable, Optional
 
 import base as b
@@ -14,7 +12,6 @@ import sdrl.constants as c
 import sdrl.macros as macros
 
 IDENTIFIER_RE = re.compile(r'^[A-Za-z0-9_]+$')
-_ITREE_EXTRACTION_CACHE: dict[str, tuple[str, float]] = {}
 
 
 @dataclasses.dataclass
@@ -222,6 +219,30 @@ class SnippetReferenceExtractor:
     """Extracts snippet references from task files."""
 
     MACRO_PATTERN = re.compile(macros.macro_regexp)
+
+    @staticmethod
+    def _find_comment_ranges(content: str) -> list[tuple[int, int]]:
+        """Return list of (start,end) ranges for HTML comments in content."""
+        ranges: list[tuple[int, int]] = []
+        idx = 0
+        while True:
+            start = content.find("<!--", idx)
+            if start == -1:
+                break
+            end = content.find("-->", start + 4)
+            if end == -1:
+                break
+            ranges.append((start, end + 3))
+            idx = end + 3
+        return ranges
+
+    @staticmethod
+    def _inside_comment(pos: int, ranges: list[tuple[int, int]]) -> bool:
+        for start, end in ranges:
+            if start <= pos < end:
+                return True
+        return False
+
     def extract_references_from_content(
         self,
         content: str,
@@ -229,8 +250,11 @@ class SnippetReferenceExtractor:
     ) -> list[SnippetReference]:
         """Extract all snippet references from content."""
         references_with_pos: list[tuple[int, SnippetReference]] = []
+        comment_ranges = self._find_comment_ranges(content)
 
         for match in self.MACRO_PATTERN.finditer(content):
+            if self._inside_comment(match.start(), comment_ranges):
+                continue
             if match.group('name') != 'SNIPPET':
                 continue
             snippet_id = (match.group('arg2') or "").strip()
@@ -278,53 +302,15 @@ def _resolve_course_path(course, path_value: str) -> str:
         return os.path.normpath(path_value)
     return os.path.normpath(os.path.join(_project_root(course), path_value))
 
-def _get_targetdir_i_root(course) -> Optional[str]:
-    targetdir_i = getattr(course, 'targetdir_i', None)
-    if not targetdir_i:
-        return None
-    abs_targetdir = _resolve_course_path(course, targetdir_i)
-    os.makedirs(abs_targetdir, exist_ok=True)
-    return abs_targetdir
-
-def _determine_itree_extract_destination(course, zip_path: str) -> str:
-    base_dir = _get_targetdir_i_root(course)
-    if not base_dir:
-        base_dir = os.path.dirname(zip_path)
-    base_name = os.path.splitext(os.path.basename(zip_path))[0]
-    destination = os.path.join(base_dir, base_name)
-    return os.path.normpath(destination)
-
-def _extract_itreedir_zip(course, zip_path: str) -> str:
-    zip_path = os.path.normpath(zip_path)
-    try:
-        mtime = os.path.getmtime(zip_path)
-    except OSError:
-        return zip_path
-    cached = _ITREE_EXTRACTION_CACHE.get(zip_path)
-    if cached and cached[1] == mtime and os.path.isdir(cached[0]):
-        return cached[0]
-    destination = _determine_itree_extract_destination(course, zip_path)
-    if os.path.isdir(destination):
-        shutil.rmtree(destination)
-    elif os.path.exists(destination):
-        os.remove(destination)
-    os.makedirs(destination, exist_ok=True)
-    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-        zip_ref.extractall(destination)
-    _ITREE_EXTRACTION_CACHE[zip_path] = (destination, mtime)
-    return destination
-
 def _ensure_itreedir_root(course) -> Optional[str]:
-    """Ensure the instructor tree root, extracting a zip if needed."""
+    """Ensure the instructor tree root is a directory."""
     itreedir = getattr(course, 'itreedir', None)
     if not itreedir:
         return None
     configured_path = _resolve_course_path(course, itreedir)
     if os.path.isdir(configured_path):
         return configured_path
-    if os.path.isfile(configured_path):
-        return _extract_itreedir_zip(course, configured_path)
-    return configured_path
+    return None
 
 def _resolve_include_style_path(filespec: str, source_file: str, course) -> str:
     """Resolve filespecs that follow INCLUDE semantics."""
@@ -422,18 +408,11 @@ def _load_snippet(
 
 
 def _format_snippet_for_macro(snippet: CodeSnippet) -> str:
-    """Format snippet content for macro expansion, honoring optional language metadata."""
-    # Avoid double-wrapping if the snippet already contains a fenced block.
-    stripped = snippet.content.lstrip()
-    if stripped.startswith("```"):
-        return snippet.content
-
-    content = snippet.content
-    if not content.endswith('\n'):
+    """Return snippet content exactly as defined in the source file, preserving trailing newline."""
+    content = snippet.content or ""
+    if content and not content.endswith('\n'):
         content += '\n'
-
-    lang = snippet.language or ""
-    return f"```{lang}\n{content}```"
+    return content
 
 
 class SnippetValidator:
@@ -547,7 +526,6 @@ def expand_snippet_macro(course, macrocall) -> str:
     if not IDENTIFIER_RE.fullmatch(snippet_id):
         macrocall.error("Snippet name must use letters, digits, or underscores only")
         return ""
-
     snippet, fullpath = _load_snippet(
         snippet_id,
         filespec,
@@ -555,10 +533,10 @@ def expand_snippet_macro(course, macrocall) -> str:
         course,
         notify_error=macrocall.error
     )
-
     if snippet is None:
         return ""
-
     if hasattr(macrocall.md, "includefiles"):
         macrocall.md.includefiles.add(os.path.normpath(fullpath))
     return _format_snippet_for_macro(snippet)
+
+    

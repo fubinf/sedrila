@@ -3,7 +3,6 @@ import os
 import tempfile
 import types
 import yaml
-import zipfile
 from textwrap import dedent # for code formatting
 
 import sdrl.macros as macros
@@ -141,6 +140,18 @@ def test_snippet_reference_extraction_macro():
     assert references[1].filespec == "ALT:examples/demo.py"
     assert references[2].snippet_id == "helper_example"
     assert references[2].filespec == "lesson/solution.py"
+
+
+def test_snippet_reference_ignores_comments():
+    """Snippet references inside HTML comments should be ignored."""
+    sample_content = """Intro
+    <!-- [SNIPPET::ALT:examples/demo.py::commented_snip] -->
+    [SNIPPET::ALT:examples/demo.py::live_snip]
+    """
+    ref_extractor = snippetchecker.SnippetReferenceExtractor()
+    references = ref_extractor.extract_references_from_content(sample_content, "task.md")
+    assert len(references) == 1, "Only non-comment reference should be extracted"
+    assert references[0].snippet_id == "live_snip"
 
 
 def test_snippet_validation_success():
@@ -381,46 +392,9 @@ def test_snippet_macro_expansion_records_dependency():
         assert expected_path in md_mock.includefiles
 
 
-def test_snippet_macro_itree_zip_extraction():
-    """ITREE snippets should work even if the configured itreedir is a zip file."""
-    snippet_source = """# SNIPPET::zip_snip
-    print("from zip")
-    # ENDSNIPPET
-    """
-    with tempfile.TemporaryDirectory() as temp_dir:
-        chapter_rel_path = os.path.join("ch", "Basis", "IDE", "task.md")
-        task_file = _prepare_relative_file(temp_dir, chapter_rel_path, "Task content")
-        os.makedirs(os.path.join(temp_dir, "out", "instructor"), exist_ok=True)
-        config_path = _create_test_config(temp_dir)
-        zip_path = os.path.join(temp_dir, "itree.zip") # Write zipped itreedir
-        with zipfile.ZipFile(zip_path, 'w') as zf:
-            zf.writestr("Basis/IDE/code.py", snippet_source)
-        course = types.SimpleNamespace(
-            configfile=config_path,
-            chapterdir="ch",
-            altdir="altdir",
-            itreedir="itree.zip",
-            targetdir_i="out/instructor"
-        )
-        itree_filespec = "ITREE:/Basis/IDE/code.py"
-        errors = []
-        snippet, fullpath = snippetchecker._load_snippet(
-            "zip_snip",
-            itree_filespec,
-            task_file,
-            course,
-            notify_error=errors.append
-        )
-        assert not errors, f"Unexpected errors: {errors}"
-        assert snippet is not None, "Should load snippet from zipped itreedir"
-        assert 'print("from zip")' in snippet.content
-        expected_extracted = os.path.join(temp_dir, "out", "instructor", "itree", "Basis", "IDE", "code.py")
-        assert os.path.exists(expected_extracted), "Expected extracted itree file"
-        assert os.path.normpath(fullpath) == os.path.normpath(expected_extracted)
 
-
-def test_snippet_macro_with_lang_wraps_code_block():
-    """Snippet with lang metadata should be wrapped in fenced block."""
+def test_snippet_macro_returns_plain_content():
+    """Snippet expansion should insert the original source content as-is."""
     solution_content = dedent(
         """\
         # SNIPPET::macro_lang lang=python
@@ -435,12 +409,11 @@ def test_snippet_macro_with_lang_wraps_code_block():
         course = MockCourse(config_path)
         _, macrocall = _create_macrocall(task_file, "ALT:", "macro_lang")
         result = snippetchecker.expand_snippet_macro(course, macrocall)
-        expected = "```python\nprint(\"wrapped\")\n```"
-        assert result == expected
+        assert result == 'print("wrapped")\n'
 
 
-def test_snippet_macro_lang_skips_existing_fence():
-    """Snippets that already contain fenced blocks should not be double wrapped."""
+def test_snippet_macro_preserves_existing_fence():
+    """Snippets that already contain fenced blocks should remain unchanged."""
     solution_content = dedent(
         """\
         # SNIPPET::macro_lang_fenced lang=python
@@ -457,12 +430,12 @@ def test_snippet_macro_lang_skips_existing_fence():
         course = MockCourse(config_path)
         _, macrocall = _create_macrocall(task_file, "ALT:", "macro_lang_fenced")
         result = snippetchecker.expand_snippet_macro(course, macrocall)
-        expected = "```python\nprint(\"already fenced\")\n```"
+        expected = '```python\nprint("already fenced")\n```\n'
         assert result == expected
 
 
-def test_snippet_macro_without_lang_wraps_code_block():
-    """Snippet without lang metadata should still be fenced."""
+def test_snippet_macro_without_lang_returns_plain_content():
+    """Snippet without lang metadata should also be inserted verbatim."""
     solution_content = dedent(
         """\
         # SNIPPET::macro_plain
@@ -477,11 +450,10 @@ def test_snippet_macro_without_lang_wraps_code_block():
         course = MockCourse(config_path)
         _, macrocall = _create_macrocall(task_file, "ALT:", "macro_plain")
         result = snippetchecker.expand_snippet_macro(course, macrocall)
-        expected = "```\nprint(\"plain\")\n```"
-        assert result == expected
+        assert result == 'print("plain")\n'
 
 
-def test_snippet_macro_plain_skips_existing_fence():
+def test_snippet_macro_plain_preserves_existing_fence():
     """Pre-fenced snippets without lang metadata should remain unchanged."""
     solution_content = dedent(
         """\
@@ -499,7 +471,7 @@ def test_snippet_macro_plain_skips_existing_fence():
         course = MockCourse(config_path)
         _, macrocall = _create_macrocall(task_file, "ALT:", "macro_plain_fenced")
         result = snippetchecker.expand_snippet_macro(course, macrocall)
-        expected = "```python\nprint(\"already fenced plain\")\n```"
+        expected = '```python\nprint("already fenced plain")\n```\n'
         assert result == expected
 
 
