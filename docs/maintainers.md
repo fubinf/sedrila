@@ -83,6 +83,9 @@ Checks links and generates reports as build products
 - Supports custom link validation rules via HTML comments in markdown files.
 - Avoids checking duplicate URLs and includes comprehensive statistics in reports.
 - When checking all files, use `--` to separate options from the positional `targetdir` argument.
+- Link checking automatically sends HTTP requests in parallel when `--batch` is used. You can change the worker count via the `SDRL_LINKCHECK_MAX_WORKERS` environment variable (default: `10`). 
+- In a local environment (such as WSL), adjust the concurrency by running `export SDRL_LINKCHECK_MAX_WORKERS=Number` and then executing `sedrila maintainer --check-links`.
+- For CI runs triggered through GitHub Actions, the `maintainer-linkchecker` workflow exposes a `max_workers` input when using the “Run workflow” button, which internally sets this environment variable before executing the command.
 
 Examples:
 

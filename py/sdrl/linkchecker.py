@@ -5,6 +5,7 @@ This module provides functionality to extract and validate external links
 from markdown files in SeDriLa tasks.
 """
 import concurrent.futures
+import os
 import re
 import threading
 import time
@@ -136,7 +137,8 @@ class LinkChecker:
     host_last_request: dict[str, float]
     
     def __init__(self, timeout: int = 20, max_retries: int = 2, 
-                 delay_between_requests: float = 1.0, delay_per_host: float = 2.0):
+                 delay_between_requests: float = 1.0, delay_per_host: float = 2.0,
+                 max_workers: typing.Optional[int] = None):
         self.timeout = timeout
         self.max_retries = max_retries
         self.delay_between_requests = delay_between_requests
@@ -144,7 +146,7 @@ class LinkChecker:
         self.session = requests.Session()
         self.host_last_request = {}  # Track last request time per host
         self._host_lock = threading.Lock()
-        self.max_workers = 10
+        self.max_workers = self._determine_max_workers(max_workers)
         # Set browser-like headers to avoid triggering anti-crawling mechanisms
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -155,6 +157,27 @@ class LinkChecker:
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1'
         })
+    
+    @staticmethod
+    def _determine_max_workers(override: typing.Optional[int]) -> int:
+        """Resolve worker count from constructor override or environment variable."""
+        default_workers = 10
+        if override is not None:
+            if override < 1:
+                base.warning("max_workers must be >= 1; falling back to default 10")
+                return default_workers
+            return override
+        env_value = os.getenv("SDRL_LINKCHECK_MAX_WORKERS")
+        if not env_value:
+            return default_workers
+        try:
+            parsed = int(env_value)
+            if parsed < 1:
+                raise ValueError("value must be >= 1")
+            return parsed
+        except ValueError:
+            base.warning(f"Invalid SDRL_LINKCHECK_MAX_WORKERS='{env_value}', using default {default_workers}")
+            return default_workers
     
     def check_link(self, link: ExternalLink) -> LinkCheckResult:
         """Check accessibility of a single external link using HEAD or GET request."""
