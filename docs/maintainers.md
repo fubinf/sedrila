@@ -117,7 +117,7 @@ You can specify custom validation rules using HTML comments before links:
 <!-- LINK_CHECK: content="Welcome" -->
 [Must contain text](https://example.com/)
 
-<!-- LINK_CHECK: status=302, timeout=30, ignore_ssl=true -->
+<!-- LINK_CHECK: status=302, timeout=30, ignore_cert=true -->
 [Complex validation](https://redirect.example.com)
 ```
 
@@ -126,7 +126,7 @@ Available rule parameters:
 - `status=N`: Expect specific HTTP status code (e.g., `status=404` for intentionally broken links)
 - `content="text"`: Verify page contains the given text (triggers GET request instead of HEAD)
 - `timeout=N`: Use custom timeout in seconds (default: 20)
-- `ignore_ssl=true`: Skip SSL certificate validation
+- `ignore_cert=true`: Skip certificate validation
 
 The validation rule applies (only) to the next link found.
 
