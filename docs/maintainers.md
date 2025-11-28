@@ -2,10 +2,6 @@
 
 **All functionality described herein is in alpha development stage and is subject to change!**
 
-The `sedrila maintainer` subcommand provides lightweight tools for maintaining the technical integrity 
-of a SeDriLa course without building the course. 
-It operates directly on source files for faster execution.
-
 ## 1. Purpose and use cases
 
 Course content degrades over time: External links break, example programs fail as dependencies evolve.
@@ -27,8 +23,8 @@ For checking single files: Only that specific file needs to exist.
 
 Function-specific requirements:
 
-- Link checking: Active internet connection
-- Program testing: Runtime environments for tested languages (Python 3.11+, Go 1.23+, etc.) 
+- Link checking: Active internet connection.
+- Program testing: Runtime environments for tested languages, details in section 5.1.
   The course configuration must provide compatible `chapterdir`, `altdir`, and `itreedir`
   settings so that task markdowns, protocol files, and program sources can be matched.
 
@@ -38,15 +34,6 @@ Function-specific requirements:
 ```bash
 sedrila maintainer [options] targetdir
 ```
-
-Unlike `sedrila author`, the maintainer does not:
-- Build HTML files
-- Process templates or macros
-- Generate student/instructor websites
-- Create cache files
-
-Instead, it performs quality checks using the course structure parsing capability of the build system
-to correctly identify which files should be checked according to the course configuration.
 
 Function options:
 
@@ -71,8 +58,6 @@ Option `--check-links [markdown_file]` validates external HTTP/HTTPS links found
 
 Link checking is implemented as a `maintainer` subcommand but leverages 
 the `author` build system infrastructure for file identification. 
-This design follows the DRY (Don't Repeat Yourself) principle by reusing existing build system logic 
-rather than reimplementing course structure parsing and metadata processing.
 
 When checking all files, the command:
 1. Creates a `Coursebuilder` instance to parse `sedrila.yaml`
@@ -83,11 +68,11 @@ When checking all files, the command:
 3. Extracts the list of markdown files that need checking (respecting configuration and stages)
 4. Checks links and generates reports as build products 
 
-Without an argument, it checks all course files using the build system to identify files 
+Without a file argument, it checks all course files using the build system to identify files. 
 (respects `sedrila.yaml` configuration, only checks configured taskgroups). 
 With a file argument, it checks only that specific file.
 Uses the `--include-stage` option to control which development stages are checked (default: `draft`, which includes all stages).
-Checks both `chapterdir` and `altdir` files (altdir files discovered via path replacement).
+Checks both `chapterdir` and `altdir` directories (`altdir` discovered via path replacement).
 Uses HEAD requests by default for efficiency, falling back to GET only when content validation is needed.
 Generates a fixed-name markdown report: `link_check_report.md` in `targetdir_i`.
 Supports custom link validation rules via HTML comments in markdown files.
@@ -97,15 +82,6 @@ Examples:
 - `sedrila maintainer --check-links -- /tmp/linkcheck` (check all course files, all stages)
 - `sedrila maintainer --include-stage beta --check-links -- /tmp/linkcheck` (check only beta stage)
 - `sedrila maintainer --check-links ch/Chapter1/Task1.md /tmp/linkcheck` (check one specific file)
-
-### 4.1 Technical implementation note
-
-The implementation reuses the build system's metadata processing logic (DRY principle):
-- Builds only essential elements: `Sourcefile`, `Topmatter`, `MetadataDerivation`
-- This automatically handles stage filtering via `evaluate_stage()`
-- Ensures `maintainer` and `author` behavior stay synchronized without code duplication
-
-### 4.2 Link validation rules
 
 By default, links are considered successful if they return 2xx or 3xx status codes.
 You can specify custom validation rules using HTML comments before links:
