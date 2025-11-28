@@ -125,10 +125,7 @@ def check_links_command(pargs: argparse.Namespace):
             _build_metadata_only(directory)
             
             # Extract markdown files from course structure (respects stages and taskgroups)
-            markdown_files = extract_markdown_files_from_course(the_course)
-            
-            # Add altdir files using simple path replacement
-            markdown_files = add_altdir_files(markdown_files, the_course.chapterdir, the_course.altdir)
+            markdown_files = find_markdown_files(the_course)
             
             b.info(f"Found {len(markdown_files)} markdown files to check")
             
@@ -239,6 +236,14 @@ def extract_markdown_files_from_course(course: sdrl.course.Coursebuilder) -> lis
     return files
 
 
+def find_markdown_files(course: sdrl.course.Coursebuilder) -> list[str]:
+    """Return markdown files from both chapter and alternative directories."""
+    files = extract_markdown_files_from_course(course)
+    if course.altdir and os.path.isdir(course.altdir):
+        return add_altdir_files(files, course.chapterdir, course.altdir)
+    return files
+
+
 def add_altdir_files(files: list[str], chapterdir: str, altdir: str) -> list[str]:
     """
     Add altdir files using simple path replacement.
@@ -299,8 +304,8 @@ def check_single_file(filepath: str):
                 rule_parts.append(f"content='{link.validation_rule.required_text}'")
             if link.validation_rule.timeout:
                 rule_parts.append(f"timeout={link.validation_rule.timeout}")
-            if link.validation_rule.ignore_ssl:
-                rule_parts.append("ignore_ssl=true")
+            if link.validation_rule.ignore_cert:
+                rule_parts.append("ignore_cert=true")
             if rule_parts:
                 rule_info = f" [CUSTOM: {', '.join(rule_parts)}]"
         

@@ -155,7 +155,7 @@ Bad link: [Docs again]({url2})
 def test_extractor_parses_rules_and_macros(tmp_path):
     """Confirm the extractor reads LINK_CHECK rules and HREF macros."""
     markdown = f"""# Test File
-    <!-- LINK_CHECK: status=301, timeout=15, ignore_ssl=true -->
+    <!-- LINK_CHECK: status=301, timeout=15, ignore_cert=true -->
     Regular link: [Regular]({TEST_URL_EXAMPLE})
     <!-- LINK_CHECK: content="hello world" -->
     Another link: [Another](https://example.org)
@@ -169,7 +169,7 @@ def test_extractor_parses_rules_and_macros(tmp_path):
     rule1 = by_url[TEST_URL_EXAMPLE].validation_rule
     assert rule1.expected_status == 301
     assert rule1.timeout == 15
-    assert rule1.ignore_ssl
+    assert rule1.ignore_cert
     rule2 = by_url["https://example.org"].validation_rule
     assert rule2.required_text == "hello world"
     href_link = by_url["https://github.com/fubinf/sedrila"]
@@ -482,8 +482,8 @@ def test_failed_links_sorted_by_url_in_report():
     markdown = reporter.render_markdown_report(results)
     # Verify the Top Domains table reflects failed link counts.
     assert "| Domain | Links | #Failed Links |" in markdown
-    assert "| example.com | 3 | 2 |" in markdown
-    assert "| another.org | 1 | 1 |" in markdown
+    assert "| `example.com` | 3 | 2 |" in markdown
+    assert "| `another.org` | 1 | 1 |" in markdown
     # Extract failed link rows and ensure they are ordered by URL.
     failed_section = markdown.split("## Failed Links")[1]
     rows = [
