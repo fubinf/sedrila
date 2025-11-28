@@ -2,6 +2,7 @@
 
 
 ## Version 2.12.0 (upcoming)
+- `student`, `instructor`: Webapp now suppresses the meaningless `TimeoutError` stacktraces
 - ...
 
 

@@ -6,6 +6,7 @@ import subprocess
 import traceback
 import typing as tg
 import html
+import wsgiref.simple_server
 
 import bottle  # https://bottlepy.org/docs/dev/
 
@@ -61,11 +62,20 @@ def run(ctx: sdrl.participant.Context):
     # macroexpanders.register_macros(ctx.course)  # noqa
     b.info(f"Webserver starts. Visit 'http://localhost:{ctx.pargs.port}/'. Terminate with Ctrl-C.")
 
-    from wsgiref.simple_server import WSGIRequestHandler
-    class CustomHandler(WSGIRequestHandler):
-        timeout = 0.5
-        def log_message(self, format, *args): pass
+    class CustomHandler(wsgiref.simple_server.WSGIRequestHandler):
+        timeout = 0.5  # half a second should always suffice for sending 'proper' requests 
+        
+        def log_message(self, format, *args): 
+            pass
 
+        def handle(self, *args, **kwargs):
+            try:
+                super().handle(*args, **kwargs)
+            except TimeoutError:
+                # timeouts are a regular thing because browsers open connections as stockpile
+                # which our single-threaded server cannot handle concurrently.
+                pass  # no need to do anything about them
+    
     bottle.run(
         host='localhost', port=ctx.pargs.port, debug=DEBUG, reloader=False, quiet=True,
         handler_class=CustomHandler
