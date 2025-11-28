@@ -62,8 +62,8 @@ You can specify custom validation rules using HTML comments before links:
 Available rule parameters:
 
 - `status=N`: Expect specific HTTP status code (e.g., `status=404` for intentionally broken links)
-- `content="text"`: Verify page contains specific text (triggers GET request instead of HEAD)
-- `timeout=N`: Use custom timeout in seconds
+- `content="text"`: Verify page contains the given text (triggers GET request instead of HEAD)
+- `timeout=N`: Use custom timeout in seconds (default: 20)
 - `ignore_ssl=true`: Skip SSL certificate validation
 
 The validation rule applies (only) to the next link found.
