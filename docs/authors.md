@@ -943,12 +943,14 @@ for (int i = 0; i < n; ++i) {
 Snippet content (excluding marker lines) is inserted verbatim, preserving formatting, and the referenced file is tracked as a dependency just like for `[INCLUDE::...]`.
 
 Automatic validation during builds:
+
 - Checks that referenced snippet IDs exist in the specified files
 - Verifies snippet markers are properly formed (no unclosed or mismatched markers)
 - Reports invalid references with file and line numbers
 - Validates all tasks but respects `--include_stage` for error reporting:
-  - Tasks matching the stage filter: **errors**
-  - Tasks excluded by the stage filter: **warnings**
+
+    - Tasks matching the stage filter: **errors**
+    - Tasks excluded by the stage filter: **warnings**
 - Runs incrementally: validation triggers only when task or solution files change
 - Persistent errors are always reported in every build (regardless of stage)
 
@@ -968,6 +970,7 @@ output
 ```
 
 Command matching types:
+
 - `command=exact`: Require exact command match (default)
 - `command=regex, regex="pattern"`: Match command using regex pattern
 - `command=multi_variant, variants="cmd1|cmd2|cmd3"`: Accept multiple command variants
@@ -975,6 +978,7 @@ Command matching types:
 - `command=manual`: Mark entry for manual review (always passes, requires instructor check)
 
 Output matching types:
+
 - `output=exact`: Require exact output match (default)
 - `output=flexible`: Ignore whitespace differences and empty lines
 - `output=regex, regex="pattern"`: Match output using regex pattern
@@ -982,6 +986,7 @@ Output matching types:
 - `output=manual`: Mark entry for manual review (always passes, requires instructor check)
 
 Additional parameters:
+
 - `regex="pattern"`: Regex pattern for command or output matching (required when using regex type)
 - `variants="cmd1|cmd2|cmd3"`: Pipe-separated list of acceptable command variants (required for multi_variant)
 - `manual_note="message"`: Note for manual checking instructions
@@ -996,10 +1001,12 @@ drwxr-xr-x 2 user user 4096 Jan 1 12:00 .
 ```
 
 All `@PROT_CHECK` markup in `.prot` files are validated automatically:
+
 - Checks parameter types (command/output: exact/regex/multi_variant/flexible/skip/manual)
 - Validates regex patterns for syntax errors
 - Reports invalid markups with file and line numbers
 - Validates all tasks but respects `--include_stage` for error reporting:
+
   - Tasks matching the stage filter: **errors**
   - Tasks excluded by the stage filter: **warnings**
 - Runs incrementally: validation triggers only when `.prot` files change
