@@ -100,12 +100,14 @@ class LinkExtractor:
         
         return links
     
-    def _is_external_url(self, url: str) -> bool:
+    @staticmethod
+    def _is_external_url(url: str) -> bool:
         """Check if URL is external (http/https)."""
         parsed = urlparse(url)
         return parsed.scheme in ('http', 'https')
     
-    def _parse_validation_rule(self, rule_text: str) -> LinkValidationRule:
+    @staticmethod
+    def _parse_validation_rule(rule_text: str) -> LinkValidationRule:
         """Parse validation rule from LINK_CHECK comment."""
         rule = LinkValidationRule()
         
@@ -138,7 +140,8 @@ class LinkExtractor:
 class LinkChecker:
     """Validates external links by making HTTP requests."""
     
-    def __init__(self, timeout: int = 20, max_retries: int = 2, delay_between_requests: float = 1.0, delay_per_host: float = 2.0):
+    def __init__(self, timeout: int = 20, max_retries: int = 2, 
+                 delay_between_requests: float = 1.0, delay_per_host: float = 2.0):
         self.timeout = timeout
         self.max_retries = max_retries
         self.delay_between_requests = delay_between_requests
@@ -158,12 +161,13 @@ class LinkChecker:
         })
     
     def check_link(self, link: ExternalLink) -> LinkCheckResult:
-        """Check accessibility of a single external link using HEAD request."""
+        """Check accessibility of a single external link using HEAD or GET request."""
         for attempt in range(self.max_retries + 1):
             try:
                 start_time = time.time()
                 # Use custom timeout and SSL settings if specified
-                timeout = link.validation_rule.timeout if link.validation_rule and link.validation_rule.timeout else self.timeout
+                timeout = link.validation_rule.timeout if link.validation_rule and link.validation_rule.timeout \
+                    else self.timeout
                 verify_ssl = not (link.validation_rule and link.validation_rule.ignore_ssl)
                 
                 # If expecting a specific redirect status, don't follow redirects
@@ -283,16 +287,19 @@ class LinkChecker:
             # If we can't parse the URL, just use the general delay
             pass
     
-    def _create_unique_key(self, link: ExternalLink) -> str:
+    @staticmethod
+    def _create_unique_key(link: ExternalLink) -> str:
         """Create a unique key for a link that includes URL and validation rules."""
         validation_key = ""
         if link.validation_rule:
             rule = link.validation_rule
-            validation_key = f"|status:{rule.expected_status}|text:{rule.required_text}|ssl:{rule.ignore_ssl}|timeout:{rule.timeout}"
+            validation_key = (f"|status:{rule.expected_status}|text:{rule.required_text}|"
+                              f"ssl:{rule.ignore_ssl}|timeout:{rule.timeout}")
         
         return f"{link.url}{validation_key}"
     
-    def check_links(self, links: list[ExternalLink], show_progress: bool = True, batch_mode: bool = False) -> list[LinkCheckResult]:
+    def check_links(self, links: list[ExternalLink], show_progress: bool = True, 
+                    batch_mode: bool = False) -> list[LinkCheckResult]:
         """Check multiple links, avoiding duplicate URL checks.
         
         Args:
@@ -458,7 +465,8 @@ class LinkCheckReporter:
         
         return stats
     
-    def _categorize_error(self, error_message: str) -> str:
+    @staticmethod
+    def _categorize_error(error_message: str) -> str:
         """Categorize error messages for statistics."""
         error_lower = error_message.lower()
         if 'timeout' in error_lower or 'timed out' in error_lower:
@@ -562,12 +570,14 @@ class LinkCheckReporter:
                 breakdown_parts.append(f"other: {other_errors}")
             breakdown = ", ".join(breakdown_parts)
             
-            b.error(f"VALIDATION FAILED: {len(failed_results)}/{stats.total_links} links failed validation ({breakdown})")
+            b.error(f"VALIDATION FAILED: {len(failed_results)}/{stats.total_links} links failed validation"
+                    f" ({breakdown})")
         else:
             b.info(f"VALIDATION PASSED: All {stats.total_links} links are accessible")
         b.info("=" * 60)
     
-    def _get_status_description(self, status_code: int) -> str:
+    @staticmethod
+    def _get_status_description(status_code: int) -> str:
         """Get human-readable description for HTTP status codes."""
         descriptions = {
             200: "OK",
@@ -686,7 +696,7 @@ class LinkCheckReporter:
                 # Sort by error type first, then by filename
                 def sort_key(result):
                     error_type = self._categorize_error(result.error_message) if result.error_message else 'unknown'
-                    return (error_type, result.link.source_file)
+                    return error_type, result.link.source_file
                 
                 for result in sorted(failed_results, key=sort_key):
                     link = result.link
