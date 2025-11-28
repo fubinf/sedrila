@@ -554,7 +554,7 @@ class LinkCheckReporter:
                 lines.append(f"| {error_type} | {link.url} | {link.source_file} | {link.line_number} |\n")
             lines.append("\n")
         # Links by file
-        lines.append("## Links by File\n\n")
+        lines.append("## Failed Links by Source File\n\n")
         failed_grouped = self.group_by_file([res for res in results if not res.success])
         if not failed_grouped:
             lines.append("No link failures were detected.\n\n")
