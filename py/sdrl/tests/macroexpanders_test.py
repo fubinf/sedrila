@@ -10,11 +10,11 @@ import tests.testbase as tb
 
 prot_expected_output = """
 <table class='vwr-table'>
-<tr><td><span class='vwr-promptidx'>1.</span> <span class='vwr-front'></span> <span class='vwr-userhost'>u@h</span> <span class='vwr-dir'>~/d</span> <span class='vwr-time'>12:34:56</span> <span class='vwr-num'> 88 </span> <span class='vwr-back'></span></td></tr>
+<tr><td><span class='prot-counter prot-manual-color'>1.</span> <span class='vwr-front'></span> <span class='vwr-userhost'>u@h</span> <span class='vwr-dir'>~/d</span> <span class='vwr-time'>12:34:56</span> <span class='vwr-num'> 88 </span> <span class='vwr-back'></span></td></tr>
 <tr><td><span class='vwr-cmd'>$ cmd arg</span></td></tr>
 <tr><td><span class='vwr-output'>out1</span></td></tr>
 <tr><td><span class='vwr-output'>out2</span></td></tr>
-<tr><td><span class='vwr-promptidx'>2.</span> <span class='vwr-front'></span> <span class='vwr-userhost'>u@h</span> <span class='vwr-dir'>~/d</span> <span class='vwr-time'>12:34:59</span> <span class='vwr-num'> 89 </span> <span class='vwr-back'></span></td></tr>
+<tr><td><span class='prot-counter prot-manual-color'>2.</span> <span class='vwr-front'></span> <span class='vwr-userhost'>u@h</span> <span class='vwr-dir'>~/d</span> <span class='vwr-time'>12:34:59</span> <span class='vwr-num'> 89 </span> <span class='vwr-back'></span></td></tr>
 <tr><td><span class='vwr-cmd'>$ cmd2</span></td></tr>
 <tr><td><span class='vwr-output'>out3</span></td></tr>
 </table>

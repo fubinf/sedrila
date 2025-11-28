@@ -129,7 +129,7 @@ def prot_html(content: str) -> str:
     def handle_promptmatch():  # uses mm, result, state. Corresponds to promptmatch().
         state.promptcount += 1
         state.s = PROMPTSEEN
-        promptindex = f"<span class='vwr-promptidx'>{state.promptcount}.</span>"
+        promptindex = f"<span class='prot-counter prot-manual-color'>{state.promptcount}.</span>"
         front = f"<span class='vwr-front'>{esc('front')}</span>"
         userhost = f"<span class='vwr-userhost'>{esc('userhost')}</span>"
         dir = f"<span class='vwr-dir'>{esc('dir')}</span>"
