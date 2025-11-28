@@ -4,7 +4,9 @@ External link checker for SeDriLa courses.
 This module provides functionality to extract and validate external links
 from markdown files in SeDriLa tasks.
 """
+import concurrent.futures
 import re
+import threading
 import time
 import typing
 from dataclasses import dataclass
@@ -141,6 +143,8 @@ class LinkChecker:
         self.delay_per_host = delay_per_host  # Additional delay when checking same host
         self.session = requests.Session()
         self.host_last_request = {}  # Track last request time per host
+        self._host_lock = threading.Lock()
+        self.max_workers = 10
         # Set browser-like headers to avoid triggering anti-crawling mechanisms
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -251,15 +255,18 @@ class LinkChecker:
         host = urlparse(url).netloc.lower()
         if not host:
             return
-        current_time = time.time()
         required_delay = self.delay_per_host
-        if host in self.host_last_request:
-            time_since_last = current_time - self.host_last_request[host]
-            if time_since_last < required_delay:
-                sleep_time = required_delay - time_since_last
-                time.sleep(sleep_time)
-        # Update last request time for this host
-        self.host_last_request[host] = time.time()
+        sleep_time = 0.0
+        with self._host_lock:
+            now = time.time()
+            if host in self.host_last_request:
+                time_since_last = now - self.host_last_request[host]
+                if time_since_last < required_delay:
+                    sleep_time = required_delay - time_since_last
+            # Reserve the slot in advance so that other threads see the delay
+            self.host_last_request[host] = now + sleep_time
+        if sleep_time > 0:
+            time.sleep(sleep_time)
     
     @staticmethod
     def _create_unique_key(link: ExternalLink) -> str:
@@ -271,6 +278,11 @@ class LinkChecker:
                               f"cert:{rule.ignore_cert}|timeout:{rule.timeout}")
         
         return f"{link.url}{validation_key}"
+    
+    def _check_single_link_with_delay(self, link: ExternalLink) -> LinkCheckResult:
+        """Helper to enforce host delay before checking a single link."""
+        self._wait_for_host_delay(link.url)
+        return self.check_link(link)
     
     def check_links(self, links: list[ExternalLink], show_progress: bool = True, 
                     batch_mode: bool = False) -> list[LinkCheckResult]:
@@ -304,18 +316,35 @@ class LinkChecker:
         elif batch_mode:
             # Batch mode: only essential info
             base.info(f"Checking {total_unique_links} unique URLs ({total_original_links} total references)...")
-        results = []
+        results: list[LinkCheckResult] = []
         total_links = total_unique_links
-        for i, link in enumerate(unique_links):
-            if show_progress and not batch_mode:
-                base.info(f"Checking link {i+1}/{total_links}: {link.url}")
-            # Implement per-host delay to avoid triggering anti-crawling mechanisms
-            self._wait_for_host_delay(link.url)
-            result = self.check_link(link)
-            results.append(result)
-            # Add general delay between requests to be respectful to servers
-            if i < total_links - 1:
-                time.sleep(self.delay_between_requests)
+        if batch_mode:
+            # Batch/CI mode: perform HTTP checks in parallel using a thread pool.
+            workers = min(self.max_workers, total_links) if total_links > 0 else 0
+            if workers <= 1:
+                for i, link in enumerate(unique_links):
+                    if show_progress and not batch_mode:
+                        base.info(f"Checking link {i+1}/{total_links}: {link.url}")
+                    results.append(self._check_single_link_with_delay(link))
+            else:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+                    # executor.map preserves the order of unique_links
+                    for i, result in enumerate(executor.map(self._check_single_link_with_delay, unique_links)):
+                        if show_progress and not batch_mode:
+                            base.info(f"Checking link {i+1}/{total_links}")
+                        results.append(result)
+        else:
+            # Original sequential behavior (kept for interactive/verbose runs)
+            for i, link in enumerate(unique_links):
+                if show_progress and not batch_mode:
+                    base.info(f"Checking link {i+1}/{total_links}: {link.url}")
+                # Implement per-host delay to avoid triggering anti-crawling mechanisms
+                self._wait_for_host_delay(link.url)
+                result = self.check_link(link)
+                results.append(result)
+                # Add general delay between requests to be respectful to servers
+                if i < total_links - 1:
+                    time.sleep(self.delay_between_requests)
         # Map results back to all original links (including duplicates)
         # Create a mapping using the same unique key logic
         unique_key_to_result = {}
