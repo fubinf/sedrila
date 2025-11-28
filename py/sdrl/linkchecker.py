@@ -161,10 +161,10 @@ class LinkChecker:
     @staticmethod
     def _determine_max_workers(override: typing.Optional[int]) -> int:
         """Resolve worker count from constructor override or environment variable."""
-        default_workers = 10
+        default_workers = 230
         if override is not None:
             if override < 1:
-                base.warning("max_workers must be >= 1; falling back to default 10")
+                base.warning("max_workers must be >= 1; falling back to default 230")
                 return default_workers
             return override
         env_value = os.getenv("SDRL_LINKCHECK_MAX_WORKERS")
@@ -498,12 +498,14 @@ class LinkCheckReporter:
             return status_match.group(1)
         return 'other'
     
-    def render_markdown_report(self, results: list[LinkCheckResult]) -> str:
+    def render_markdown_report(self, results: list[LinkCheckResult], max_workers: typing.Optional[int] = None) -> str:
         """Render the Markdown report content and return it as a string."""
         stats = self.generate_statistics(results)
         lines: list[str] = []
         lines.append("# External Link Check Report\n\n")
-        lines.append(f"**Generated:** {self.report_timestamp.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+        lines.append(f"**Generated:** {self.report_timestamp.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        worker_value = max_workers if max_workers is not None else os.getenv("SDRL_LINKCHECK_MAX_WORKERS", "230")
+        lines.append(f"**Run parameters:** max_workers = {worker_value}\n\n")
         # Summary
         lines.append("## Summary\n\n")
         lines.append(f"- **Total links found:** {stats.total_links} (includes duplicate URLs)\n")
@@ -567,9 +569,10 @@ class LinkCheckReporter:
         
         return "".join(lines)
     
-    def generate_markdown_report(self, results: list[LinkCheckResult], output_file: str = "link_check_report.md") -> str:
+    def generate_markdown_report(self, results: list[LinkCheckResult], output_file: str = "link_check_report.md",
+                                 max_workers: typing.Optional[int] = None) -> str:
         """Write the Markdown report to disk and return its content."""
-        content = self.render_markdown_report(results)
+        content = self.render_markdown_report(results, max_workers=max_workers)
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(content)
         return content

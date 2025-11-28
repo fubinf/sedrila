@@ -479,7 +479,7 @@ def test_failed_links_sorted_by_url_in_report():
         linkchecker.LinkCheckResult(link=link_fail_other, success=False, status_code=502, error_message="HTTP 502"),
         linkchecker.LinkCheckResult(link=link_pass, success=True, status_code=200),
     ]
-    markdown = reporter.render_markdown_report(results)
+    markdown = reporter.render_markdown_report(results, max_workers=5)
     # Verify the Top Domains table reflects failed link counts.
     assert "| Domain | Links | #Failed Links |" in markdown
     assert "| `example.com` | 3 | 2 |" in markdown

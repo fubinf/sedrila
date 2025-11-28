@@ -152,7 +152,7 @@ def check_links_command(pargs: argparse.Namespace):
             
             if results:
                 try:
-                    md_content = reporter.render_markdown_report(results)
+                    md_content = reporter.render_markdown_report(results, max_workers=checker.max_workers)
                     
                     md_report = directory.make_the(
                         sdrl.elements.ReportFile,
@@ -321,7 +321,7 @@ def check_single_file(filepath: str):
     # Display Markdown summary (no report files for single file testing)
     if results:
         reporter = linkchecker.LinkCheckReporter()
-        markdown_report = reporter.render_markdown_report(results)
+        markdown_report = reporter.render_markdown_report(results, max_workers=checker.max_workers)
         print(markdown_report)
     
     return results
