@@ -1,9 +1,6 @@
 """
 Maintainer subcommand for SeDriLa courses.
 
-This module provides lightweight maintenance tasks that don't require 
-building the entire course. 
-
 The maintainer role is for people who maintain course quality without
 necessarily developing new tasks.
 """
@@ -12,14 +9,13 @@ import os
 
 import sys
 from pathlib import Path
-import typing as tg
 
 import base as b
 import sdrl.constants as c
 
 
-meaning = """Maintain course quality with lightweight checks (no course build required).
-Checks links, validates protocols, tests programs, etc.
+meaning = """Maintain course quality with checks that are not suitable at build time.
+Checks links, tests programs.
 """
 
 
@@ -61,8 +57,6 @@ def check_links_command(pargs: argparse.Namespace):
         b.error(f"Cannot import link checking modules: {e}")
         return
     
-    b.info("=" * 60)
-    
     if pargs.check_links == 'all':
         # Check all course files
         b.info("Checking links in all course files...")
@@ -88,7 +82,6 @@ def check_links_command(pargs: argparse.Namespace):
         
         if not all_links:
             b.info("No external links found to check.")
-            b.info("=" * 60)
             return
         
         # Check all links
@@ -119,8 +112,6 @@ def check_links_command(pargs: argparse.Namespace):
             failed_count = sum(1 for r in results if not r.success)
             if failed_count > 0:
                 sys.exit(1)
-    
-    b.info("=" * 60)
 
 
 def parse_course_structure(configfile: str) -> dict:
@@ -208,7 +199,6 @@ def check_single_file(filepath: str):
         return None
     
     b.info(f"Checking links in file: {filepath}")
-    b.info("=" * 60)
     
     # Extract links
     extractor = linkchecker.LinkExtractor()
@@ -258,8 +248,6 @@ def check_programs_command(pargs: argparse.Namespace):
         b.error(f"Cannot import program checking modules: {e}")
         return
     
-    b.info("=" * 60)
-    
     if pargs.check_programs == 'all':
         # Test all programs
         b.info("Testing exemplary programs...")
@@ -286,6 +274,3 @@ def check_programs_command(pargs: argparse.Namespace):
     else:
         # Test single program file
         programchecker.test_single_program_file(pargs.check_programs)
-    
-    b.info("=" * 60)
-
