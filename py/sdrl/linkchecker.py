@@ -19,7 +19,7 @@ class LinkValidationRule:
     """Custom validation rule for a specific link."""
     expected_status: typing.Optional[int] = None
     required_text: typing.Optional[str] = None
-    ignore_ssl: bool = False
+    ignore_cert: bool = False
     timeout: typing.Optional[int] = None
 
 
@@ -64,7 +64,7 @@ class LinkExtractor:
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 content = f.read()
-        except Exception as e:
+        except OSError as e:
             base.error(f"Cannot read file {filepath}: {e}")
             return []
         links = []
@@ -114,8 +114,8 @@ class LinkExtractor:
                         base.warning(f"Invalid status code in LINK_CHECK: {value}")
                 elif key == 'content' or key == 'text':
                     rule.required_text = value
-                elif key == 'ignore_ssl':
-                    rule.ignore_ssl = value.lower() in ('true', '1', 'yes')
+                elif key == 'ignore_cert':
+                    rule.ignore_cert = value.lower() in ('true', '1', 'yes')
                 elif key == 'timeout':
                     try:
                         rule.timeout = int(value)
@@ -126,6 +126,12 @@ class LinkExtractor:
 
 class LinkChecker:
     """Validates external links by making HTTP requests."""
+    timeout: int
+    max_retries: int
+    delay_between_requests: float
+    delay_per_host: float
+    session: requests.Session
+    host_last_request: dict[str, float]
     
     def __init__(self, timeout: int = 20, max_retries: int = 2, 
                  delay_between_requests: float = 1.0, delay_per_host: float = 2.0):
@@ -154,7 +160,7 @@ class LinkChecker:
                 # Use custom timeout and SSL settings if specified
                 timeout = link.validation_rule.timeout if link.validation_rule and link.validation_rule.timeout \
                     else self.timeout
-                verify_ssl = not (link.validation_rule and link.validation_rule.ignore_ssl)
+                verify_ssl = not (link.validation_rule and link.validation_rule.ignore_cert)
                 # If expecting a specific redirect status, don't follow redirects
                 follow_redirects = True
                 if link.validation_rule and link.validation_rule.expected_status:
@@ -189,12 +195,13 @@ class LinkChecker:
                 if link.validation_rule and link.validation_rule.required_text:
                     try:
                         content = response.text
+                    except UnicodeDecodeError as e:
+                        content_ok = False
+                        content_error = f"Could not decode response: {e}"
+                    else:
                         if link.validation_rule.required_text not in content:
                             content_ok = False
                             content_error = f"Required text '{link.validation_rule.required_text}' not found"
-                    except Exception as e:
-                        content_ok = False
-                        content_error = f"Could not check content: {e}"
                 # Combine results
                 success = status_ok and content_ok
                 if not success:
@@ -241,21 +248,18 @@ class LinkChecker:
     
     def _wait_for_host_delay(self, url: str):
         """Wait for appropriate delay based on host to avoid anti-crawling mechanisms."""
-        try:
-            from urllib.parse import urlparse
-            host = urlparse(url).netloc.lower()
-            current_time = time.time()
-            required_delay = self.delay_per_host
-            if host in self.host_last_request:
-                time_since_last = current_time - self.host_last_request[host]
-                if time_since_last < required_delay:
-                    sleep_time = required_delay - time_since_last
-                    time.sleep(sleep_time)
-            # Update last request time for this host
-            self.host_last_request[host] = time.time()
-        except Exception:
-            # If we can't parse the URL, just use the general delay
-            pass
+        host = urlparse(url).netloc.lower()
+        if not host:
+            return
+        current_time = time.time()
+        required_delay = self.delay_per_host
+        if host in self.host_last_request:
+            time_since_last = current_time - self.host_last_request[host]
+            if time_since_last < required_delay:
+                sleep_time = required_delay - time_since_last
+                time.sleep(sleep_time)
+        # Update last request time for this host
+        self.host_last_request[host] = time.time()
     
     @staticmethod
     def _create_unique_key(link: ExternalLink) -> str:
@@ -264,7 +268,7 @@ class LinkChecker:
         if link.validation_rule:
             rule = link.validation_rule
             validation_key = (f"|status:{rule.expected_status}|text:{rule.required_text}|"
-                              f"ssl:{rule.ignore_ssl}|timeout:{rule.timeout}")
+                              f"cert:{rule.ignore_cert}|timeout:{rule.timeout}")
         
         return f"{link.url}{validation_key}"
     
@@ -432,7 +436,7 @@ class LinkCheckReporter:
         if 'timeout' in error_lower or 'timed out' in error_lower:
             return 'timeout'
         if 'connection' in error_lower:
-            return 'connection'
+            return 'network'
         if 'ssl' in error_lower or 'certificate' in error_lower:
             return 'ssl'
         # HTTP status codes
@@ -482,7 +486,7 @@ class LinkCheckReporter:
             )
             for domain, count in sorted_domains[:15]:
                 failed = stats.domain_failures.get(domain, 0)
-                lines.append(f"| {domain} | {count} | {failed} |\n")
+                lines.append(f"| `{domain}` | {count} | {failed} |\n")
             lines.append("\n")
         # Failed links table (sorted by URL for better grouping)
         failed_results = [r for r in results if not r.success]
@@ -495,16 +499,19 @@ class LinkCheckReporter:
                 error_type = self._categorize_error(result)
                 lines.append(f"| {error_type} | {link.url} | {link.source_file} | {link.line_number} |\n")
             lines.append("\n")
-        # Links by file (simplified format)
+        # Links by file
         lines.append("## Links by File\n\n")
-        grouped = self.group_by_file(results)
-        for file_path in sorted(grouped.keys()):
-            file_results = grouped[file_path]
-            lines.append(f"### {file_path}\n\n")
-            for result in sorted(file_results, key=lambda x: x.link.line_number):
-                status = "[PASS]" if result.success else "[FAIL]"
-                lines.append(f"  {status} {result.link.line_number}: {result.link.url} \n")
-            lines.append("\n")
+        failed_grouped = self.group_by_file([res for res in results if not res.success])
+        if not failed_grouped:
+            lines.append("No link failures were detected.\n\n")
+        else:
+            for file_path in sorted(failed_grouped.keys()):
+                file_results = failed_grouped[file_path]
+                lines.append(f"### {file_path}\n\n")
+                for result in sorted(file_results, key=lambda x: x.link.line_number):
+                    status = self._categorize_error(result)
+                    lines.append(f"  [{status}] {result.link.line_number}: {result.link.url}\n")
+                lines.append("\n")
         
         return "".join(lines)
     
