@@ -60,25 +60,32 @@ Link checking is implemented as a `maintainer` subcommand but leverages
 the `author` build system infrastructure for file identification. 
 
 When checking all files, the command:
+
 1. Creates a `Coursebuilder` instance to parse `sedrila.yaml`
+
 2. Builds only the essential elements needed for file identification:
-   - `Sourcefile`: Registers all source files
-   - `Topmatter`: Parses YAML metadata from markdown files
-   - `MetadataDerivation`: Processes metadata and evaluates stage filtering
+
+- `Sourcefile`: Registers all source files
+- `Topmatter`: Parses YAML metadata from markdown files
+- `MetadataDerivation`: Processes metadata and evaluates stage filtering
+
 3. Extracts the list of markdown files that need checking (respecting configuration and stages)
+
 4. Checks links and generates reports as build products 
 
-Without a file argument, it checks all course files using the build system to identify files. 
+- Without a file argument, it checks all course files using the build system to identify files. 
 (respects `sedrila.yaml` configuration, only checks configured taskgroups). 
-With a file argument, it checks only that specific file.
-Uses the `--include-stage` option to control which development stages are checked (default: `draft`, which includes all stages).
-Checks both `chapterdir` and `altdir` directories (`altdir` discovered via path replacement).
-Uses HEAD requests by default for efficiency, falling back to GET only when content validation is needed.
-Generates a fixed-name markdown report: `link_check_report.md` in `targetdir_i`.
-Supports custom link validation rules via HTML comments in markdown files.
-Avoids checking duplicate URLs and includes comprehensive statistics in reports.
-When checking all files, use `--` to separate options from the positional `targetdir` argument.
+- With a file argument, it checks only that specific file.
+- Uses the `--include-stage` option to control which development stages are checked (default: `draft`, which includes all stages).
+- Checks both `chapterdir` and `altdir` directories (`altdir` discovered via path replacement).
+- Uses HEAD requests by default for efficiency, falling back to GET only when content validation is needed.
+- Generates a fixed-name markdown report: `link_check_report.md` in `targetdir_i`.
+- Supports custom link validation rules via HTML comments in markdown files.
+- Avoids checking duplicate URLs and includes comprehensive statistics in reports.
+- When checking all files, use `--` to separate options from the positional `targetdir` argument.
+
 Examples:
+
 - `sedrila maintainer --check-links -- /tmp/linkcheck` (check all course files, all stages)
 - `sedrila maintainer --include-stage beta --check-links -- /tmp/linkcheck` (check only beta stage)
 - `sedrila maintainer --check-links ch/Chapter1/Task1.md /tmp/linkcheck` (check one specific file)
