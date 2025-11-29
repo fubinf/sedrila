@@ -199,7 +199,7 @@ Ensuring consistency of the SeDriLa means
 - Implemented in 
     - `Programchecker.py`
     - `maintainer.py`: `check_programs_command`
-- Validated by `Protocolchecker_test.py`
+- Validated by `Programchecker_test.py`
 - Discussed in https://github.com/fubinf/sedrila/issues/29
 
 
