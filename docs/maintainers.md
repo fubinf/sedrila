@@ -52,6 +52,20 @@ Positional arguments:
 - `targetdir`: Base directory for reports (required). Reports are written to `targetdir_i` (targetdir + "_i" suffix), 
   following sedrila's convention of separating instructor content from student content.
 
+### 3.1 CI/Batch mode
+
+For automated testing environments, the `--batch` flag produces concise output suitable 
+for CI systems like Github Actions. The exit status is non-zero (1) when tests fail and zero (0) on success.
+
+All failed tests are summarized at the end of the output for quick error identification,
+making it easy to spot issues in automated test runs.
+Markdown reports are always generated regardless of output mode.
+
+Scheduled execution runs link checking every Sunday at 03:00 UTC and program testing 
+at 03:30 UTC (see `maintainer-linkchecker.yml` and `maintainer-programchecker.yml`).
+Both Actions workflows use the `--batch` flag for CI-friendly output.
+
+
 ## 4. Link Checking: `--check-links`
 
 Option `--check-links [markdown_file]` validates external HTTP/HTTPS links found in markdown files.
@@ -126,9 +140,9 @@ How it works:
 
 - Uses the course configuration (`chapterdir`, `altdir`, `itreedir`) to locate task markdown files,
   protocol files, and program sources.
-- Considers only those tasks whose `.md` files contain program test markup (see section 5.3),
-  and derives program/protocol pairs from their relative paths.
-- Use HTML comments in task `.md` files to control test behavior (skip, partial skip, command override)
+- Considers only those `.md` tasks in `chapterdir` contain program test markup (see section 5.3),
+  and derives program/protocol pairs (in `itreedir` and `altdir`) from `chapterdir` paths.
+- Use HTML comments in task `.md` files to control test behavior (skip, command override)
 - Executes ALL testable commands from `.prot` files and verifies output
 - Creates `program_test_report.md` in `targetdir_i`
   
@@ -146,6 +160,7 @@ Program testing requires the following environment:
 These requirements evolve as new program types are added to the course. The list below reflects the current set of testable programs.
 
 **Required:**
+
 - **Python**: 3.11 or higher, python and python3 both must available, because both will be used in existing `.prot` files.
 - **Go**: 1.23 or higher (for Go programs)
 - **Program files**: `itreedir` must exist as a directory with source files
@@ -154,6 +169,7 @@ These requirements evolve as new program types are added to the course. The list
 In pyproject.toml: `[tool.poetry.dependencies]` and `[tool.poetry.group.dev.dependencies]`
 
 **Python packages (additional required):**
+
 - FastAPI programs: fastapi, pydantic, uvicorn
 
 For local testing, ensure these packages are available in your environment.
@@ -201,28 +217,25 @@ Markdown reports are generated with categorized sections (Failed Tests,
 Skipped Tests, Passed Tests) for detailed analysis.
 
 
-#### 5.2.4 CI/Batch mode
-
-For automated testing environments, the `--batch` flag produces concise output suitable 
-for CI systems. The exit status is non-zero (1) when tests fail and zero (0) on success.
-
-All failed tests are summarized at the end of the output for quick error identification,
-making it easy to spot issues in automated test runs.
-Markdown reports are always generated regardless of output mode.
-
-Scheduled execution runs link checking every Sunday at 03:00 UTC and program testing 
-at 03:30 UTC (see `maintainer-linkchecker.yml` and `maintainer-programchecker.yml`).
-Both workflows use the `--batch` flag for CI-friendly output.
-
-
 ### 5.3 Program testing markup
 
 Program tests are opt-in and are enabled via HTML comment markup in task `.md` files.
 Only tasks that contain such markup participate in automatic program testing.
 The markup can be placed anywhere in the file; a common convention is to place it before the `[INSTRUCTOR]` section.
 
+#### 5.3.1 TEST markup: `@PROGRAM_TEST`
 
-#### 5.3.1 SKIP markup (manual testing): `@PROGRAM_TEST_SKIP`
+Perform normal test on the program and protocol.
+Currently, it supports a `notes` parameter for documentation purposes, but this parameter is not used by the test runner.
+
+```markdown
+<!-- @PROGRAM_TEST: notes="Additional information about this program test" -->
+```
+
+Parameters:
+- `notes="text"`: Documentation notes
+
+#### 5.3.2 SKIP markup (manual testing): `@PROGRAM_TEST_SKIP`
 
 Use for programs with non-deterministic output, interactive input, environment-specific output, or complex shell operations.
 
@@ -235,8 +248,7 @@ Parameters:
 - `reason="text"`: Explanation why manual testing is required
 - `manual_test_required=true`: Marks program for manual testing
 
-
-#### 5.3.2 PARTIAL markup (manual/automation mix): `@PROGRAM_TEST_PARTIAL`
+#### 5.3.3 PARTIAL markup (manual/automation mix): `@PROGRAM_TEST_PARTIAL`
 
 Use when some commands are testable while others require manual verification.
 
@@ -246,12 +258,12 @@ Use when some commands are testable while others require manual verification.
 
 Parameters:
 
-- `skip_commands_with="keyword1,keyword2"`: Skip commands containing these keywords in output
+- `skip_commands_with="keyword1,keyword2..."`: Skip commands containing these keywords in output
 - `skip_reason="text"`: Explanation for skipping certain commands
 - `testable_note="text"`: Note about which commands are testable
 
 
-#### 5.3.3 OVERRIDE markup (expected command mismatches): `@PROGRAM_TEST_OVERRIDE`
+#### 5.3.4 OVERRIDE markup (expected command mismatches): `@PROGRAM_TEST_OVERRIDE`
 
 Use when `.prot` files reference incorrect command names.
 
@@ -264,25 +276,3 @@ Parameters:
 - `original_command="cmd"`: Command as written in `.prot` file
 - `correct_command="cmd"`: Correct command to execute
 - `reason="text"`: Explanation for the override
-
-
-#### 5.3.4 General PROGRAM_TEST markup (reserved for future use): `@PROGRAM_TEST`
-
-This is a general-purpose markup reserved for future extensions.
-Currently, it supports a `notes` parameter for documentation purposes, but this parameter is not used by the test runner.
-
-```markdown
-<!-- @PROGRAM_TEST: notes="Additional information about this program test" -->
-```
-
-Parameters:
-- `notes="text"`: Documentation notes (currently not used by the test runner)
-
-**Behavior:** Programs with this markup are tested normally, exactly like programs without any markup.
-The markup serves only as a placeholder for potential future functionality.
-
-
-#### 5.3.5 No markup (normal automated testing)
-
-Programs with deterministic output require no special markup and are tested automatically.
-This is functionally equivalent to using `@PROGRAM_TEST` with documentation notes.
