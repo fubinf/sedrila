@@ -16,7 +16,7 @@ further automated testing support of various sorts.
 
 Check whether hyperlinks to external resources (given in tasks) work as expected and report deviations.
 
-- Documented in `maintainers.md`, Section 2.
+- Documented in `maintainers.md`, Section 1-4.
 - Implemented in `linkchecker.py`
 - Validated by `linkchecker_test.py`
 - Discussed in https://github.com/fubinf/sedrila/issues/30
@@ -169,7 +169,7 @@ Record enough about the process so that you can document and analyze it in your 
 - Documented in `authors.md` Section 2.3.2,
   `instructors.md` Section 2.3, and
   `internal_notes.md` Section 4.
-- Implemented in `linkchecker.py`
+- Implemented in 
     - `Protocolchecker.py`
     - `course.py`: `class ProtocolValidation` (incremental build)
     - `elements.py`: comments of inheritance hierarchy
@@ -195,9 +195,11 @@ Ensuring consistency of the SeDriLa means
 - Making sure the program still produces the (or an) expected command log.
   This is also difficult, for similar reasons than above.
 
-- Documented in `maintainers.md`, Section ???.
-- Implemented in `???.py`
-- Validated by `???_test.py`
+- Documented in `maintainers.md`, Section 1-3 and 5.
+- Implemented in 
+    - `Programchecker.py`
+    - `maintainer.py`: `check_programs_command`
+- Validated by `Protocolchecker_test.py`
 - Discussed in https://github.com/fubinf/sedrila/issues/29
 
 
@@ -211,7 +213,8 @@ later changes to the program occur).
 So we provide a `[SNIPPET::...]` macro (akin to the `[INCLUDE::...]` macro) for
 extracting from another file snippets to be shown on a task webpage. 
 
-- Documented in `authors.md` Section 2.3.1
+- Documented in `authors.md` Section 2.3.1 and
+  `internal_notes.md` Section 4.
 - Implemented in 
     - `snippetchecker.py`
     - `course.py`: `class SnippetValidation` (incremental build)
