@@ -105,7 +105,7 @@ Examples:
 
 - `sedrila maintainer --check-links -- /tmp/linkcheck` (check all course files, all stages)
 - `sedrila maintainer --include-stage beta --check-links -- /tmp/linkcheck` (check only beta stage)
-- `sedrila maintainer --check-links ch/Chapter1/Task1.md /tmp/linkcheck` (check one specific file)
+- `sedrila maintainer --check-links ch/Chapter1/Task1.md /tmp/linkcheck` (check one specific file by using its absolute or relative path)
 
 By default, links are considered successful if they return 2xx or 3xx status codes.
 You can specify custom validation rules using HTML comments before links:
@@ -150,7 +150,7 @@ Examples:
 
 - `sedrila maintainer --check-programs -- /tmp/progtest` (test all marked programs, all stages)
 - `sedrila maintainer --include-stage beta --check-programs -- /tmp/progtest` (check only beta stage marked programs)
-- `sedrila maintainer --check-programs path/to/program.go /tmp/progtest` (test single file)
+- `sedrila maintainer --check-programs altdir/itree.zip/Sprachen/...program.go /tmp/progtest` (test single program file by using its absolute or relative path)
 
 
 ### 5.1 Operating environment

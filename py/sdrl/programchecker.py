@@ -963,39 +963,31 @@ Generated: {timestamp}
 
 
 def test_single_program_file(program_path: str) -> None:
-    """Test a single program file (for development/debugging, after development will be deleted).
-    because it still use hardcoded path but not Coursebuilder"""
+    """Test a single program file."""
     try:
-        # Initialize checker with current working directory as course root
-        checker = ProgramChecker(course_root=Path.cwd())
         program_file = Path(program_path)
-        
+        if not program_file.is_absolute():
+            program_file = Path.cwd() / program_file
         if not program_file.exists():
             b.error(f"Program file not found: {program_path}")
             return
+        program_file = program_file.resolve()
         b.info(f"Testing single program file: {program_file.name}")
         b.info("=" * 60)
-        # Determine program name
         program_name = program_file.stem
-        # Find corresponding .prot file
-        # For single file testing, we need to locate the .prot file
-        # Assume the program is in itree structure: altdir/itree.zip/...
-        # and .prot is in altdir/ch/... structure
-        # Try to determine relative path from itree structure
-        course_root = Path.cwd()
-        altdir = course_root / "altdir"
+        # Determine itree/altdir roots from program file location
+        itree_dir = next((parent for parent in program_file.parents if parent.name == "itree.zip"), None)
+        if itree_dir is None or not itree_dir.is_dir():
+            b.error("Cannot determine itree.zip root for the given program file. Ensure the file resides inside altdir/itree.zip.")
+            return
+        altdir = itree_dir.parent
         if not altdir.exists():
-            b.error(f"altdir not found at {altdir}")
+            b.error(f"'altdir' directory not found next to {itree_dir}")
             return
-        itree_dir = altdir / "itree.zip"
-        if not itree_dir.exists():
-            b.error(f"itreedir directory not found at {itree_dir}")
-            return
-        if not itree_dir.is_dir():
-            b.error(f"itreedir path must be a directory: {itree_dir}")
-            return
+        course_root = altdir.parent if altdir.parent.exists() else Path.cwd()
+        checker = ProgramChecker(course_root=course_root)
         try:
-            rel_path = program_file.resolve().relative_to(itree_dir.resolve())
+            rel_path = program_file.relative_to(itree_dir)
         except ValueError:
             b.error(f"Program file must reside inside {itree_dir}")
             return
@@ -1003,8 +995,7 @@ def test_single_program_file(program_path: str) -> None:
         if not prot_path.exists():
             b.error(f"Corresponding .prot file not found: {prot_path}")
             return
-        itree_root = itree_dir
-        annotation = checker._get_annotation_for_program(program_file, itree_root)
+        annotation = checker._get_annotation_for_program(program_file, itree_dir)
         # Parse command tests from .prot file
         command_tests = checker.parse_command_tests_from_prot(prot_path, program_file.name, annotation)
         if not command_tests:
