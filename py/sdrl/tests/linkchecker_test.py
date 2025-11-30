@@ -3,7 +3,7 @@ import contextlib
 import itertools
 import os
 import tempfile
-import textwrap # for code formatting
+import textwrap # for code format
 import pytest
 
 import base as b
@@ -132,11 +132,11 @@ def test_content_rule(tmp_path, monkeypatch):
     url1 = TEST_URL_SEDRILA
     url2 = f"{TEST_URL_SEDRILA}/docs"
     markdown = f"""# Test File
-<!-- LINK_CHECK: content="{TEST_CONTENT_SEDRILA}" -->
-Good link: [Docs]({url1})
-<!-- LINK_CHECK: content="{TEST_CONTENT_NONEXISTENT}" -->
-Bad link: [Docs again]({url2})
-"""
+    <!-- LINK_CHECK: content="{TEST_CONTENT_SEDRILA}" -->
+    Good link: [Docs]({url1})
+    <!-- LINK_CHECK: content="{TEST_CONTENT_NONEXISTENT}" -->
+    Bad link: [Docs again]({url2})
+    """
     path = write_markdown(tmp_path, markdown)
     extractor = linkchecker.LinkExtractor()
     links = extractor.extract_links_from_file(path)

@@ -3,7 +3,7 @@ import os
 import tempfile
 import types
 import yaml
-from textwrap import dedent # for code formatting
+from textwrap import dedent # for code format
 
 import sdrl.macros as macros
 import sdrl.snippetchecker as snippetchecker

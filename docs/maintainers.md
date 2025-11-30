@@ -98,7 +98,8 @@ Checks links and generates reports as build products
 - Avoids checking duplicate URLs and includes comprehensive statistics in reports.
 - When checking all files, use `--` to separate options from the positional `targetdir` argument.
 - Link checking automatically sends HTTP requests in parallel when `--batch` is used. You can change the worker count via the `SDRL_LINKCHECK_MAX_WORKERS` environment variable (default: `230`). 
-- In a local environment (like WSL), adjust the concurrency by running `export SDRL_LINKCHECK_MAX_WORKERS=Number` and then executing `sedrila maintainer --check-links`. 
+- In a local environment (like WSL), adjust the concurrency by running `export SDRL_LINKCHECK_MAX_WORKERS=Number` (For a PC, setting this value to the current number of CPU threads would be appropriate.) and then executing `sedrila maintainer --check-links`. 
+  use `echo "$SDRL_LINKCHECK_MAX_WORKERS"` to check current value of this variable.
 - For CI runs triggered through GitHub Actions, the `maintainer-linkchecker` workflow exposes a `max_workers` input when using the “Run workflow” button, which internally sets this environment variable before executing the command. Empirical runs show that setting `max_workers` to roughly `230` already reaches the practical performance limit; higher numbers rarely improve performance. 
 
 Examples:
@@ -145,6 +146,9 @@ How it works:
 - Use HTML comments in task `.md` files to control test behavior (skip, command override)
 - Executes ALL testable commands from `.prot` files and verifies output
 - Creates `program_test_report.md` in `targetdir_i`
+- In a local environment (like WSL), adjust the concurrency by running `export SDRL_PROGCHECK_MAX_WORKERS=Number` (For a PC, setting this value to the current number of CPU threads would be appropriate.) and then executing `sedrila maintainer --check-programs`. 
+  use `echo "$SDRL_PROGCHECK_MAX_WORKERS"` to check current value of this variable.
+- For CI runs triggered through GitHub Actions, the `maintainer-programchecker` workflow exposes a `max_workers` input when using the “Run workflow” button, which internally sets this environment variable before executing the command. The number of programs that can be tested is currently not so much, so setting a small number of max threads, such as 4, is sufficient to obtain test results quickly. 
   
 Examples:
 
@@ -162,6 +166,12 @@ These requirements evolve as new program types are added to the course. The list
 **Required:**
 
 - **Python**: 3.11 or higher, python and python3 both must available, because both will be used in existing `.prot` files.
+  If you have installed the python3, by using 
+
+  - `which python3`
+  - `python3 --version`
+  - `sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 1`
+  to determine the location and now the python command points to the same Python version as python3.
 - **Go**: 1.23 or higher (for Go programs)
 - **Program files**: `itreedir` must exist as a directory with source files
 
