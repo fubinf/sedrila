@@ -587,3 +587,41 @@ class LinkCheckReporter:
                 grouped[file_path] = []
             grouped[file_path].append(result)
         return grouped
+
+
+def check_single_file(filepath: str):
+    """Check links in a single markdown file."""
+    if not os.path.exists(filepath):
+        base.error(f"File not found: {filepath}")
+        return None
+    base.info(f"Checking links in file: {filepath}")
+    extractor = LinkExtractor()
+    links = extractor.extract_links_from_file(filepath)
+    if not links:
+        base.info("No external links found in file.")
+        return None
+    base.info(f"Found {len(links)} external links:")
+    for i, link in enumerate(links, 1):
+        rule_info = ""
+        if link.validation_rule:
+            rule_parts = []
+            if link.validation_rule.expected_status:
+                rule_parts.append(f"status={link.validation_rule.expected_status}")
+            if link.validation_rule.required_text:
+                rule_parts.append(f"content='{link.validation_rule.required_text}'")
+            if link.validation_rule.timeout:
+                rule_parts.append(f"timeout={link.validation_rule.timeout}")
+            if link.validation_rule.ignore_cert:
+                rule_parts.append("ignore_cert=true")
+            if rule_parts:
+                rule_info = f" [CUSTOM: {', '.join(rule_parts)}]"
+        base.info(f"  {i}. {link.url}{rule_info}")
+    base.info("")
+    base.info("Checking links...")
+    checker = LinkChecker()
+    results = checker.check_links(links, show_progress=True)
+    if results:
+        reporter = LinkCheckReporter()
+        markdown_report = reporter.render_markdown_report(results, max_workers=checker.max_workers)
+        print(markdown_report)
+    return results

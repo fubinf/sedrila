@@ -189,8 +189,7 @@ def check_links_command(pargs: argparse.Namespace):
         
     else:
         # Check specific file (no build system needed)
-        results = check_single_file(pargs.check_links)
-        
+        results = linkchecker.check_single_file(pargs.check_links)
         # Check for failures and exit with appropriate status
         if results:
             failed_count = sum(1 for r in results if not r.success)
@@ -269,62 +268,6 @@ def add_altdir_files(files: list[str], chapterdir: str, altdir: str) -> list[str
             b.debug(f"Found altdir file: {alt_filepath}")
     
     return result
-
-
-def check_single_file(filepath: str):
-    """Check links in a single markdown file.
-    
-    Returns:
-        list[LinkCheckResult]: List of check results, or None if file not found/no links
-    """
-    import sdrl.linkchecker as linkchecker
-    
-    if not os.path.exists(filepath):
-        b.error(f"File not found: {filepath}")
-        return None
-    
-    b.info(f"Checking links in file: {filepath}")
-    
-    # Extract links
-    extractor = linkchecker.LinkExtractor()
-    links = extractor.extract_links_from_file(filepath)
-    
-    if not links:
-        b.info("No external links found in file.")
-        return None
-    
-    b.info(f"Found {len(links)} external links:")
-    for i, link in enumerate(links, 1):
-        rule_info = ""
-        if link.validation_rule:
-            rule_parts = []
-            if link.validation_rule.expected_status:
-                rule_parts.append(f"status={link.validation_rule.expected_status}")
-            if link.validation_rule.required_text:
-                rule_parts.append(f"content='{link.validation_rule.required_text}'")
-            if link.validation_rule.timeout:
-                rule_parts.append(f"timeout={link.validation_rule.timeout}")
-            if link.validation_rule.ignore_cert:
-                rule_parts.append("ignore_cert=true")
-            if rule_parts:
-                rule_info = f" [CUSTOM: {', '.join(rule_parts)}]"
-        
-        b.info(f"  {i}. {link.url}{rule_info}")
-    
-    b.info("")
-    b.info("Checking links...")
-    
-    # Check links
-    checker = linkchecker.LinkChecker()
-    results = checker.check_links(links, show_progress=True)
-    
-    # Display Markdown summary (no report files for single file testing)
-    if results:
-        reporter = linkchecker.LinkCheckReporter()
-        markdown_report = reporter.render_markdown_report(results, max_workers=checker.max_workers)
-        print(markdown_report)
-    
-    return results
 
 
 def check_programs_command(pargs: argparse.Namespace):
