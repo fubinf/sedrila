@@ -171,9 +171,10 @@ Record enough about the process so that you can document and analyze it in your 
   `internal_notes.md` Section 4.
 - Implemented in 
     - `Protocolchecker.py`
-    - `course.py`: `class ProtocolValidation` (incremental build)
+    - `course.py`: class `ProtocolValidation` (incremental build)
     - `elements.py`: comments of inheritance hierarchy
-    - `marcoexpanders.py`: non-rendering markup function `filter_prot_check_annotations` imported
+    - `marcoexpanders.py`: prompt_color
+    - `webapp.py`: fun`render_prot_compare`, `render_prot_plain`, `_author_prot_path`
     - `directory.py`: incremental build registration
     - `instructor.py`: `def check_protocol_files`
 - Validated by `protocolchecker_test.py`
