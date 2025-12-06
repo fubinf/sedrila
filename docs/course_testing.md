@@ -126,7 +126,7 @@ In a later iteration (please skip this initially), we may want to show the instr
 correct command or output in case of a failed automatic check.
 
 
-### 2.4 Implementation considerations
+### 2.5 Implementation considerations
 
 The specification is contained in a `.prot` file that is available to authors at build time.
 It is not directly available to instructors at submission checking time (it must not be required 
@@ -152,7 +152,7 @@ Please make sure, though, that most of the implementation logic remains in
 `protocolchecker.py`.
 
 
-### 2.5 Usability testing and iterating
+### 2.6 Usability testing and iterating
 
 It is unlikely that this specification describes _exactly_ what will be most useful.
 
@@ -164,7 +164,7 @@ Listen to them and refine the functionality such that it becomes handy and usefu
 Record enough about the process so that you can document and analyze it in your thesis.
 
 
-### 2.6 Cross references
+### 2.7 Cross references
 
 - Documented in `authors.md` Section 2.3.2,
   `instructors.md` Section 2.3, and

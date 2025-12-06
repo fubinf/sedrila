@@ -1,11 +1,11 @@
 """
 Command protocol checker for SeDriLa courses.
 
-This module provides functionality to validate and compare command protocol (.prot) files
-that contain command line execution logs from students and authors.
+Based on docs/course_testing.md Section 2, this parses @PROT_SPEC blocks,
+validates them, and compares author/student protocol files.
 """
 import re
-import typing as tg
+import typing
 from dataclasses import dataclass
 
 import base as b
@@ -13,12 +13,20 @@ import base as b
 
 @dataclass
 class CheckRule:
-    """Validation rule for a specific command or output."""
-    command_type: str = "exact"  # exact, regex, multi_variant, skip, manual
-    output_type: str = "exact"   # exact, regex, flexible, skip, manual
-    variants: tg.Optional[list[str]] = None  # For multi_variant command type
-    regex_pattern: tg.Optional[str] = None   # For regex types
-    manual_check_note: tg.Optional[str] = None  # Note for manual checking
+    """Rule parsed from a single @PROT_SPEC block."""
+    command_re: typing.Optional[str] = None
+    output_re: typing.Optional[str] = None
+    skip: bool = False
+    manual: bool = False
+    manual_text: typing.Optional[str] = None
+    extra_text: typing.Optional[str] = None
+    text: typing.Optional[str] = None
+    comment: typing.Optional[str] = None
+    unknown_keys: typing.List[str] = None  # Track unknown key-value pairs for error reporting
+
+    def __post_init__(self):
+        if self.unknown_keys is None:
+            self.unknown_keys = []
 
 
 @dataclass
@@ -27,7 +35,7 @@ class ProtocolEntry:
     command: str
     output: str
     line_number: int
-    check_rule: tg.Optional[CheckRule] = None
+    check_rule: typing.Optional[CheckRule] = None
 
 
 @dataclass
@@ -36,7 +44,7 @@ class ProtocolFile:
     filepath: str
     entries: list[ProtocolEntry]
     total_entries: int
-    
+
     def __str__(self) -> str:
         return f"Protocol file {self.filepath} with {self.total_entries} entries"
 
@@ -44,48 +52,51 @@ class ProtocolFile:
 @dataclass
 class CheckResult:
     """Result of comparing a student entry with an author entry."""
-    student_entry: tg.Optional[ProtocolEntry]
-    author_entry: tg.Optional[ProtocolEntry]
+    student_entry: typing.Optional[ProtocolEntry]
+    author_entry: typing.Optional[ProtocolEntry]
     command_match: bool
     output_match: bool
     success: bool
-    error_message: tg.Optional[str] = None
+    error_message: typing.Optional[str] = None
     requires_manual_check: bool = False
-    manual_check_note: tg.Optional[str] = None
+    manual_check_note: typing.Optional[str] = None
 
 
 def filter_prot_check_annotations(content: str) -> str:
-    """
-    Remove @PROT_CHECK markup lines from protocol content for display purposes.
-    These markups are metadata for validation and should not appear in rendered HTML.
-    
-    Args:
-        content: Raw protocol file content
-        
-    Returns:
-        Content with @PROT_CHECK lines removed
-    """
-    lines = []
-    prot_check_pattern = re.compile(r'^\s*#\s*@PROT_CHECK:')
-    for line in content.split('\n'):
-        if not prot_check_pattern.match(line):
-            lines.append(line)
+    """Remove @PROT_SPEC blocks before rendering."""
+    lines: list[str] = []
+    skipping = False
+    extractor = ProtocolExtractor()
+    for raw_line in content.split('\n'):
+        line = raw_line.rstrip()
+        if skipping:
+            if extractor.prompt_regex.match(line):
+                skipping = False
+                lines.append(line)
+            continue
+        if line.strip() == "@PROT_SPEC":
+            skipping = True
+            continue
+        lines.append(line)
     return '\n'.join(lines)
 
 
 class ProtocolExtractor:
     """Extracts command entries from protocol files."""
-    
     # Regex patterns for protocol format
     COMMAND_PATTERN = r'^\$\s+(.+)$'  # $ command only
-    CHECK_ANNOTATION_PATTERN = r'^#\s*@PROT_CHECK:\s*(.+)$'
-    PROMPT_PATTERN = r'^(?:\([^)]+\)\s+)?\S+@\S+\s+\S+\s+\d{2}:\d{2}:\d{2}\s+\d+$'  # (env) user@host /path HH:MM:SS seq (optional env prefix with space)
-    
+    PROMPT_PATTERN = (
+        r'(?P<front>^.*?)'
+        r'(?P<userhost>[-\+\w]+@[-\+\w]+)'
+        r'\s+(?P<dir>[/~]\S*)'
+        r'\s+(?P<time>\d\d:\d\d:\d\d)'
+        r'\s+(?P<num>\d+)'
+        r'(?P<back>.*$)'
+    )  # captures prompt components (front/environ, user@host, dir, time, counter, trailing text)
     def __init__(self):
         self.command_regex = re.compile(self.COMMAND_PATTERN)
-        self.annotation_regex = re.compile(self.CHECK_ANNOTATION_PATTERN)
         self.prompt_regex = re.compile(self.PROMPT_PATTERN)
-    
+
     def extract_from_file(self, filepath: str) -> ProtocolFile:
         """Extract all command entries from a protocol file."""
         try:
@@ -94,43 +105,43 @@ class ProtocolExtractor:
         except Exception as e:
             b.error(f"Cannot read protocol file {filepath}: {e}")
             return ProtocolFile(filepath, [], 0)
-        
         return self.extract_from_content(content, filepath)
-    
+
     def extract_from_content(self, content: str, filepath: str = "") -> ProtocolFile:
         """Extract command entries from protocol content."""
         lines = content.split('\n')
-        entries = []
-        pending_check_rule = None  # Rule waiting to be applied to next command
+        entries: list[ProtocolEntry] = []
+        pending_check_rule: typing.Optional[CheckRule] = None  # Rule waiting to be applied to next command
         current_command = None
-        current_output_lines = []
+        current_output_lines: list[str] = []
         current_line_num = 0
-        current_command_rule = None  # Rule for the current command
-        
-        for line_num, line in enumerate(lines, 1):
-            line = line.rstrip()
-            
-            # Check for protocol check annotations
-            annotation_match = self.annotation_regex.match(line)
-            if annotation_match:
-                pending_check_rule = self._parse_check_rule(annotation_match.group(1))
+        current_command_rule: typing.Optional[CheckRule] = None  # Rule for the current command
+        spec_lines: typing.Optional[list[str]] = None  # lines belonging to @PROT_SPEC block
+        for line_num, raw_line in enumerate(lines, 1):
+            line = raw_line.rstrip()
+            if spec_lines is not None:
+                if self.prompt_regex.match(line):
+                    pending_check_rule = self._parse_check_rule(spec_lines)
+                    spec_lines = None
+                    continue
+                spec_lines.append(line)
                 continue
-            
+            if line.strip() == "@PROT_SPEC":
+                spec_lines = []
+                continue
             # Check for prompt line (user@host /path HH:MM:SS seq) and skip it
             prompt_match = self.prompt_regex.match(line)
             if prompt_match:
                 continue
-            
             # Check for command line
             command_match = self.command_regex.match(line)
             if command_match:
                 # Save previous entry if exists
                 if current_command is not None:
                     output = '\n'.join(current_output_lines).strip()
-                    entries.append(ProtocolEntry(
-                        current_command, output, current_line_num, current_command_rule
-                    ))
-                
+                    entries.append(
+                        ProtocolEntry(current_command, output, current_line_num, current_command_rule)
+                    )
                 # Start new entry
                 current_command = command_match.group(1).strip()
                 current_output_lines = []
@@ -141,118 +152,146 @@ class ProtocolExtractor:
                 # This is output from the previous command
                 if current_command is not None:
                     current_output_lines.append(line)
-        
         # Save final entry
         if current_command is not None:
             output = '\n'.join(current_output_lines).strip()
-            entries.append(ProtocolEntry(
-                current_command, output, current_line_num, current_command_rule
-            ))
-        
+            entries.append(
+                ProtocolEntry(current_command, output, current_line_num, current_command_rule)
+            )
         return ProtocolFile(filepath, entries, len(entries))
-    
-    def _parse_check_rule(self, rule_text: str) -> CheckRule:
-        """Parse check rule from @PROT_CHECK annotation."""
+
+    def _parse_check_rule(self, spec_lines: list[str]) -> CheckRule:
+        """Parse check rule from a @PROT_SPEC block (full lines)."""
         rule = CheckRule()
-        
-        # Parse key=value pairs
-        for part in rule_text.split(','):
-            part = part.strip()
-            if '=' in part:
-                key, value = part.split('=', 1)
-                key = key.strip().lower()
-                value = value.strip().strip('"\'')
-                
-                if key == 'command':
-                    rule.command_type = value  # Store all values; validation happens later
-                elif key == 'output':
-                    rule.output_type = value   # Store all values; validation happens later
-                elif key == 'regex':
-                    rule.regex_pattern = value
-                elif key == 'variants':
-                    # Parse comma-separated variants within quotes
-                    rule.variants = [v.strip().strip('"\'') for v in value.split('|')]
-                elif key == 'manual_note':
-                    rule.manual_check_note = value
-        
+        manual_block: list[str] = []
+        extra_block: list[str] = []
+        text_block: list[str] = []
+        comment_block: list[str] = []
+        current_block: typing.Optional[tuple[str, list[str]]] = None
+        known_keys = {'command_re', 'output_re', 'skip', 'manual', 'extra', 'text', 'comment'}
+
+        for raw_line in spec_lines:
+            line = raw_line.rstrip()
+            stripped = line.strip()
+            if stripped.startswith("command_re="):
+                rule.command_re = stripped[len("command_re="):].strip()
+                current_block = None
+                continue
+            if stripped.startswith("output_re="):
+                rule.output_re = stripped[len("output_re="):].strip()
+                current_block = None
+                continue
+            if stripped.startswith("skip="):
+                rule.skip = stripped[len("skip="):].strip() == "1"
+                current_block = None
+                continue
+            if stripped.startswith("manual="):
+                rule.manual = True
+                inline = stripped[len("manual="):].strip()
+                if inline and inline != "1":
+                    manual_block.append(inline)
+                current_block = ("manual", manual_block)
+                continue
+            if stripped.startswith("extra="):
+                inline = stripped[len("extra="):].strip()
+                if inline:
+                    extra_block.append(inline)
+                current_block = ("extra", extra_block)
+                continue
+            if stripped.startswith("text="):
+                inline = stripped[len("text="):].strip()
+                if inline:
+                    text_block.append(inline)
+                current_block = ("text", text_block)
+                continue
+            if stripped.startswith("comment="):
+                inline = stripped[len("comment="):].strip()
+                if inline:
+                    comment_block.append(inline)
+                current_block = ("comment", comment_block)
+                continue
+            # handle indented continuation (manual/extra/text/comment)
+            if current_block and raw_line.startswith("    "):
+                _, target = current_block
+                target.append(raw_line[4:])
+                continue
+            # Detect unknown key-value pairs
+            if '=' in stripped and stripped:
+                # This line contains '=' but didn't match any known key
+                key = stripped.split('=', 1)[0].strip()
+                if key not in known_keys:
+                    rule.unknown_keys.append(f"{key}={stripped.split('=', 1)[1].strip() if len(stripped.split('=', 1)) > 1 else ''}")
+
+        rule.manual_text = "\n".join(manual_block) if manual_block else None
+        rule.extra_text = "\n".join(extra_block) if extra_block else None
+        rule.text = "\n".join(text_block) if text_block else None
+        rule.comment = "\n".join(comment_block) if comment_block else None
+
         return rule
 
 
 class ProtocolValidator:
     """Validates protocol check annotations in author files."""
-    
+
     def __init__(self):
         self.extractor = ProtocolExtractor()
-    
+
     def validate_file(self, filepath: str) -> list[str]:
-        """
-        Validate protocol annotations in a file.
-        
-        Returns:
-            list[str]: List of validation error messages
-        """
+        """Validate protocol annotations in a file."""
         errors = []
-        
         try:
             protocol = self.extractor.extract_from_file(filepath)
         except Exception as e:
             errors.append(f"Cannot parse protocol file {filepath}: {e}")
             return errors
-        
         for entry in protocol.entries:
-            if entry.check_rule:
-                rule_errors = self._validate_check_rule(entry.check_rule, entry.line_number)
+            rule = entry.check_rule
+            if rule:
+                rule_errors = self._validate_check_rule(rule, entry.line_number)
                 errors.extend([f"{filepath}:{err}" for err in rule_errors])
-        
         return errors
-    
+
     def _validate_check_rule(self, rule: CheckRule, line_num: int) -> list[str]:
         """Validate a single check rule."""
-        errors = []
-        
-        # Validate command type
-        if rule.command_type not in ['exact', 'regex', 'multi_variant', 'skip', 'manual']:
-            errors.append(f"line {line_num}: Invalid command type '{rule.command_type}'")
-        
-        # Validate output type
-        if rule.output_type not in ['exact', 'regex', 'flexible', 'skip', 'manual']:
-            errors.append(f"line {line_num}: Invalid output type '{rule.output_type}'")
-        
-        # Validate regex pattern if needed
-        if (rule.command_type == 'regex' or rule.output_type == 'regex') and not rule.regex_pattern:
-            errors.append(f"line {line_num}: regex type specified but no regex pattern provided")
-        
-        if rule.regex_pattern:
+        errors: list[str] = []
+        # Check for unknown keys first
+        if rule.unknown_keys:
+            for unknown in rule.unknown_keys:
+                key = unknown.split('=', 1)[0]
+                errors.append(f"line {line_num}: Unknown key '{key}' in @PROT_SPEC block. "
+                            f"Valid keys: command_re, output_re, skip, manual, extra, text, comment")
+        if rule.skip and (rule.command_re or rule.output_re or rule.manual):
+            errors.append(f"line {line_num}: skip cannot be combined with command_re/output_re/manual")
+        if rule.command_re:
             try:
-                re.compile(rule.regex_pattern)
+                re.compile(rule.command_re)
             except re.error as e:
-                errors.append(f"line {line_num}: Invalid regex pattern '{rule.regex_pattern}': {e}")
-        
-        # Validate variants for multi_variant
-        if rule.command_type == 'multi_variant' and not rule.variants:
-            errors.append(f"line {line_num}: multi_variant type specified but no variants provided")
-        
+                errors.append(f"line {line_num}: Invalid command_re '{rule.command_re}': {e}")
+        if rule.output_re:
+            try:
+                re.compile(rule.output_re)
+            except re.error as e:
+                errors.append(f"line {line_num}: Invalid output_re '{rule.output_re}': {e}")
+        if rule.manual and not rule.manual_text and not rule.text:
+            errors.append(f"line {line_num}: manual=1 requires a text= entry or inline text")
+        if not any([rule.command_re, rule.output_re, rule.skip, rule.manual]) and not rule.unknown_keys:
+            errors.append(f"line {line_num}: specification contains neither automated check nor manual/skip")
+        if rule.extra_text and not any([rule.command_re, rule.output_re, rule.skip, rule.manual]):
+            errors.append(f"line {line_num}: extra= without command_re/output_re/skip/manual is not useful")
         return errors
 
 
 class ProtocolChecker:
     """Compares student and author protocol files."""
-    
+
     def __init__(self):
         self.extractor = ProtocolExtractor()
-    
+
     def compare_files(self, student_file: str, author_file: str) -> list[CheckResult]:
-        """
-        Compare student protocol file with author protocol file.
-        
-        Returns:
-            list[CheckResult]: Results of comparison for each entry
-        """
+        """Compare student protocol file with author protocol file."""
         student_protocol = self.extractor.extract_from_file(student_file)
         author_protocol = self.extractor.extract_from_file(author_file)
-        
         results = []
-        
         # Compare each author entry with corresponding student entry
         for i, author_entry in enumerate(author_protocol.entries):
             if i >= len(student_protocol.entries):
@@ -263,15 +302,13 @@ class ProtocolChecker:
                     command_match=False,
                     output_match=False,
                     success=False,
-                    error_message=f"Student file has only {len(student_protocol.entries)} entries, but author file has {len(author_protocol.entries)}"
+                    error_message=f"Student file has only {len(student_protocol.entries)} entries, but author file has {len(author_protocol.entries)}",
                 )
                 results.append(result)
                 continue
-            
             student_entry = student_protocol.entries[i]
             result = self._compare_entries(student_entry, author_entry)
             results.append(result)
-        
         # Check if student has more entries than author
         if len(student_protocol.entries) > len(author_protocol.entries):
             for i in range(len(author_protocol.entries), len(student_protocol.entries)):
@@ -282,43 +319,38 @@ class ProtocolChecker:
                     command_match=False,
                     output_match=False,
                     success=False,
-                    error_message=f"Student has extra entry at position {i+1}"
+                    error_message=f"Student has extra entry at position {i+1}",
                 )
                 results.append(result)
-        
         return results
-    
+
     def _compare_entries(self, student_entry: ProtocolEntry, author_entry: ProtocolEntry) -> CheckResult:
         """Compare a single student entry with author entry."""
-        rule = author_entry.check_rule or CheckRule()  # Use default rule if none specified
-        
-        # Handle manual check cases first, explicit manual check requirement
-        if rule.command_type == 'manual' or rule.output_type == 'manual':
+        rule = author_entry.check_rule or CheckRule(manual=True)  # default to manual when no spec exists
+        if rule.skip:
             return CheckResult(
                 student_entry=student_entry,
                 author_entry=author_entry,
-                command_match=True,  
-                output_match=True,   
+                command_match=True,
+                output_match=True,
+                success=True,
+                requires_manual_check=False,
+                manual_check_note=None,
+            )
+        if rule.manual:
+            return CheckResult(
+                student_entry=student_entry,
+                author_entry=author_entry,
+                command_match=True,
+                output_match=True,
                 success=True,
                 requires_manual_check=True,
-                manual_check_note=rule.manual_check_note or "Manual check required"
+                manual_check_note=rule.manual_text or "Manual check required",
             )
-        
-        # Compare command (skip means truly skip, don't check)
-        if rule.command_type == 'skip':
-            command_match = True  # Skip command checking
-        else:
-            command_match = self._compare_command(student_entry.command, author_entry.command, rule)
-        
-        # Compare output (skip means truly skip, don't check)
-        if rule.output_type == 'skip':
-            output_match = True  # Skip output checking
-        else:
-            output_match = self._compare_output(student_entry.output, author_entry.output, rule)
-        
+        command_match = self._compare_command(student_entry.command, author_entry.command, rule)
+        output_match = self._compare_output(student_entry.output, author_entry.output, rule)
         success = command_match and output_match
         error_message = None
-        
         if not success:
             error_parts = []
             if not command_match:
@@ -326,76 +358,42 @@ class ProtocolChecker:
             if not output_match:
                 error_parts.append("output mismatch")
             error_message = "; ".join(error_parts)
-        
         return CheckResult(
             student_entry=student_entry,
             author_entry=author_entry,
             command_match=command_match,
             output_match=output_match,
             success=success,
-            error_message=error_message
+            error_message=error_message,
         )
-    
+
     def _compare_command(self, student_cmd: str, author_cmd: str, rule: CheckRule) -> bool:
         """Compare commands based on the rule."""
-        if rule.command_type == "exact":
-            return student_cmd.strip() == author_cmd.strip()
-        elif rule.command_type == "regex":
-            if rule.regex_pattern:
-                return bool(re.search(rule.regex_pattern, student_cmd))
-            else:
-                # Fallback to exact match if no regex provided
-                return student_cmd.strip() == author_cmd.strip()
-        elif rule.command_type == "multi_variant":
-            if rule.variants:
-                return any(student_cmd.strip() == variant.strip() for variant in rule.variants)
-            else:
-                # Fallback to exact match if no variants provided
-                return student_cmd.strip() == author_cmd.strip()
-        elif rule.command_type == "skip":
-            return True  # always pass
-        else:
-            # Default to exact match
-            return student_cmd.strip() == author_cmd.strip()
-    
+        if rule.command_re:
+            return bool(re.fullmatch(rule.command_re, student_cmd.strip()))
+        return student_cmd.strip() == author_cmd.strip()
+
     def _compare_output(self, student_output: str, author_output: str, rule: CheckRule) -> bool:
         """Compare outputs based on the rule."""
-        if rule.output_type == "exact":
-            return student_output.strip() == author_output.strip()
-        elif rule.output_type == "regex":
-            if rule.regex_pattern:
-                return bool(re.search(rule.regex_pattern, student_output))
-            else:
-                # Fallback to exact match if no regex provided
-                return student_output.strip() == author_output.strip()
-        elif rule.output_type == "flexible":
-            # Flexible matching: ignore whitespace differences and empty lines
-            student_lines = [line.strip() for line in student_output.split('\n') if line.strip()]
-            author_lines = [line.strip() for line in author_output.split('\n') if line.strip()]
-            return student_lines == author_lines
-        elif rule.output_type == "skip":
-            return True  # always pass
-        else:
-            # Default to exact match
-            return student_output.strip() == author_output.strip()
+        if rule.output_re:
+            return bool(re.search(rule.output_re, student_output))
+        # Default exact match while ignoring surrounding whitespace
+        return student_output.strip() == author_output.strip()
 
 
 class ProtocolReporter:
     """Generates reports for protocol checking results."""
-    
     @staticmethod
     def print_summary(results: list[CheckResult], student_file: str = "", author_file: str = ""):
         """Print a summary of protocol checking results."""
         if not results:
             b.info("No protocol entries to check.")
             return
-        
         total_entries = len(results)
         successful = sum(1 for r in results if r.success)
-        failed = sum(1 for r in results if not r.success)
+        failed = sum(1 for r in results if not r.success and not r.requires_manual_check)
         manual_check = sum(1 for r in results if r.requires_manual_check)
-        
-        b.info(f"Protocol checking results:")
+        b.info("Protocol checking results:")
         if student_file and author_file:
             b.info(f"  Student file: {student_file}")
             b.info(f"  Author file: {author_file}")
@@ -403,7 +401,6 @@ class ProtocolReporter:
         b.info(f"  Passed: {successful}")
         b.info(f"  Failed: {failed}")
         b.info(f"  Manual check required: {manual_check}")
-        
         # Show failed entries
         if failed > 0:
             b.info("\nFailed entries:")
@@ -414,7 +411,6 @@ class ProtocolReporter:
                         b.info(f"    Student command: {result.student_entry.command}")
                     if result.author_entry:
                         b.info(f"    Expected command: {result.author_entry.command}")
-        
         # Show manual check entries
         if manual_check > 0:
             b.info("\nEntries requiring manual check:")

@@ -138,16 +138,17 @@ of the same file.
 
 ### 2.3 Protocol checking
 
-For tasks that require command-line execution logs (`.prot` files), `sedrila` provides protocol checking functionality. 
-This helps instructors verify student submissions against author-provided solutions.
+For tasks requiring command-line execution logs (`.prot` files), `sedrila` provides automated protocol comparison.
+Student protocols are checked against author protocols using `@PROT_SPEC` validation rules.
+
+#### 2.3.1 Command-line checking
 
 Basic usage:
 ```bash
 sedrila instructor --check-protocols student_file.prot author_file.prot
 ```
 
-This compares a student's protocol file with the author's solution and displays a console summary 
-of passed/failed/manual-check-required entries with detailed error messages for each mismatch
+This displays a console summary showing passed/failed/manual-check entries with detailed error messages.
 
 Example:
 ```bash
@@ -156,33 +157,28 @@ sedrila instructor --check-protocols \
   course-repo/altdir/ch/Chapter/Taskgroup/taskname.prot
 ```
 
-About Path
-Todo: The final implementation of the Path handling maybe still needs further discussion; 
-the current implementation is documented here: 
-- `student-repo/taskname.prot`: Path to student submitted files. 
-- `course-repo/.../taskname.prot`: Path to solution `prot` file.
-- The CLI uses the supplied paths, whether absolute or relative 
-  (resolved against the directory from which the command is executed, typically the course repository). 
-- Please ensure that these paths correctly reference the intended files.
-- For now we keep this plain “type the paths you need” approach.
+Paths can be absolute or relative (resolved from current working directory).
 
-The comparison checks each command entry based on author-defined rules (`@PROT_CHECK` annotations):
-- `Passed`: Command and output match according to rules
-- `Failed`: Command or output mismatch
-- `Manual check required`: Entries explicitly marked for instructor review
+#### 2.3.2 Webapp protocol checking
 
-Manual check requirements:
-- Entries marked with `command=manual` or `output=manual` always require manual check
-- These entries pass automatically but are flagged for instructor review
-- Use `manual_note` parameter to provide specific instructions for manual checking
+The instructor webapp automatically compares student and author protocols when viewing `.prot` files.
+Each command entry is color-coded:
 
-Skip behavior:
-- Entries marked with `command=skip` or `output=skip` skip checking entirely
-- Skip means the check always passes without requiring manual review
-- Use `skip` for commands with no meaningful output (e.g., `cd`)
+- Green (`prot-ok-color`): Passed automated checks
+- Red (`prot-alert-color`): Failed checks
+- Yellow (`prot-manual-color`): Requires manual review
+- Grey (`prot-skip-color`): Skipped entries
 
-Important notes:
-- Failed entries show detailed error messages (e.g., "command mismatch", "output mismatch")
-- Tasks with variable output (HTTP responses, timestamps, etc.) should use `output=manual` 
-  rather than `output=skip` to ensure instructor review
-- This feature complements (not replaces) the normal submission checking workflow
+Failed entries show the specific mismatch (command or output) with the expected regex pattern.
+Manual entries display the author's instructions for what to check.
+
+#### 2.3.3 Validation rules
+
+Comparison uses `@PROT_SPEC` blocks from author protocols (see `authors.md` section 2.3.2):
+
+- `command_re=regex`: Student command must match regex (fullmatch)
+- `output_re=regex`: Student output must contain regex match (search)
+- `skip=1`: Always passes, no manual review needed
+- `manual=text`: Always passes but requires instructor review
+
+Entries without any spec default to manual review.

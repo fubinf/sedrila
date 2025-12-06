@@ -146,7 +146,7 @@ How it works:
 - Use HTML comments in task `.md` files to control test behavior (skip, command override)
 - Executes ALL testable commands from `.prot` files and verifies output
 - Creates `program_test_report.md` in `targetdir_i`
-- In a local environment (like WSL), adjust the concurrency by running `export SDRL_PROGCHECK_MAX_WORKERS=Number` (For a PC, setting this value to the current number of CPU threads would be appropriate.) and then executing `sedrila maintainer --check-programs`. 
+- In a local environment (like WSL), adjust the concurrency by running `export SDRL_PROGCHECK_MAX_WORKERS=Number` (For a PC, setting this value to the current number of CPU threads would be appropriate) and then executing `sedrila maintainer --check-programs`. 
   use `echo "$SDRL_PROGCHECK_MAX_WORKERS"` to check current value of this variable.
 - For CI runs triggered through GitHub Actions, the `maintainer-programchecker` workflow exposes a `max_workers` input when using the “Run workflow” button, which internally sets this environment variable before executing the command. The number of programs that can be tested is currently not so much, so setting a small number of max threads, such as 4, is sufficient to obtain test results quickly. 
   
@@ -171,11 +171,13 @@ These requirements evolve as new program types are added to the course. The list
   - `which python3`
   - `python3 --version`
   - `sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 1`
+
   to determine the location and now the python command points to the same Python version as python3.
 - **Go**: 1.23 or higher (for Go programs)
 - **Program files**: `itreedir` must exist as a directory with source files
 
 **Python packages (Sedrila dependencies):**
+
 In pyproject.toml: `[tool.poetry.dependencies]` and `[tool.poetry.group.dev.dependencies]`
 
 **Python packages (additional required):**
@@ -243,6 +245,7 @@ Currently, it supports a `notes` parameter for documentation purposes, but this 
 ```
 
 Parameters:
+
 - `notes="text"`: Documentation notes
 
 #### 5.3.2 SKIP markup (manual testing): `@PROGRAM_TEST_SKIP`

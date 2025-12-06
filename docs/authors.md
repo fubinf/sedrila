@@ -954,67 +954,67 @@ Automatic validation during builds:
 - Runs incrementally: validation triggers only when task or solution files change
 - Persistent errors are always reported in every build (regardless of stage)
 
-#### 2.3.2 Protocol markup validation: `@PROT_CHECK`
+#### 2.3.2 Command protocols validation: `@PROT_SPEC`
 
-Protocol files contain command-line execution logs with optional `@PROT_CHECK` markups
-that specify validation rules for comparing student submissions with author examples.
-For actual comparison of student protocols, use `sedrila instructor --check-protocols`.
-For detailed refer to `instructors.md` section 2.3
+Author protocol files (`.prot`) can include `@PROT_SPEC` blocks that specify validation rules
+for comparing student submissions with author solutions.
+For actual comparison of student protocols during instructor checking, see `instructors.md` section 2.3.
 
-Markup syntax:
-```bash
-# @PROT_CHECK: parameter1=value1, parameter2=value2
-user@host /path 10:00:00 1
-$ command
-output
+Specification syntax:
 ```
-
-Command matching types:
-
-- `command=exact`: Require exact command match (default)
-- `command=regex, regex="pattern"`: Match command using regex pattern
-- `command=multi_variant, variants="cmd1|cmd2|cmd3"`: Accept multiple command variants
-- `command=skip`: Skip command checking entirely (always passes)
-- `command=manual`: Mark entry for manual review (always passes, requires instructor check)
-
-Output matching types:
-
-- `output=exact`: Require exact output match (default)
-- `output=flexible`: Ignore whitespace differences and empty lines
-- `output=regex, regex="pattern"`: Match output using regex pattern
-- `output=skip`: Skip output checking entirely (always passes)
-- `output=manual`: Mark entry for manual review (always passes, requires instructor check)
-
-Additional parameters:
-
-- `regex="pattern"`: Regex pattern for command or output matching (required when using regex type)
-- `variants="cmd1|cmd2|cmd3"`: Pipe-separated list of acceptable command variants (required for multi_variant)
-- `manual_note="message"`: Note for manual checking instructions
-
-Example markup syntax:
-```bash
-# @PROT_CHECK: command=exact, output=flexible
+@PROT_SPEC
+command_re=^ls -la$
+output_re=\btotal\b
 user@host /path 10:00:00 1
 $ ls -la
 total 16
-drwxr-xr-x 2 user user 4096 Jan 1 12:00 .
+-rw-r--r-- 1 user user 0 Jan 1 12:00 file.txt
 ```
 
-All `@PROT_CHECK` markup in `.prot` files are validated automatically:
+Single-line entries:
 
-- Checks parameter types (command/output: exact/regex/multi_variant/flexible/skip/manual)
-- Validates regex patterns for syntax errors
-- Reports invalid markups with file and line numbers
+- `command_re=regex`: Command must match this regex
+- `output_re=regex`: Output must contain this regex match
+- `skip=1`: Skip checking entirely (always passes, no manual review needed)
+- `manual=1`: Require manual instructor review (passes automatically but flagged)
+
+Multi-line entries (continuation lines indented by 4 spaces):
+
+- `manual=Markdown text`: Manual review with inline Markdown instructions
+- `extra=Markdown text`: Additional information (does not trigger manual review)
+- `text=Markdown text`: General text content
+- `comment=Markdown text`: Comment text
+
+Example with multi-line manual instruction:
+```
+@PROT_SPEC
+command_re=^ls -a$
+output_re=\b\.bashrc\b
+manual=Make sure there are **at least 10 files**.
+    If there are fewer, command 4 will not work as intended.
+user@host /tmp 10:00:00 1
+$ ls -a
+.bashrc  .profile  file1.txt
+```
+
+Automatic validation during `sedrila author` builds:
+
+- Validates regex syntax for `command_re` and `output_re`
+- Rejects mixing `skip=1` with `command_re`, `output_re`, or `manual`
+- Warns if `manual=1` lacks a `text=` entry or inline text
+- Reports errors when specs lack both automated checks and manual/skip directives
 - Validates all tasks but respects `--include_stage` for error reporting:
 
-  - Tasks matching the stage filter: **errors**
-  - Tasks excluded by the stage filter: **warnings**
-- Runs incrementally: validation triggers only when `.prot` files change
-- Persistent errors are always reported in every build
+    - Tasks matching the stage filter: **errors**
+    - Tasks excluded by the stage filter: **warnings**
+- Runs incrementally: triggers only when `.prot` files change
 
-Note on `skip` vs `manual`:
-- Use `skip` when you want to skip checking entirely (e.g., commands with no meaningful output like `cd`)
-- Use `manual` when the entry needs instructor review (e.g., variable output like HTTP responses with timestamps)
+Notes:
+
+- Commands without any spec default to requiring manual review
+- Use `skip=1` for commands with no meaningful output (e.g., `cd`)
+- Use `manual=` for variable output requiring instructor judgment (e.g., HTTP responses with timestamps)
+- `@PROT_SPEC` blocks are filtered out when rendering protocols for students
 
 ### 2.4 Copying the build output
 

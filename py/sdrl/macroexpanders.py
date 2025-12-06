@@ -129,7 +129,8 @@ def prot_html(content: str) -> str:
     def handle_promptmatch():  # uses mm, result, state. Corresponds to promptmatch().
         state.promptcount += 1
         state.s = PROMPTSEEN
-        promptindex = f"<span class='prot-counter prot-manual-color'>{state.promptcount}.</span>"
+        color_class = prompt_color(state.promptcount)
+        promptindex = f"<span class='prot-counter {color_class}'>{state.promptcount}.</span>"
         front = f"<span class='vwr-front'>{esc('front')}</span>"
         userhost = f"<span class='vwr-userhost'>{esc('userhost')}</span>"
         dir = f"<span class='vwr-dir'>{esc('dir')}</span>"
@@ -141,12 +142,62 @@ def prot_html(content: str) -> str:
     def esc(groupname: str) -> str:  # abbrev; uses mm
         return html.escape(mm.group(groupname))  # TODO_1_prechelt: make whitespace (indentation etc.) work
 
+    def prompt_color(idx: int) -> str:
+        # idx is 1-based command entry index
+        if idx <= len(prompt_classes):
+            return prompt_classes[idx - 1]
+        return "prot-manual-color"
     result = ["\n<table class='vwr-table'>"]
     PROMPTSEEN, OUTPUT = (1, 2)
     state = State(s=OUTPUT, promptcount = 0)
-    # Filter out @PROT_CHECK markup before rendering (they are metadata, not part of displayed protocol)
-    # Note: Use protocolchecker.filter_prot_check_annotations() to filter these annotations
+    # Parse specs once (before filtering) to determine colors and spec blocks
     import sdrl.protocolchecker as protocolchecker
+    import sdrl.markdown as md
+    try:
+        extractor = protocolchecker.ProtocolExtractor()
+        proto = extractor.extract_from_content(content)
+    except Exception:
+        proto = protocolchecker.ProtocolFile("", [], 0)
+    prompt_classes: list[str] = []
+    manual_blocks: list[str] = []
+    extra_blocks: list[str] = []
+    error_blocks: list[list[str]] = []
+    checker = protocolchecker.ProtocolChecker()
+    for entry in proto.entries:
+        rule = entry.check_rule
+        color = "prot-manual-color"
+        manuals = ""
+        extras = ""
+        errs: list[str] = []
+        if rule and rule.skip:
+            color = "prot-skip-color"
+        elif rule and rule.manual:
+            color = "prot-manual-color"
+        else:
+            # run automated check of author entry against itself to see if spec fits content
+            try:
+                result_check = checker._compare_entries(entry, entry)
+                if result_check.success:
+                    color = "prot-ok-color"
+                else:
+                    color = "prot-alert-color"
+                    if not result_check.command_match:
+                        label = f"command_re={rule.command_re}" if rule and rule.command_re else "command"
+                        errs.append(f"<div class='prot-spec-error'><pre>{html.escape(label)}</pre> did not match</div>")
+                    if not result_check.output_match:
+                        label = f"output_re={rule.output_re}" if rule and rule.output_re else "output"
+                        errs.append(f"<div class='prot-spec-error'><pre>{html.escape(label)}</pre> did not match</div>")
+            except Exception:
+                color = "prot-alert-color"
+        if rule and rule.manual_text:
+            manuals = f"<div class='prot-spec-manual'>{md.render_plain_markdown(rule.manual_text)}</div>"
+        if rule and rule.extra_text:
+            extras = f"<div class='prot-spec-extra'>{md.render_plain_markdown(rule.extra_text)}</div>"
+        prompt_classes.append(color)
+        manual_blocks.append(manuals)
+        extra_blocks.append(extras)
+        error_blocks.append(errs)
+    # Filter out @PROT_SPEC markup before rendering
     content = protocolchecker.filter_prot_check_annotations(content)
     for line in content.split('\n'):
         line = line.rstrip()  # get rid of newline
@@ -154,6 +205,14 @@ def prot_html(content: str) -> str:
         if mm:
             handle_promptmatch()
         elif state.s == PROMPTSEEN:  # this is the command line
+            idx = state.promptcount - 1
+            if 0 <= idx < len(manual_blocks):
+                if manual_blocks[idx]:
+                    result.append(f"<tr><td>{manual_blocks[idx]}</td></tr>")
+                if extra_blocks[idx]:
+                    result.append(f"<tr><td>{extra_blocks[idx]}</td></tr>")
+                for err in error_blocks[idx]:
+                    result.append(f"<tr><td>{err}</td></tr>")
             result.append(f"<tr><td><span class='vwr-cmd'>{html.escape(line)}</span></td></tr>")
             state.s = OUTPUT
         elif state.s == OUTPUT:

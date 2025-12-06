@@ -3,10 +3,12 @@ import base64
 import os
 import pathlib
 import subprocess
+import tempfile
 import traceback
 import typing as tg
 import html
 import wsgiref.simple_server
+import urllib.parse
 
 import bottle  # https://bottlepy.org/docs/dev/
 
@@ -547,7 +549,7 @@ def serve_task(taskname: str, path: str | None = None):
     tasklink = html_for_tasklink(taskname, ctx.submission_find_taskname, ctx.course_url, ctx.is_instructor)
 
     try:
-        file_markup = html_for_file(ctx.studentlist, path) if path else "no files"
+        file_markup = html_for_file(ctx.studentlist, path, ctx.is_instructor) if path else "no files"
     except Exception as ex:
         tb_lines = traceback.format_exception(type(ex), ex, ex.__traceback__)
         tb_text = ''.join(tb_lines)
@@ -572,10 +574,14 @@ def serve_task(taskname: str, path: str | None = None):
     """
     return html_for_layout(taskname, body, selected=taskname)
 
-def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
+def html_for_file(studentlist: list[sdrl.participant.Student], mypath, is_instructor: bool = False) -> str:
     """
     Page body showing each Workdir's version (if existing) of file mypath, and pairwise diffs where possible.
     We create this as a Markdown page, then render it.
+
+    For .prot files:
+    - If is_instructor=True: show comparison with author protocol (with colored indicators)
+    - If is_instructor=False: show plain protocol rendering (student view)
     """
     SRC = 'src'
     BINARY = 'binary'
@@ -602,7 +608,14 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
         if suffix == '.md':
             lines.append(content)
         elif suffix == '.prot':
-            lines.append(macroexpanders.prot_html(content))
+            if is_instructor:
+                # Instructor mode: show comparison with author protocol
+                author_path = _author_prot_path(workdir, mypath)
+                author_content = b.slurp(author_path) if author_path and os.path.isfile(author_path) else None
+                lines.append(render_prot_compare(workdir.topdir, mypath, content, author_content, author_path))
+            else:
+                # Student mode: show plain protocol rendering
+                lines.append(render_prot_plain(content))
         else:  # any other suffix: assume this is a sourcefile
             language = suffix2lang.get(suffix[1:], "")
             if language == 'html':
@@ -643,6 +656,213 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath) -> str:
     the_toc, the_lines = '\n'.join(toc), '\n'.join(lines)
     the_html = md.render_plain_markdown(the_lines)
     return the_html
+
+
+def render_prot_compare(
+    workdir_top: str,
+    relpath: str,
+    student_content: str,
+    author_content: str | None,
+    author_path: str | None = None,
+) -> str:
+    """
+    Render protocol comparison (student vs author) with colors per spec:
+    - ok -> prot-ok-color
+    - fail -> prot-alert-color
+    - manual -> prot-manual-color
+    - skip -> prot-skip-color
+
+    Also renders prompt lines with colored numbers.
+    """
+    import sdrl.protocolchecker as protocolchecker
+    import sdrl.markdown as md
+    import dataclasses
+
+    @dataclasses.dataclass
+    class State:
+        s: int
+        promptcount: int
+
+    def handle_promptmatch(color_class: str):  # uses mm, result, state
+        state.promptcount += 1
+        state.s = PROMPTSEEN
+        # Instructor view: show prompt number WITH color
+        promptindex = f"<span class='prot-counter {color_class}'>{state.promptcount}.</span>"
+        front = f"<span class='vwr-front'>{esc('front')}</span>"
+        userhost = f"<span class='vwr-userhost'>{esc('userhost')}</span>"
+        dir = f"<span class='vwr-dir'>{esc('dir')}</span>"
+        time = f"<span class='vwr-time'>{esc('time')}</span>"
+        num = f"<span class='vwr-num'> {esc('num')} </span>"
+        back = f"<span class='vwr-back'>{esc('back')}</span>"
+        result.append(f"<tr><td>{promptindex} {front} {userhost} {dir} {time} {num} {back}</td></tr>")
+
+    def esc(groupname: str) -> str:  # abbrev; uses mm
+        return html.escape(mm.group(groupname))
+
+    checker = protocolchecker.ProtocolChecker()
+    extractor = protocolchecker.ProtocolExtractor()
+    prompt_regex = extractor.prompt_regex
+    student_file = os.path.join(workdir_top, relpath.lstrip("/"))
+    if author_content is None:
+        author_content = student_content
+    def compare_results() -> list[protocolchecker.CheckResult]:
+        if author_path and os.path.isfile(author_path):
+            return checker.compare_files(student_file, author_path)
+        tmp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".prot", delete=False) as tmp:
+                tmp.write(author_content or "")
+                tmp.flush()
+                tmp_path = tmp.name
+            return checker.compare_files(student_file, tmp_path)
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+    results = compare_results()
+    def color_for(res: protocolchecker.CheckResult) -> str:
+        rule = res.author_entry.check_rule if res.author_entry else None
+        if rule and rule.skip:
+            return "prot-skip-color"
+        if res.requires_manual_check:
+            return "prot-manual-color"
+        if res.success:
+            return "prot-ok-color"
+        return "prot-alert-color"
+    prompt_colors = [color_for(res) for res in results]
+    result = ["\n<table class='vwr-table'>"]
+    PROMPTSEEN, OUTPUT = (1, 2)
+    state = State(s=OUTPUT, promptcount=0)
+    # Filter out @PROT_SPEC annotations before rendering
+    content = protocolchecker.filter_prot_check_annotations(student_content)
+    for line in content.split('\n'):
+        line = line.rstrip()
+        mm = prompt_regex.match(line)
+        if mm:
+            # Get color for this prompt
+            color = prompt_colors[state.promptcount] if state.promptcount < len(prompt_colors) else "prot-manual-color"
+            handle_promptmatch(color)
+        elif state.s == PROMPTSEEN:  # this is the command line
+            idx = state.promptcount - 1
+            # Show manual/extra/error blocks before the command
+            if 0 <= idx < len(results):
+                res = results[idx]
+                rule = res.author_entry.check_rule if res.author_entry else None
+                if rule and rule.manual_text:
+                    result.append(f"<tr><td><div class='prot-spec-manual'>{md.render_plain_markdown(rule.manual_text)}</div></td></tr>")
+                if rule and rule.extra_text:
+                    result.append(f"<tr><td><div class='prot-spec-extra'>{md.render_plain_markdown(rule.extra_text)}</div></td></tr>")
+                if not res.success and res.error_message:
+                    result.append(f"<tr><td><div class='prot-spec-error'><pre>{html.escape(res.error_message)}</pre></div></td></tr>")
+                elif not res.success:
+                    if rule and rule.command_re and not res.command_match:
+                        result.append(f"<tr><td><div class='prot-spec-error'><pre>{html.escape('command_re='+rule.command_re)}</pre> did not match</div></td></tr>")
+                    if rule and rule.output_re and not res.output_match:
+                        result.append(f"<tr><td><div class='prot-spec-error'><pre>{html.escape('output_re='+rule.output_re)}</pre> did not match</div></td></tr>")
+            result.append(f"<tr><td><span class='vwr-cmd'>{html.escape(line)}</span></td></tr>")
+            state.s = OUTPUT
+        elif state.s == OUTPUT:
+            result.append(f"<tr><td><span class='vwr-output'>{html.escape(line)}</span></td></tr>")
+        else:
+            assert False
+    result.append("</table>\n\n")
+    return "\n".join(result)
+
+
+def render_prot_plain(student_content: str) -> str:
+    """
+    Render protocol file in plain format (for student view).
+    Shows prompt numbers but NO colors, NO spec blocks (manual/extra/error).
+    Similar to author course rendering but without colored indicators.
+    """
+    import sdrl.protocolchecker as protocolchecker
+    import dataclasses
+
+    @dataclasses.dataclass
+    class State:
+        s: int
+        promptcount: int
+
+    def handle_promptmatch():  # uses mm, result, state
+        state.promptcount += 1
+        state.s = PROMPTSEEN
+        # Student view: show prompt number WITHOUT color
+        promptindex = f"<span class='prot-counter'>{state.promptcount}.</span>"
+        front = f"<span class='vwr-front'>{esc('front')}</span>"
+        userhost = f"<span class='vwr-userhost'>{esc('userhost')}</span>"
+        dir = f"<span class='vwr-dir'>{esc('dir')}</span>"
+        time = f"<span class='vwr-time'>{esc('time')}</span>"
+        num = f"<span class='vwr-num'> {esc('num')} </span>"
+        back = f"<span class='vwr-back'>{esc('back')}</span>"
+        result.append(f"<tr><td>{promptindex} {front} {userhost} {dir} {time} {num} {back}</td></tr>")
+
+    def esc(groupname: str) -> str:  # abbrev; uses mm
+        return html.escape(mm.group(groupname))
+
+    extractor = protocolchecker.ProtocolExtractor()
+    prompt_regex = extractor.prompt_regex
+    result = ["\n<table class='vwr-table'>"]
+    PROMPTSEEN, OUTPUT = (1, 2)
+    state = State(s=OUTPUT, promptcount=0)
+    # Filter out @PROT_SPEC annotations before rendering (students should not see them)
+    content = protocolchecker.filter_prot_check_annotations(student_content)
+    for line in content.split('\n'):
+        line = line.rstrip()  # get rid of newline
+        mm = prompt_regex.match(line)
+        if mm:
+            handle_promptmatch()
+        elif state.s == PROMPTSEEN:  # this is the command line
+            # NO manual/extra/error blocks, just the command
+            result.append(f"<tr><td><span class='vwr-cmd'>{html.escape(line)}</span></td></tr>")
+            state.s = OUTPUT
+        elif state.s == OUTPUT:
+            result.append(f"<tr><td><span class='vwr-output'>{html.escape(line)}</span></td></tr>")
+        else:
+            assert False
+    result.append("</table>\n\n")
+    return '\n'.join(result)
+
+
+def _author_prot_path(workdir: sdrl.participant.Student, prot_path: str) -> str | None:
+    """Attempt to locate the author .prot file corresponding to the student's file."""
+    prot_rel = prot_path.lstrip("/")
+
+    def candidate_from_config(config_dir: str) -> str | None:
+        cfg_path = os.path.join(config_dir, c.AUTHOR_CONFIG_FILENAME)
+        if not os.path.isfile(cfg_path):
+            return None
+        try:
+            config = b.slurp_yaml(cfg_path)
+        except Exception:
+            return None
+        chapterdir = (config.get('chapterdir', 'ch') or '').strip('/')
+        altdir = (config.get('altdir', 'altdir') or '').strip('/')
+        rel = prot_rel.lstrip('/')
+        if chapterdir and rel.startswith(f"{chapterdir}/"):
+            rel = os.path.join(altdir, rel[len(chapterdir) + 1:])
+        elif altdir and not rel.startswith(f"{altdir}/"):
+            rel = os.path.join(altdir, rel)
+        candidate = os.path.normpath(os.path.join(config_dir, rel))
+        return candidate if os.path.isfile(candidate) else None
+    current = pathlib.Path(workdir.topdir).resolve()
+    visited: set[pathlib.Path] = set()
+    while current not in visited:
+        visited.add(current)
+        path = candidate_from_config(str(current))
+        if path:
+            return path
+        try:
+            for entry in current.iterdir():
+                if not entry.is_dir():
+                    continue
+                path = candidate_from_config(str(entry))
+                if path:
+                    return path
+        except OSError:
+            pass
+        if current.parent == current:
+            break
+        current = current.parent
+    return None
 
 
 def html_for_page(title: str, course_url: str, body: str) -> str:
@@ -720,6 +940,23 @@ def html_for_layout(title: str, content: str, selected: str | None = None) -> st
     return html_for_page(title, ctx.course_url, body)
 
 def html_for_resources(course_url: str) -> str:
+    parsed = urllib.parse.urlparse(course_url)
+    if parsed.scheme == "file":
+        base = parsed.path.rstrip("/")
+        def inline_css(name: str) -> str:
+            path = os.path.join(base, name)
+            try:
+                css = b.slurp(path)
+                return f"<style>\n{css}\n</style>"
+            except Exception:
+                return ""
+        return (
+            f'<link rel="icon" type="image/png" sizes="16x16 32x32" href="{FAVICON_URL}">\n'
+            f"{inline_css('sedrila.css')}\n"
+            f"{inline_css('local.css')}\n"
+            f"{inline_css('codehilite.css')}\n"
+            f'<link href="{WEBAPP_CSS_URL}" rel="stylesheet">\n'
+        )
     return (f'<link rel="icon" type="image/png" sizes="16x16 32x32" href="{FAVICON_URL}">\n'
             f'<link href="{html.escape(course_url)}/sedrila.css" rel="stylesheet">\n'
             f'<link href="{html.escape(course_url)}/local.css" rel="stylesheet">\n'
