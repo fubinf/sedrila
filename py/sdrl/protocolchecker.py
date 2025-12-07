@@ -4,11 +4,13 @@ Command protocol checker for SeDriLa courses.
 Based on docs/course_testing.md Section 2, this parses @PROT_SPEC blocks,
 validates them, and compares author/student protocol files.
 """
+import os
 import re
 import typing
 from dataclasses import dataclass
 
 import base as b
+import mycrypt
 
 
 @dataclass
@@ -420,3 +422,16 @@ class ProtocolReporter:
                     b.info(f"  Entry {i+1}: {note}")
                     if result.student_entry:
                         b.info(f"    Student command: {result.student_entry.command}")
+
+
+def load_encrypted_prot_file(prot_crypt_path: str, passphrase: str | None = None) -> typing.Optional[str]:
+    """Load and decrypt a .prot.crypt file. If passphrase is provided, uses it for password-protected keys."""
+    if not os.path.exists(prot_crypt_path):
+        return None
+    try:
+        ciphertext = b.slurp_bytes(prot_crypt_path)
+        plaintext = mycrypt.decrypt_gpg(ciphertext, passphrase=passphrase)
+        return plaintext.decode('utf-8')
+    except Exception as e:
+        b.warning(f"Failed to decrypt {prot_crypt_path}: {e}")
+        return None

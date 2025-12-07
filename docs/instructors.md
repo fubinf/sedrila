@@ -162,6 +162,16 @@ Paths can be absolute or relative (resolved from current working directory).
 #### 2.3.2 Webapp protocol checking
 
 The instructor webapp automatically compares student and author protocols when viewing `.prot` files.
+
+If encrypted protocol files (`.prot.crypt`) are present, the webapp will prompt for your GPG passphrase
+when starting (up to 3 attempts). The passphrase is verified and cached for the session duration.
+Note: Passphrase prompts only appear for local deployments (`file://` URLs); remote HTTP(S) deployments
+cannot access encrypted files locally.
+
+Encrypted protocol files are created during the build process by encrypting each protocol file with the
+public GPG keys of all instructors listed in `sedrila.yaml`. This allows every instructor to decrypt
+the files using their own private key, enabling secure protocol access without additional key distribution.
+
 Each command entry is color-coded:
 
 - Green (`prot-ok-color`): Passed automated checks

@@ -530,10 +530,102 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         b.spit_bytes(elem.outputfile_s, encryptedlist)
         b.spit_bytes(elem.outputfile_i, encryptedlist)
 
+    def _prescan_prot_files(self):
+        """Scan all markdown files for [PROT::...] macros and pre-register EncryptedProtFiles."""
+        import re
+        prot_pattern = re.compile(r'\[PROT::([^\]]+)\]')
+        keyfingerprints = [instructor['keyfingerprint']
+                           for instructor in self.configdict.get('instructors', [])
+                           if instructor.get('keyfingerprint', None) and instructor.get('pubkey', None)]
+        if not keyfingerprints:
+            return
+        for root, dirs, files in os.walk(self.chapterdir):
+            for filename in files:
+                if not filename.endswith('.md'):
+                    continue
+                filepath = os.path.join(root, filename)
+                try:
+                    content = b.slurp(filepath)
+                    for match in prot_pattern.finditer(content):
+                        prot_arg = match.group(1)
+                        resolved_path = self._resolve_prot_path(filepath, prot_arg)
+                        if resolved_path and os.path.exists(resolved_path):
+                            self._register_encrypted_prot_directly(resolved_path, keyfingerprints)
+                except Exception:
+                    pass
+
+    def _resolve_prot_path(self, context_file: str, prot_arg: str) -> str | None:
+        """Resolve a [PROT::...] argument to an actual file path."""
+        import re
+        # Match: (ALT:)? (/)? (incfile)
+        arg_re = r"(?P<kw>ALT:)?(?P<slash>/)?(?P<incfile>.*)"
+        mm = re.fullmatch(arg_re, prot_arg)
+        has_kw = mm.group("kw") is not None
+        is_abs = mm.group("slash") is not None
+        inc_filepath = mm.group("incfile")
+        if has_kw:
+            basedir = self.altdir
+        else:
+            basedir = self.chapterdir
+        # Get context directory, converting between chapterdir/altdir if needed
+        ctx_dirpath = os.path.dirname(context_file)
+        if has_kw:
+            rel_dirpath = ctx_dirpath.replace(self.chapterdir, self.altdir, 1)
+        else:
+            rel_dirpath = ctx_dirpath
+        # Construct full path: either from root or from context directory
+        if is_abs:
+            fullpath = os.path.join(basedir, inc_filepath)
+        else:
+            fullpath = os.path.join(rel_dirpath, inc_filepath or os.path.basename(context_file).replace('.md', '.prot'))
+        return fullpath
+
+    def _register_encrypted_prot_directly(self, prot_filepath: str, keyfingerprints: list[str]):
+        """Register a .prot file for encryption before directory.build()."""
+        basename = os.path.basename(prot_filepath)
+        outputname = f"{basename}.crypt"
+        existing = self.directory.get_the(el.EncryptedProtFile, outputname)
+        if existing:
+            return
+        self.directory.make_the(el.Sourcefile, prot_filepath)
+        pubkey_data = self.instructor_pubkeys
+        def transform_with_pubkeys(elem):
+            return Coursebuilder._transform_prot_file(elem, pubkey_data)
+        self.directory.make_the(
+            el.EncryptedProtFile,
+            outputname,
+            sourcefile=prot_filepath,
+            targetdir_s=self.targetdir_s,
+            targetdir_i=self.targetdir_i,
+            transformation=transform_with_pubkeys,
+            fingerprints=keyfingerprints
+        )
+
+    @staticmethod
+    def _transform_prot_file(elem: el.TransformedFile, pubkey_data: dict | None = None):
+        """Encrypt a .prot file and save encrypted version to the student directory only."""
+        with open(elem.sourcefile, 'rb') as f:
+            plaintext = f.read()
+        encrypted = mycrypt.encrypt_gpg(plaintext, elem.fingerprints, pubkey_data=pubkey_data)
+        b.spit_bytes(elem.outputfile_s, encrypted)
+
+    def _prepare_instructor_pubkeys(self):
+        """Prepare instructor public keys from sedrila.yaml for encryption."""
+        pubkey_data = {}
+        for instructor in self.configdict.get('instructors', []):
+            if 'pubkey' in instructor and 'keyfingerprint' in instructor:
+                fp = instructor['keyfingerprint']
+                pubkey_data[fp] = instructor['pubkey']
+        return pubkey_data
+
     def _init_parts(self, configdict: dict, include_stage: str):
         self.directory.record_the(Course, self.name, self)
         self.namespace_add(self)
         self.make_std_dependencies(use_toc_of=self)
+        # ----- prepare instructor pubkeys from sedrila.yaml (for isolated encryption):
+        self.instructor_pubkeys = self._prepare_instructor_pubkeys()
+        # ----- pre-register encrypted prot files:
+        self._prescan_prot_files()
         # ----- handle include_stage:
         if include_stage in self.stages:
             self.include_stage = include_stage

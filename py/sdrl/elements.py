@@ -40,6 +40,7 @@ Element
         Zipfile
       TransformedFile
         ParticipantsList
+        EncryptedProtFile
   Source
     Configelement
     Sourcefile
@@ -670,6 +671,16 @@ class TransformedFile(Outputfile):  # abstract class
 
 class ParticipantsList(TransformedFile):
     file_column: str  # which column of the TAB-separated inputfile to use
+    fingerprints: list[str]  # keyfingerprint field of each instructor that has it set
+
+    pass  # no extra code, only attributes
+
+
+class EncryptedProtFile(TransformedFile):
+    """
+    Encrypted protocol file for instructor use.
+    The .prot file is encrypted with instructor GPG keys and saved as .prot.crypt
+    """
     fingerprints: list[str]  # keyfingerprint field of each instructor that has it set
 
     pass  # no extra code, only attributes

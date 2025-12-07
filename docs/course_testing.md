@@ -171,10 +171,15 @@ Record enough about the process so that you can document and analyze it in your 
   `internal_notes.md` Section 4.
 - Implemented in 
     - `Protocolchecker.py`
-    - `course.py`: class `ProtocolValidation` (incremental build)
-    - `elements.py`: comments of inheritance hierarchy
-    - `marcoexpanders.py`: prompt_color
-    - `webapp.py`: fun`render_prot_compare`, `render_prot_plain`, `_author_prot_path`
+    - `course.py`: class `ProtocolValidation` (incremental build) and 
+                functions for [PROT::] `_prescan_prot_files`, `_resolve_prot_path`, `_register_encrypted_prot_directly`
+    - `elements.py`: `EncryptedProtFile`
+    - `marcoexpanders.py`: function `prompt_color`, `_register_encrypted_prot` and
+                additions for [PROT::] in `expand_prot`
+    - `webapp.py`: function `render_prot_compare`, `render_prot_plain`, `_load_author_prot_content`
+                  function for encryption: `_find_encrypted_prot_file`, `_verify_gpg_passphrase` and 
+                                            additions in `run`
+    - `mycrypt.py`: function `encrypt_gpg`, `decrypt_gpg`
     - `directory.py`: incremental build registration
     - `instructor.py`: `def check_protocol_files`
 - Validated by `protocolchecker_test.py`

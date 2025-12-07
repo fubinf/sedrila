@@ -86,18 +86,63 @@ def expand_treeref(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocal
     return f"{prefix}{mainpart}{suffix}"
 
 
+def _register_encrypted_prot(course: sdrl.course.Coursebuilder, prot_filepath: str):
+    """Register a .prot file to be encrypted and saved as .prot.crypt in the student directory."""
+    import sdrl.elements as el
+    # Get instructor fingerprints (only for instructors with pubkeys)
+    keyfingerprints = [instructor['keyfingerprint']
+                       for instructor in course.configdict['instructors']
+                       if instructor.get('keyfingerprint', None) and instructor.get('pubkey', None)]
+    if not keyfingerprints:
+        b.debug(f"No instructor pubkeys with keyfingerprints found, skipping encryption of {prot_filepath}")
+        return
+    basename = os.path.basename(prot_filepath)
+    outputname = f"{basename}.crypt"
+    existing = course.directory.get_the(el.EncryptedProtFile, outputname)
+    if existing:
+        return
+    course.directory.make_the(el.Sourcefile, prot_filepath)
+    # Create encrypted protocol file element with isolated encryption
+    b.debug(f"Registering encrypted prot file: {prot_filepath} -> {outputname}")
+    try:
+        pubkey_data = getattr(course, 'instructor_pubkeys', {})
+        def transform_with_pubkeys(elem):
+            return sdrl.course.Coursebuilder._transform_prot_file(elem, pubkey_data)
+        elem = course.directory.make_the(
+            el.EncryptedProtFile,
+            outputname,
+            sourcefile=prot_filepath,
+            targetdir_s=course.targetdir_s,
+            targetdir_i=course.targetdir_i,
+            transformation=transform_with_pubkeys,
+            fingerprints=keyfingerprints
+        )
+        b.debug(f"Successfully created EncryptedProtFile: {elem}")
+    except Exception as e:
+        b.error(f"Failed to create EncryptedProtFile {outputname}: {e}")
+        import traceback
+        b.error(traceback.format_exc())
+
+
 def expand_prot(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
     """[PROT::somedir/file.prot]. Plain paths in viewer mode, INCLUDE-style paths in author mode."""
+    import sdrl.elements as el
     path = macrocall.arg1
     author_mode = isinstance(course, sdrl.course.Coursebuilder)  # in viewer mode we receive a dummy
+    b.debug(f"expand_prot: {macrocall.arg1}, author_mode={author_mode}")
     if author_mode:
         assert isinstance(course, sdrl.course.Coursebuilder)
         path = includefile_path(course, macrocall, itree_mode=False)
+        b.debug(f"expand_prot: resolved to {path}")
     if not os.path.exists(path):
         b.warning(f"{macrocall.macrocall_text}: file '{path}' not found", file=macrocall.filename)
         return f"\n<p>(('{path}' not found))</p>\n"
     content = b.slurp(path)
     macrocall.md.includefiles.add(path)  # record that we have included this file
+    # In author mode, register encrypted version for instructor use
+    if author_mode:
+        b.debug(f"expand_prot: calling _register_encrypted_prot for {path}")
+        _register_encrypted_prot(course, path)
     return prot_html(content)
 
 

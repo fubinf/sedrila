@@ -1,5 +1,6 @@
 """Browse the virtual file system of a sdrl.participant.Context; see submissions and mark them."""
 import base64
+import getpass
 import os
 import pathlib
 import subprocess
@@ -31,6 +32,9 @@ SEDRILA_REPLACE_URL = "/sedrila-replace.action"
 SEDRILA_UPDATE_URL = "/sedrila-update.action"
 WORK_REPORT_URL = "/work.report"
 
+# Global variable to store GPG passphrase for decrypting protocol files
+gpg_passphrase: str | None = None
+
 favicon32x32_png_base64 = """iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAE0ElEQVRYR8VXR0hdWxTdzxI1OrAG
 K1ZQbDGoOFBEUOyiYsUKtmAdOPslIPzPR2fB2CAqqFgRLAiCJEKcKIgogi3YosFGdKCiEcvLXSf/
 XN597z6/+RCz4Q3eOfusvc/a7VxFTU2NjpGR0W9KpbKciGyE32PIvmCk6evXr/8o6urq/hCM//0Y
@@ -58,16 +62,70 @@ XdDG5/ljMXEg2GrE5/k3AZpcXaA5fbgAAAAASUVORK5CYII="""
 favicon32x32_png = base64.b64decode(favicon32x32_png_base64)
 
 
+def _find_encrypted_prot_file(ctx: sdrl.participant.Context) -> str | None:
+    """Find first encrypted protocol file in student work directories."""
+    if hasattr(ctx, 'course') and ctx.course:
+        course = ctx.course
+        try:
+            # course.context is the path/URL to course.json, which is in the builddir
+            context_path = course.context
+            # Only handle local file:// URLs or direct file paths
+            # Cannot access encrypted files over HTTP(S)
+            if context_path.startswith('http://') or context_path.startswith('https://'):
+                return None
+            if context_path.startswith('file://'):
+                context_path = context_path[7:]  # remove 'file://' prefix
+            builddir = os.path.dirname(context_path)
+            if os.path.isdir(builddir):
+                for filename in os.listdir(builddir):
+                    if filename.endswith('.crypt'):
+                        return os.path.join(builddir, filename)
+        except (AttributeError, OSError, TypeError):
+            pass
+    return None
+
+
+def _verify_gpg_passphrase(test_file: str, passphrase: str) -> bool:
+    """Verify that passphrase can decrypt a test file."""
+    import sdrl.protocolchecker as protocolchecker
+    try:
+        content = protocolchecker.load_encrypted_prot_file(test_file, passphrase=passphrase)
+        return content is not None
+    except Exception:
+        return False
+
+
 def run(ctx: sdrl.participant.Context):
+    global gpg_passphrase
+    # Only instructors need to decrypt protocol files
+    if ctx.is_instructor:
+        # Check if there are encrypted protocol files and ask for passphrase
+        test_file = _find_encrypted_prot_file(ctx)
+        if test_file:
+            b.info("Encrypted protocol files found. Please enter GPG passphrase to decrypt them.")
+            max_attempts = 3
+            for attempt in range(max_attempts):
+                passphrase = getpass.getpass("Enter GPG passphrase: ")
+                if _verify_gpg_passphrase(test_file, passphrase):
+                    gpg_passphrase = passphrase
+                    b.info("Passphrase verified successfully. Starting webapp...")
+                    break
+                else:
+                    remaining = max_attempts - attempt - 1
+                    if remaining > 0:
+                        b.warning(f"Incorrect passphrase. {remaining} attempt(s) remaining.")
+                    else:
+                        b.error("Failed to decrypt protocol files after maximum attempts. Starting webapp without decryption.")
+
     # Do not enable macros, because that makes the second start of webapp within one session crash
     # b.set_register_files_callback(lambda s: None)  # in case student .md files contain weird macro calls
     # macroexpanders.register_macros(ctx.course)  # noqa
     b.info(f"Webserver starts. Visit 'http://localhost:{ctx.pargs.port}/'. Terminate with Ctrl-C.")
 
     class CustomHandler(wsgiref.simple_server.WSGIRequestHandler):
-        timeout = 0.5  # half a second should always suffice for sending 'proper' requests 
-        
-        def log_message(self, format, *args): 
+        timeout = 0.5  # half a second should always suffice for sending 'proper' requests
+
+        def log_message(self, format, *args):
             pass
 
         def handle(self, *args, **kwargs):
@@ -77,7 +135,7 @@ def run(ctx: sdrl.participant.Context):
                 # timeouts are a regular thing because browsers open connections as stockpile
                 # which our single-threaded server cannot handle concurrently.
                 pass  # no need to do anything about them
-    
+
     bottle.run(
         host='localhost', port=ctx.pargs.port, debug=DEBUG, reloader=False, quiet=True,
         handler_class=CustomHandler
@@ -610,9 +668,8 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath, is_instru
         elif suffix == '.prot':
             if is_instructor:
                 # Instructor mode: show comparison with author protocol
-                author_path = _author_prot_path(workdir, mypath)
-                author_content = b.slurp(author_path) if author_path and os.path.isfile(author_path) else None
-                lines.append(render_prot_compare(workdir.topdir, mypath, content, author_content, author_path))
+                author_content, author_source = _load_author_prot_content(workdir, mypath)
+                lines.append(render_prot_compare(workdir.topdir, mypath, content, author_content, author_source))
             else:
                 # Student mode: show plain protocol rendering
                 lines.append(render_prot_plain(content))
@@ -663,7 +720,7 @@ def render_prot_compare(
     relpath: str,
     student_content: str,
     author_content: str | None,
-    author_path: str | None = None,
+    author_source: str | None = None,
 ) -> str:
     """
     Render protocol comparison (student vs author) with colors per spec:
@@ -703,11 +760,12 @@ def render_prot_compare(
     extractor = protocolchecker.ProtocolExtractor()
     prompt_regex = extractor.prompt_regex
     student_file = os.path.join(workdir_top, relpath.lstrip("/"))
+
+    # If author content cannot be loaded (encrypted file not decryptable), show error
     if author_content is None:
-        author_content = student_content
+        return "\n<p style='color: red; background-color: #ffe6e6; padding: 10px;'><strong>⚠ Comparison not available:</strong> Author protocol file is encrypted and cannot be decrypted. Only instructors with the private key can view this comparison.</p>\n"
     def compare_results() -> list[protocolchecker.CheckResult]:
-        if author_path and os.path.isfile(author_path):
-            return checker.compare_files(student_file, author_path)
+        # Always use temporary file approach since author content may be from encrypted source
         tmp_path = None
         try:
             with tempfile.NamedTemporaryFile(mode="w", suffix=".prot", delete=False) as tmp:
@@ -821,48 +879,31 @@ def render_prot_plain(student_content: str) -> str:
     result.append("</table>\n\n")
     return '\n'.join(result)
 
-
-def _author_prot_path(workdir: sdrl.participant.Student, prot_path: str) -> str | None:
-    """Attempt to locate the author .prot file corresponding to the student's file."""
-    prot_rel = prot_path.lstrip("/")
-
-    def candidate_from_config(config_dir: str) -> str | None:
-        cfg_path = os.path.join(config_dir, c.AUTHOR_CONFIG_FILENAME)
-        if not os.path.isfile(cfg_path):
-            return None
-        try:
-            config = b.slurp_yaml(cfg_path)
-        except Exception:
-            return None
-        chapterdir = (config.get('chapterdir', 'ch') or '').strip('/')
-        altdir = (config.get('altdir', 'altdir') or '').strip('/')
-        rel = prot_rel.lstrip('/')
-        if chapterdir and rel.startswith(f"{chapterdir}/"):
-            rel = os.path.join(altdir, rel[len(chapterdir) + 1:])
-        elif altdir and not rel.startswith(f"{altdir}/"):
-            rel = os.path.join(altdir, rel)
-        candidate = os.path.normpath(os.path.join(config_dir, rel))
-        return candidate if os.path.isfile(candidate) else None
-    current = pathlib.Path(workdir.topdir).resolve()
-    visited: set[pathlib.Path] = set()
-    while current not in visited:
-        visited.add(current)
-        path = candidate_from_config(str(current))
-        if path:
-            return path
-        try:
-            for entry in current.iterdir():
-                if not entry.is_dir():
-                    continue
-                path = candidate_from_config(str(entry))
-                if path:
-                    return path
-        except OSError:
-            pass
-        if current.parent == current:
-            break
-        current = current.parent
-    return None
+def _load_author_prot_content(workdir: sdrl.participant.Student, prot_path: str) -> tuple[str | None, str | None]:
+    """Load author .prot file content for comparison with student submission."""
+    import sdrl.protocolchecker as protocolchecker
+    try:
+        course = workdir.course
+        if course and hasattr(course, 'context'):
+            # course.context is the path/URL to course.json, which is in the builddir
+            context_path = course.context
+            # Only handle local file:// URLs or direct file paths
+            # Cannot access encrypted files over HTTP(S)
+            if context_path.startswith('http://') or context_path.startswith('https://'):
+                return (None, None)
+            if context_path.startswith('file://'):
+                context_path = context_path[7:]  # remove 'file://' prefix
+            # builddir is the directory containing course.json
+            builddir = os.path.dirname(context_path)
+            basename = os.path.basename(prot_path)
+            encrypted_path = os.path.join(builddir, f"{basename}.crypt")
+            if os.path.isfile(encrypted_path):
+                content = protocolchecker.load_encrypted_prot_file(encrypted_path, passphrase=gpg_passphrase)
+                if content:
+                    return (content, f"{encrypted_path} (decrypted)")
+    except (AttributeError, TypeError, OSError):
+        pass
+    return (None, None)
 
 
 def html_for_page(title: str, course_url: str, body: str) -> str:
