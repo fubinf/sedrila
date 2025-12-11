@@ -807,6 +807,8 @@ def render_prot_compare(
                 rule = res.author_entry.check_rule if res.author_entry else None
                 if rule and rule.manual_text:
                     result.append(f"<tr><td><div class='prot-spec-manual'>{md.render_plain_markdown(rule.manual_text)}</div></td></tr>")
+                if rule and rule.text:
+                    result.append(f"<tr><td><div class='prot-spec-manual'>{md.render_plain_markdown(rule.text)}</div></td></tr>")
                 if rule and rule.extra_text:
                     result.append(f"<tr><td><div class='prot-spec-extra'>{md.render_plain_markdown(rule.extra_text)}</div></td></tr>")
                 if not res.success and res.error_message:
