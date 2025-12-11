@@ -997,12 +997,41 @@ $ ls -a
 .bashrc  .profile  file1.txt
 ```
 
+Example with multi-line manual=1 + text instruction:
+```
+@PROT_SPEC
+command_re=^ls -a$
+output_re=\b\.bashrc\b
+manual=1
+text=Make sure there are **at least 10 files**.
+    If there are fewer, command 4 will not work as intended.
+user@host /tmp 10:00:00 1
+$ ls -a
+.bashrc  .profile  file1.txt
+```
+
+Example with multi-line manual + extra + comment instruction:
+```
+@PROT_SPEC
+command_re=^ls -a$
+output_re=\b\.bashrc\b
+manual=Make sure there are **at least 10 files**.
+    If there are fewer, command 4 will not work as intended.
+extra=I am Extra
+comment=I am comment
+user@host /tmp 10:00:00 1
+$ ls -a
+.bashrc  .profile  file1.txt
+```
+
+
 Automatic validation during `sedrila author` builds:
 
 - Validates regex syntax for `command_re` and `output_re`
 - Rejects mixing `skip=1` with `command_re`, `output_re`, or `manual`
 - Warns if `manual=1` lacks a `text=` entry or inline text
-- Reports errors when specs lack both automated checks and manual/skip directives
+- Reports errors when specs lack all of `command_re`, `output_re`, `manual`, and `skip` (requires at least one)
+- A command with no specification at all is equivalent to a command that has a `manual=` entry only. 
 - Validates all tasks but respects `--include_stage` for error reporting:
 
     - Tasks matching the stage filter: **errors**
@@ -1012,6 +1041,12 @@ Automatic validation during `sedrila author` builds:
 Notes:
 
 - Commands without any spec default to requiring manual review
+- A `@PROT_SPEC` block must contain at least one directive (`command_re`, `output_re`, `skip`, or `manual`)
+- `command_re` and `output_re` are optional: you can provide both, only one, or neither
+
+  - If `command_re` is omitted, the command must match exactly (after trimming whitespace)
+  - If `output_re` is omitted, the output must match exactly (after trimming whitespace)
+  - Omitting both is equivalent to requiring exact matches for both command and output
 - Use `skip=1` for commands with no meaningful output (e.g., `cd`)
 - Use `manual=` for variable output requiring instructor judgment (e.g., HTTP responses with timestamps)
 - `@PROT_SPEC` blocks are filtered out when rendering protocols for students

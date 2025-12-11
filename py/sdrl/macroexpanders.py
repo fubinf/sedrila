@@ -206,6 +206,7 @@ def prot_html(content: str) -> str:
     prompt_classes: list[str] = []
     manual_blocks: list[str] = []
     extra_blocks: list[str] = []
+    text_blocks: list[str] = []
     error_blocks: list[list[str]] = []
     checker = protocolchecker.ProtocolChecker()
     for entry in proto.entries:
@@ -213,10 +214,14 @@ def prot_html(content: str) -> str:
         color = "prot-manual-color"
         manuals = ""
         extras = ""
+        texts = ""
         errs: list[str] = []
-        if rule and rule.skip:
+        if rule is None:
+            # No specification at all - equivalent to manual=
+            color = "prot-manual-color"
+        elif rule.skip:
             color = "prot-skip-color"
-        elif rule and rule.manual:
+        elif rule.manual:
             color = "prot-manual-color"
         else:
             # run automated check of author entry against itself to see if spec fits content
@@ -238,9 +243,12 @@ def prot_html(content: str) -> str:
             manuals = f"<div class='prot-spec-manual'>{md.render_plain_markdown(rule.manual_text)}</div>"
         if rule and rule.extra_text:
             extras = f"<div class='prot-spec-extra'>{md.render_plain_markdown(rule.extra_text)}</div>"
+        if rule and rule.text:
+            texts = f"<div class='prot-spec-manual'>{md.render_plain_markdown(rule.text)}</div>"
         prompt_classes.append(color)
         manual_blocks.append(manuals)
         extra_blocks.append(extras)
+        text_blocks.append(texts)
         error_blocks.append(errs)
     # Filter out @PROT_SPEC markup before rendering
     content = protocolchecker.filter_prot_check_annotations(content)
@@ -254,6 +262,8 @@ def prot_html(content: str) -> str:
             if 0 <= idx < len(manual_blocks):
                 if manual_blocks[idx]:
                     result.append(f"<tr><td>{manual_blocks[idx]}</td></tr>")
+                if text_blocks[idx]:
+                    result.append(f"<tr><td>{text_blocks[idx]}</td></tr>")
                 if extra_blocks[idx]:
                     result.append(f"<tr><td>{extra_blocks[idx]}</td></tr>")
                 for err in error_blocks[idx]:

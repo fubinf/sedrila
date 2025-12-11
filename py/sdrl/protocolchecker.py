@@ -20,6 +20,7 @@ class CheckRule:
     output_re: typing.Optional[str] = None
     skip: bool = False
     manual: bool = False
+    manual_is_pure: bool = False  # True if manual=1 (pure digit), False if manual=<text>
     manual_text: typing.Optional[str] = None
     extra_text: typing.Optional[str] = None
     text: typing.Optional[str] = None
@@ -190,7 +191,10 @@ class ProtocolExtractor:
             if stripped.startswith("manual="):
                 rule.manual = True
                 inline = stripped[len("manual="):].strip()
-                if inline and inline != "1":
+                # Mark as pure if it's exactly "1" with no inline text
+                if inline == "1":
+                    rule.manual_is_pure = True
+                elif inline:
                     manual_block.append(inline)
                 current_block = ("manual", manual_block)
                 continue
@@ -275,7 +279,9 @@ class ProtocolValidator:
             except re.error as e:
                 errors.append(f"line {line_num}: Invalid output_re '{rule.output_re}': {e}")
         if rule.manual and not rule.manual_text and not rule.text:
-            errors.append(f"line {line_num}: manual=1 requires a text= entry or inline text")
+            errors.append(f"line {line_num}: manual requires text= entry or inline text")
+        if rule.manual_is_pure and not rule.text:
+            errors.append(f"line {line_num}: manual=1 requires a text= entry")
         if not any([rule.command_re, rule.output_re, rule.skip, rule.manual]) and not rule.unknown_keys:
             errors.append(f"line {line_num}: specification contains neither automated check nor manual/skip")
         if rule.extra_text and not any([rule.command_re, rule.output_re, rule.skip, rule.manual]):
