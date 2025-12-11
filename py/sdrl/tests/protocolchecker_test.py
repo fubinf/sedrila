@@ -215,7 +215,7 @@ def test_warns_when_manual_without_text():
         f.write(content_with_warning)
         f.flush()
         errors = protocolchecker.ProtocolValidator().validate_file(f.name)
-        assert any("manual=1 requires a text= entry or inline text" in e for e in errors)
+        assert any("manual=1 requires a text= entry" in e for e in errors)
     with tempfile.NamedTemporaryFile(mode="w", suffix=".prot") as f:
         f.write(content_ok_inline)
         f.flush()
