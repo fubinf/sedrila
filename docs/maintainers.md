@@ -62,7 +62,7 @@ making it easy to spot issues in automated test runs.
 Markdown reports are always generated regardless of output mode.
 
 Scheduled execution runs link checking every Sunday at 03:00 UTC and program testing 
-at 03:30 UTC (see `maintainer-linkchecker.yml` and `maintainer-programchecker.yml`).
+at 03:30 UTC.
 Both Actions workflows use the `--batch` flag for CI-friendly output.
 
 
@@ -165,6 +165,7 @@ These requirements evolve as new program types are added to the course. The list
 
 **Required:**
 
+- **Program files**: `itreedir` must exist as a directory with source files
 - **Python**: 3.11 or higher, python and python3 both must available, because both will be used in existing `.prot` files.
   If you have installed the python3, by using 
 
@@ -174,7 +175,7 @@ These requirements evolve as new program types are added to the course. The list
 
   to determine the location and now the python command points to the same Python version as python3.
 - **Go**: 1.23 or higher (for Go programs)
-- **Program files**: `itreedir` must exist as a directory with source files
+- ...(Other programming languages)
 
 **Python packages (Sedrila dependencies):**
 
