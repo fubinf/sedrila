@@ -97,6 +97,8 @@ def _verify_gpg_passphrase(test_file: str, passphrase: str) -> bool:
 
 def run(ctx: sdrl.participant.Context):
     global gpg_passphrase
+    # Make sure context is globally accessible for HTTP request handlers
+    sdrl.participant._context = ctx
     # Only instructors need to decrypt protocol files
     if ctx.is_instructor:
         # Check if there are encrypted protocol files and ask for passphrase
@@ -422,6 +424,94 @@ span.REJECTOID {
     color: #111;
     background-color: orange;
 }
+
+/* Protocol comparison styles - new additions for error and hint blocks */
+.prot-spec-error {
+    background-color: #ffebee;
+    border-left: 4px solid #eb4034;
+    padding: 10px;
+    margin: 10px 0;
+}
+
+.prot-spec-hint {
+    background-color: #f0f8ff;
+    border-left: 4px solid #4CAF50;
+    padding: 10px;
+    margin: 10px 0;
+}
+
+.prot-spec-hint details {
+    cursor: pointer;
+}
+
+.prot-spec-hint summary {
+    user-select: none;
+    outline: none;
+}
+
+.prot-spec-hint summary:hover {
+    text-decoration: underline;
+}
+
+/* Styling for code blocks in hint/error sections */
+.prot-spec-code {
+    background-color: #f5f5f5;
+    padding: 10px;
+    border-radius: 4px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* Dark mode adjustments for protocol comparison styles */
+@media (prefers-color-scheme: dark) {
+    .prot-spec-error {
+        background-color: #3c1f1f;
+        border-left-color: #ff5555;
+    }
+
+    .prot-spec-hint {
+        background-color: #1a2a3a;
+        border-left-color: #66bb6a;
+    }
+
+    .prot-spec-code {
+        background-color: #0a0a0a !important;
+        color: #e0e0e0 !important;
+    }
+
+    .prot-spec-error .prot-spec-code {
+        color: #ff9999 !important;
+    }
+
+    .prot-spec-hint pre,
+    .prot-spec-error pre {
+        background-color: #0a0a0a;
+        color: #e0e0e0;
+    }
+
+    .prot-spec-error pre {
+        color: #ff9999;
+    }
+
+    /* Dark mode for accept-buttons panel */
+    #accept-buttons {
+        background-color: #1f1f1f;
+    }
+
+    .action-button label {
+        background-color: var(--wa-blue-60);
+    }
+
+    .action-button label.active {
+        outline-color: var(--wa-blue-80);
+    }
+
+    /* Dark mode for work report table alternating rows */
+    tr.odd {
+        background-color: #ddd;
+        color: #000;
+    }
+}
 """
 
 webapp_js = """
@@ -667,9 +757,14 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath, is_instru
             lines.append(content)
         elif suffix == '.prot':
             if is_instructor:
-                # Instructor mode: show comparison with author protocol
+                # Instructor mode: try to show comparison with author protocol
                 author_content, author_source = _load_author_prot_content(workdir, mypath)
-                lines.append(render_prot_compare(workdir.topdir, mypath, content, author_content, author_source))
+                if author_content is not None:
+                    # Author file exists: show comparison
+                    lines.append(render_prot_compare(workdir.topdir, mypath, content, author_content, author_source))
+                else:
+                    # Fallback: no author file available, show plain student protocol
+                    lines.append(render_prot_plain(content))
             else:
                 # Student mode: show plain protocol rendering
                 lines.append(render_prot_plain(content))
@@ -811,13 +906,58 @@ def render_prot_compare(
                     result.append(f"<tr><td><div class='prot-spec-manual'>{md.render_plain_markdown(rule.text)}</div></td></tr>")
                 if rule and rule.extra_text:
                     result.append(f"<tr><td><div class='prot-spec-extra'>{md.render_plain_markdown(rule.extra_text)}</div></td></tr>")
+
+                # Show error information and expected values
                 if not res.success and res.error_message:
-                    result.append(f"<tr><td><div class='prot-spec-error'><pre>{html.escape(res.error_message)}</pre></div></td></tr>")
+                    error_html = f"<div class='prot-spec-error'><pre>{html.escape(res.error_message)}</pre>"
+                    # Even if there's an error message, try to show expected values if available
+                    if res.author_entry:
+                        error_html += f"<div class='prot-spec-hint' style='margin-top: 10px;'><strong>Expected command:</strong><br><code>{html.escape(res.author_entry.command)}</code>"
+                        if res.author_entry.output:
+                            author_output_escaped = html.escape(res.author_entry.output)
+                            error_html += f"""<br><br><details>
+<summary><strong>Expected output (click to expand)</strong></summary>
+<pre class='prot-spec-code'>{author_output_escaped}</pre>
+</details>"""
+                        error_html += "</div>"
+                    error_html += "</div>"
+                    result.append(f"<tr><td>{error_html}</td></tr>")
                 elif not res.success:
+                    # Show command mismatch with expected value
                     if rule and rule.command_re and not res.command_match:
-                        result.append(f"<tr><td><div class='prot-spec-error'><pre>{html.escape('command_re='+rule.command_re)}</pre> did not match</div></td></tr>")
+                        hint_html = f"<div class='prot-spec-error'>command_re did not match: <pre>{html.escape(rule.command_re)}</pre>"
+                        if res.author_entry:
+                            hint_html += f"<div class='prot-spec-hint' style='margin-top: 10px;'><strong>Standard command:</strong><br><code>{html.escape(res.author_entry.command)}</code></div>"
+                        hint_html += "</div>"
+                        result.append(f"<tr><td>{hint_html}</td></tr>")
+
+                    # Show output mismatch with expected value in collapsible block
                     if rule and rule.output_re and not res.output_match:
-                        result.append(f"<tr><td><div class='prot-spec-error'><pre>{html.escape('output_re='+rule.output_re)}</pre> did not match</div></td></tr>")
+                        hint_html = f"<div class='prot-spec-error'>output_re did not match: <pre>{html.escape(rule.output_re)}</pre>"
+                        if res.author_entry:
+                            author_output_escaped = html.escape(res.author_entry.output)
+                            hint_html += f"""<div class='prot-spec-hint' style='margin-top: 10px;'>
+<details>
+<summary><strong>Standard output (click to expand)</strong></summary>
+<pre class='prot-spec-code'>{author_output_escaped}</pre>
+</details>
+</div>"""
+                        hint_html += "</div>"
+                        result.append(f"<tr><td>{hint_html}</td></tr>")
+
+                # For manual checks, show both command and output
+                if res.requires_manual_check and res.author_entry:
+                    hint_html = "<div class='prot-spec-hint'><strong>Reference for manual check:</strong><br><br>"
+                    hint_html += f"<strong>Expected command:</strong><br><code>{html.escape(res.author_entry.command)}</code>"
+                    if res.author_entry.output:
+                        author_output_escaped = html.escape(res.author_entry.output)
+                        hint_html += f"""<br><br><details>
+<summary><strong>Expected output (click to expand)</strong></summary>
+<pre class='prot-spec-code'>{author_output_escaped}</pre>
+</details>"""
+                    hint_html += "</div>"
+                    result.append(f"<tr><td>{hint_html}</td></tr>")
+
             result.append(f"<tr><td><span class='vwr-cmd'>{html.escape(line)}</span></td></tr>")
             state.s = OUTPUT
         elif state.s == OUTPUT:
@@ -883,6 +1023,7 @@ def render_prot_plain(student_content: str) -> str:
 
 def _load_author_prot_content(workdir: sdrl.participant.Student, prot_path: str) -> tuple[str | None, str | None]:
     """Load author .prot file content for comparison with student submission."""
+    global gpg_passphrase
     import sdrl.protocolchecker as protocolchecker
     try:
         course = workdir.course
