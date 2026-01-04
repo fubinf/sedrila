@@ -31,23 +31,28 @@ def add_arguments(subparser: argparse.ArgumentParser):
                                 "(default: 'draft' which includes all stages)")
     subparser.add_argument('--check-links', nargs='?', const='all', metavar="markdown_file",
                            help="Check accessibility of external links. Use without argument to check all course files, or specify a single markdown file to check")
-    subparser.add_argument('--check-programs', nargs='?', const='all', metavar="program_file",
-                           help="Test exemplary programs against protocol files. Use without argument to test all programs, or specify a single program file to test")
+    subparser.add_argument('--check-programs', action='store_true',
+                           help="Test exemplary programs against protocol files")
+    subparser.add_argument('--collect', action='store_true',
+                           help="Collect languages and dependencies from @PROGRAM_CHECK blocks, output as JSON")
     subparser.add_argument('--batch', action='store_true',
                            help="Use batch/CI-friendly output: concise output, only show failures, complete error list at end")
-    subparser.add_argument('targetdir',
-                           help="Directory for maintenance reports")
+    subparser.add_argument('targetdir', nargs='?',
+                           help="Directory for maintenance reports (optional for --collect)")
 
 
 def execute(pargs: argparse.Namespace):
     b.set_loglevel(pargs.log)
+    if hasattr(pargs, 'collect') and pargs.collect:
+        collect_command(pargs)
+        return
     if hasattr(pargs, 'check_links') and pargs.check_links is not None:
         check_links_command(pargs)
         return
-    if hasattr(pargs, 'check_programs') and pargs.check_programs is not None:
+    if hasattr(pargs, 'check_programs') and pargs.check_programs:
         check_programs_command(pargs)
         return
-    b.error("No maintenance command specified. Use --check-links, --check-programs, or see --help for options.")
+    b.error("No maintenance command specified. Use --check-links, --check-programs, or --collect, or see --help for options.")
 
 
 def _build_metadata_only(directory: dir.Directory):
@@ -217,77 +222,120 @@ def check_programs_command(pargs: argparse.Namespace):
     except ImportError as e:
         b.error(f"Cannot import program checking modules: {e}")
         return
-    if pargs.check_programs == 'all':
-        # Test all programs
-        b.info("Testing exemplary programs...")
-        # Auto-derive targetdir_s and targetdir_i from user input
-        targetdir_s = pargs.targetdir
-        targetdir_i = targetdir_s + "_i"
-        batch_mode = getattr(pargs, 'batch', False)
-        # Ensure targetdir exists
-        os.makedirs(targetdir_s, exist_ok=True)
-        os.makedirs(targetdir_i, exist_ok=True)
-        # Create a temporary directory for intermediate report generation
-        import tempfile
-        import shutil
-        temp_report_dir = tempfile.mkdtemp(prefix='sedrila_progtest_')
+    b.info("Testing exemplary programs...")
+    targetdir_s = pargs.targetdir
+    targetdir_i = targetdir_s + "_i"
+    batch_mode = getattr(pargs, 'batch', False)
+    os.makedirs(targetdir_s, exist_ok=True)
+    os.makedirs(targetdir_i, exist_ok=True)
+    import tempfile
+    import shutil
+    temp_report_dir = tempfile.mkdtemp(prefix='sedrila_progtest_')
+    try:
+        the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=False)
+        b.set_register_files_callback(the_cache.set_file_dirty)
+        directory = dir.Directory(the_cache)
+        the_course = sdrl.course.Coursebuilder(
+            configfile=pargs.config,
+            context=pargs.config,
+            include_stage=pargs.include_stage,
+            targetdir_s=targetdir_s,
+            targetdir_i=targetdir_i,
+            directory=directory
+        )
+        _build_metadata_only(directory)
+        targets = programchecker.extract_program_test_targets(the_course)
+        itreedir = Path(the_course.itreedir)
+        checker = programchecker.ProgramChecker(
+            parallel_execution=True,
+            report_dir=temp_report_dir,  
+            itreedir=itreedir
+        )
+        show_progress = not batch_mode 
+        results = checker.test_all_programs(
+            targets=targets,
+            show_progress=show_progress,
+            batch_mode=batch_mode
+        )
         try:
-            # Initialize cache and directory for build system
-            the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=False)
-            b.set_register_files_callback(the_cache.set_file_dirty)
-            directory = dir.Directory(the_cache)
-            the_course = sdrl.course.Coursebuilder(
-                configfile=pargs.config,
-                context=pargs.config,
-                include_stage=pargs.include_stage,
+            checker.generate_reports(results, batch_mode=batch_mode)
+            md_temp_path = os.path.join(temp_report_dir, "program_test_report.md")
+            with open(md_temp_path, 'r', encoding='utf-8') as f:
+                md_content = f.read()
+            md_report = directory.make_the(
+                sdrl.elements.ReportFile,
+                "program_test_report.md",
+                content=md_content,
+                markdown_files=None,
                 targetdir_s=targetdir_s,
-                targetdir_i=targetdir_i,
-                directory=directory
+                targetdir_i=targetdir_i
             )
-            _build_metadata_only(directory)
-            targets = programchecker.extract_program_test_targets(the_course)
-            # Initialize checker
-            checker = programchecker.ProgramChecker(
-                parallel_execution=True,
-                report_dir=temp_report_dir  # Write to temp dir first
-            )
-            # Run tests with appropriate verbosity
-            show_progress = not batch_mode  # Less verbose in batch mode
-            results = checker.test_all_programs(
-                targets=targets,
-                show_progress=show_progress,
-                batch_mode=batch_mode
-            )
-            # Generate reports to temp directory
-            try:
-                checker.generate_reports(results, batch_mode=batch_mode)
-                md_temp_path = os.path.join(temp_report_dir, "program_test_report.md")
-                with open(md_temp_path, 'r', encoding='utf-8') as f:
-                    md_content = f.read()
-                md_report = directory.make_the(
-                    sdrl.elements.ReportFile,
-                    "program_test_report.md",
-                    content=md_content,
-                    markdown_files=None,
-                    targetdir_s=targetdir_s,
-                    targetdir_i=targetdir_i
-                )
-                md_report.do_build()
-                b.info("Report generated as build product:")
-                b.info(f"  Markdown: {md_report.outputfile_i}")
-            except Exception as e:
-                b.error(f"Failed to generate report files: {e}")
-                import traceback
-                traceback.print_exc()
-            the_cache.close()
-        finally:
-            # Clean up temporary directory
-            if os.path.exists(temp_report_dir):
-                shutil.rmtree(temp_report_dir)
-        # Check for failures and exit with appropriate status
-        failed_count = sum(1 for r in results if not r.success and not r.skipped)
-        if failed_count > 0:
-            sys.exit(1)
-    else:
-        # Test single program file
-        programchecker.test_single_program_file(pargs.check_programs)
+            md_report.do_build()
+            b.info("Report generated as build product:")
+            b.info(f"  Markdown: {md_report.outputfile_i}")
+        except Exception as e:
+            b.error(f"Failed to generate report files: {e}")
+            import traceback
+            traceback.print_exc()
+        the_cache.close()
+    finally:
+        if os.path.exists(temp_report_dir):
+            shutil.rmtree(temp_report_dir)
+    failed_count = sum(1 for r in results if not r.success and not r.skipped)
+    if failed_count > 0:
+        sys.exit(1)
+
+
+def collect_command(pargs: argparse.Namespace):
+    """Collect languages and dependencies from @PROGRAM_CHECK blocks.
+
+    Output format: JSON with structure:
+    {
+      "dependencies": [
+        "apt-get install -y postgresql-client",
+        "go install github.com/user/tool@latest",
+        "pip install fastapi uvicorn"
+      ],
+      "languages": {
+        "Go": "1.23",
+        "Python": "3.11"
+      }
+    }
+    """
+    try:
+        import sdrl.programchecker as programchecker
+        import json
+    except ImportError as e:
+        b.error(f"Cannot import required modules: {e}")
+        return
+
+    try:
+        cache_dir = ".sedrila_cache"
+        os.makedirs(cache_dir, exist_ok=True)
+        the_cache = cache.SedrilaCache(os.path.join(cache_dir, c.CACHE_FILENAME), start_clean=False)
+        b.set_register_files_callback(the_cache.set_file_dirty)
+        directory = dir.Directory(the_cache)
+        the_course = sdrl.course.Coursebuilder(
+            configfile=pargs.config,
+            context=pargs.config,
+            include_stage=pargs.include_stage,
+            targetdir_s=cache_dir,
+            targetdir_i=cache_dir,
+            directory=directory
+        )
+        _build_metadata_only(directory)
+        languages = programchecker.extract_languages_from_course(the_course)
+        targets = programchecker.extract_program_test_targets(the_course)
+        checker = programchecker.ProgramChecker()
+        program_commands = checker.collect_install_commands(targets)
+        result = {
+            "dependencies": sorted([cmd.strip() for cmd in program_commands]),
+            "languages": languages
+        }
+        print(json.dumps(result, indent=2, sort_keys=True))
+        the_cache.close()
+    except Exception as e:
+        b.error(f"Failed to collect metadata: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)

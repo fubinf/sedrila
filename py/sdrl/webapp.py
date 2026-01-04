@@ -425,7 +425,7 @@ span.REJECTOID {
     background-color: orange;
 }
 
-/* Protocol comparison styles - new additions for error and hint blocks */
+/* Protocol comparison styles for error and hint blocks */
 .prot-spec-error {
     background-color: #ffebee;
     border-left: 4px solid #eb4034;
@@ -885,8 +885,10 @@ def render_prot_compare(
     result = ["\n<table class='vwr-table'>"]
     PROMPTSEEN, OUTPUT = (1, 2)
     state = State(s=OUTPUT, promptcount=0)
-    # Filter out @PROT_SPEC annotations before rendering
+    # Filter out @PROT_SPEC and @PROGRAM_CHECK annotations before rendering
+    import sdrl.programchecker as programchecker_mod
     content = protocolchecker.filter_prot_check_annotations(student_content)
+    content = programchecker_mod.filter_program_check_annotations(content)
     for line in content.split('\n'):
         line = line.rstrip()
         mm = prompt_regex.match(line)
@@ -975,6 +977,7 @@ def render_prot_plain(student_content: str) -> str:
     Similar to author course rendering but without colored indicators.
     """
     import sdrl.protocolchecker as protocolchecker
+    import sdrl.programchecker as programchecker_mod
     import dataclasses
 
     @dataclasses.dataclass
@@ -1003,8 +1006,9 @@ def render_prot_plain(student_content: str) -> str:
     result = ["\n<table class='vwr-table'>"]
     PROMPTSEEN, OUTPUT = (1, 2)
     state = State(s=OUTPUT, promptcount=0)
-    # Filter out @PROT_SPEC annotations before rendering (students should not see them)
+    # Filter out @PROT_SPEC and @PROGRAM_CHECK annotations before rendering (students should not see them)
     content = protocolchecker.filter_prot_check_annotations(student_content)
+    content = programchecker_mod.filter_program_check_annotations(content)
     for line in content.split('\n'):
         line = line.rstrip()  # get rid of newline
         mm = prompt_regex.match(line)

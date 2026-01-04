@@ -197,6 +197,7 @@ def prot_html(content: str) -> str:
     state = State(s=OUTPUT, promptcount = 0)
     # Parse specs once (before filtering) to determine colors and spec blocks
     import sdrl.protocolchecker as protocolchecker
+    import sdrl.programchecker as programchecker_mod
     import sdrl.markdown as md
     try:
         extractor = protocolchecker.ProtocolExtractor()
@@ -250,8 +251,9 @@ def prot_html(content: str) -> str:
         extra_blocks.append(extras)
         text_blocks.append(texts)
         error_blocks.append(errs)
-    # Filter out @PROT_SPEC markup before rendering
+    # Filter out @PROT_SPEC and @PROGRAM_CHECK markup before rendering
     content = protocolchecker.filter_prot_check_annotations(content)
+    content = programchecker_mod.filter_program_check_annotations(content)
     for line in content.split('\n'):
         line = line.rstrip()  # get rid of newline
         mm = promptmatch(line)
