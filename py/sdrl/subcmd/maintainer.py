@@ -305,22 +305,24 @@ def collect_command(pargs: argparse.Namespace):
     try:
         import sdrl.programchecker as programchecker
         import json
+        import tempfile
+        import shutil
     except ImportError as e:
         b.error(f"Cannot import required modules: {e}")
         return
 
+    # Use temporary directory for cache
+    temp_cache_dir = tempfile.mkdtemp(prefix='sedrila_collect_')
     try:
-        cache_dir = ".sedrila_cache"
-        os.makedirs(cache_dir, exist_ok=True)
-        the_cache = cache.SedrilaCache(os.path.join(cache_dir, c.CACHE_FILENAME), start_clean=False)
+        the_cache = cache.SedrilaCache(os.path.join(temp_cache_dir, c.CACHE_FILENAME), start_clean=False)
         b.set_register_files_callback(the_cache.set_file_dirty)
         directory = dir.Directory(the_cache)
         the_course = sdrl.course.Coursebuilder(
             configfile=pargs.config,
             context=pargs.config,
             include_stage=pargs.include_stage,
-            targetdir_s=cache_dir,
-            targetdir_i=cache_dir,
+            targetdir_s=temp_cache_dir,
+            targetdir_i=temp_cache_dir,
             directory=directory
         )
         _build_metadata_only(directory)
@@ -339,3 +341,7 @@ def collect_command(pargs: argparse.Namespace):
         import traceback
         traceback.print_exc()
         sys.exit(1)
+    finally:
+        # Clean up temporary directory
+        if os.path.exists(temp_cache_dir):
+            shutil.rmtree(temp_cache_dir)
