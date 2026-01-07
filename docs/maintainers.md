@@ -133,160 +133,160 @@ The validation rule applies (only) to the next link found.
 
 ## 5. Program Testing: `--check-programs`
 
-Option `--check-programs [program_file]` tests exemplary programs located in the `itreedir` against their corresponding protocol (`.prot`) files under `altdir`.
-Without an argument, it tests all programs whose tasks are explicitly marked with program test markup.
-With a file argument, it tests only that specific program file as a development/debug helper.
-  
+Option `--check-programs -- <report_dir>` tests exemplary programs against protocol files.
+
+Program testing executes stored commands from `.prot` files and verifies output matches expected results.
+
 How it works:
 
-- Uses the course configuration (`chapterdir`, `altdir`, `itreedir`) to locate task markdown files,
-  protocol files, and program sources.
-- Considers only those `.md` tasks in `chapterdir` contain program test markup (see section 5.3),
-  and derives program/protocol pairs (in `itreedir` and `altdir`) from `chapterdir` paths.
-- Use HTML comments in task `.md` files to control test behavior (skip, command override)
-- Executes ALL testable commands from `.prot` files and verifies output
-- Creates `program_test_report.md` in `targetdir_i`
-- In a local environment (like WSL), adjust the concurrency by running `export SDRL_PROGCHECK_MAX_WORKERS=Number` (For a PC, setting this value to the current number of CPU threads would be appropriate) and then executing `sedrila maintainer --check-programs`. 
-  use `echo "$SDRL_PROGCHECK_MAX_WORKERS"` to check current value of this variable.
-- For CI runs triggered through GitHub Actions, the `maintainer-programchecker` workflow exposes a `max_workers` input when using the “Run workflow” button, which internally sets this environment variable before executing the command. The number of programs that can be tested is currently not so much, so setting a small number of max threads, such as 4, is sufficient to obtain test results quickly. 
-  
+- Scans `.prot` files in `altdir` for `@PROGRAM_CHECK` blocks
+- Extracts metadata: language, dependencies, test type
+- Locates program files in `itreedir` via path matching
+- Executes commands and compares output
+- Generates report: `program_test_report.md` in `targetdir_i`
+
 Examples:
 
-- `sedrila maintainer --check-programs -- /tmp/progtest` (test all marked programs, all stages)
-- `sedrila maintainer --include-stage beta --check-programs -- /tmp/progtest` (check only beta stage marked programs)
-- `sedrila maintainer --check-programs altdir/itree.zip/Sprachen/...program.go /tmp/progtest` (test single program file by using its absolute or relative path)
+- `sedrila maintainer --check-programs -- /tmp/progtest`
+- `sedrila maintainer --batch --check-programs -- /tmp/progtest` (batch mode)
+
+Concurrency control via `SDRL_PROGCHECK_MAX_WORKERS` (default: 4, recommended for local: CPU thread count):
+
+```bash
+export SDRL_PROGCHECK_MAX_WORKERS=4
+sedrila maintainer --check-programs -- /tmp/progtest
+```
+
+For CI via GitHub Actions, the workflow exposes `max_workers` input.
+When using `--batch`, failed tests are summarized at the end for quick error identification in CI runs.
 
 
-### 5.1 Operating environment
+### 5.1 Operating environment and dependencies
 
-Program testing requires the following environment:
+Program testing requires language runtimes and package dependencies specified via `@PROGRAM_CHECK` blocks.
 
-These requirements evolve as new program types are added to the course. The list below reflects the current set of testable programs.
+**Base requirements:**
 
-**Required:**
+- **Python**: 3.11 or higher (required for sedrila itself)
+- **itreedir**: Must exist as a directory with program source files
 
-- **Program files**: `itreedir` must exist as a directory with source files
-- **Python**: 3.11 or higher, python and python3 both must available, because both will be used in existing `.prot` files.
-  If you have installed the python3, by using 
+**Language runtimes:**
 
-  - `which python3`
-  - `python3 --version`
-  - `sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 1`
+The `lang=` field in each `@PROGRAM_CHECK` block declares which language/runtime is required.
+For example:
 
-  to determine the location and now the python command points to the same Python version as python3.
-- **Go**: 1.23 or higher (for Go programs)
-- ...(Other programming languages)
+- `lang=Python 3.11` → requires Python 3.11 to be available on `PATH`
+- `lang=Go 1.23` → requires Go 1.23 compiler
+- `lang=Node.js 18` → requires Node.js 18
 
-**Python packages (Sedrila dependencies):**
+For local test, need to install required language runtimes in local environment.
+For CI, We specify languages manually in the CI config because language setup there is static, 
+can not be installed automatically. And installing runtimes via package commands is more complicated 
+than using the CI’s built-in language configuration.
 
-In pyproject.toml: `[tool.poetry.dependencies]` and `[tool.poetry.group.dev.dependencies]`
+**Package dependencies:**
 
-**Python packages (additional required):**
+The `deps=` field (optional) specifies packages to install. Examples:
 
-- FastAPI programs: fastapi, pydantic, uvicorn
+- `deps=pip install numpy requests>=2.0` → install via pip
+- `deps=go get github.com/lib/pq@v1.10.0` → install via go get
 
-For local testing, ensure these packages are available in your environment.
+For local testing, need to manually install declared dependencies. For CI, use `--collect`:
 
+```bash
+sedrila maintainer --collect > deps.json
+# Outputs: {"dependencies": ["pip install numpy", ...], "languages": {"Python": "3.11", ...}}
+```
 
-### 5.2 General behavior
-
-#### 5.2.1 Multi-command testing
-
-The program checker parses and tests **ALL testable commands** from each `.prot` file:
-
-- Each command is executed sequentially with output comparison
-- Test only passes if ALL commands succeed
-- Detailed reporting shows status for each individual command
-- Failed tests show which specific command(s) failed with error details
+CI workflows use `--collect` to extract dependencies, then install them before running tests.
 
 
-#### 5.2.2 Automatic cleanup
+### 5.2 Test types and behavior
 
-Generated files are cleaned up before and after each test to ensure a clean environment:
+The `typ=` field in `@PROGRAM_CHECK` determines how a program is tested.
 
+**direct**: Automated output verification
+
+Commands are executed automatically and output is compared:
+
+- All declared commands must execute successfully
+- Actual output must match expected output (with whitespace normalization)
+- Test passes only if ALL commands match
+
+Use `typ=direct` for deterministic programs with stable output.
+
+**manual**: Manual verification required
+
+Test execution is skipped; program marked "Manual Review Required" in report.
+Requires `manual_reason=` field explaining why manual testing is needed.
+
+Use `typ=manual` for:
+
+- Non-deterministic output (timestamps, memory addresses)
+- Interactive programs requiring user input
+- Timing-dependent behavior
+- Programs with environment-specific results
+
+### 5.3 @PROGRAM_CHECK block format
+
+`@PROGRAM_CHECK` blocks contain metadata for automated testing. They should appear
+at the beginning of a `.prot` file for clarity, but can appear anywhere in the file.
+
+**Placement and syntax:**
+
+- Should be at `.prot` file start (recommended for clarity)
+- Block starts with line containing only `@PROGRAM_CHECK`
+- Block ends at first blank line
+- Inside block: one `key=value` per line, no spaces around `=`
+- `deps` field can span multiple lines (subsequent lines without `=` are appended as separate commands)
+- No comments allowed inside @PROGRAM_CHECK block
+
+Example:
+
+```
+@PROGRAM_CHECK
+lang=Python 3.11
+deps=pip install numpy
+pip install requests>=2.0
+typ=direct
+
+$ python myscript.py
+Hello World
+```
+
+**Required fields:**
+
+`lang=<language and version>` - Language runtime and version.
+Examples: `lang=Python 3.11`, `lang=Go 1.23`
+
+`typ=<test type>` - One of: `direct`, `manual`
+
+**Optional fields:**
+
+`deps=<install command>` - Package installation command.
+Examples: `deps=pip install numpy requests`, `deps=go get github.com/lib/pq`
+
+`manual_reason=<text>` - Required when `typ=manual`. Explains why manual testing is needed.
+Example: `manual_reason=Output contains timestamps`
+
+`program=<path>` - Explicit path to program file, relative to `itreedir/<REL>/`.
+If omitted, matches `.prot` stem (e.g., `task.prot` → `task.py`).
+
+`files=<list>` - Comma-separated list of files, for reference only.
+
+
+### 5.4 Multi-command testing and cleanup
+
+The program checker processes all testable commands from each `.prot` file:
+
+- Each command (`$` line) and its expected output are extracted as a single test
+- Commands are executed sequentially in the program's working directory
+- Output is compared; test passes only if ALL commands match
+- Detailed test reports show pass/fail status for each command
+
+Before and after testing, generated files are automatically cleaned up to ensure a fresh environment:
 - Database files (`.db`, `.sqlite`, `.sqlite3`)
-- Log files (`.log`), temporary files (`.tmp`)
-- Python cache (`__pycache__`, `.pyc`)
+- Log files (`.log`, `.shortlog`)
+- Python cache directories (`__pycache__`, `*.pyc`)
 
-This prevents test failures caused by residual files from previous runs
-and ensures consistency between single program and full course testing.
-
-
-#### 5.2.3 Test output and reporting
-
-The checker provides comprehensive test reports that display the total number of programs found
-and their test status. It shows which programs passed, failed, and were skipped, with detailed
-categorization for each status.
-
-For multi-command programs, the output lists each command with a numbered index and shows 
-individual pass/fail status (✓ [PASS] or ✗ [FAIL]). Error details are included for failed commands,
-and tested commands are clearly separated from skipped ones.
-
-The checker calculates a success rate based on all programs, tracks execution time for each 
-command and the overall test run, and provides detailed failure reasons along with manual 
-testing requirements when applicable.
-
-Markdown reports are generated with categorized sections (Failed Tests, 
-Skipped Tests, Passed Tests) for detailed analysis.
-
-
-### 5.3 Program testing markup
-
-Program tests are opt-in and are enabled via HTML comment markup in task `.md` files.
-Only tasks that contain such markup participate in automatic program testing.
-The markup can be placed anywhere in the file; a common convention is to place it before the `[INSTRUCTOR]` section.
-
-#### 5.3.1 TEST markup: `@PROGRAM_TEST`
-
-Perform normal test on the program and protocol.
-Currently, it supports a `notes` parameter for documentation purposes, but this parameter is not used by the test runner.
-
-```markdown
-<!-- @PROGRAM_TEST: notes="Additional information about this program test" -->
-```
-
-Parameters:
-
-- `notes="text"`: Documentation notes
-
-#### 5.3.2 SKIP markup (manual testing): `@PROGRAM_TEST_SKIP`
-
-Use for programs with non-deterministic output, interactive input, environment-specific output, or complex shell operations.
-
-```markdown
-<!-- @PROGRAM_TEST_SKIP: reason="Concurrent execution order is non-deterministic" manual_test_required=true -->
-```
-
-Parameters:
-
-- `reason="text"`: Explanation why manual testing is required
-- `manual_test_required=true`: Marks program for manual testing
-
-#### 5.3.3 PARTIAL markup (manual/automation mix): `@PROGRAM_TEST_PARTIAL`
-
-Use when some commands are testable while others require manual verification.
-
-```markdown
-<!-- @PROGRAM_TEST_PARTIAL: skip_commands_with="Traceback,MemoryError" skip_reason="Different stack depths lead to inconsistent output" testable_note="Other commands can be automatically tested" -->
-```
-
-Parameters:
-
-- `skip_commands_with="keyword1,keyword2..."`: Skip commands containing these keywords in output
-- `skip_reason="text"`: Explanation for skipping certain commands
-- `testable_note="text"`: Note about which commands are testable
-
-
-#### 5.3.4 OVERRIDE markup (expected command mismatches): `@PROGRAM_TEST_OVERRIDE`
-
-Use when `.prot` files reference incorrect command names.
-
-```markdown
-<!-- @PROGRAM_TEST_OVERRIDE: original_command="go run main.go" correct_command="go run go-channels.go" reason=".prot file uses main.go but actual file is go-channels.go" -->
-```
-
-Parameters:
-
-- `original_command="cmd"`: Command as written in `.prot` file
-- `correct_command="cmd"`: Correct command to execute
-- `reason="text"`: Explanation for the override
+This prevents test failures from residual files and ensures reproducible results across runs.

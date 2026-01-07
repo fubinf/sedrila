@@ -47,15 +47,21 @@ class ProgramCheckHeader:
     """Metadata for program checking from @PROGRAM_CHECK block in .prot file."""
     lang: Optional[str] = None           # e.g., "Python 3.11", "Go 1.23"
     deps: Optional[str] = None           # e.g., "pip install fastapi\npip install uvicorn"
-    typ: Optional[str] = None            # e.g., "command", "manual"
+    typ: Optional[str] = None            # e.g., "direct", "manual"
     manual_reason: Optional[str] = None  # reason for manual testing (for typ=manual)
     program: Optional[str] = None        # relative path to main program file (for future use)
     files: Optional[str] = None          # files from .files file
     unknown_keys: List[str] = field(default_factory=list)
 
     def is_valid(self) -> bool:
-        """Check if header has required fields (deps is optional, can be empty)."""
-        return self.lang is not None and self.typ is not None
+        """Check if header has required fields and valid values."""
+        if self.lang is None or self.typ is None:
+            return False
+        if self.typ not in ('direct', 'manual'):
+            return False
+        if self.typ == 'manual' and not self.manual_reason:
+            return False
+        return True
 
     def get_install_commands(self) -> List[str]:
         """Return list of install commands from deps.
@@ -102,8 +108,8 @@ class ProgramCheckHeaderExtractor:
         last_key = None  # Track the last key to handle multi-line deps
         for raw_line in block_lines:
             line = raw_line.strip()
-            # Skip empty lines and comments
-            if not line or line.startswith('#'):
+            # Skip empty lines
+            if not line:
                 last_key = None
                 continue
             # Parse key=value
@@ -465,6 +471,8 @@ class ProgramChecker:
                 result.skip_category = 'manual'
                 result.manual_reason = config.program_check_header.manual_reason or "Manual testing required"
                 return result
+            if config.program_check_header.typ == 'direct':
+                pass 
             for command_test in config.command_tests:
                 try:
                     actual = self._run_command(
