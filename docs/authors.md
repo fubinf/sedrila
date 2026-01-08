@@ -1053,6 +1053,14 @@ Notes:
 - During the build, all `.prot` files are automatically encrypted (using instructor public keys from `sedrila.yaml`)
   and saved as `.prot.crypt` in the student output directory. This prevents students from viewing comparison results;
   only instructors with the corresponding private key can decrypt and see whether a student's protocol matches the reference.
+- Instructors can point to the output folder of a local `sedrila author` build using a `file://` URL in their student.yaml
+  configuration (e.g., `course_url: file:///home/author/my-course/out/`). The webapp will then load and decrypt the `.prot.crypt`
+  files directly from the local build output, enabling protocol comparison without requiring a web server.
+- When instructors use `sedrila instructor` to check student submissions with a course accessible via `https://` URL,
+  the webapp automatically downloads the encrypted `.prot.crypt` files from the course website, decrypts them locally,
+  and displays the comparison. This allows instructors to access protocol specifications without needing a local course copy.
+  The download happens transparently when an instructor views a student's protocol file and possesses the GPG private key
+  needed for decryption.
 
 ### 2.4 Copying the build output
 

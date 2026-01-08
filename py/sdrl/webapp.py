@@ -12,6 +12,7 @@ import wsgiref.simple_server
 import urllib.parse
 
 import bottle  # https://bottlepy.org/docs/dev/
+import requests
 
 import base as b
 import sdrl.argparser
@@ -891,12 +892,8 @@ def render_prot_compare(
     content = programchecker_mod.filter_program_check_annotations(content)
     for line in content.split('\n'):
         line = line.rstrip()
-        mm = prompt_regex.match(line)
-        if mm:
-            # Get color for this prompt
-            color = prompt_colors[state.promptcount] if state.promptcount < len(prompt_colors) else "prot-manual-color"
-            handle_promptmatch(color)
-        elif state.s == PROMPTSEEN:  # this is the command line
+        # Force sync point: command line starting with $
+        if line.lstrip().startswith('$'):
             idx = state.promptcount - 1
             # Show manual/extra/error blocks before the command
             if 0 <= idx < len(results):
@@ -912,7 +909,6 @@ def render_prot_compare(
                 # Show error information and expected values
                 if not res.success and res.error_message:
                     error_html = f"<div class='prot-spec-error'><pre>{html.escape(res.error_message)}</pre>"
-                    # Even if there's an error message, try to show expected values if available
                     if res.author_entry:
                         error_html += f"<div class='prot-spec-hint' style='margin-top: 10px;'><strong>Expected command:</strong><br><code>{html.escape(res.author_entry.command)}</code>"
                         if res.author_entry.output:
@@ -925,7 +921,6 @@ def render_prot_compare(
                     error_html += "</div>"
                     result.append(f"<tr><td>{error_html}</td></tr>")
                 elif not res.success:
-                    # Show command mismatch with expected value
                     if rule and rule.command_re and not res.command_match:
                         hint_html = f"<div class='prot-spec-error'>command_re did not match: <pre>{html.escape(rule.command_re)}</pre>"
                         if res.author_entry:
@@ -933,7 +928,6 @@ def render_prot_compare(
                         hint_html += "</div>"
                         result.append(f"<tr><td>{hint_html}</td></tr>")
 
-                    # Show output mismatch with expected value in collapsible block
                     if rule and rule.output_re and not res.output_match:
                         hint_html = f"<div class='prot-spec-error'>output_re did not match: <pre>{html.escape(rule.output_re)}</pre>"
                         if res.author_entry:
@@ -947,7 +941,6 @@ def render_prot_compare(
                         hint_html += "</div>"
                         result.append(f"<tr><td>{hint_html}</td></tr>")
 
-                # For manual checks, show both command and output
                 if res.requires_manual_check and res.author_entry:
                     hint_html = "<div class='prot-spec-hint'><strong>Reference for manual check:</strong><br><br>"
                     hint_html += f"<strong>Expected command:</strong><br><code>{html.escape(res.author_entry.command)}</code>"
@@ -962,10 +955,23 @@ def render_prot_compare(
 
             result.append(f"<tr><td><span class='vwr-cmd'>{html.escape(line)}</span></td></tr>")
             state.s = OUTPUT
+        # Strict prompt match (maintains detailed rendering)
+        elif (mm := prompt_regex.match(line)):
+            color = prompt_colors[state.promptcount] if state.promptcount < len(prompt_colors) else "prot-manual-color"
+            handle_promptmatch(color)
+        # Lenient prompt recognition (non-standard format containing @)
+        elif '@' in line and not line.startswith('$'):
+            state.promptcount += 1
+            state.s = PROMPTSEEN
+            color = prompt_colors[state.promptcount - 1] if state.promptcount - 1 < len(prompt_colors) else "prot-manual-color"
+            promptindex = f"<span class='prot-counter {color}'>{state.promptcount}.</span>"
+            result.append(f"<tr><td>{promptindex} {html.escape(line)}</td></tr>")
+        # Output line
         elif state.s == OUTPUT:
             result.append(f"<tr><td><span class='vwr-output'>{html.escape(line)}</span></td></tr>")
+        # Other lines (empty or unexpected)
         else:
-            assert False
+            result.append(f"<tr><td>{html.escape(line)}</td></tr>")
     result.append("</table>\n\n")
     return "\n".join(result)
 
@@ -1032,22 +1038,41 @@ def _load_author_prot_content(workdir: sdrl.participant.Student, prot_path: str)
     try:
         course = workdir.course
         if course and hasattr(course, 'context'):
-            # course.context is the path/URL to course.json, which is in the builddir
             context_path = course.context
-            # Only handle local file:// URLs or direct file paths
-            # Cannot access encrypted files over HTTP(S)
-            if context_path.startswith('http://') or context_path.startswith('https://'):
-                return (None, None)
+            task_name = os.path.splitext(os.path.basename(prot_path))[0]
+            encrypted_filename = f"{task_name}.prot.crypt"
+            # Local file path
             if context_path.startswith('file://'):
-                context_path = context_path[7:]  # remove 'file://' prefix
-            # builddir is the directory containing course.json
-            builddir = os.path.dirname(context_path)
-            basename = os.path.basename(prot_path)
-            encrypted_path = os.path.join(builddir, f"{basename}.crypt")
-            if os.path.isfile(encrypted_path):
-                content = protocolchecker.load_encrypted_prot_file(encrypted_path, passphrase=gpg_passphrase)
-                if content:
-                    return (content, f"{encrypted_path} (decrypted)")
+                context_path = context_path[7:]
+                builddir = os.path.dirname(context_path)
+                encrypted_path = os.path.join(builddir, encrypted_filename)
+                if os.path.isfile(encrypted_path):
+                    content = protocolchecker.load_encrypted_prot_file(encrypted_path, passphrase=gpg_passphrase)
+                    if content:
+                        return (content, f"{encrypted_path} (decrypted)")
+            # Remote HTTP(S) URL
+            elif context_path.startswith('http://') or context_path.startswith('https://'):
+                builddir_url = os.path.dirname(context_path)
+                encrypted_url = f"{builddir_url}/{encrypted_filename}"
+                try:
+                    b.debug(f"Downloading encrypted prot file from {encrypted_url}")
+                    response = requests.get(encrypted_url, timeout=10)
+                    response.raise_for_status()
+                    with tempfile.NamedTemporaryFile(suffix='.prot.crypt', delete=False) as tmp:
+                        tmp.write(response.content)
+                        temp_path = tmp.name
+                    try:
+                        content = protocolchecker.load_encrypted_prot_file(temp_path, passphrase=gpg_passphrase)
+                        if content:
+                            return (content, f"{encrypted_url} (downloaded & decrypted)")
+                    finally:
+                        if os.path.exists(temp_path):
+                            try:
+                                os.unlink(temp_path)
+                            except OSError:
+                                pass
+                except requests.RequestException as e:
+                    b.warning(f"Failed to download {encrypted_url}: {e}")
     except (AttributeError, TypeError, OSError):
         pass
     return (None, None)
