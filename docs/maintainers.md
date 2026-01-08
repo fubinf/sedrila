@@ -141,7 +141,10 @@ How it works:
 
 - Scans `.prot` files in `altdir` for `@PROGRAM_CHECK` blocks
 - Extracts metadata: language, dependencies, test type
-- Locates program files in `itreedir` via path matching
+- Locates program files in `itreedir` via path replacement
+- If `files=` field is present: maps short file names to absolute paths via the `.files` file,
+  then substitutes file names in test commands with their absolute paths, in order to test programs
+  in `.files` file automatically
 - Executes commands and compares output
 - Generates report: `program_test_report.md` in `targetdir_i`
 
@@ -269,10 +272,9 @@ Examples: `deps=pip install numpy requests`, `deps=go get github.com/lib/pq`
 `manual_reason=<text>` - Required when `typ=manual`. Explains why manual testing is needed.
 Example: `manual_reason=Output contains timestamps`
 
-`program=<path>` - Explicit path to program file, relative to `itreedir/<REL>/`.
-If omitted, matches `.prot` stem (e.g., `task.prot` → `task.py`).
-
-`files=<list>` - Comma-separated list of files, for reference only.
+`files=<list>` - Comma-separated list of additional files used by the program (short names only, e.g., `helper.py`).
+Create a corresponding `.files` file in the chapter directory (e.g., `ch/Sprachen/Go/task.files`) with one file path per line.
+Programchecker automatically substitutes file names in test commands with their absolute paths.
 
 
 ### 5.4 Multi-command testing and cleanup

@@ -49,8 +49,7 @@ class ProgramCheckHeader:
     deps: Optional[str] = None           # e.g., "pip install fastapi\npip install uvicorn"
     typ: Optional[str] = None            # e.g., "direct", "manual"
     manual_reason: Optional[str] = None  # reason for manual testing (for typ=manual)
-    program: Optional[str] = None        # relative path to main program file (for future use)
-    files: Optional[str] = None          # files from .files file
+    files: Optional[str] = None          # additional files for multi-file programs
     unknown_keys: List[str] = field(default_factory=list)
 
     def is_valid(self) -> bool:
@@ -104,7 +103,7 @@ class ProgramCheckHeaderExtractor:
     def _parse_header_block(block_lines: List[str]) -> ProgramCheckHeader:
         """Parse key=value pairs from @PROGRAM_CHECK block."""
         header = ProgramCheckHeader()
-        known_keys = {'lang', 'deps', 'typ', 'manual_reason', 'program', 'files'}
+        known_keys = {'lang', 'deps', 'typ', 'manual_reason', 'files'}
         last_key = None  # Track the last key to handle multi-line deps
         for raw_line in block_lines:
             line = raw_line.strip()
@@ -193,17 +192,8 @@ class ProgramTestResult:
         return f"{self.program_name}: {status}"
 
 
-def _find_program_file(itree_root: Path, program_header: ProgramCheckHeader,
-                       prot_file: Path) -> Optional[Path]:
-    """Find the program file based on @PROGRAM_CHECK header."""
-    if program_header.program:
-        # Explicit program path
-        program_path = itree_root / program_header.program
-        if program_path.exists():
-            return program_path
-        b.warning(f"Program file not found: {program_path}")
-        return None
-    # Default rule: find program with same stem as .prot file
+def _find_program_file(itree_root: Path, prot_file: Path) -> Optional[Path]:
+    """Find the program file by matching stem with .prot file."""
     try:
         rel_path = prot_file.relative_to(prot_file.parents[2])  # Go up to altdir level
         program_dir = itree_root / rel_path.parent
@@ -223,8 +213,8 @@ def _find_program_file(itree_root: Path, program_header: ProgramCheckHeader,
 def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[ProgramTestTarget]:
     """Extract all @PROGRAM_CHECK blocks from .prot files in altdir."""
     targets: List[ProgramTestTarget] = []
-    altdir_path = Path(course.altdir)
-    itree_root = Path(course.itreedir)
+    altdir_path = Path(course.altdir).resolve()
+    itree_root = Path(course.itreedir).resolve()
     if not altdir_path.exists():
         b.error(f"altdir not found: {altdir_path}")
         return targets
@@ -294,7 +284,7 @@ class ProgramChecker:
     DEFAULT_TIMEOUT = 30
     def __init__(self, course_root: Path = None, parallel_execution: bool = True,
                  report_dir: str = None, max_workers: Optional[int] = None,
-                 itreedir: Optional[Path] = None):
+                 itreedir: Optional[Path] = None, chapterdir: Optional[Path] = None):
         """Initialize ProgramChecker."""
         self.course_root = course_root or Path.cwd()
         self.report_dir = report_dir or str(Path.cwd())
@@ -302,6 +292,7 @@ class ProgramChecker:
         self.parallel_execution = parallel_execution
         self.max_workers = self._determine_max_workers(max_workers)
         self.itreedir = itreedir
+        self.chapterdir = chapterdir
 
     @staticmethod
     def _determine_max_workers(override: Optional[int]) -> int:
@@ -333,7 +324,7 @@ class ProgramChecker:
             header = target.program_check_header
             prot_file = target.protocol_file
             # Find program file
-            program_path = _find_program_file(itree_root, header, prot_file)
+            program_path = _find_program_file(itree_root, prot_file)
             if not program_path:
                 b.warning(f"Cannot locate program file for {prot_file}")
                 continue
@@ -360,8 +351,17 @@ class ProgramChecker:
             configs.append(config)
         return configs
 
+    def _save_command_test(self, command: Optional[str], output_lines: List[str],
+                          command_tests: List[CommandTest]) -> None:
+        """Helper to save a command test if command exists."""
+        if command:
+            output_text = '\n'.join(output_lines).strip()
+            test = self._create_command_test(command, output_text)
+            if test:
+                command_tests.append(test)
+
     def parse_command_tests_from_prot(self, prot_file: Path) -> List[CommandTest]:
-        """Parse all command tests from .prot file (skip @PROGRAM_CHECK block)."""
+        """Parse all command tests from .prot file by extracting $ commands and their output."""
         try:
             content = prot_file.read_text(encoding='utf-8')
         except (OSError, UnicodeDecodeError) as e:
@@ -369,48 +369,29 @@ class ProgramChecker:
             return []
         lines = content.split('\n')
         command_tests: List[CommandTest] = []
-        in_program_check = False
         current_command: Optional[str] = None
         current_output: List[str] = []
         for line in lines:
             stripped = line.strip()
-            # Skip @PROGRAM_CHECK block
-            if stripped == "@PROGRAM_CHECK":
-                in_program_check = True
+            # Empty line or shell prompt: save current command if exists
+            if not stripped or self._is_shell_prompt(stripped):
+                self._save_command_test(current_command, current_output, command_tests)
+                current_command = None
+                current_output = []
                 continue
-            if in_program_check:
-                if not stripped:
-                    in_program_check = False
-                continue
-            # Check for shell prompt (skip it)
-            if self._is_shell_prompt(stripped):
-                if current_command:
-                    output_text = '\n'.join(current_output).strip()
-                    test = self._create_command_test(current_command, output_text)
-                    if test:
-                        command_tests.append(test)
-                    current_command = None
-                    current_output = []
-                continue
-            # Check for command line
+            # Command line starting with $
             if stripped.startswith('$'):
-                if current_command:
-                    output_text = '\n'.join(current_output).strip()
-                    test = self._create_command_test(current_command, output_text)
-                    if test:
-                        command_tests.append(test)
+                # Save previous command if exists
+                self._save_command_test(current_command, current_output, command_tests)
+                # Start new command
                 current_command = stripped[1:].strip()
                 current_output = []
                 continue
-            # Collect output
+            # Collect output for current command
             if current_command is not None:
                 current_output.append(line)
-        # Save final command
-        if current_command is not None:
-            output_text = '\n'.join(current_output).strip()
-            test = self._create_command_test(current_command, output_text)
-            if test:
-                command_tests.append(test)
+        # Save final command if exists
+        self._save_command_test(current_command, current_output, command_tests)
         return command_tests
 
     def _cleanup_generated_files(self, working_dir: Path, program_name: str) -> None:
@@ -460,6 +441,55 @@ class ProgramChecker:
             has_redirection=has_redirection
         )
 
+    def _read_files_file(self, prot_file: Path) -> Tuple[Dict[str, str], Optional[Path]]:
+        """Read .files file and return mapping of short names to relative paths, plus the file's directory."""
+        if not self.chapterdir:
+            return {}, None
+        prot_name = prot_file.stem  # e.g., "go-test" from "go-test.prot"
+        files_filename = f"{prot_name}.files"
+        # Search within chapterdir (not project root, to avoid out/ directory)
+        candidates = list(self.chapterdir.rglob(files_filename))
+        for candidate in candidates:
+            result = {}
+            for line in candidate.read_text(encoding='utf-8').split('\n'):
+                line = line.strip()
+                if line:
+                    short_name = Path(line).name
+                    result[short_name] = line
+            return result, candidate.parent
+        return {}, None
+
+    def _build_file_name_mapping(self, config: ProgramTestConfig) -> Dict[str, str]:
+        """Build mapping from file names to absolute paths."""
+        mapping: Dict[str, str] = {}
+        abs_program_path = config.program_path.resolve()
+        mapping[abs_program_path.name] = str(abs_program_path)
+        if config.program_check_header.files:
+            # Read .files file and get its directory
+            files_content, files_file_dir = self._read_files_file(config.protocol_file)
+            if not files_file_dir:
+                raise ValueError(f"files= field specified but .files file not found for {config.protocol_file}")
+            for file_name in config.program_check_header.files.split(','):
+                file_name = file_name.strip()
+                if not file_name:
+                    continue
+                if file_name not in files_content:
+                    raise ValueError(f"File '{file_name}' declared in files= but not found in .files file for {config.protocol_file}")
+                rel_path = files_content[file_name]
+                # rel_path is relative to the .files file's directory
+                abs_path = (files_file_dir / rel_path).resolve()
+                mapping[file_name] = str(abs_path)
+        return mapping
+
+    def _substitute_file_names_in_command(self, command: str, file_mapping: Dict[str, str]) -> str:
+        """Replace file names in command with their full paths."""
+        result = command
+        # Sort by length (longest first) to avoid partial replacements
+        for file_name in sorted(file_mapping.keys(), key=len, reverse=True):
+            full_path = file_mapping[file_name]
+            result = re.sub(r'\b' + re.escape(file_name) + r'\b', full_path, result)
+        return result
+
     def test_program(self, config: ProgramTestConfig) -> ProgramTestResult:
         """Execute tests for a single program."""
         result = ProgramTestResult(program_name=config.program_name, success=False)
@@ -471,12 +501,20 @@ class ProgramChecker:
                 result.skip_category = 'manual'
                 result.manual_reason = config.program_check_header.manual_reason or "Manual testing required"
                 return result
-            if config.program_check_header.typ == 'direct':
-                pass 
+            # Build file mapping only if files= field is specified
+            file_mapping = {}
+            if config.program_check_header.files:
+                file_mapping = self._build_file_name_mapping(config)
+            # Execute commands for all program types (except manual which already returned)
             for command_test in config.command_tests:
                 try:
+                    # Substitute file names only if mapping exists
+                    if file_mapping:
+                        substituted_command = self._substitute_file_names_in_command(command_test.command, file_mapping)
+                    else:
+                        substituted_command = command_test.command
                     actual = self._run_command(
-                        command_test.command,
+                        substituted_command,
                         config.working_dir,
                         config.timeout
                     )
@@ -575,7 +613,6 @@ class ProgramChecker:
                          show_progress: bool = True, batch_mode: bool = False) -> List[ProgramTestResult]:
         """Test all programs from targets."""
         if itree_root is None:
-            # Use instance itreedir if provided, otherwise error
             if self.itreedir:
                 itree_root = self.itreedir
             else:

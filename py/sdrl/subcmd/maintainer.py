@@ -245,11 +245,13 @@ def check_programs_command(pargs: argparse.Namespace):
         )
         _build_metadata_only(directory)
         targets = programchecker.extract_program_test_targets(the_course)
+        chapterdir = Path(the_course.chapterdir).resolve()
         itreedir = Path(the_course.itreedir)
         checker = programchecker.ProgramChecker(
             parallel_execution=True,
-            report_dir=temp_report_dir,  
-            itreedir=itreedir
+            report_dir=temp_report_dir,
+            itreedir=itreedir,
+            chapterdir=chapterdir
         )
         show_progress = not batch_mode 
         results = checker.test_all_programs(
