@@ -64,25 +64,52 @@ favicon32x32_png = base64.b64decode(favicon32x32_png_base64)
 
 
 def _find_encrypted_prot_file(ctx: sdrl.participant.Context) -> str | None:
-    """Find first encrypted protocol file in student work directories."""
+    """Find first encrypted protocol file in student work directories or download from HTTP(S)."""
     if hasattr(ctx, 'course') and ctx.course:
         course = ctx.course
-        try:
-            # course.context is the path/URL to course.json, which is in the builddir
-            context_path = course.context
-            # Only handle local file:// URLs or direct file paths
-            # Cannot access encrypted files over HTTP(S)
-            if context_path.startswith('http://') or context_path.startswith('https://'):
-                return None
-            if context_path.startswith('file://'):
-                context_path = context_path[7:]  # remove 'file://' prefix
+        context_path = course.context
+        # Local file handling
+        if context_path.startswith('file://'):
+            context_path = context_path[7:]
             builddir = os.path.dirname(context_path)
             if os.path.isdir(builddir):
                 for filename in os.listdir(builddir):
                     if filename.endswith('.crypt'):
                         return os.path.join(builddir, filename)
-        except (AttributeError, OSError, TypeError):
-            pass
+        # HTTP(S) URL handling, download first available encrypted file to temp
+        elif context_path.startswith('http://') or context_path.startswith('https://'):
+            builddir_url = os.path.dirname(context_path)
+            try:
+                import json
+                # Fetch course.json to find available tasks
+                course_json_url = f"{builddir_url}/course.json"
+                response = requests.get(course_json_url, timeout=5)
+                course_data = response.json()
+                # Recursively find all 'name' values in course structure
+                def find_names(data):
+                    names = []
+                    if isinstance(data, dict):
+                        if 'name' in data and isinstance(data['name'], str):
+                            names.append(data['name'])
+                        for value in data.values():
+                            names.extend(find_names(value))
+                    elif isinstance(data, list):
+                        for item in data:
+                            names.extend(find_names(item))
+                    return names
+                # Try to download first available .prot.crypt file
+                for task_name in find_names(course_data):
+                    crypt_url = f"{builddir_url}/{task_name}.prot.crypt"
+                    try:
+                        crypt_response = requests.get(crypt_url, timeout=5)
+                        if crypt_response.status_code == 200:
+                            with tempfile.NamedTemporaryFile(suffix='.prot.crypt', delete=False) as tmp:
+                                tmp.write(crypt_response.content)
+                                return tmp.name
+                    except requests.RequestException:
+                        continue
+            except (requests.RequestException, json.JSONDecodeError, KeyError, IndexError):
+                pass
     return None
 
 
@@ -105,20 +132,28 @@ def run(ctx: sdrl.participant.Context):
         # Check if there are encrypted protocol files and ask for passphrase
         test_file = _find_encrypted_prot_file(ctx)
         if test_file:
-            b.info("Encrypted protocol files found. Please enter GPG passphrase to decrypt them.")
-            max_attempts = 3
-            for attempt in range(max_attempts):
-                passphrase = getpass.getpass("Enter GPG passphrase: ")
-                if _verify_gpg_passphrase(test_file, passphrase):
-                    gpg_passphrase = passphrase
-                    b.info("Passphrase verified successfully. Starting webapp...")
-                    break
-                else:
-                    remaining = max_attempts - attempt - 1
-                    if remaining > 0:
-                        b.warning(f"Incorrect passphrase. {remaining} attempt(s) remaining.")
+            try:
+                b.info("Encrypted protocol files found. Please enter GPG passphrase to decrypt them.")
+                max_attempts = 3
+                for attempt in range(max_attempts):
+                    passphrase = getpass.getpass("Enter GPG passphrase: ")
+                    if _verify_gpg_passphrase(test_file, passphrase):
+                        gpg_passphrase = passphrase
+                        b.info("Passphrase verified successfully. Starting webapp...")
+                        break
                     else:
-                        b.error("Failed to decrypt protocol files after maximum attempts. Starting webapp without decryption.")
+                        remaining = max_attempts - attempt - 1
+                        if remaining > 0:
+                            b.warning(f"Incorrect passphrase. {remaining} attempt(s) remaining.")
+                        else:
+                            b.error("Failed to decrypt protocol files after maximum attempts. Starting webapp without decryption.")
+            finally:
+                # Clean up temporary files from HTTP downloads
+                if os.path.exists(test_file):
+                    try:
+                        os.unlink(test_file)
+                    except OSError:
+                        pass
 
     # Do not enable macros, because that makes the second start of webapp within one session crash
     # b.set_register_files_callback(lambda s: None)  # in case student .md files contain weird macro calls
