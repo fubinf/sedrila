@@ -245,13 +245,10 @@ def check_programs_command(pargs: argparse.Namespace):
         )
         _build_metadata_only(directory)
         targets = programchecker.extract_program_test_targets(the_course)
-        chapterdir = Path(the_course.chapterdir).resolve()
-        itreedir = Path(the_course.itreedir)
         checker = programchecker.ProgramChecker(
             parallel_execution=True,
             report_dir=temp_report_dir,
-            itreedir=itreedir,
-            chapterdir=chapterdir
+            course=the_course
         )
         show_progress = not batch_mode 
         results = checker.test_all_programs(
@@ -293,14 +290,22 @@ def collect_command(pargs: argparse.Namespace):
 
     Output format: JSON with structure:
     {
-      "dependencies": [
-        "apt-get install -y postgresql-client",
-        "go install github.com/user/tool@latest",
-        "pip install fastapi uvicorn"
-      ],
-      "languages": {
-        "Go": "1.23",
-        "Python": "3.11"
+      "taskgroups": {
+        "Go": {
+          "lang_commands": ["apt-get install -y golang-go"],
+          "tasks": {
+            "go-maps": {"deps": []},
+            "go-json": {"deps": []},
+            "FastAPI-GET": {"deps": ["pip install fastapi uvicorn"]}
+          }
+        },
+        "Python": {
+          "lang_commands": ["apt-get install -y python3-pip"],
+          "tasks": {
+            "m_sqlite3": {"deps": []},
+            "FastAPI-CRUD": {"deps": ["pip install fastapi uvicorn"]}
+          }
+        }
       }
     }
     """
@@ -328,13 +333,24 @@ def collect_command(pargs: argparse.Namespace):
             directory=directory
         )
         _build_metadata_only(directory)
-        languages = programchecker.extract_languages_from_course(the_course)
         targets = programchecker.extract_program_test_targets(the_course)
-        checker = programchecker.ProgramChecker()
-        program_commands = checker.collect_install_commands(targets)
+        checker = programchecker.ProgramChecker(course=the_course)
+        lang_by_taskgroup = checker.collect_lang_by_taskgroup(targets)
+        deps_by_task = checker.collect_deps_by_task(targets)
+        taskgroups = {}
+        for target in targets:
+            taskgroup = target.taskgroup
+            task_name = target.protocol_file.stem
+            if taskgroup not in taskgroups:
+                taskgroups[taskgroup] = {
+                    "lang_commands": lang_by_taskgroup.get(taskgroup, []),
+                    "tasks": {}
+                }
+            taskgroups[taskgroup]["tasks"][task_name] = {
+                "deps": deps_by_task.get(task_name, [])
+            }
         result = {
-            "dependencies": sorted([cmd.strip() for cmd in program_commands]),
-            "languages": languages
+            "taskgroups": taskgroups
         }
         print(json.dumps(result, indent=2, sort_keys=True))
         the_cache.close()

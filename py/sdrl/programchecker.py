@@ -8,6 +8,7 @@ protocol files (.prot) using metadata from @PROGRAM_CHECK blocks.
 import subprocess as sp
 import os
 import time
+import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -45,7 +46,7 @@ def filter_program_check_annotations(content: str) -> str:
 @dataclass
 class ProgramCheckHeader:
     """Metadata for program checking from @PROGRAM_CHECK block in .prot file."""
-    lang: Optional[str] = None           # e.g., "Python 3.11", "Go 1.23"
+    lang: Optional[str] = None           # e.g., "apt-get install -y golang-go\napt-get install -y make"
     deps: Optional[str] = None           # e.g., "pip install fastapi\npip install uvicorn"
     typ: Optional[str] = None            # e.g., "direct", "manual"
     manual_reason: Optional[str] = None  # reason for manual testing (for typ=manual)
@@ -61,6 +62,14 @@ class ProgramCheckHeader:
         if self.typ == 'manual' and not self.manual_reason:
             return False
         return True
+
+    def get_lang_install_commands(self) -> List[str]:
+        """Return list of install commands from lang."""
+        if not self.lang:
+            return []
+        # Split by newlines and filter out empty lines
+        commands = [line.strip() for line in self.lang.split('\n') if line.strip()]
+        return commands
 
     def get_install_commands(self) -> List[str]:
         """Return list of install commands from deps.
@@ -124,9 +133,11 @@ class ProgramCheckHeaderExtractor:
                 setattr(header, key, value)
                 last_key = key
             else:
-                # Line without '=' - if last key was 'deps', append to deps
+                # Line without '=' - if last key was 'deps' or 'lang', append to that field
                 if last_key == 'deps' and header.deps is not None:
                     header.deps += '\n' + line
+                elif last_key == 'lang' and header.lang is not None:
+                    header.lang += '\n' + line
                 else:
                     b.warning(f"Invalid @PROGRAM_CHECK line (missing '='): {line}")
                     last_key = None
@@ -170,6 +181,8 @@ class ProgramTestTarget:
     """Maps a protocol file to its program location."""
     protocol_file: Path
     program_check_header: ProgramCheckHeader
+    taskgroup: str  # e.g., "Go", "Python", "Frameworks"
+    program_file: Optional[Path] = None  # path to the actual program file
 
 
 @dataclass
@@ -210,6 +223,13 @@ def _find_program_file(itree_root: Path, prot_file: Path) -> Optional[Path]:
         return None
 
 
+def _extract_taskgroup_from_path(prot_file: Path, altdir_path: Path) -> str:
+    """Extract taskgroup name from .prot file path."""
+    rel_path = prot_file.relative_to(altdir_path)
+    parent_dirs = rel_path.parent.parts
+    return parent_dirs[-1]
+
+
 def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[ProgramTestTarget]:
     """Extract all @PROGRAM_CHECK blocks from .prot files in altdir."""
     targets: List[ProgramTestTarget] = []
@@ -237,9 +257,13 @@ def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[Prog
             b.warning(f"@PROGRAM_CHECK block in {prot_file} missing required fields "
                      f"(lang={header.lang}, deps={header.deps}, typ={header.typ})")
             continue
+        taskgroup = _extract_taskgroup_from_path(prot_file, altdir_path)
+        program_file = _find_program_file(itree_root, prot_file)
         targets.append(ProgramTestTarget(
             protocol_file=prot_file,
-            program_check_header=header
+            program_check_header=header,
+            taskgroup=taskgroup,
+            program_file=program_file
         ))
     return targets
 
@@ -284,7 +308,8 @@ class ProgramChecker:
     DEFAULT_TIMEOUT = 30
     def __init__(self, course_root: Path = None, parallel_execution: bool = True,
                  report_dir: str = None, max_workers: Optional[int] = None,
-                 itreedir: Optional[Path] = None, chapterdir: Optional[Path] = None):
+                 itreedir: Optional[Path] = None, chapterdir: Optional[Path] = None,
+                 course: Optional[Any] = None, config_vars: Optional[Dict[str, str]] = None):
         """Initialize ProgramChecker."""
         self.course_root = course_root or Path.cwd()
         self.report_dir = report_dir or str(Path.cwd())
@@ -293,6 +318,36 @@ class ProgramChecker:
         self.max_workers = self._determine_max_workers(max_workers)
         self.itreedir = itreedir
         self.chapterdir = chapterdir
+        self.course = course
+        # Build config_vars from course object or use provided config_vars
+        self.config_vars = self._build_config_vars(config_vars)
+
+    def _build_config_vars(self, config_vars: Optional[Dict[str, str]]) -> Dict[str, str]:
+        """Build configuration variables from course object or provided dict."""
+        if config_vars:
+            return {k: str(v) for k, v in config_vars.items()}
+        vars_dict: Dict[str, str] = {}
+        if self.course:
+            if hasattr(self.course, 'configdict') and isinstance(self.course.configdict, dict):
+                for key, value in self.course.configdict.items():
+                    if isinstance(value, (str, int, float, Path)):
+                        vars_dict[key] = str(value)
+                    elif hasattr(value, '__fspath__'):  # Path-like objects
+                        vars_dict[key] = str(value)
+            for attr_name in dir(self.course):
+                if attr_name.startswith('_'):
+                    continue
+                try:
+                    value = getattr(self.course, attr_name)
+                except (AttributeError, Exception):
+                    # Some @property attributes may have broken getters; skip them
+                    continue
+                if callable(value) or isinstance(value, (dict, list)):
+                    continue
+                if isinstance(value, (str, int, float, Path)) or hasattr(value, '__fspath__'):
+                    if attr_name not in vars_dict:  # Don't override configdict values
+                        vars_dict[attr_name] = str(value)
+        return vars_dict
 
     @staticmethod
     def _determine_max_workers(override: Optional[int]) -> int:
@@ -441,23 +496,53 @@ class ProgramChecker:
             has_redirection=has_redirection
         )
 
+    def _substitute_variables_in_path(self, path: str) -> str:
+        """Substitute all $variable_name references in path using config_vars."""
+        import re
+        pattern = r'\$([a-zA-Z_][a-zA-Z0-9_]*)'
+        variables = re.findall(pattern, path)
+        if not variables:
+            return path
+        result_path = path
+        for var_name in set(variables):  # Use set to avoid duplicate processing
+            if var_name not in self.config_vars:
+                raise ValueError(
+                    f"Variable ${var_name} found in path '{path}' but not defined in configuration. "
+                    f"Available variables: {', '.join(sorted(self.config_vars.keys()))}"
+                )
+            var_value = self.config_vars[var_name]
+            var_pattern = f'${var_name}'
+            # Split path at the variable
+            parts = result_path.split(var_pattern)
+            if len(parts) != 2:
+                raise ValueError(f"Invalid path format with {var_pattern}: {path}")
+            pre_path = parts[0]   # e.g., "../../../"
+            post_path = parts[1]  # e.g., "/Sprachen/Go/go-test.go"
+            # Reconstruct: variable path + post_path
+            abs_var_path = Path(var_value).resolve()
+            abs_full_path = (abs_var_path / post_path.lstrip('/')).resolve()
+            result_path = str(abs_full_path)
+        return result_path
+
     def _read_files_file(self, prot_file: Path) -> Tuple[Dict[str, str], Optional[Path]]:
-        """Read .files file and return mapping of short names to relative paths, plus the file's directory."""
-        if not self.chapterdir:
-            return {}, None
+        """Read .files file from altdir (same directory as .prot file)."""
         prot_name = prot_file.stem  # e.g., "go-test" from "go-test.prot"
         files_filename = f"{prot_name}.files"
-        # Search within chapterdir (not project root, to avoid out/ directory)
-        candidates = list(self.chapterdir.rglob(files_filename))
-        for candidate in candidates:
+        # Look for .files file in the same directory as .prot file (in altdir)
+        files_file_path = prot_file.parent / files_filename
+        if not files_file_path.exists():
+            return {}, None
+        try:
             result = {}
-            for line in candidate.read_text(encoding='utf-8').split('\n'):
+            for line in files_file_path.read_text(encoding='utf-8').split('\n'):
                 line = line.strip()
                 if line:
                     short_name = Path(line).name
                     result[short_name] = line
-            return result, candidate.parent
-        return {}, None
+            return result, files_file_path.parent
+        except (OSError, UnicodeDecodeError) as e:
+            b.warning(f"Cannot read .files file {files_file_path}: {e}")
+            return {}, None
 
     def _build_file_name_mapping(self, config: ProgramTestConfig) -> Dict[str, str]:
         """Build mapping from file names to absolute paths."""
@@ -476,8 +561,17 @@ class ProgramChecker:
                 if file_name not in files_content:
                     raise ValueError(f"File '{file_name}' declared in files= but not found in .files file for {config.protocol_file}")
                 rel_path = files_content[file_name]
-                # rel_path is relative to the .files file's directory
-                abs_path = (files_file_dir / rel_path).resolve()
+                # Determine how to resolve the path
+                if '$' in rel_path:
+                    # Path has variables, substitute them
+                    abs_path_str = self._substitute_variables_in_path(rel_path)
+                    abs_path = Path(abs_path_str)
+                elif '/' not in rel_path and '\\' not in rel_path:
+                    # Simple filename (no path separators), relative to .prot file's directory
+                    abs_path = (config.protocol_file.parent / rel_path).resolve()
+                else:
+                    # Path with slashes but no variables, relative to .files directory
+                    abs_path = (files_file_dir / rel_path).resolve()
                 mapping[file_name] = str(abs_path)
         return mapping
 
@@ -490,21 +584,42 @@ class ProgramChecker:
             result = re.sub(r'\b' + re.escape(file_name) + r'\b', full_path, result)
         return result
 
+    def _create_isolated_test_context(self, config: ProgramTestConfig) -> Tuple[Path, Optional[Dict[str, str]]]:
+        """Create an isolated temporary directory for testing."""
+        temp_dir = Path(tempfile.mkdtemp(prefix=f'sedrila_test_{config.program_name}_'))
+        try:
+            if config.program_path.exists():
+                shutil.copy2(config.program_path, temp_dir / config.program_path.name)
+            file_mapping = {}
+            if config.program_check_header.files:
+                original_mapping = self._build_file_name_mapping(config)
+                for file_name, original_path in original_mapping.items():
+                    src_path = Path(original_path)
+                    if src_path.exists():
+                        dst_path = temp_dir / src_path.name
+                        shutil.copy2(src_path, dst_path)
+                        file_mapping[file_name] = str(dst_path)
+            return temp_dir, file_mapping if file_mapping else None
+        except (ValueError, OSError, IOError) as e:
+            try:
+                shutil.rmtree(temp_dir)
+            except OSError:
+                pass
+            raise e
+
     def test_program(self, config: ProgramTestConfig) -> ProgramTestResult:
-        """Execute tests for a single program."""
+        """Execute tests for a single program in an isolated context."""
         result = ProgramTestResult(program_name=config.program_name, success=False)
         start_time = time.time()
+        temp_dir = None
         try:
-            self._cleanup_generated_files(config.working_dir, config.program_name)
             if config.program_check_header.typ == 'manual':
                 result.skipped = True
                 result.skip_category = 'manual'
                 result.manual_reason = config.program_check_header.manual_reason or "Manual testing required"
                 return result
-            # Build file mapping only if files= field is specified
-            file_mapping = {}
-            if config.program_check_header.files:
-                file_mapping = self._build_file_name_mapping(config)
+            temp_dir, file_mapping = self._create_isolated_test_context(config)
+            self._cleanup_generated_files(temp_dir, config.program_name)
             # Execute commands for all program types (except manual which already returned)
             for command_test in config.command_tests:
                 try:
@@ -515,7 +630,7 @@ class ProgramChecker:
                         substituted_command = command_test.command
                     actual = self._run_command(
                         substituted_command,
-                        config.working_dir,
+                        temp_dir,
                         config.timeout
                     )
                     if actual.strip() != command_test.expected_output.strip():
@@ -533,7 +648,12 @@ class ProgramChecker:
         except Exception as e:
             result.error_message = str(e)
         finally:
-            self._cleanup_generated_files(config.working_dir, config.program_name)
+            # Clean up isolated test context
+            if temp_dir:
+                try:
+                    shutil.rmtree(temp_dir)
+                except Exception as e:
+                    b.warning(f"Failed to clean up temp directory {temp_dir}: {e}")
             result.execution_time = time.time() - start_time
         return result
 
@@ -609,12 +729,38 @@ class ProgramChecker:
                 unique_commands.append(cmd)
         return unique_commands
 
+    def collect_lang_by_taskgroup(self, targets: List[ProgramTestTarget]) -> Dict[str, List[str]]:
+        """Collect language install commands grouped by taskgroup."""
+        taskgroup_langs: Dict[str, set] = {}
+        for target in targets:
+            header = target.program_check_header
+            commands = header.get_lang_install_commands()
+            if target.taskgroup not in taskgroup_langs:
+                taskgroup_langs[target.taskgroup] = set()
+            taskgroup_langs[target.taskgroup].update(commands)
+        result = {}
+        for taskgroup, commands_set in taskgroup_langs.items():
+            result[taskgroup] = sorted(list(commands_set))
+        return result
+
+    def collect_deps_by_task(self, targets: List[ProgramTestTarget]) -> Dict[str, List[str]]:
+        """Collect dependency install commands grouped by task name."""
+        task_deps: Dict[str, List[str]] = {}
+        for target in targets:
+            program_name = target.protocol_file.stem  # e.g., "go-maps" from "go-maps.prot"
+            header = target.program_check_header
+            commands = header.get_install_commands()
+            task_deps[program_name] = commands if commands else []
+        return task_deps
+
     def test_all_programs(self, targets: List[ProgramTestTarget], itree_root: Optional[Path] = None,
                          show_progress: bool = True, batch_mode: bool = False) -> List[ProgramTestResult]:
         """Test all programs from targets."""
         if itree_root is None:
             if self.itreedir:
                 itree_root = self.itreedir
+            elif 'itreedir' in self.config_vars:
+                itree_root = Path(self.config_vars['itreedir'])
             else:
                 b.error("itreedir not provided and not configured in ProgramChecker")
                 return []
