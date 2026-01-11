@@ -18,6 +18,7 @@ import re
 
 import base as b
 import sdrl.course
+from sdrl.protocolchecker import CheckRule, ProtocolExtractor
 
 
 PROGRAM_FILE_EXCLUDE_SUFFIXES = {
@@ -48,7 +49,7 @@ class ProgramCheckHeader:
     """Metadata for program checking from @PROGRAM_CHECK block in .prot file."""
     lang: Optional[str] = None           # e.g., "apt-get install -y golang-go\napt-get install -y make"
     deps: Optional[str] = None           # e.g., "pip install fastapi\npip install uvicorn"
-    typ: Optional[str] = None            # e.g., "direct", "manual"
+    typ: Optional[str] = None            # e.g., "exact", "regex", "manual"
     manual_reason: Optional[str] = None  # reason for manual testing (for typ=manual)
     files: Optional[str] = None          # additional files for multi-file programs
     unknown_keys: List[str] = field(default_factory=list)
@@ -57,7 +58,7 @@ class ProgramCheckHeader:
         """Check if header has required fields and valid values."""
         if self.typ is None:
             return False
-        if self.typ not in ('direct', 'manual'):
+        if self.typ not in ('exact', 'manual', 'regex'):
             return False
         if self.typ == 'manual' and not self.manual_reason:
             return False
@@ -162,6 +163,7 @@ class CommandTest:
     has_errors: bool = False        # True if output contains Traceback/errors
     needs_interaction: bool = False # True if command needs user input
     has_redirection: bool = False   # True if command has >/< redirection
+    check_rule: Optional[CheckRule] = None  # For regex mode validation (from @PROT_SPEC)
 
 
 @dataclass
@@ -200,6 +202,7 @@ class ProgramTestResult:
     exit_code: int = 0
     skip_category: str = ""  # e.g., "manual", "missing_deps"
     manual_reason: str = ""  # Human-readable reason for manual testing
+    typ: str = "exact"  # Test mode: "exact", "regex", or "manual"
 
     def __str__(self) -> str:
         status = "PASS" if self.success else ("SKIP" if self.skipped else "FAIL")
@@ -418,7 +421,7 @@ class ProgramChecker:
                 continue
             seen_pairs.add(pair_key)
             # Parse commands from .prot file
-            command_tests = self.parse_command_tests_from_prot(prot_file)
+            command_tests = self.parse_command_tests_from_prot(prot_file, typ=header.typ)
             if not command_tests:
                 b.debug(f"No testable commands in {prot_file}")
                 continue
@@ -444,8 +447,25 @@ class ProgramChecker:
             if test:
                 command_tests.append(test)
 
-    def parse_command_tests_from_prot(self, prot_file: Path) -> List[CommandTest]:
-        """Parse all command tests from .prot file by extracting $ commands and their output."""
+    def parse_command_tests_from_prot(self, prot_file: Path, typ: str = 'exact') -> List[CommandTest]:
+        """Parse all command tests from .prot file."""
+        if typ == 'regex':
+            if not self.has_prot_spec_blocks(prot_file):
+                b.debug(f"No @PROT_SPEC blocks in {prot_file}, falling back to exact mode")
+                return self._parse_exact_mode(prot_file)
+            return self._parse_regex_mode(prot_file)
+        return self._parse_exact_mode(prot_file)
+
+    def has_prot_spec_blocks(self, prot_file: Path) -> bool:
+        """Check if .prot file contains @PROT_SPEC blocks."""
+        try:
+            content = prot_file.read_text(encoding='utf-8')
+            return '@PROT_SPEC' in content
+        except OSError:
+            return False
+
+    def _parse_exact_mode(self, prot_file: Path) -> List[CommandTest]:
+        """Parse commands without @PROT_SPEC (exact string matching)."""
         try:
             content = prot_file.read_text(encoding='utf-8')
         except (OSError, UnicodeDecodeError) as e:
@@ -457,25 +477,35 @@ class ProgramChecker:
         current_output: List[str] = []
         for line in lines:
             stripped = line.strip()
-            # Empty line or shell prompt: save current command if exists
+            if stripped in ('@PROGRAM_CHECK', '@PROT_SPEC'):
+                continue
             if not stripped or self._is_shell_prompt(stripped):
                 self._save_command_test(current_command, current_output, command_tests)
                 current_command = None
                 current_output = []
                 continue
-            # Command line starting with $
             if stripped.startswith('$'):
-                # Save previous command if exists
                 self._save_command_test(current_command, current_output, command_tests)
-                # Start new command
                 current_command = stripped[1:].strip()
                 current_output = []
                 continue
-            # Collect output for current command
             if current_command is not None:
                 current_output.append(line)
-        # Save final command if exists
         self._save_command_test(current_command, current_output, command_tests)
+        return command_tests
+
+    def _parse_regex_mode(self, prot_file: Path) -> List[CommandTest]:
+        """Parse commands using ProtocolExtractor and attach CheckRule to each CommandTest."""
+        extractor = ProtocolExtractor()
+        protocol_file = extractor.extract_from_file(str(prot_file))
+        command_tests: List[CommandTest] = []
+        for entry in protocol_file.entries:
+            command_test = CommandTest(
+                command=entry.command,
+                expected_output=entry.output,
+                check_rule=entry.check_rule
+            )
+            command_tests.append(command_test)
         return command_tests
 
     def _cleanup_generated_files(self, working_dir: Path, program_name: str) -> None:
@@ -638,7 +668,11 @@ class ProgramChecker:
 
     def test_program(self, config: ProgramTestConfig) -> ProgramTestResult:
         """Execute tests for a single program in an isolated context."""
-        result = ProgramTestResult(program_name=config.program_name, success=False)
+        result = ProgramTestResult(
+            program_name=config.program_name,
+            success=False,
+            typ=config.program_check_header.typ or 'exact'
+        )
         start_time = time.time()
         temp_dir = None
         try:
@@ -662,11 +696,26 @@ class ProgramChecker:
                         temp_dir,
                         config.timeout
                     )
-                    if actual.strip() != command_test.expected_output.strip():
-                        result.actual_output = actual
-                        result.expected_output = command_test.expected_output
-                        result.error_message = f"Output mismatch for: {command_test.command}"
-                        return result
+                    # Branch based on whether check_rule exists (regex mode)
+                    if command_test.check_rule is not None and command_test.check_rule.output_re:
+                        # Regex mode: use output_re pattern matching
+                        validation_result = self._validate_output_regex(
+                            actual,
+                            command_test.expected_output,
+                            command_test.check_rule
+                        )
+                        if not validation_result['success']:
+                            result.actual_output = actual
+                            result.expected_output = command_test.expected_output
+                            result.error_message = validation_result['error_message']
+                            return result
+                    else:
+                        # Exact mode: exact string matching
+                        if actual.strip() != command_test.expected_output.strip():
+                            result.actual_output = actual
+                            result.expected_output = command_test.expected_output
+                            result.error_message = f"Output mismatch for: {command_test.command}"
+                            return result
                 except TimeoutError:
                     result.error_message = f"Timeout executing: {command_test.command}"
                     return result
@@ -685,6 +734,46 @@ class ProgramChecker:
                     b.warning(f"Failed to clean up temp directory {temp_dir}: {e}")
             result.execution_time = time.time() - start_time
         return result
+
+    def _validate_output_regex(self, actual_output: str, expected_output: str,
+                              check_rule: CheckRule) -> Dict[str, Any]:
+        """Validate output using regex pattern from CheckRule.
+
+        Returns dict with 'success' (bool) and 'error_message' (str) keys.
+        """
+        # Case 1: check_rule has output_re -> use regex matching
+        if check_rule.output_re and check_rule.output_re.strip():
+            try:
+                pattern = re.compile(check_rule.output_re)
+                match = pattern.search(actual_output)
+
+                if match:
+                    return {
+                        'success': True,
+                        'error_message': None
+                    }
+                else:
+                    return {
+                        'success': False,
+                        'error_message': f"Output does not match regex pattern: {check_rule.output_re}"
+                    }
+            except re.error as e:
+                return {
+                    'success': False,
+                    'error_message': f"Invalid regex pattern '{check_rule.output_re}': {e}"
+                }
+
+        # Case 2: check_rule exists but no output_re -> fall back to exact matching
+        if actual_output.strip() == expected_output.strip():
+            return {
+                'success': True,
+                'error_message': None
+            }
+        else:
+            return {
+                'success': False,
+                'error_message': f"Output mismatch (exact match fallback)"
+            }
 
     def _run_command(self, command: str, working_dir: Path, timeout: int) -> str:
         """Run a command and return its output."""
@@ -877,20 +966,41 @@ class ProgramChecker:
         report_lines.append(f"- **Skipped (manual test):** {skipped} ({skip_rate:.1f}%)\n\n")
         if failed > 0:
             report_lines.append("## Failed Tests\n\n")
-            report_lines.append("| Program | Error | Details |\n")
-            report_lines.append("|---------|-------|---------||\n")
-            for r in results:
-                if not r.success and not r.skipped:
+            # Categorize failed tests by type
+            failed_exact = [r for r in results if not r.success and not r.skipped and r.typ == 'exact']
+            failed_regex = [r for r in results if not r.success and not r.skipped and r.typ == 'regex']
+
+            # Failed Exact Mode Tests
+            if failed_exact:
+                report_lines.append("### Exact Mode\n\n")
+                report_lines.append("| Program | Error | Details |\n")
+                report_lines.append("|---------|-------|----------|\n")
+                for r in failed_exact:
                     error_msg = r.error_message.replace('\n', ' ').replace('|', '\\|')[:100]
                     details = ""
                     if r.expected_output and r.actual_output:
                         details = f"Expected: `{r.expected_output[:50]}...`, Got: `{r.actual_output[:50]}...`"
                     report_lines.append(f"| `{r.program_name}` | {error_msg} | {details} |\n")
-            report_lines.append("\n")
+                report_lines.append("\n")
+
+            # Failed Regex Mode Tests
+            if failed_regex:
+                report_lines.append("### Regex Mode\n\n")
+                report_lines.append("| Program | Error | Details |\n")
+                report_lines.append("|---------|-------|----------|\n")
+                for r in failed_regex:
+                    error_msg = r.error_message.replace('\n', ' ').replace('|', '\\|')[:100]
+                    details = ""
+                    if r.expected_output and r.actual_output:
+                        details = f"Expected: `{r.expected_output[:50]}...`, Got: `{r.actual_output[:50]}...`"
+                    report_lines.append(f"| `{r.program_name}` | {error_msg} | {details} |\n")
+                report_lines.append("\n")
+
             report_lines.append("### Failed Tests Detail\n\n")
             for r in results:
                 if not r.success and not r.skipped:
-                    report_lines.append(f"#### {r.program_name}\n\n")
+                    mode_label = f"[{r.typ.upper()}]" if r.typ else "[EXACT]"
+                    report_lines.append(f"#### {r.program_name} {mode_label}\n\n")
                     report_lines.append(f"- **Error:** {r.error_message}\n")
                     if r.expected_output:
                         report_lines.append(f"- **Expected output:**\n```\n{r.expected_output[:500]}\n```\n")
@@ -908,12 +1018,27 @@ class ProgramChecker:
             report_lines.append("\n")
         if passed > 0:
             report_lines.append("## Passed Tests\n\n")
-            report_lines.append("| Program | Execution Time |\n")
-            report_lines.append("|---------|----------------|\n")
-            for r in results:
-                if r.success:
+            # Categorize passed tests by type
+            passed_exact = [r for r in results if r.success and r.typ == 'exact']
+            passed_regex = [r for r in results if r.success and r.typ == 'regex']
+
+            # Passed Exact Mode Tests
+            if passed_exact:
+                report_lines.append("### Exact Mode\n\n")
+                report_lines.append("| Program | Execution Time |\n")
+                report_lines.append("|---------|----------------|\n")
+                for r in passed_exact:
                     report_lines.append(f"| `{r.program_name}` | {r.execution_time:.2f}s |\n")
-            report_lines.append("\n")
+                report_lines.append("\n")
+
+            # Passed Regex Mode Tests
+            if passed_regex:
+                report_lines.append("### Regex Mode\n\n")
+                report_lines.append("| Program | Execution Time |\n")
+                report_lines.append("|---------|----------------|\n")
+                for r in passed_regex:
+                    report_lines.append(f"| `{r.program_name}` | {r.execution_time:.2f}s |\n")
+                report_lines.append("\n")
         report_path = Path(self.report_dir) / "program_test_report.md"
         report_path.parent.mkdir(parents=True, exist_ok=True)
         with open(report_path, 'w') as f:
