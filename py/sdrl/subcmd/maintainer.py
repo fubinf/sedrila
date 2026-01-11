@@ -286,29 +286,7 @@ def check_programs_command(pargs: argparse.Namespace):
 
 
 def collect_command(pargs: argparse.Namespace):
-    """Collect languages and dependencies from @PROGRAM_CHECK blocks.
-
-    Output format: JSON with structure:
-    {
-      "taskgroups": {
-        "Go": {
-          "lang_commands": ["apt-get install -y golang-go"],
-          "tasks": {
-            "go-maps": {"deps": []},
-            "go-json": {"deps": []},
-            "FastAPI-GET": {"deps": ["pip install fastapi uvicorn"]}
-          }
-        },
-        "Python": {
-          "lang_commands": ["apt-get install -y python3-pip"],
-          "tasks": {
-            "m_sqlite3": {"deps": []},
-            "FastAPI-CRUD": {"deps": ["pip install fastapi uvicorn"]}
-          }
-        }
-      }
-    }
-    """
+    """Collect languages, dependencies, and task assumes from @PROGRAM_CHECK blocks."""
     try:
         import sdrl.programchecker as programchecker
         import json
@@ -346,9 +324,38 @@ def collect_command(pargs: argparse.Namespace):
                     "lang_commands": lang_by_taskgroup.get(taskgroup, []),
                     "tasks": {}
                 }
+            task_obj = the_course.task(task_name)
+            assumes = task_obj.assumes if task_obj else []
             taskgroups[taskgroup]["tasks"][task_name] = {
-                "deps": deps_by_task.get(task_name, [])
+                "deps": deps_by_task.get(task_name, []),
+                "assumes": assumes
             }
+        for taskgroup in taskgroups:
+            execution_order = []
+            tasks_in_group = set(taskgroups[taskgroup]["tasks"].keys())
+            visited = set()
+            to_visit = list(tasks_in_group)
+            while to_visit:
+                task_name = to_visit.pop(0)
+                if task_name in visited:
+                    continue
+                task_obj = the_course.task(task_name)
+                if not task_obj:
+                    visited.add(task_name)
+                    execution_order.append(task_name)
+                    continue
+                assumes_satisfied = True
+                for assumed_task in task_obj.assumes:
+                    if assumed_task in tasks_in_group and assumed_task not in visited:
+                        assumes_satisfied = False
+                        break
+                if assumes_satisfied:
+                    visited.add(task_name)
+                    execution_order.append(task_name)
+                else:
+                    to_visit.append(task_name)
+            taskgroups[taskgroup]["execution_order"] = execution_order
+
         result = {
             "taskgroups": taskgroups
         }

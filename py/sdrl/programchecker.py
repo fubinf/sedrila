@@ -55,7 +55,7 @@ class ProgramCheckHeader:
 
     def is_valid(self) -> bool:
         """Check if header has required fields and valid values."""
-        if self.lang is None or self.typ is None:
+        if self.typ is None:
             return False
         if self.typ not in ('direct', 'manual'):
             return False
@@ -172,6 +172,7 @@ class ProgramTestConfig:
     protocol_file: Path
     program_check_header: ProgramCheckHeader
     working_dir: Path
+    taskgroup: str
     command_tests: List[CommandTest] = field(default_factory=list)
     timeout: int = 30
 
@@ -255,7 +256,7 @@ def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[Prog
             continue
         if not header.is_valid():
             b.warning(f"@PROGRAM_CHECK block in {prot_file} missing required fields "
-                     f"(lang={header.lang}, deps={header.deps}, typ={header.typ})")
+                     f"(typ={header.typ}, manual_reason={header.manual_reason if header.typ == 'manual' else 'N/A'})")
             continue
         taskgroup = _extract_taskgroup_from_path(prot_file, altdir_path)
         program_file = _find_program_file(itree_root, prot_file)
@@ -370,6 +371,33 @@ class ProgramChecker:
             b.warning(f"Invalid SDRL_PROGCHECK_MAX_WORKERS='{env_value}', using default")
             return default_workers
 
+    def get_taskgroup_execution_order(self, taskgroup: str, configs: List[ProgramTestConfig]) -> List[ProgramTestConfig]:
+        """Sort configs within a taskgroup by task dependency order."""
+        if not self.course or not hasattr(self.course, 'get_all_assumed_tasks'):
+            return configs
+        # Extract task names from configs (map program name to task name)
+        taskgroup_tasks: Dict[str, ProgramTestConfig] = {}
+        for config in configs:
+            task_name = config.program_name
+            taskgroup_tasks[task_name] = config
+        task_deps: Dict[str, set[str]] = {}
+        for task_name in taskgroup_tasks:
+            all_assumed = self.course.get_all_assumed_tasks(task_name)
+            deps_in_group = {t for t in all_assumed if t in taskgroup_tasks}
+            task_deps[task_name] = deps_in_group
+        sorted_tasks: List[str] = []
+        remaining = set(taskgroup_tasks.keys())
+        while remaining:
+            ready_tasks = {t for t in remaining if task_deps[t].isdisjoint(remaining)}
+            if not ready_tasks:
+                b.warning(f"Circular dependency detected in taskgroup {taskgroup}, "
+                         f"executing remaining tasks in arbitrary order: {remaining}")
+                sorted_tasks.extend(sorted(remaining))
+                break
+            sorted_tasks.extend(sorted(ready_tasks))
+            remaining -= ready_tasks
+        return [taskgroup_tasks[t] for t in sorted_tasks]
+
     def build_configs_from_targets(self, targets: List[ProgramTestTarget],
                                    itree_root: Path) -> List[ProgramTestConfig]:
         """Build ProgramTestConfig objects from extracted targets."""
@@ -400,6 +428,7 @@ class ProgramChecker:
                 protocol_file=prot_file,
                 program_check_header=header,
                 working_dir=program_path.parent,
+                taskgroup=target.taskgroup,
                 command_tests=command_tests,
                 timeout=self.DEFAULT_TIMEOUT
             )
@@ -674,45 +703,91 @@ class ProgramChecker:
             raise TimeoutError(f"Command timed out after {timeout}s: {command}")
 
     def run_tests(self, configs: List[ProgramTestConfig], show_progress: bool = False) -> List[ProgramTestResult]:
-        """Run all program tests."""
+        """Run all program tests with per-taskgroup parallel execution."""
         if not configs:
             return []
-        if self.parallel_execution and len(configs) > 1:
-            return self._run_tests_parallel(configs, show_progress)
+        configs_by_taskgroup: Dict[str, List[ProgramTestConfig]] = {}
+        for config in configs:
+            if config.taskgroup not in configs_by_taskgroup:
+                configs_by_taskgroup[config.taskgroup] = []
+            configs_by_taskgroup[config.taskgroup].append(config)
+        for taskgroup in configs_by_taskgroup:
+            configs_by_taskgroup[taskgroup] = self.get_taskgroup_execution_order(
+                taskgroup, configs_by_taskgroup[taskgroup]
+            )
+        num_taskgroups = len(configs_by_taskgroup)
+        if self.parallel_execution and num_taskgroups > 1:
+            return self._run_taskgroups_parallel(configs_by_taskgroup, show_progress)
         else:
-            return self._run_tests_sequential(configs, show_progress)
+            return self._run_taskgroups_sequential(configs_by_taskgroup, show_progress)
 
-    def _run_tests_sequential(self, configs: List[ProgramTestConfig], show_progress: bool = False) -> List[ProgramTestResult]:
-        """Run tests sequentially."""
+    def _run_taskgroups_sequential(self, configs_by_taskgroup: Dict[str, List[ProgramTestConfig]],
+                                   show_progress: bool = False) -> List[ProgramTestResult]:
+        """Run taskgroups sequentially (configs within each group are already sorted by dependency)."""
         results = []
-        for i, config in enumerate(configs, 1):
-            if show_progress:
-                b.info(f"Testing {config.program_name} ({i}/{len(configs)})...")
-            result = self.test_program(config)
-            results.append(result)
-            if show_progress:
-                status = "✓ PASS" if result.success else ("⊘ SKIP" if result.skipped else "✗ FAIL")
-                b.info(f"  {status}")
-        return results
-
-    def _run_tests_parallel(self, configs: List[ProgramTestConfig], show_progress: bool = False) -> List[ProgramTestResult]:
-        """Run tests in parallel."""
-        results = []
+        total_configs = sum(len(configs) for configs in configs_by_taskgroup.values())
         completed = 0
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            future_to_config = {
-                executor.submit(self.test_program, config): config
-                for config in configs
-            }
-            for future in as_completed(future_to_config):
-                config = future_to_config[future]
-                result = future.result()
-                results.append(result)
+        for taskgroup, configs in sorted(configs_by_taskgroup.items()):
+            if show_progress:
+                b.info(f"Processing taskgroup: {taskgroup}")
+            for config in configs:
                 completed += 1
                 if show_progress:
-                    status = "✓" if result.success else ("⊘" if result.skipped else "✗")
-                    b.info(f"  {status} {config.program_name} ({completed}/{len(configs)})")
+                    b.info(f"  Testing {config.program_name} ({completed}/{total_configs})...")
+                result = self.test_program(config)
+                results.append(result)
+                if show_progress:
+                    status = "✓ PASS" if result.success else ("⊘ SKIP" if result.skipped else "✗ FAIL")
+                    b.info(f"    {status}")
         return results
+
+    def _run_taskgroups_parallel(self, configs_by_taskgroup: Dict[str, List[ProgramTestConfig]],
+                                 show_progress: bool = False) -> List[ProgramTestResult]:
+        """Run taskgroups in parallel, with serial execution within each taskgroup."""
+        results_lock = __import__('threading').Lock()
+        all_results: List[ProgramTestResult] = []
+        total_configs = sum(len(configs) for configs in configs_by_taskgroup.values())
+        completed_count = [0]  # Use list for mutability in nested function
+
+        def run_taskgroup(taskgroup: str, configs: List[ProgramTestConfig]) -> List[ProgramTestResult]:
+            """Run all configs in a taskgroup sequentially."""
+            taskgroup_results = []
+            for config in configs:
+                result = self.test_program(config)
+                taskgroup_results.append(result)
+                with results_lock:
+                    completed_count[0] += 1
+                    if show_progress:
+                        status = "✓" if result.success else ("⊘" if result.skipped else "✗")
+                        b.info(f"  {status} {config.program_name} ({completed_count[0]}/{total_configs})")
+            return taskgroup_results
+        with ThreadPoolExecutor(max_workers=min(self.max_workers, len(configs_by_taskgroup))) as executor:
+            futures = {
+                executor.submit(run_taskgroup, taskgroup, configs): taskgroup
+                for taskgroup, configs in configs_by_taskgroup.items()
+            }
+            for future in as_completed(futures):
+                taskgroup_results = future.result()
+                all_results.extend(taskgroup_results)
+        return all_results
+
+    def _run_tests_sequential(self, configs: List[ProgramTestConfig], show_progress: bool = False) -> List[ProgramTestResult]:
+        """Deprecated: Use _run_taskgroups_sequential instead."""
+        configs_by_taskgroup = {}
+        for config in configs:
+            if config.taskgroup not in configs_by_taskgroup:
+                configs_by_taskgroup[config.taskgroup] = []
+            configs_by_taskgroup[config.taskgroup].append(config)
+        return self._run_taskgroups_sequential(configs_by_taskgroup, show_progress)
+
+    def _run_tests_parallel(self, configs: List[ProgramTestConfig], show_progress: bool = False) -> List[ProgramTestResult]:
+        """Deprecated: Use _run_taskgroups_parallel instead."""
+        configs_by_taskgroup = {}
+        for config in configs:
+            if config.taskgroup not in configs_by_taskgroup:
+                configs_by_taskgroup[config.taskgroup] = []
+            configs_by_taskgroup[config.taskgroup].append(config)
+        return self._run_taskgroups_parallel(configs_by_taskgroup, show_progress)
 
     def collect_install_commands(self, targets: List[ProgramTestTarget]) -> List[str]:
         """Collect all install commands from @PROGRAM_CHECK blocks."""

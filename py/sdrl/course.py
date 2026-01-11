@@ -299,6 +299,22 @@ class Course(el.Part):
         """Return Task for given taskname or None if no such task exists."""
         return self.taskdict.get(taskname, None)  # noqa
 
+    def get_all_assumed_tasks(self, taskname: str) -> set[str]:
+        """Recursively get all tasks that are assumed by a given task (transitive assumes closure)."""
+        visited: set[str] = set()
+        to_visit: list[str] = [taskname]
+        while to_visit:
+            current = to_visit.pop(0)
+            task_obj = self.task(current)
+            if task_obj is None or current in visited:
+                continue
+            visited.add(current)
+            for assumed_task in task_obj.assumes:
+                if assumed_task not in visited:
+                    to_visit.append(assumed_task)
+        visited.discard(taskname)
+        return visited
+
     def _parse_allowed_attempts(self) -> tuple[int, float]:
         mm = re.match(r"(?P<base>\d+)(\s?\+\s?(?P<time>\d+\.\d+)\s?/\s?h)?", self.allowed_attempts)
         if not mm:
