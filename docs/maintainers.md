@@ -163,132 +163,136 @@ sedrila maintainer --check-programs -- /tmp/progtest
 For CI via GitHub Actions, the workflow exposes `max_workers` input.
 When using `--batch`, failed tests are summarized at the end for quick error identification in CI runs.
 
+### 5.1 @PROGRAM_CHECK block format
 
-### 5.1 Operating environment and dependencies
-
-Program testing requires language runtimes and package dependencies specified via `@PROGRAM_CHECK` blocks.
-
-**Base requirements:**
-
-- **Python**: 3.11 or higher (required for sedrila itself)
-- **itreedir**: Must exist as a directory with program source files
-
-**Language runtimes:**
-
-The `lang=` field in each `@PROGRAM_CHECK` block declares which language/runtime is required.
-For example:
-
-- `lang=Python 3.11` → requires Python 3.11 to be available on `PATH`
-- `lang=Go 1.23` → requires Go 1.23 compiler
-- `lang=Node.js 18` → requires Node.js 18
-
-For local test, need to install required language runtimes in local environment.
-For CI, We specify languages manually in the CI config because language setup there is static, 
-can not be installed automatically. And installing runtimes via package commands is more complicated 
-than using the CI’s built-in language configuration.
-
-**Package dependencies:**
-
-The `deps=` field (optional) specifies packages to install. Examples:
-
-- `deps=pip install numpy requests>=2.0` → install via pip
-- `deps=go get github.com/lib/pq@v1.10.0` → install via go get
-
-For local testing, need to manually install declared dependencies. For CI, use `--collect`:
-
-```bash
-sedrila maintainer --collect > deps.json
-# Outputs: {"dependencies": ["pip install numpy", ...], "languages": {"Python": "3.11", ...}}
-```
-
-CI workflows use `--collect` to extract dependencies, then install them before running tests.
-
-
-### 5.2 Test types and behavior
-
-The `typ=` field in `@PROGRAM_CHECK` determines how a program is tested.
-
-**direct**: Automated output verification
-
-Commands are executed automatically and output is compared:
-
-- All declared commands must execute successfully
-- Actual output must match expected output (with whitespace normalization)
-- Test passes only if ALL commands match
-
-Use `typ=direct` for deterministic programs with stable output.
-
-**manual**: Manual verification required
-
-Test execution is skipped; program marked "Manual Review Required" in report.
-Requires `manual_reason=` field explaining why manual testing is needed.
-
-Use `typ=manual` for:
-
-- Non-deterministic output (timestamps, memory addresses)
-- Interactive programs requiring user input
-- Timing-dependent behavior
-- Programs with environment-specific results
-
-### 5.3 @PROGRAM_CHECK block format
-
-`@PROGRAM_CHECK` blocks contain metadata for automated testing. They should appear
-at the beginning of a `.prot` file for clarity, but can appear anywhere in the file.
-
-**Placement and syntax:**
+`@PROGRAM_CHECK` blocks contain metadata for automated testing.
+Placement and syntax:
 
 - Should be at `.prot` file start (recommended for clarity)
 - Block starts with line containing only `@PROGRAM_CHECK`
 - Block ends at first blank line
 - Inside block: one `key=value` per line, no spaces around `=`
-- `deps` field can span multiple lines (subsequent lines without `=` are appended as separate commands)
+- `lang` and `deps` can span multiple lines (subsequent lines without `=` are appended as separate commands)
 - No comments allowed inside @PROGRAM_CHECK block
 
 Example:
 
 ```
 @PROGRAM_CHECK
-lang=Python 3.11
+lang=apt-get install -y python3-pip
 deps=pip install numpy
 pip install requests>=2.0
-typ=direct
+typ=exact
 
 $ python myscript.py
 Hello World
 ```
 
-**Required fields:**
+Required fields:
 
-`lang=<language and version>` - Language runtime and version.
-Examples: `lang=Python 3.11`, `lang=Go 1.23`
+`typ=<test type>`: One of `exact`, `regex`, `manual`
 
-`typ=<test type>` - One of: `direct`, `manual`
+Optional fields:
 
-**Optional fields:**
+`lang=<install command>`: Language runtime installation command(s) for the target system (e.g., Debian 12).
+Can span multiple lines (subsequent lines without `=` are appended as separate install commands).
+Examples: `lang=apt-get install -y golang-go`, `lang=apt-get install -y python3-pip`
 
-`deps=<install command>` - Package installation command.
+`deps=<install command>`: Package dependency installation command(s).
+Can span multiple lines (subsequent lines without `=` are appended as separate install commands).
 Examples: `deps=pip install numpy requests`, `deps=go get github.com/lib/pq`
 
-`manual_reason=<text>` - Required when `typ=manual`. Explains why manual testing is needed.
+`manual_reason=<text>`: Required when `typ=manual`. Explains why manual testing is needed.
 Example: `manual_reason=Output contains timestamps`
 
-`files=<list>` - Comma-separated list of additional files used by the program (short names only, e.g., `helper.py`).
-Create a corresponding `.files` file in the chapter directory (e.g., `ch/Sprachen/Go/task.files`) with one file path per line.
-Programchecker automatically substitutes file names in test commands with their absolute paths.
+`files=<list>`: Comma-separated list of additional files used by the program (short names only, e.g., `helper.py`).
+Create a corresponding `.files` file in the **altdir** directory (same location as `.prot` file, e.g., `altdir/ch/Sprachen/Go/go-test.files`) with one file path per line.
+
+The `.files` file supports the `$` variable for relative paths. Example for `itreedir`:
+
+```
+../../../$itreedir/Sprachen/Go/go-test.go
+../../../$itreedir/Sprachen/Go/go-test_extra.go
+```
+
+Programchecker automatically reads the `.files` file from altdir, substitutes `$itreedir` variable with the actual path from sedrila.yaml, and resolves relative paths.
+If no `.files` file is provided or a file is not listed, programchecker looks for it in the same directory as the `.prot` file.
+
+During test execution, each command (`$` line) and expected output are extracted as a single test.
+Commands execute sequentially in the isolated directory; test passes only if all commands match.
+Before testing, generated files are cleaned up to ensure a fresh environment (databases, logs, cache directories).
+The temporary directory is removed after testing completes, preventing test failures from residual files.
+
+### 5.2 Operating environment and dependencies
+
+Program testing requires language runtimes and package dependencies specified via `@PROGRAM_CHECK` blocks.
+
+Base requirements:**
+
+- Python: 3.11 or higher (required for sedrila itself)
+- itreedir: Must exist as a directory with program source files
+
+Language runtimes:
+
+The `lang=` field declares installation commands for the language/runtime environment.
+Typically specified only in the first/foundational task of a taskgroup, since all tasks in the same taskgroup share the same language runtime.
+
+Examples:
+
+- `lang=apt-get install -y golang-go` → installs Go compiler
+- `lang=curl -fL https://golang.org/dl/go1.25.5.linux-amd64.tar.gz | tar -C /usr/local -xz` → installs Go 1.25.5
+- `lang=apt-get install -y python3-pip` → installs Python 3 pip
+
+The `lang=` field supports multi-line install commands (subsequent lines without `=` are appended).
+If a task group has multiple tasks with `lang=` declarations, only unique commands are installed (deduplication).
+
+Package dependencies:
+
+The `deps=` field specifies per-task package dependencies that differ from other tasks in the same taskgroup. Examples:
+
+- `deps=pip install fastapi uvicorn` → install Python packages specific to this task
+- `deps=go get github.com/lib/pq@v1.10.0` → install Go dependencies specific to this task
+
+Tasks without a `deps=` field will use only the taskgroup's language runtime without additional dependencies.
+
+The `deps=` field also supports multi-line commands (subsequent lines without `=` are appended).
+
+For local testing, need to manually install declared dependencies. For CI, use `--collect` to get the full list.
+
+Installation and execution in CI:
+
+Language runtime is installed once per taskgroup, then each task's dependencies are installed fresh (isolated context).
+Tasks within a taskgroup execute serially respecting `assumes` dependencies; different taskgroups execute in parallel.
+Each test runs in a temporary isolated directory with only required files; the directory is automatically cleaned up after testing (success or failure).
+This isolation ensures tests don't interfere with each other and test results are reproducible.
+
+Example with 2 taskgroups (Go, Python) and 4 workers:
+- Worker 1: go-basics → go-functions → go-maps (serial)
+- Worker 2: python-basics → FastAPI-GET (serial)
+- Workers 3-4: idle
 
 
-### 5.4 Multi-command testing and cleanup
+### 5.3 Test types
 
-The program checker processes all testable commands from each `.prot` file:
+The `typ=` field in `@PROGRAM_CHECK` determines how a program is tested.
 
-- Each command (`$` line) and its expected output are extracted as a single test
-- Commands are executed sequentially in the program's working directory
-- Output is compared; test passes only if ALL commands match
-- Detailed test reports show pass/fail status for each command
+**exact**: Automated output verification
 
-Before and after testing, generated files are automatically cleaned up to ensure a fresh environment:
-- Database files (`.db`, `.sqlite`, `.sqlite3`)
-- Log files (`.log`, `.shortlog`)
-- Python cache directories (`__pycache__`, `*.pyc`)
+Commands are executed automatically and output is compared (whitespace normalized).
+Test passes only if all commands match expected output.
 
-This prevents test failures from residual files and ensures reproducible results across runs.
+Use `typ=exact` for deterministic programs with stable output.
+
+**regex**: Pattern-based output verification
+
+Commands are executed and output matched against regex patterns in `@PROT_SPEC` blocks.
+Falls back to `exact` mode if no `@PROT_SPEC` blocks are found.
+
+Use `typ=regex` for output with acceptable variations.
+
+**manual**: Manual verification required
+
+Test execution is skipped; requires `manual_reason=` field explaining why.
+
+Use `typ=manual` for non-deterministic output, interactive programs, timing-dependent behavior, or environment-specific results.
+
