@@ -683,7 +683,18 @@ class EncryptedProtFile(TransformedFile):
     """
     fingerprints: list[str]  # keyfingerprint field of each instructor that has it set
 
-    pass  # no extra code, only attributes
+    def check_existing_resource(self):
+        """Implement incremental build: only re-encrypt when source .prot file changes."""
+        if not os.path.exists(self.outputfile_s):
+            self.state = c.State.MISSING
+            return
+        self.state = c.State.AS_BEFORE
+        for dep in self.my_dependencies():
+            if not hasattr(dep, 'state'):
+                dep.check_existing_resource()
+            if dep.state != c.State.AS_BEFORE:
+                self.state = c.State.HAS_CHANGED
+                break
 
 
 class Source(Element):  # abstract class
