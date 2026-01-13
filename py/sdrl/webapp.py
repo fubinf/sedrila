@@ -8,7 +8,6 @@ import textwrap
 import traceback
 import typing as tg
 import html
-import wsgiref.simple_server
 import urllib.parse
 
 import bottle  # https://bottlepy.org/docs/dev/
@@ -179,23 +178,15 @@ def run(ctx: sdrl.participant.Context):
     # macroexpanders.register_macros(ctx.course)  # noqa
     b.info(f"Webserver starts. Visit 'http://localhost:{ctx.pargs.port}/'. Terminate with Ctrl-C.")
 
-    class CustomHandler(wsgiref.simple_server.WSGIRequestHandler):
-        timeout = 0.5  # half a second should always suffice for sending 'proper' requests
-
-        def log_message(self, format, *args):
-            pass
-
-        def handle(self, *args, **kwargs):
-            try:
-                super().handle(*args, **kwargs)
-            except TimeoutError:
-                # timeouts are a regular thing because browsers open connections as stockpile
-                # which our single-threaded server cannot handle concurrently.
-                pass  # no need to do anything about them
-
+    # Use waitress as multi-threaded WSGI server to avoid browser connection
+    # stockpile deadlocks (https://issues.chromium.org/issues/40978518)
     bottle.run(
-        host='localhost', port=ctx.pargs.port, debug=DEBUG, reloader=False, quiet=True,
-        handler_class=CustomHandler
+        server='waitress',
+        host='localhost',
+        port=ctx.pargs.port,
+        debug=DEBUG,
+        reloader=False,
+        quiet=True
     )
 
 
