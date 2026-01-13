@@ -35,8 +35,10 @@ File 'ch/glossary.md':
 ../out/task121.html
 ../out/task122.html
 ../out/glossary.html
+File 'ch/ch1/tg11/task111r+a.md':
+   [TERMREF::Concept 4 undefined] references undefined glossary term 'Concept 4 undefined' (file 'ch/ch1/tg11/task111r+a.md' in part 'task111r+a')
 File 'ch/glossary.md':
-   These terms lack a definition: ['Concept 2 undefined', 'Concept 4 undefined']
+   Term 'Concept 2 undefined' is used in 'explains:' field (in task111r+a) but lacks a glossary definition
 """
 
 expected_output2 = """File 'ch/ch1/tg11/task111r+a.md':
@@ -44,8 +46,10 @@ expected_output2 = """File 'ch/ch1/tg11/task111r+a.md':
 File 'ch/glossary.md':
    [TERM::Concept 3]: Term 'Concept 3' is already defined
 ../out/glossary.html
+File 'ch/ch1/tg11/task111r+a.md':
+   [TERMREF::Concept 4 undefined] references undefined glossary term 'Concept 4 undefined' (file 'ch/ch1/tg11/task111r+a.md' in part 'task111r+a')
 File 'ch/glossary.md':
-   These terms lack a definition: ['Concept 2 undefined', 'Concept 4 undefined']
+   Term 'Concept 2 undefined' is used in 'explains:' field (in task111r+a) but lacks a glossary definition
 """
 
 expected_output3 = """../out/instructor/itree.zip
@@ -253,10 +257,10 @@ def test_sedrila_author(capfd):
         b.suppress_msg_duplicates(True)
         # --- step 1: create and check output as-is:
         course1, actual_output1 = call_sedrila_author("step 1: initial build", myoutputdir, catcher)
-        check_output1(course1, actual_output1, expected_output1, errors=2)
+        check_output1(course1, actual_output1, expected_output1, errors=3)
         # --- step 2: build same config again:
         course2, actual_output2 = call_sedrila_author("step 2: identical rebuild", myoutputdir, catcher)
-        check_output2(course2, actual_output2, expected_output2, errors=2)
+        check_output2(course2, actual_output2, expected_output2, errors=3)
         # --- step 3: repair errors:
         b.spit("ch/glossary.md", 
                b.slurp("ch/glossary.md").replace("[TERM0::Concept 3|Concept 3b]",
