@@ -26,6 +26,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
     explainedby: dict[str, set[str]]  # explainedby[term] == partnames_with_explain
     mentionedby: dict[str, set[str]]  # mentionedby[term] == partnames_with_termref
     termdefs: set[str]  # what has a [TERMx] in glossary.md
+    termref_usages: dict[str, list[tuple[str, str, str]]]  # termref_usages[term] == [(filename, partname, macrocall_text)]
     term_linkslist: tg.Optional[list[str]]  # the lines of the linksblock
     rendered_content: str = ''  # results of render(); re-render would report duplicate definitions
     includefiles: list[str]  # files INCLUDEd while rendering the glossary
@@ -40,6 +41,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         self.explainedby = dict()
         self.mentionedby = dict()
         self.termdefs = set()
+        self.termref_usages = dict()  # track where each TERMREF is used: {term: [(file, part, macrocall_text)]}
         self.term_linkslist = None  # set by [TERM], used and unset by [ENDTERM]
         self.register_macros_phase1()
         self.directory.make_the(el.Sourcefile, self.sourcefile)
@@ -97,18 +99,42 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         explainedby is filled because of Part.process_topmatter().
         mentionedby is incompletely filled because most markdown does not get rendered in a given build.
         We fill it here properly from the TermrefList objects.
+
+        Additionally, we fill termref_usages from TermrefList for cache-safe error reporting.
         """
         for termreflist in self.directory.get_all(el.TermrefList):
             for term in termreflist.value:
                 self.mentions(termreflist.part.name, term)
+                # Also populate termref_usages for error reporting
+                macrocall_text = f"[TERMREF::{term}]"
+                if term not in self.termref_usages:
+                    self.termref_usages[term] = []
+                usage_tuple = (termreflist.part.sourcefile, termreflist.part.name, macrocall_text)
+                self.termref_usages[term].append(usage_tuple)
+
+        # Deduplicate all usage lists
+        for term in self.termref_usages:
+            self.termref_usages[term] = list(set(self.termref_usages[term]))
 
     def report_issues(self):
-        terms_explained = set(self.explainedby.keys())
-        terms_mentioned = set(self.mentionedby.keys())
-        undefined_terms = (terms_explained | terms_mentioned) - self.termdefs
-        if undefined_terms:
-            what = "This term lacks" if len(undefined_terms) == 1 else "These terms lack"
-            b.error(f"{what} a definition: {sorted(undefined_terms)}", file=self.sourcefile)
+        # Check for broken TERMREFs
+        for term, usages in self.termref_usages.items():
+            if term not in self.termdefs:
+                for filename, partname, macrocall_text in usages:
+                    location = f"file '{filename}'"
+                    if partname:
+                        location += f" in part '{partname}'"
+                    b.error(f"{macrocall_text} references undefined glossary term '{term}' ({location})",
+                            file=filename)
+
+        # Check for terms that are explained but not defined
+        for term in self.explainedby.keys():
+            if term not in self.termdefs:
+                explaining_parts = sorted(self.explainedby[term])
+                parts_str = ", ".join(explaining_parts)
+                b.error(f"Term '{term}' is used in 'explains:' field (in {parts_str}) but lacks a glossary definition",
+                        file=self.sourcefile)
+
 
     def register_macros_phase1(self):
         macros.register_macro("TERMREF", 1, macros.MM.INNER, self._expand_termref)
@@ -164,6 +190,12 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
         elif label.startswith("&ndash;"):  # e.g. [TERMREF2::class::--like] for 'class-like', but
             # Markdown extension smarty has garbled the '--' into '&ndash;' 
             label = f"{term}-{label[len('&ndash;'):]}"
+
+        # Track where this TERMREF is used for later validation
+        if term not in self.termref_usages:
+            self.termref_usages[term] = []
+        self.termref_usages[term].append((macrocall.filename, macrocall.partname, macrocall.macrocall_text))
+
         target = "%s.html#%s" % (c.AUTHOR_GLOSSARY_BASENAME, b.slugify(term))
         self._macro_mentions(macrocall, term)
         return (f"<a href='{target}' class='glossary-termref-term'>"
