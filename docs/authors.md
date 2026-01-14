@@ -1050,7 +1050,8 @@ Notes:
 - Use `skip=1` for commands with no meaningful output (e.g., `cd`)
 - Use `manual=` for variable output requiring instructor judgment (e.g., HTTP responses with timestamps)
 - `@PROT_SPEC` blocks are filtered out when rendering protocols for students
-- During the build, all `.prot` files are automatically encrypted (using instructor public keys from `sedrila.yaml`)
+- Only `.prot` files referenced by `[PROT::]` macros in markdown are registered for encryption.
+- During the build, referenced `.prot` files are automatically encrypted (using instructor public keys from `sedrila.yaml`)
   and saved as `.prot.crypt` in the student output directory. This prevents students from viewing comparison results;
   only instructors with the corresponding private key can decrypt and see whether a student's protocol matches the reference.
 - Instructors can point to the output folder of a local `sedrila author` build using a `file://` URL in their student.yaml
