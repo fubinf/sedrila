@@ -182,7 +182,11 @@ Example:
 lang=apt-get install -y python3-pip
 deps=pip install numpy
 pip install requests>=2.0
-typ=exact
+typ=regex
+
+@PROT_SPEC
+command_re=^python myscript\.py$
+output_re=Hello World
 
 $ python myscript.py
 Hello World
@@ -190,7 +194,7 @@ Hello World
 
 Required fields:
 
-`typ=<test type>`: One of `exact`, `regex`, `manual`
+`typ=<test type>`: One of `regex`, `manual`
 
 Optional fields:
 
@@ -276,19 +280,11 @@ Example with 2 taskgroups (Go, Python) and 4 workers:
 
 The `typ=` field in `@PROGRAM_CHECK` determines how a program is tested.
 
-**exact**: Automated output verification
-
-Commands are executed automatically and output is compared (whitespace normalized).
-Test passes only if all commands match expected output.
-
-Use `typ=exact` for deterministic programs with stable output.
-
 **regex**: Pattern-based output verification
 
 Commands are executed and output matched against regex patterns in `@PROT_SPEC` blocks.
-Falls back to `exact` mode if no `@PROT_SPEC` blocks are found.
 
-Use `typ=regex` for output with acceptable variations.
+Use `typ=regex` for deterministic programs with stable output or output with acceptable variations.
 
 **manual**: Manual verification required
 
