@@ -35,8 +35,12 @@ def add_arguments(subparser: argparse.ArgumentParser):
                            help="Test exemplary programs against protocol files")
     subparser.add_argument('--collect', action='store_true',
                            help="Collect languages and dependencies from @PROGRAM_CHECK blocks, output as JSON")
+    subparser.add_argument('-o', '--output', metavar="json_file",
+                           help="Output file for --collect (if not specified, writes to stdout)")
     subparser.add_argument('--batch', action='store_true',
                            help="Use batch/CI-friendly output: concise output, only show failures, complete error list at end")
+    subparser.add_argument('--taskgroup-paths', metavar="json_file",
+                           help="JSON file mapping taskgroup names to isolated installation paths (e.g., {\"Python\": \"/tmp/taskgroup_Python\", \"Go\": \"/tmp/taskgroup_Go\"})")
     subparser.add_argument('targetdir', nargs='?',
                            help="Directory for maintenance reports (optional for --collect)")
 
@@ -219,6 +223,7 @@ def check_programs_command(pargs: argparse.Namespace):
     """Execute program testing (lightweight, no course build)."""
     try:
         import sdrl.programchecker as programchecker
+        import json
     except ImportError as e:
         b.error(f"Cannot import program checking modules: {e}")
         return
@@ -245,10 +250,18 @@ def check_programs_command(pargs: argparse.Namespace):
         )
         _build_metadata_only(directory)
         targets = programchecker.extract_program_test_targets(the_course)
+        # Read taskgroup_paths if provided
+        taskgroup_paths = {}
+        if pargs.taskgroup_paths:
+            with open(pargs.taskgroup_paths, 'r') as f:
+                paths_data = json.load(f)
+                taskgroup_paths = paths_data.get('taskgroups', paths_data)
+                b.info(f"Loaded taskgroup isolation paths for {len(taskgroup_paths)} taskgroups")
         checker = programchecker.ProgramChecker(
             parallel_execution=True,
             report_dir=temp_report_dir,
-            course=the_course
+            course=the_course,
+            taskgroup_paths=taskgroup_paths
         )
         show_progress = not batch_mode 
         results = checker.test_all_programs(
@@ -359,7 +372,14 @@ def collect_command(pargs: argparse.Namespace):
         result = {
             "taskgroups": taskgroups
         }
-        print(json.dumps(result, indent=2, sort_keys=True))
+        # Output to file or stdout
+        output_json = json.dumps(result, indent=2, sort_keys=True)
+        if hasattr(pargs, 'output') and pargs.output:
+            with open(pargs.output, 'w') as f:
+                f.write(output_json)
+            b.info(f"Metadata collected and written to {pargs.output}")
+        else:
+            print(output_json)
         the_cache.close()
     except Exception as e:
         b.error(f"Failed to collect metadata: {e}")

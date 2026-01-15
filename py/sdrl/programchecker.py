@@ -9,6 +9,7 @@ import subprocess as sp
 import os
 import time
 import tempfile
+import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -316,7 +317,8 @@ class ProgramChecker:
     def __init__(self, course_root: Path = None, parallel_execution: bool = True,
                  report_dir: str = None, max_workers: Optional[int] = None,
                  itreedir: Optional[Path] = None, chapterdir: Optional[Path] = None,
-                 course: Optional[Any] = None, config_vars: Optional[Dict[str, str]] = None):
+                 course: Optional[Any] = None, config_vars: Optional[Dict[str, str]] = None,
+                 taskgroup_paths: Optional[Dict[str, str]] = None):
         """Initialize ProgramChecker."""
         self.course_root = course_root or Path.cwd()
         self.report_dir = report_dir or str(Path.cwd())
@@ -326,6 +328,7 @@ class ProgramChecker:
         self.itreedir = itreedir
         self.chapterdir = chapterdir
         self.course = course
+        self.taskgroup_paths = taskgroup_paths or {}
         # Extract altdir and itreedir paths (same as extract_program_test_targets uses)
         self._altdir_path = Path(course.altdir).resolve() if course else None
         self._itreedir_path = Path(course.itreedir).resolve() if course else None
@@ -698,7 +701,8 @@ class ProgramChecker:
                     actual = self._run_command(
                         substituted_command,
                         temp_dir,
-                        config.timeout
+                        config.timeout,
+                        taskgroup=config.taskgroup
                     )
                     # Regex mode: use output_re pattern matching
                     if command_test.check_rule is None or not command_test.check_rule.output_re:
@@ -763,8 +767,16 @@ class ProgramChecker:
                 'error_message': f"Invalid regex pattern '{check_rule.output_re}': {e}"
             }
 
-    def _run_command(self, command: str, working_dir: Path, timeout: int) -> str:
+    def _run_command(self, command: str, working_dir: Path, timeout: int,
+                     taskgroup: Optional[str] = None) -> str:
         """Run a command and return its output."""
+        env = os.environ.copy()
+        # If taskgroup is specified and has a path, modify PATH to use taskgroup bin
+        if taskgroup and taskgroup in self.taskgroup_paths:
+            lang_dir = self.taskgroup_paths[taskgroup]
+            bin_dir = str(Path(lang_dir) / "bin")
+            env['PATH'] = f"{bin_dir}:{env.get('PATH', '')}"
+
         try:
             result = sp.run(
                 command,
@@ -773,7 +785,8 @@ class ProgramChecker:
                 text=True,
                 timeout=timeout,
                 check=False,
-                shell=True  # Allow shell interpretation for commands
+                shell=True,  # Allow shell interpretation for commands
+                env=env
             )
             return result.stdout + result.stderr
         except sp.TimeoutExpired:
@@ -904,6 +917,42 @@ class ProgramChecker:
             commands = header.get_install_commands()
             task_deps[program_name] = commands if commands else []
         return task_deps
+
+    def collect_metadata_by_taskgroup(self, targets: List[ProgramTestTarget]) -> Dict[str, Any]:
+        """Collect metadata grouped by taskgroup including lang and deps."""
+        taskgroup_metadata: Dict[str, Dict[str, Any]] = {}
+        for target in targets:
+            taskgroup = target.taskgroup
+            header = target.program_check_header
+            program_name = target.protocol_file.stem
+            # Initialize taskgroup if not exists
+            if taskgroup not in taskgroup_metadata:
+                taskgroup_metadata[taskgroup] = {
+                    'lang': [],
+                    'deps': [],
+                    'tasks': []
+                }
+            lang_commands = header.get_lang_install_commands()
+            for cmd in lang_commands:
+                if cmd not in taskgroup_metadata[taskgroup]['lang']:
+                    taskgroup_metadata[taskgroup]['lang'].append(cmd)
+            dep_commands = header.get_install_commands()
+            for cmd in dep_commands:
+                if cmd not in taskgroup_metadata[taskgroup]['deps']:
+                    taskgroup_metadata[taskgroup]['deps'].append(cmd)
+            taskgroup_metadata[taskgroup]['tasks'].append({
+                'program': program_name,
+                'protocol': str(target.protocol_file)
+            })
+        return taskgroup_metadata
+
+    def generate_metadata_json(self, targets: List[ProgramTestTarget], output_file: Path) -> None:
+        """Generate metadata.json from targets with taskgroup grouping."""
+        metadata = self.collect_metadata_by_taskgroup(targets)
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_file, 'w') as f:
+            json.dump({'taskgroups': metadata}, f, indent=2)
+        b.info(f"Metadata written to {output_file}")
 
     def test_all_programs(self, targets: List[ProgramTestTarget], itree_root: Optional[Path] = None,
                          show_progress: bool = True, batch_mode: bool = False) -> List[ProgramTestResult]:
