@@ -334,7 +334,7 @@ def collect_command(pargs: argparse.Namespace):
             task_name = target.protocol_file.stem
             if taskgroup not in taskgroups:
                 taskgroups[taskgroup] = {
-                    "lang_commands": lang_by_taskgroup.get(taskgroup, []),
+                    "lang": lang_by_taskgroup.get(taskgroup, []),
                     "tasks": {}
                 }
             task_obj = the_course.task(task_name)
