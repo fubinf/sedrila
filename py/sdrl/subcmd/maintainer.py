@@ -368,6 +368,13 @@ def collect_command(pargs: argparse.Namespace):
                 else:
                     to_visit.append(task_name)
             taskgroups[taskgroup]["execution_order"] = execution_order
+            # Aggregate deps at taskgroup level (deduplicated)
+            taskgroup_deps = []
+            for task_data in taskgroups[taskgroup]["tasks"].values():
+                for dep in task_data.get("deps", []):
+                    if dep not in taskgroup_deps:
+                        taskgroup_deps.append(dep)
+            taskgroups[taskgroup]["deps"] = taskgroup_deps
 
         result = {
             "taskgroups": taskgroups
