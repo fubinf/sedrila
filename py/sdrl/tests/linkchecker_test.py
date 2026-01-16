@@ -24,6 +24,18 @@ TEST_URL_EXAMPLE = "https://example.com"
 TEST_CONTENT_SEDRILA = "SeDriLa"
 TEST_CONTENT_NONEXISTENT = "ThisTextShouldNotExistAnywhere123456"
 
+# Course structure constants
+TEST_CHDIR_NAME = "ch"
+TEST_ALTDIR_NAME = "alt"
+TEST_STAGES = ["draft", "alpha", "beta"]
+TEST_CHAPTER_NAME = "Chapter1"
+TEST_TASKGROUP_A = "TaskgroupA"
+TEST_TASKGROUP_B = "TaskgroupB"
+TEST_TASKGROUP_C = "TaskgroupC"
+TEST_SCENARIO_COURSE = "course"
+TEST_SCENARIO_DUPLICATE = "duplicate"
+TEST_SCENARIO_MISSING = "missing"
+
 
 def write_markdown(tmp_path, content, filename="test.md"):
     """Write markdown content into tmp_path and return the file path."""
@@ -55,19 +67,18 @@ def stub_requests(monkeypatch, responses: list[FakeResponse]):
 def course_env(include_stage: str):
     """Yield a Coursebuilder configured for the requested stage."""
     original_cwd = os.getcwd()
-    with tempfile.TemporaryDirectory() as tmpdir:
-        try:
+    the_cache = None
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
             create_test_course_structure(tmpdir)
             targetdir_s = os.path.join(tmpdir, 'output')
             targetdir_i = os.path.join(tmpdir, 'output_i')
             os.makedirs(targetdir_s, exist_ok=True)
             os.makedirs(targetdir_i, exist_ok=True)
-            
             os.chdir(tmpdir)
             sdrl.macros.macrodefs_early.clear()
             sdrl.macros.macrodefs_late.clear()
             sdrl.macros.macrostate.clear()
-            
             the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=True)
             b.set_register_files_callback(the_cache.set_file_dirty)
             directory = dir.Directory(the_cache)
@@ -89,10 +100,11 @@ def course_env(include_stage: str):
                 topmatter_elem.do_build()
                 part.process_topmatter(part.sourcefile, topmatter_elem.value, course)
             yield course
-        finally:
-            b.set_register_files_callback(None)
+    finally:
+        b.set_register_files_callback(None)
+        if the_cache:
             the_cache.close()
-            os.chdir(original_cwd)
+        os.chdir(original_cwd)
 
 
 @pytest.mark.parametrize(
@@ -242,25 +254,25 @@ def test_multiple_links_on_same_line(tmp_path):
 
 def create_test_course_structure(base_dir):
     """Create a minimal multi-stage course structure for maintainer tests."""
-    ch_dir = os.path.join(base_dir, 'ch')
-    alt_dir = os.path.join(base_dir, 'alt')
+    ch_dir = os.path.join(base_dir, TEST_CHDIR_NAME)
+    alt_dir = os.path.join(base_dir, TEST_ALTDIR_NAME)
     os.makedirs(ch_dir, exist_ok=True)
     os.makedirs(alt_dir, exist_ok=True)
     config = {
         'title': 'Test Course',
         'name': 'test-course',
-        'chapterdir': 'ch',
-        'altdir': 'alt',
-        'stages': ['draft', 'alpha', 'beta'],
-        'instructors': [],  # Required field
-        'allowed_attempts': '2',  # Required field
+        'chapterdir': TEST_CHDIR_NAME,
+        'altdir': TEST_ALTDIR_NAME,
+        'stages': TEST_STAGES,
+        'instructors': [],
+        'allowed_attempts': '2',
         'chapters': [
             {
-                'name': 'Chapter1',
+                'name': TEST_CHAPTER_NAME,
                 'taskgroups': [
-                    {'name': 'TaskgroupA'},
-                    {'name': 'TaskgroupB'},
-                    {'name': 'TaskgroupC'},
+                    {'name': TEST_TASKGROUP_A},
+                    {'name': TEST_TASKGROUP_B},
+                    {'name': TEST_TASKGROUP_C},
                 ]
             }
         ]
@@ -273,7 +285,7 @@ def create_test_course_structure(base_dir):
             ---
             # Glossary
         """).lstrip())
-    chapter1_dir = os.path.join(ch_dir, 'Chapter1')
+    chapter1_dir = os.path.join(ch_dir, TEST_CHAPTER_NAME)
     os.makedirs(chapter1_dir, exist_ok=True)
     with open(os.path.join(chapter1_dir, 'index.md'), 'w') as f:
         f.write(textwrap.dedent("""
@@ -281,7 +293,7 @@ def create_test_course_structure(base_dir):
             ---
             # Chapter 1
         """).lstrip())
-    tga_dir = os.path.join(ch_dir, 'Chapter1', 'TaskgroupA')
+    tga_dir = os.path.join(ch_dir, TEST_CHAPTER_NAME, TEST_TASKGROUP_A)
     os.makedirs(tga_dir, exist_ok=True)
     with open(os.path.join(tga_dir, 'index.md'), 'w') as f:
         f.write(textwrap.dedent("""
@@ -303,7 +315,7 @@ def create_test_course_structure(base_dir):
 
             Link in task: [GitHub](https://github.com)
         """).lstrip())
-    tgb_dir = os.path.join(ch_dir, 'Chapter1', 'TaskgroupB')
+    tgb_dir = os.path.join(ch_dir, TEST_CHAPTER_NAME, TEST_TASKGROUP_B)
     os.makedirs(tgb_dir, exist_ok=True)
     with open(os.path.join(tgb_dir, 'index.md'), 'w') as f:
         f.write(textwrap.dedent("""
@@ -325,7 +337,7 @@ def create_test_course_structure(base_dir):
 
             Yet another link: [ReadTheDocs](https://readthedocs.org)
         """).lstrip())
-    tgc_dir = os.path.join(ch_dir, 'Chapter1', 'TaskgroupC')
+    tgc_dir = os.path.join(ch_dir, TEST_CHAPTER_NAME, TEST_TASKGROUP_C)
     os.makedirs(tgc_dir, exist_ok=True)
     with open(os.path.join(tgc_dir, 'index.md'), 'w') as f:
         f.write(textwrap.dedent("""
@@ -336,7 +348,7 @@ def create_test_course_structure(base_dir):
 
             Draft link: [Wikipedia](https://wikipedia.org)
         """).lstrip())
-    alt_tga_dir = os.path.join(alt_dir, 'Chapter1', 'TaskgroupA')
+    alt_tga_dir = os.path.join(alt_dir, TEST_CHAPTER_NAME, TEST_TASKGROUP_A)
     os.makedirs(alt_tga_dir, exist_ok=True)
     with open(os.path.join(alt_tga_dir, 'index.md'), 'w') as f:
         f.write(textwrap.dedent("""
@@ -347,7 +359,7 @@ def create_test_course_structure(base_dir):
 
             Alt link: [MDN](https://developer.mozilla.org)
         """).lstrip())
-    not_in_config_dir = os.path.join(ch_dir, 'Chapter1', 'NotInConfig')
+    not_in_config_dir = os.path.join(ch_dir, TEST_CHAPTER_NAME, 'NotInConfig')
     os.makedirs(not_in_config_dir, exist_ok=True)
     with open(os.path.join(not_in_config_dir, 'index.md'), 'w') as f:
         f.write(textwrap.dedent("""
@@ -379,31 +391,31 @@ def test_extract_files_ignores_unconfigured_taskgroups():
 
 def prepare_altdir_scenario(tmp_path, scenario: str):
     """Create chapter/altdir fixtures for the given test scenario."""
-    ch_dir = tmp_path / 'ch'
-    alt_dir = tmp_path / 'alt'
+    ch_dir = tmp_path / TEST_CHDIR_NAME
+    alt_dir = tmp_path / TEST_ALTDIR_NAME
     ch_dir.mkdir(parents=True, exist_ok=True)
     alt_dir.mkdir(parents=True, exist_ok=True)
-    if scenario == 'course':
-        tga = ch_dir / 'Chapter1' / 'TaskgroupA'
+    if scenario == TEST_SCENARIO_COURSE:
+        tga = ch_dir / TEST_CHAPTER_NAME / TEST_TASKGROUP_A
         tga.mkdir(parents=True, exist_ok=True)
         ch_index = tga / 'index.md'
         ch_task = tga / 'Task1.md'
         ch_index.write_text("ch index", encoding='utf-8')
         ch_task.write_text("ch task", encoding='utf-8')
-        alt_tga = alt_dir / 'Chapter1' / 'TaskgroupA'
+        alt_tga = alt_dir / TEST_CHAPTER_NAME / TEST_TASKGROUP_A
         alt_tga.mkdir(parents=True, exist_ok=True)
         alt_index = alt_tga / 'index.md'
         alt_index.write_text("alt index", encoding='utf-8')
         seeds = [str(ch_index), str(ch_task)]
         expected = {str(ch_index), str(ch_task), str(alt_index)}
-    elif scenario == 'duplicate':
+    elif scenario == TEST_SCENARIO_DUPLICATE:
         ch_file = ch_dir / 'test.md'
         alt_file = alt_dir / 'test.md'
         ch_file.write_text("ch", encoding='utf-8')
         alt_file.write_text("alt", encoding='utf-8')
         seeds = [str(ch_file)]
         expected = {str(ch_file), str(alt_file)}
-    elif scenario == 'missing':
+    elif scenario == TEST_SCENARIO_MISSING:
         ch_file = ch_dir / 'test.md'
         ch_file.write_text("ch", encoding='utf-8')
         seeds = [str(ch_file)]
@@ -413,7 +425,7 @@ def prepare_altdir_scenario(tmp_path, scenario: str):
     return str(ch_dir), str(alt_dir), seeds, expected
 
 
-@pytest.mark.parametrize("scenario", ["course", "duplicate", "missing"])
+@pytest.mark.parametrize("scenario", [TEST_SCENARIO_COURSE, TEST_SCENARIO_DUPLICATE, TEST_SCENARIO_MISSING])
 def test_add_altdir_files(tmp_path, scenario):
     """Verify add_altdir_files adds, deduplicates, or skips files per scenario."""
     ch_dir, alt_dir, seeds, expected = prepare_altdir_scenario(tmp_path, scenario)
