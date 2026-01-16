@@ -29,10 +29,8 @@ def test_extracts_spec_and_rules():
         done
         """
     )
-
     extractor = protocolchecker.ProtocolExtractor()
     protocol = extractor.extract_from_content(sample_content)
-
     assert protocol.total_entries == 2, f"Expected 2 entries, got {protocol.total_entries}"
     first = protocol.entries[0]
     assert first.command == "ls -la", f"Unexpected command {first.command}"
@@ -64,7 +62,6 @@ def test_validate_rejects_invalid_spec():
         x
         """
     )
-
     with tempfile.NamedTemporaryFile(mode="w", suffix=".prot") as f:
         f.write(invalid_content)
         f.flush()
@@ -98,7 +95,6 @@ def test_compare_respects_skip_manual_and_regex():
         v1.2.3
         """
     )
-
     student_content = _dedent(
         """
         student@laptop /tmp 11:00:00 1
@@ -114,7 +110,6 @@ def test_compare_respects_skip_manual_and_regex():
         wrong output
         """
     )
-
     with tempfile.NamedTemporaryFile(mode="w", suffix=".prot") as author_f, tempfile.NamedTemporaryFile(
         mode="w", suffix=".prot"
     ) as student_f:
@@ -210,7 +205,6 @@ def test_warns_when_manual_without_text():
         test
         """
     )
-
     with tempfile.NamedTemporaryFile(mode="w", suffix=".prot") as f:
         f.write(content_with_warning)
         f.flush()
@@ -250,7 +244,6 @@ def test_detects_unknown_keys():
         file.txt
         """
     )
-
     with tempfile.NamedTemporaryFile(mode="w", suffix=".prot") as f:
         f.write(content_with_typo)
         f.flush()
@@ -276,7 +269,6 @@ def test_extra_without_checks_warns():
         test
         """
     )
-
     with tempfile.NamedTemporaryFile(mode="w", suffix=".prot") as f:
         f.write(content_extra_only)
         f.flush()

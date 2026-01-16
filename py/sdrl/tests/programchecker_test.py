@@ -133,3 +133,91 @@ def test_filter_program_check_annotations():
     assert "typ=regex" not in filtered
     assert "$ python test.py" in filtered
     assert "$ echo done" in filtered
+
+
+def test_program_execution_with_regex_validation():
+    """Real integration test: execute a program and validate with regex."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        altdir = tmpdir_path / "altdir" / "ch" / "Python" / "basics"
+        altdir.mkdir(parents=True)
+        prog_file = altdir / "hello.py"
+        prog_file.write_text("print('Hello World 123')")
+        prot_file = altdir / "hello.prot"
+        prot_file.write_text(_dedent("""
+            @PROGRAM_CHECK
+            typ=regex
+
+            @PROT_SPEC
+            command_re=^python hello\\.py$
+            output_re=Hello World \\d+
+
+            user@host /tmp 10:00:00 1
+            $ python hello.py
+            Hello World 123
+        """))
+        header = programchecker.ProgramCheckHeaderExtractor.extract_from_file(str(prot_file))
+        checker = programchecker.ProgramChecker(
+            course_root=tmpdir_path,
+            report_dir=str(tmpdir_path)
+        )
+        checker._altdir_path = tmpdir_path / "altdir"
+        command_tests = checker.parse_command_tests_from_prot(prot_file, typ="regex")
+        config = programchecker.ProgramTestConfig(
+            program_path=prog_file,
+            program_name="hello",
+            protocol_file=prot_file,
+            program_check_header=header,
+            working_dir=altdir,
+            taskgroup="Python",
+            command_tests=command_tests
+        )
+        result = checker.test_program(config)
+        # Verify result - when successful, regex matched correctly
+        assert result.success, f"Program execution failed: {result.error_message}"
+        assert result.program_name == "hello"
+        assert result.typ == "regex"
+
+
+def test_program_execution_failure():
+    """Real integration test: program fails when output doesn't match regex."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        altdir = tmpdir_path / "altdir" / "ch" / "Python" / "basics"
+        altdir.mkdir(parents=True)
+        prog_file = altdir / "test.py"
+        prog_file.write_text("print('Goodbye World')")
+        prot_file = altdir / "test.prot"
+        prot_file.write_text(_dedent("""
+            @PROGRAM_CHECK
+            typ=regex
+
+            @PROT_SPEC
+            command_re=^python test\\.py$
+            output_re=^Hello World$
+
+            user@host /tmp 10:00:00 1
+            $ python test.py
+            Hello World
+        """))
+        header = programchecker.ProgramCheckHeaderExtractor.extract_from_file(str(prot_file))
+        checker = programchecker.ProgramChecker(
+            course_root=tmpdir_path,
+            report_dir=str(tmpdir_path)
+        )
+        checker._altdir_path = tmpdir_path / "altdir"
+        command_tests = checker.parse_command_tests_from_prot(prot_file, typ="regex")
+        config = programchecker.ProgramTestConfig(
+            program_path=prog_file,
+            program_name="test",
+            protocol_file=prot_file,
+            program_check_header=header,
+            working_dir=altdir,
+            taskgroup="Python",
+            command_tests=command_tests
+        )
+        result = checker.test_program(config)
+        # Verify failure
+        assert not result.success, "Expected test to fail due to output mismatch"
+        assert "does not match regex" in result.error_message or \
+               "Output does not match" in result.error_message
