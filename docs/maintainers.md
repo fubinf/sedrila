@@ -265,6 +265,8 @@ For local testing, need to manually install declared dependencies. For CI, use `
 
 Installation and execution in CI:
 
+Each taskgroup maintains an isolated bin directory with dynamically modified PATH to prevent runtime conflicts between different language environments.
+
 Language runtime is installed once per taskgroup, then each task's dependencies are installed fresh (isolated context).
 Tasks within a taskgroup execute serially respecting `assumes` dependencies; different taskgroups execute in parallel.
 Each test runs in a temporary isolated directory with only required files; the directory is automatically cleaned up after testing (success or failure).
