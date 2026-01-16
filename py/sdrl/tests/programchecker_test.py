@@ -1,0 +1,135 @@
+# pytest tests for programchecker
+import tempfile
+import textwrap
+from pathlib import Path
+
+import sdrl.programchecker as programchecker
+
+
+def _dedent(payload: str) -> str:
+    return textwrap.dedent(payload).lstrip()
+
+
+# Test data constants
+PROGRAM_CHECK_BASIC = _dedent("""
+    @PROGRAM_CHECK
+    lang=apt-get install -y python3-pip
+    deps=pip install fastapi
+    typ=regex
+""")
+
+PROGRAM_CHECK_MULTILINE = _dedent("""
+    @PROGRAM_CHECK
+    lang=apt-get install -y golang-go
+    apt-get install -y make
+    deps=go get github.com/lib/pq
+    go get github.com/spf13/cobra
+    typ=regex
+""")
+
+PROT_SPEC_BASIC = _dedent("""
+    @PROT_SPEC
+    command_re=^python test\\.py$
+    output_re=^Success$
+
+    user@host /tmp 10:00:00 1
+    $ python test.py
+    Success
+""")
+
+
+def test_extracts_program_check_from_content():
+    """Verify @PROGRAM_CHECK block extraction from protocol content."""
+    content = PROGRAM_CHECK_BASIC + "\n" + PROT_SPEC_BASIC
+    header = programchecker.ProgramCheckHeaderExtractor.extract_from_content(content)
+    assert header is not None
+    assert header.lang == "apt-get install -y python3-pip"
+    assert header.deps == "pip install fastapi"
+    assert header.typ == "regex"
+
+
+def test_parses_multiline_lang_and_deps():
+    """Verify multi-line lang and deps commands are combined."""
+    content = PROGRAM_CHECK_MULTILINE + "\n" + PROT_SPEC_BASIC
+    header = programchecker.ProgramCheckHeaderExtractor.extract_from_content(content)
+    assert header.lang is not None
+    assert "apt-get install -y golang-go" in header.lang
+    assert "apt-get install -y make" in header.lang
+    assert "\n" in header.lang, "Multi-line lang should contain newline"
+    assert header.deps is not None
+    assert "go get github.com/lib/pq" in header.deps
+    assert "go get github.com/spf13/cobra" in header.deps
+
+
+def test_header_is_valid_with_typ_regex():
+    """Verify header validity with typ=regex."""
+    header = programchecker.ProgramCheckHeader(typ="regex")
+    assert header.is_valid(), "Header with typ=regex should be valid"
+
+
+def test_header_is_valid_with_typ_manual():
+    """Verify header validity with typ=manual and manual_reason."""
+    header = programchecker.ProgramCheckHeader(
+        typ="manual",
+        manual_reason="Reason for manual testing"
+    )
+    assert header.is_valid(), "Header with typ=manual and reason should be valid"
+
+
+def test_header_invalid_missing_typ():
+    """Verify header is invalid without typ field."""
+    header = programchecker.ProgramCheckHeader()
+    assert not header.is_valid(), "Header without typ should be invalid"
+
+
+def test_header_invalid_manual_without_reason():
+    """Verify manual typ requires manual_reason."""
+    header = programchecker.ProgramCheckHeader(typ="manual")
+    assert not header.is_valid(), "Manual typ without reason should be invalid"
+
+
+def test_get_install_commands_splits_deps():
+    """Verify get_install_commands() splits deps by newline."""
+    header = programchecker.ProgramCheckHeader(
+        deps="pip install fastapi\npip install uvicorn",
+        typ="regex"
+    )
+    commands = header.get_install_commands()
+    assert len(commands) == 2, f"Expected 2 commands, got {len(commands)}"
+    assert "pip install fastapi" in commands
+    assert "pip install uvicorn" in commands
+
+
+def test_extract_taskgroup_from_path():
+    """Verify taskgroup extraction from .prot file path."""
+    prot_file = Path("/course/altdir/ch/Sprachen/Python/python_basics/basics.prot")
+    altdir_path = Path("/course/altdir")
+    taskgroup = programchecker._extract_taskgroup_from_path(prot_file, altdir_path)
+    assert taskgroup == "python_basics", f"Expected 'python_basics', got '{taskgroup}'"
+
+
+def test_find_program_file_by_matching_stem():
+    """Verify program file is found by matching .prot stem."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        altdir_task = Path(tmpdir) / "altdir" / "ch" / "Python" / "basics"
+        itreedir_task = Path(tmpdir) / "itreedir" / "Python" / "basics"
+        altdir_task.mkdir(parents=True)
+        itreedir_task.mkdir(parents=True)
+        prot_file = altdir_task / "test.prot"
+        prot_file.write_text(PROGRAM_CHECK_BASIC)
+        prog_file = itreedir_task / "test.py"
+        prog_file.write_text("print('test')")
+        (itreedir_task / "test.txt").write_text("not a program")
+        itreedir_root = Path(tmpdir) / "itreedir"
+        found = programchecker._find_program_file(itreedir_root, prot_file)
+        assert found == prog_file, f"Expected {prog_file}, got {found}"
+
+
+def test_filter_program_check_annotations():
+    """Verify @PROGRAM_CHECK blocks are removed from content."""
+    content = PROGRAM_CHECK_BASIC + "\n" + PROT_SPEC_BASIC + "\n$ echo done\ndone"
+    filtered = programchecker.filter_program_check_annotations(content)
+    assert "@PROGRAM_CHECK" not in filtered
+    assert "typ=regex" not in filtered
+    assert "$ python test.py" in filtered
+    assert "$ echo done" in filtered
