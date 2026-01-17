@@ -116,11 +116,9 @@ def test_snippet_extraction():
     snippet1 = snippets[0]
     assert snippet1.snippet_id == "basic_loop", f"Expected 'basic_loop', got '{snippet1.snippet_id}'"
     assert "for i in range(10):" in snippet1.content, "Expected loop content in snippet"
-    assert snippet1.language is None, "First snippet should have no language specified"
     snippet2 = snippets[1]
     assert snippet2.snippet_id == "function_example", f"Expected 'function_example', got '{snippet2.snippet_id}'"
     assert "def calculate_sum(a, b):" in snippet2.content, "Expected function content in snippet"
-    assert snippet2.language == "python", f"Expected language 'python', got '{snippet2.language}'"
 
 
 def test_snippet_reference_extraction_macro():

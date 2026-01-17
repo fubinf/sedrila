@@ -883,7 +883,6 @@ class MetadataDerivation(el.Step):
 class SnippetValidation(el.Step):
     """Validate code snippet references and definitions in course files."""
     course: Coursebuilder
-    
     # ----- File types to exclude from snippet validation (binary, generated, or system files)
     EXCLUDED_EXTENSIONS = {'.zip', '.tar', '.gz', '.bz2', '.xz', '.7z',
                           '.exe', '.bin', '.so', '.dll', '.dylib',
@@ -897,10 +896,8 @@ class SnippetValidation(el.Step):
         """Iterate over solution files in altdir for a given task."""
         task_dir = os.path.dirname(task.sourcefile)
         alt_task_dir = task_dir.replace(self.course.chapterdir, self.course.altdir, 1)
-        
         if not os.path.exists(alt_task_dir):
             return
-        
         for file in os.listdir(alt_task_dir):
             if (file.startswith('.') or 
                 file in self.EXCLUDED_NAMES or
@@ -925,53 +922,36 @@ class SnippetValidation(el.Step):
     def my_dependencies(self) -> tg.Iterable['el.Element']:
         """Declare dependencies on ALL tasks (like answer-task correspondence checking)."""
         deps = []
-        
         # ----- Add dependencies on ALL task source files and solution files (regardless of stage)
-        # This ensures we validate all files and report warnings for excluded stages
         for task in self.course.taskdict.values():
             # Depend on task markdown file
             sourcefile_elem = self.directory.get_the(el.Sourcefile, task.sourcefile)
             if sourcefile_elem:
                 deps.append(sourcefile_elem)
-            
             # Depend on solution files in altdir
             for solution_path in self._iter_solution_files(task):
                 # Get existing Sourcefile or create if it doesn't exist yet
                 sourcefile_elem = self.directory.make_or_get_the(el.Sourcefile, solution_path)
                 deps.append(sourcefile_elem)
-        
         return deps
 
     def do_build(self):
         """Validate snippet references and definitions, reporting errors or warnings based on stage."""
-        try:
-            import sdrl.snippetchecker as snippetchecker
-        except ImportError as e:
-            b.error(f"Cannot import snippet checking modules: {e}")
-            return
-        
-        # ----- validate snippet definitions in solution files:
+        import sdrl.snippetchecker as snippetchecker
         validator = snippetchecker.SnippetValidator()
         for task in self.course.taskdict.values():
-            # Report function based on whether task is included in current build stage
             report_func = b.warning if task.to_be_skipped else b.error
+            # Validate snippet definitions in solution files
             for solution_path in self._iter_solution_files(task):
                 errors = validator._validate_snippet_markers_in_file(solution_path)
                 for error in errors:
                     report_func(error, file=solution_path)
-        
-        # ----- validate snippet references in task files:
-        for task in self.course.taskdict.values():
-            # Report function based on whether task is included in current build stage
-            report_func = b.warning if task.to_be_skipped else b.error
-            
-            results = validator.validate_file_references(
-                task.sourcefile,
-                self.course
-            )
+            # Validate snippet references in task files
+            results = validator.validate_file_references(task.sourcefile, self.course)
             for result in results:
                 if not result.success:
-                    report_func(result.error_message, file=f"{result.reference.source_file}:{result.reference.line_number}")
+                    report_func(result.error_message,
+                               file=f"{result.reference.source_file}:{result.reference.line_number}")
 
 
 class ProtocolValidation(el.Step):

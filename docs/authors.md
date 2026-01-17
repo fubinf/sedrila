@@ -917,11 +917,12 @@ Use the `SNIPPET` macro to insert code snippets:
 
 `filespec` follows the same rules as `[INCLUDE::...]`:
 
-1. Plain relative or absolute paths are resolved relative to the task file’s location in `chapterdir`.
-2. Prefix `ALT:` switches to the corresponding path under `altdir`.
-3. Prefix `ITREE:` targets `itreedir`.
-4. An empty `filespec` (`[SNIPPET::::snippet]`) reuses the current filename and directory.
-5. Short forms such as `[SNIPPET::ITREE::mysnippet]` reuse the current task’s relative path under `itreedir`. Supplying only the filename (`[SNIPPET::ITREE:demo.py::mysnippet]`) or a full absolute path (`[SNIPPET::ITREE:Basis/IDE/demo.py::mysnippet]`) works exactly the same way as with `[INCLUDE]`.
+- Plain relative or absolute paths are resolved relative to the task file’s location in `chapterdir`.
+- Prefix `ALT:` switches to the corresponding path under `altdir`.
+- Prefix `ITREE:` targets `itreedir`.
+- An empty `filespec` (`[SNIPPET::::snippet]`) reuses the current filename and directory.
+- Short forms such as `[SNIPPET::ITREE::mysnippet]` reuse the current task’s relative path under `itreedir`. 
+- Supplying only the filename (`[SNIPPET::ITREE:demo.py::mysnippet]`) or a full absolute path (`[SNIPPET::ITREE:Basis/IDE/demo.py::mysnippet]`) works exactly the same way as with `[INCLUDE]`.
 
 Mark snippets inside solution files with single-line comments whose contents are `SNIPPET::name` and `ENDSNIPPET` (optionally `ENDSNIPPET::name`). Supported comment syntaxes include the usual one-line markers of many languages (`#`, `//`, `--`, `;`, `!`, `'`, …) as well as HTML comments `<!-- -->` for Markdown files. Examples:
 

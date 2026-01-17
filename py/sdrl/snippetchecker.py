@@ -22,12 +22,10 @@ class CodeSnippet:
     source_file: str
     start_line: int
     end_line: int
-    language: Optional[str] = None
 
 
 class SnippetExtractor:
     """Extracts code snippets from files."""
-
     GENERIC_START_RE = re.compile(
         r'^SNIPPET::(?P<id>[A-Za-z0-9_]+)(?:\s+lang=(?P<lang>[\w\-]+))?$'
     )
@@ -58,7 +56,6 @@ class SnippetExtractor:
         marker_line: int
         start_line: int
         lines: list[str]
-        language: Optional[str]
 
     def extract_snippets_from_content(
         self,
@@ -66,25 +63,20 @@ class SnippetExtractor:
         filename: str,
         collect_errors: bool = False
     ) -> tuple[list[CodeSnippet], list[str]]:
-        """
-        Extract all snippets from file content based on SNIPPET markers.
-        """
+        """Extract all snippets from file content based on SNIPPET markers."""
         snippets: list[CodeSnippet] = []
         errors: list[str] = []
         lines = content.split('\n')
         stack: list[SnippetExtractor._SnippetContext] = []
-
         for index, line in enumerate(lines):
             line_number = index + 1
-            start_info = self._match_start_marker(line)
-            if start_info:
-                snippet_id, language = start_info
+            snippet_id = self._match_start_marker(line)
+            if snippet_id:
                 ctx = self._SnippetContext(
                     snippet_id=snippet_id,
                     marker_line=line_number,
                     start_line=line_number + 1,
-                    lines=[],
-                    language=language
+                    lines=[]
                 )
                 stack.append(ctx)
                 continue
@@ -116,8 +108,7 @@ class SnippetExtractor:
                     content=snippet_content,
                     source_file=filename,
                     start_line=current.start_line,
-                    end_line=line_number - 1,
-                    language=current.language
+                    end_line=line_number - 1
                 ))
                 continue
             if stack:
@@ -132,13 +123,13 @@ class SnippetExtractor:
             )
         return snippets, errors
 
-    def _match_start_marker(self, line: str) -> Optional[tuple[str, Optional[str]]]:
+    def _match_start_marker(self, line: str) -> Optional[str]:
         normalized = self._normalize_comment_line(line)
         if not normalized:
             return None
         match = self.GENERIC_START_RE.fullmatch(normalized)
         if match:
-            return match.group('id'), match.group('lang')
+            return match.group('id')
         return None
 
     def _match_end_marker(self, line: str) -> Optional[object]:
@@ -217,9 +208,7 @@ class SnippetValidationResult:
 
 class SnippetReferenceExtractor:
     """Extracts snippet references from task files."""
-
     MACRO_PATTERN = re.compile(macros.macro_regexp)
-
     @staticmethod
     def _find_comment_ranges(content: str) -> list[tuple[int, int]]:
         """Return list of (start,end) ranges for HTML comments in content."""
@@ -251,7 +240,6 @@ class SnippetReferenceExtractor:
         """Extract all snippet references from content."""
         references_with_pos: list[tuple[int, SnippetReference]] = []
         comment_ranges = self._find_comment_ranges(content)
-
         for match in self.MACRO_PATTERN.finditer(content):
             if self._inside_comment(match.start(), comment_ranges):
                 continue
@@ -278,10 +266,8 @@ class SnippetReferenceExtractor:
         """Extract all snippet references from a file."""
         if not os.path.exists(filepath):
             return []
-        
         with open(filepath, 'r', encoding='utf-8') as f:
             content = f.read()
-        
         return self.extract_references_from_content(content, filepath)
 
 
@@ -320,23 +306,19 @@ def _resolve_include_style_path(filespec: str, source_file: str, course) -> str:
     match = re.fullmatch(arg_re, filespec)
     if not match:
         raise ValueError(f"Invalid snippet path '{filespec}'")
-
     kw = match.group("kw")
     is_abs = match.group("slash") is not None
     inc_filepath = match.group("incfile")
-
     project_root = _project_root(course)
     chapter_root = os.path.normpath(os.path.join(project_root, course.chapterdir))
     altdir_root = os.path.normpath(os.path.join(project_root, course.altdir))
     itreedir_root = _ensure_itreedir_root(course)
-
     source_abs = source_file if os.path.isabs(source_file) else os.path.normpath(
         os.path.join(project_root, source_file)
     )
     source_dir = os.path.dirname(source_abs)
     source_basename = os.path.basename(source_abs)
     rel_dir_from_chapter = os.path.relpath(source_dir, chapter_root)
-
     if kw == c.AUTHOR_ALTDIR_PREFIX:
         base_root = altdir_root
         rel_dir = rel_dir_from_chapter
@@ -346,7 +328,6 @@ def _resolve_include_style_path(filespec: str, source_file: str, course) -> str:
             raise ValueError("Snippet path prefix 'ITREE:' cannot be resolved")
         base_root = itreedir_root
         rel_dir = rel_dir_from_chapter
-
         if is_abs or (inc_filepath and inc_filepath.startswith(os.path.join(rel_dir, ""))):
             target_dir = base_root
         else:
@@ -354,10 +335,8 @@ def _resolve_include_style_path(filespec: str, source_file: str, course) -> str:
     else:
         base_root = chapter_root
         target_dir = source_dir
-
     if is_abs:
         target_dir = base_root
-
     fullpath = os.path.join(target_dir, inc_filepath or source_basename)
     return os.path.normpath(fullpath)
 
@@ -380,19 +359,15 @@ def _load_snippet(
     course,
     notify_error: Callable[[str], None]
 ) -> tuple[Optional[CodeSnippet], Optional[str]]:
-    """
-    Resolve and load a snippet, reporting errors via notify_error.
-    """
+    """Resolve and load a snippet, reporting errors via notify_error."""
     try:
         fullpath = _resolve_include_style_path(filespec or "", source_file, course)
     except ValueError as exc:
         notify_error(str(exc))
         return None, None
-
     if not os.path.exists(fullpath):
         notify_error(f"File not found: {_display_snippet_path(filespec, fullpath, course)}")
         return None, None
-
     extractor = SnippetExtractor()
     snippets = extractor.extract_snippets_from_file(fullpath)
     for snippet in snippets:
@@ -420,20 +395,13 @@ class SnippetValidator:
     
     def validate_file_references(self, filepath: str, course) -> list[SnippetValidationResult]:
         """
-        Validate all snippet references in a file.
-        
-        Args:
-            filepath: Path to the task file containing snippet references
-            course: Coursebuilder object with chapterdir, altdir, and configfile attributes
-        """
+        Validate all snippet references in a file."""
         extractor = SnippetReferenceExtractor()
         references = extractor.extract_references_from_file(filepath)
-        
         results = []
         for ref in references:
             result = self._validate_single_reference(ref, course)
             results.append(result)
-        
         return results
     
     def _validate_single_reference(self, reference: SnippetReference, course) -> SnippetValidationResult:
@@ -446,14 +414,12 @@ class SnippetValidator:
             course,
             notify_error=errors.append
         )
-
         if snippet is None:
             return SnippetValidationResult(
                 reference=reference,
                 success=False,
                 error_message=errors[0] if errors else "Unknown snippet error"
             )
-
         return SnippetValidationResult(
             reference=reference,
             success=True,
@@ -463,7 +429,6 @@ class SnippetValidator:
     def validate_directory_snippets(self, directory: str) -> dict[str, list[str]]:
         """Validate snippet markers in all files in a directory."""
         file_errors = {}
-        
         # Exclude binary files and system files (use exclusion approach, not inclusion)
         excluded_extensions = {'.zip', '.tar', '.gz', '.bz2', '.xz', '.7z',
                               '.exe', '.bin', '.so', '.dll', '.dylib',
@@ -473,11 +438,9 @@ class SnippetValidator:
                               '.db', '.sqlite', '.sqlite3'}
         excluded_names = {'.git', '.svn', '.hg', '__pycache__', 
                          '.DS_Store', 'Thumbs.db'}
-        
         for root, dirs, files in os.walk(directory):
             # Skip system and cache directories
             dirs[:] = [d for d in dirs if d not in excluded_names]
-            
             for file in files:
                 # Skip binary files, hidden files, and excluded files
                 if file.startswith('.'):
@@ -486,38 +449,29 @@ class SnippetValidator:
                     continue
                 if any(file.endswith(ext) for ext in excluded_extensions):
                     continue
-                
                 filepath = os.path.join(root, file)
                 errors = self._validate_snippet_markers_in_file(filepath)
                 if errors:
                     file_errors[filepath] = errors
-        
         return file_errors
     
     def _validate_snippet_markers_in_file(self, filepath: str) -> list[str]:
         """Validate snippet markers in a single file."""
         try:
             extractor = SnippetExtractor()
-            
             if not os.path.exists(filepath):
                 return [f"File not found: {filepath}"]
-            
             with open(filepath, 'r', encoding='utf-8') as f:
                 content = f.read()
-            
             # Use collect_errors=True to get validation errors
             _, errors = extractor.extract_snippets_from_content(content, filepath, collect_errors=True)
             return errors
-            
         except Exception as e:
             return [f"Error parsing snippets: {str(e)}"]
 
 
-
 def expand_snippet_macro(course, macrocall) -> str:
-    """
-    Macro expander for [SNIPPET::filespec::snippet_id].
-    """
+    """Macro expander for [SNIPPET::filespec::snippet_id]."""
     filespec = (macrocall.arg1 or "").strip()
     snippet_id = (macrocall.arg2 or "").strip()
     if not snippet_id:
