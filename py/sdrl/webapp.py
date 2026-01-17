@@ -245,7 +245,7 @@ main section {
     padding: 2rem;
 }
 
-.student-card {
+.student-card, .progress-card {
     background-color: var(--wa-blue-90);
     padding: 0.5rem;
     color: var(--wa-black-10);
@@ -612,7 +612,8 @@ def serve_index():
                 </div>
                 <p>Select a task on the left, switch between its files at the top, select choice at bottom right.</p>  
                 <h2>Work Report</h2>
-                <p><b>w</b>: work time (from commit msgs), <b>v</b>: task time value</p>  
+                {html_for_work_progress(ctx)}
+                <p><b>w</b>: work time (from commit msgs), <b>v</b>: task time value, <b>e</b>: estimated time (if task is accepted)</p>  
                 {html_for_work_report_section(ctx)}
             </section>
             <section class="scroll" id="students-table">
@@ -1239,12 +1240,46 @@ def html_for_tasklink(str_with_taskname: str, find_taskname_func: tg.Callable[[s
     instructorpart = "instructor/" if is_instructor else ""
     return f"<a href='{html.escape(course_url)}{instructorpart}{html.escape(taskname)}.html'>task</a>" if taskname else ""
 
+def html_for_work_progress(ctx: sdrl.participant.Context) -> str:
+    if len(set(map(lambda s: s.student_gituser, ctx.studentlist))) != len(ctx.studentlist):
+        b.warning("multiple students with same git username work report might be incorrect!")
+    check_work = {s.student_gituser: .0 for s in ctx.studentlist}
+    notsubmitted_work = {s.student_gituser: .0 for s in ctx.studentlist}
+
+    sorted_tasks = sorted(ctx.tasknames)
+    for i, name in enumerate(sorted_tasks):
+        for s in ctx.studentlist:
+            ct = s.submissions.task(name)
+            tsk = s.course.task(name)
+            if ct:
+                if ct.state is None:
+                    notsubmitted_work[s.student_gituser] += tsk.timevalue
+                if ct.state == sdrl.participant.SubmissionTaskState.CHECK:
+                    check_work[s.student_gituser] += tsk.timevalue
+
+    tables = "".join(f"""
+            <div class="progress-card">
+                <div class="student-name">
+                    {html.escape(s.student_gituser)}
+                </div>
+                <hr/>
+                <div>CHECK: {round(check_work[s.student_gituser], 2)}</div>
+                <div>Not submitted: {round(notsubmitted_work[s.student_gituser], 2)}</div>
+            </div>
+        """ for s in ctx.studentlist)
+    return (f"""
+            <div style="width: 13em;">
+            <b>Current work period:</b><br>
+                {tables}
+            </div>
+        """)
 
 def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
     if len(set(map(lambda s: s.student_gituser, ctx.studentlist))) != len(ctx.studentlist):
         b.warning("multiple students with same git username work report might be incorrect!")
     total_earned = { s.student_gituser: .0 for s in ctx.studentlist}
     total_work = { s.student_gituser: .0 for s in ctx.studentlist }
+    est_work = {s.student_gituser: .0 for s in ctx.studentlist}
 
     def html_for_students(task: str) -> str:
         markup = []
@@ -1253,10 +1288,12 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
             if ct:
                 total_earned[s.student_gituser] += ct.time_earned
                 total_work[s.student_gituser] += ct.workhours
+                est_work[s.student_gituser] += ct.timevalue
 
             markup.append(f"""
                 <td>{round(ct.workhours, 2) if ct and ct.workhours else ""}</td>
                 <td>{round(ct.time_earned, 2) if ct and ct.time_earned else ""}</td>
+                <td>{round(ct.timevalue, 2) if ct and ct.timevalue else ""}</td>
             """)
 
         return "".join(markup)
@@ -1280,6 +1317,7 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
         totals_markup.append(f"""
         <td>{round(total_work[s.student_gituser], 2)}</td>
         <td>{round(total_earned[s.student_gituser], 2)}</td>
+        <td>{round(est_work[s.student_gituser], 2)}</td>
         """)
 
     return f"""
@@ -1290,11 +1328,11 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
             </tr>
             <tr>
                 <th>task</th>
-                {f"<th>w</th><th>v</th>" * len(ctx.studentlist)}
+                {f"<th>w</th><th>v</th><th>e</th>" * len(ctx.studentlist)}
             </tr>
             {''.join(tasks_markup)}
             <tr>
-            <td>totals (worked, earned)</td>
+            <td>totals (worked, earned, estimated)</td>
             {''.join(totals_markup)}
             </tr>
         </table>
