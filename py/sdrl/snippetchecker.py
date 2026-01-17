@@ -457,17 +457,22 @@ class SnippetValidator:
     
     def _validate_snippet_markers_in_file(self, filepath: str) -> list[str]:
         """Validate snippet markers in a single file."""
+        if not os.path.exists(filepath):
+            return [f"File not found: {filepath}"]
         try:
-            extractor = SnippetExtractor()
-            if not os.path.exists(filepath):
-                return [f"File not found: {filepath}"]
             with open(filepath, 'r', encoding='utf-8') as f:
                 content = f.read()
-            # Use collect_errors=True to get validation errors
-            _, errors = extractor.extract_snippets_from_content(content, filepath, collect_errors=True)
-            return errors
-        except Exception as e:
-            return [f"Error parsing snippets: {str(e)}"]
+        except IsADirectoryError:
+            return [f"Is a directory, not a file: {filepath}"]
+        except PermissionError:
+            return [f"Permission denied reading file: {filepath}"]
+        except (IOError, OSError) as e:
+            return [f"Cannot read file: {str(e)}"]
+        except UnicodeDecodeError as e:
+            return [f"File encoding error (expected UTF-8): {str(e)}"]
+        extractor = SnippetExtractor()
+        _, errors = extractor.extract_snippets_from_content(content, filepath, collect_errors=True)
+        return errors
 
 
 def expand_snippet_macro(course, macrocall) -> str:
