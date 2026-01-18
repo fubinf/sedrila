@@ -433,14 +433,8 @@ class SnippetValidator:
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 content = f.read()
-        except IsADirectoryError:
-            return [f"Is a directory, not a file: {filepath}"]
-        except PermissionError:
-            return [f"Permission denied reading file: {filepath}"]
-        except (IOError, OSError) as e:
-            return [f"Cannot read file: {str(e)}"]
-        except UnicodeDecodeError as e:
-            return [f"File encoding error (expected UTF-8): {str(e)}"]
+        except (OSError, UnicodeDecodeError):
+            return [f"Cannot read file: {filepath}"]
         extractor = SnippetExtractor()
         _, errors = extractor.extract_snippets_from_content(content, filepath, collect_errors=True)
         return errors
