@@ -4,8 +4,11 @@ Maintainer subcommand for SeDriLa courses.
 The maintainer role is for people who maintain course quality.
 """
 import argparse
+import json
 import os
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 import base as b
@@ -60,16 +63,7 @@ def execute(pargs: argparse.Namespace):
 
 
 def _build_metadata_only(directory: dir.Directory):
-    """
-    Build only the elements needed for metadata and stage evaluation.
-    This follows the DRY principle by reusing the build system.
-    Builds: Sourcefile, Topmatter, MetadataDerivation
-    This ensures that:
-    - All source files are registered
-    - YAML topmatter is parsed
-    - Metadata is copied into Parts (via process_topmatter)
-    - Stage filtering is evaluated (via evaluate_stage)
-    """
+    """Build only the elements needed for metadata and stage evaluation."""
     import sdrl.elements as el
     import sdrl.course
     # Build in dependency order (same as directory.managed_types)
@@ -86,22 +80,14 @@ def _build_metadata_only(directory: dir.Directory):
 
 def check_links_command(pargs: argparse.Namespace):
     """Execute link checking using build system for file identification."""
-    try:
-        import sdrl.linkchecker as linkchecker
-    except ImportError as e:
-        b.error(f"Cannot import link checking modules: {e}")
-        return
+    import sdrl.linkchecker as linkchecker
     if pargs.check_links == 'all':
-        # Check all course files using build system
         b.info("Checking links in all course files...")
-        # Auto-derive targetdir_s and targetdir_i from user input
         targetdir_s = pargs.targetdir
         targetdir_i = targetdir_s + "_i"
-        # Prepare directories
         os.makedirs(targetdir_s, exist_ok=True)
         os.makedirs(targetdir_i, exist_ok=True)
         try:
-            # Create course builder to leverage existing file identification logic
             the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=False)
             b.set_register_files_callback(the_cache.set_file_dirty)
             directory = dir.Directory(the_cache)
@@ -113,14 +99,11 @@ def check_links_command(pargs: argparse.Namespace):
                 targetdir_i=targetdir_i,
                 directory=directory
             )
-            # Build only the elements needed for file identification (DRY principle)
             # This builds: Sourcefile, Topmatter, and MetadataDerivation
             # MetadataDerivation.do_build() handles topmatter processing and stage evaluation
             _build_metadata_only(directory)
-            # Extract markdown files from course structure (respects stages and taskgroups)
             markdown_files = find_markdown_files(the_course)
             b.info(f"Found {len(markdown_files)} markdown files to check")
-            # Extract links from all files
             extractor = linkchecker.LinkExtractor()
             all_links = []
             for filepath in markdown_files:
@@ -150,13 +133,13 @@ def check_links_command(pargs: argparse.Namespace):
                     md_report.do_build()
                     b.info("Report generated as build product:")
                     b.info(f"  Markdown: {md_report.outputfile_i}")
-                except Exception as e:
+                except (OSError, RuntimeError, ValueError) as e:
                     b.error(f"Failed to generate report files: {e}")
                     import traceback
                     traceback.print_exc()
             # Close cache and clean up
             the_cache.close()
-        except Exception as e:
+        except (FileNotFoundError, OSError, ValueError, RuntimeError) as e:
             b.error(f"Failed to initialize course structure: {e}")
             import traceback
             traceback.print_exc()
@@ -165,7 +148,7 @@ def check_links_command(pargs: argparse.Namespace):
         if failed_count > 0:
             sys.exit(1)
     else:
-        # Check specific file (no build system needed)
+        # Check specific file
         results = linkchecker.check_single_file(pargs.check_links)
         if results:
             failed_count = sum(1 for r in results if not r.success)
@@ -209,7 +192,7 @@ def add_altdir_files(files: list[str], chapterdir: str, altdir: str) -> list[str
     Add altdir files using simple path replacement.
     For each file in chapterdir, check if corresponding file exists in altdir.
     """
-    result = list(files)  # Start with original files
+    result = list(files)
     for filepath in files:
         # Simple path prefix replacement
         alt_filepath = filepath.replace(chapterdir, altdir, 1)
@@ -221,20 +204,13 @@ def add_altdir_files(files: list[str], chapterdir: str, altdir: str) -> list[str
 
 def check_programs_command(pargs: argparse.Namespace):
     """Execute program testing (lightweight, no course build)."""
-    try:
-        import sdrl.programchecker as programchecker
-        import json
-    except ImportError as e:
-        b.error(f"Cannot import program checking modules: {e}")
-        return
+    import sdrl.programchecker as programchecker
     b.info("Testing exemplary programs...")
     targetdir_s = pargs.targetdir
     targetdir_i = targetdir_s + "_i"
     batch_mode = getattr(pargs, 'batch', False)
     os.makedirs(targetdir_s, exist_ok=True)
     os.makedirs(targetdir_i, exist_ok=True)
-    import tempfile
-    import shutil
     temp_report_dir = tempfile.mkdtemp(prefix='sedrila_progtest_')
     try:
         the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=False)
@@ -285,7 +261,7 @@ def check_programs_command(pargs: argparse.Namespace):
             md_report.do_build()
             b.info("Report generated as build product:")
             b.info(f"  Markdown: {md_report.outputfile_i}")
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError) as e:
             b.error(f"Failed to generate report files: {e}")
             import traceback
             traceback.print_exc()
@@ -300,15 +276,7 @@ def check_programs_command(pargs: argparse.Namespace):
 
 def collect_command(pargs: argparse.Namespace):
     """Collect languages, dependencies, and task assumes from @PROGRAM_CHECK blocks."""
-    try:
-        import sdrl.programchecker as programchecker
-        import json
-        import tempfile
-        import shutil
-    except ImportError as e:
-        b.error(f"Cannot import required modules: {e}")
-        return
-
+    import sdrl.programchecker as programchecker
     # Use temporary directory for cache
     temp_cache_dir = tempfile.mkdtemp(prefix='sedrila_collect_')
     try:
@@ -375,7 +343,6 @@ def collect_command(pargs: argparse.Namespace):
                     if dep not in taskgroup_deps:
                         taskgroup_deps.append(dep)
             taskgroups[taskgroup]["deps"] = taskgroup_deps
-
         result = {
             "taskgroups": taskgroups
         }
@@ -388,7 +355,7 @@ def collect_command(pargs: argparse.Namespace):
         else:
             print(output_json)
         the_cache.close()
-    except Exception as e:
+    except (FileNotFoundError, OSError, ValueError, RuntimeError) as e:
         b.error(f"Failed to collect metadata: {e}")
         import traceback
         traceback.print_exc()

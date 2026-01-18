@@ -151,7 +151,7 @@ class ProgramCheckHeaderExtractor:
         try:
             content = Path(prot_filepath).read_text(encoding='utf-8')
             return ProgramCheckHeaderExtractor.extract_from_content(content)
-        except Exception as e:
+        except (FileNotFoundError, UnicodeDecodeError, OSError) as e:
             b.warning(f"Cannot read .prot file {prot_filepath}: {e}")
             return None
 
@@ -274,41 +274,6 @@ def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[Prog
             program_file=program_file
         ))
     return targets
-
-
-def extract_languages_from_course(course: sdrl.course.Coursebuilder) -> Dict[str, str]:
-    """Extract all programming languages and their versions from .prot files in altdir."""
-    targets = extract_program_test_targets(course)
-    lang_versions: Dict[str, List[str]] = {}
-    for target in targets:
-        if target.program_check_header.lang:
-            lang_str = target.program_check_header.lang.strip()
-            # Parse "Language version" format
-            parts = lang_str.rsplit(None, 1)  # Split from right to get last word as version
-            if len(parts) == 2:
-                lang_name, version = parts
-                if lang_name not in lang_versions:
-                    lang_versions[lang_name] = []
-                lang_versions[lang_name].append(version)
-    # For each language, select the latest version
-    result = {}
-    for lang_name, versions in lang_versions.items():
-        if not versions:
-            continue
-        # Select the latest version using semantic version comparison
-        try:
-            from packaging.version import parse as parse_version
-            latest_version = max(versions, key=lambda v: parse_version(v))
-        except (ImportError, Exception):
-            # Fallback: simple numeric comparison (e.g., "1.23" > "1.20")
-            def version_key(v: str) -> tuple:
-                try:
-                    return tuple(int(x) for x in v.split('.'))
-                except ValueError:
-                    return (0,)  # Fallback for non-numeric versions
-            latest_version = max(versions, key=version_key)
-        result[lang_name] = latest_version
-    return result
 
 
 class ProgramChecker:
@@ -451,15 +416,6 @@ class ProgramChecker:
             configs.append(config)
         return configs
 
-    def _save_command_test(self, command: Optional[str], output_lines: List[str],
-                          command_tests: List[CommandTest]) -> None:
-        """Helper to save a command test if command exists."""
-        if command:
-            output_text = '\n'.join(output_lines).strip()
-            test = self._create_command_test(command, output_text)
-            if test:
-                command_tests.append(test)
-
     def parse_command_tests_from_prot(self, prot_file: Path, typ: str = 'regex') -> List[CommandTest]:
         """Parse all command tests from .prot file."""
         if typ == 'manual':
@@ -518,12 +474,6 @@ class ProgramChecker:
                             b.debug(f"Cleaned up generated file: {file_path.name}")
         except (OSError, shutil.Error) as exc:
             b.debug(f"Error during cleanup for {program_name}: {exc}")
-
-    def _is_shell_prompt(self, line: str) -> bool:
-        """Check if line is a shell prompt (user@host format)."""
-        # Pattern: user@host /path HH:MM:SS num
-        prompt_pattern = r'^.+?[-\+\w]+@[-\+\w]+\s+[/~]\S*\s+\d\d:\d\d:\d\d\s+\d+'
-        return bool(re.match(prompt_pattern, line))
 
     def _create_command_test(self, command: str, output: str) -> Optional[CommandTest]:
         """Create a CommandTest from command and expected output."""
@@ -644,7 +594,7 @@ class ProgramChecker:
                         shutil.copy2(src_path, dst_path)
                         file_mapping[file_name] = str(dst_path)
             return temp_dir, file_mapping if file_mapping else None
-        except (ValueError, OSError, IOError) as e:
+        except (ValueError, OSError) as e:
             try:
                 shutil.rmtree(temp_dir)
             except OSError:
@@ -738,34 +688,16 @@ class ProgramChecker:
 
     def _validate_output_regex(self, actual_output: str, expected_output: str,
                               check_rule: CheckRule) -> Dict[str, Any]:
-        """Validate output using regex pattern from CheckRule.
-
-        Returns dict with 'success' (bool) and 'error_message' (str) keys.
-        """
+        """Validate output using regex pattern from CheckRule."""
         if not check_rule.output_re or not check_rule.output_re.strip():
-            return {
-                'success': False,
-                'error_message': "No output_re pattern in @PROT_SPEC block"
-            }
+            return {'success': False, 'error_message': "No output_re pattern in @PROT_SPEC block"}
         try:
-            pattern = re.compile(check_rule.output_re)
-            match = pattern.search(actual_output)
-
+            match = re.compile(check_rule.output_re).search(actual_output)
             if match:
-                return {
-                    'success': True,
-                    'error_message': None
-                }
-            else:
-                return {
-                    'success': False,
-                    'error_message': f"Output does not match regex pattern: {check_rule.output_re}"
-                }
+                return {'success': True, 'error_message': None}
+            return {'success': False, 'error_message': f"Output does not match regex pattern: {check_rule.output_re}"}
         except re.error as e:
-            return {
-                'success': False,
-                'error_message': f"Invalid regex pattern '{check_rule.output_re}': {e}"
-            }
+            return {'success': False, 'error_message': f"Invalid regex pattern '{check_rule.output_re}': {e}"}
 
     def _run_command(self, command: str, working_dir: Path, timeout: int,
                      taskgroup: Optional[str] = None) -> str:
@@ -776,7 +708,6 @@ class ProgramChecker:
             lang_dir = self.taskgroup_paths[taskgroup]
             bin_dir = str(Path(lang_dir) / "bin")
             env['PATH'] = f"{bin_dir}:{env.get('PATH', '')}"
-
         try:
             result = sp.run(
                 command,
@@ -861,39 +792,6 @@ class ProgramChecker:
                 all_results.extend(taskgroup_results)
         return all_results
 
-    def _run_tests_sequential(self, configs: List[ProgramTestConfig], show_progress: bool = False) -> List[ProgramTestResult]:
-        """Deprecated: Use _run_taskgroups_sequential instead."""
-        configs_by_taskgroup = {}
-        for config in configs:
-            if config.taskgroup not in configs_by_taskgroup:
-                configs_by_taskgroup[config.taskgroup] = []
-            configs_by_taskgroup[config.taskgroup].append(config)
-        return self._run_taskgroups_sequential(configs_by_taskgroup, show_progress)
-
-    def _run_tests_parallel(self, configs: List[ProgramTestConfig], show_progress: bool = False) -> List[ProgramTestResult]:
-        """Deprecated: Use _run_taskgroups_parallel instead."""
-        configs_by_taskgroup = {}
-        for config in configs:
-            if config.taskgroup not in configs_by_taskgroup:
-                configs_by_taskgroup[config.taskgroup] = []
-            configs_by_taskgroup[config.taskgroup].append(config)
-        return self._run_taskgroups_parallel(configs_by_taskgroup, show_progress)
-
-    def collect_install_commands(self, targets: List[ProgramTestTarget]) -> List[str]:
-        """Collect all install commands from @PROGRAM_CHECK blocks."""
-        all_commands: List[str] = []
-        for target in targets:
-            header = target.program_check_header
-            commands = header.get_install_commands()
-            all_commands.extend(commands)
-        seen = set()
-        unique_commands = []
-        for cmd in all_commands:
-            if cmd not in seen:
-                seen.add(cmd)
-                unique_commands.append(cmd)
-        return unique_commands
-
     def collect_lang_by_taskgroup(self, targets: List[ProgramTestTarget]) -> Dict[str, List[str]]:
         """Collect language install commands grouped by taskgroup."""
         taskgroup_langs: Dict[str, set] = {}
@@ -945,14 +843,6 @@ class ProgramChecker:
                 'protocol': str(target.protocol_file)
             })
         return taskgroup_metadata
-
-    def generate_metadata_json(self, targets: List[ProgramTestTarget], output_file: Path) -> None:
-        """Generate metadata.json from targets with taskgroup grouping."""
-        metadata = self.collect_metadata_by_taskgroup(targets)
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_file, 'w') as f:
-            json.dump({'taskgroups': metadata}, f, indent=2)
-        b.info(f"Metadata written to {output_file}")
 
     def test_all_programs(self, targets: List[ProgramTestTarget], itree_root: Optional[Path] = None,
                          show_progress: bool = True, batch_mode: bool = False) -> List[ProgramTestResult]:
