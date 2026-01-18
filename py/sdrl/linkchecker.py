@@ -569,14 +569,6 @@ class LinkCheckReporter:
         
         return "".join(lines)
     
-    def generate_markdown_report(self, results: list[LinkCheckResult], output_file: str = "link_check_report.md",
-                                 max_workers: typing.Optional[int] = None) -> str:
-        """Write the Markdown report to disk and return its content."""
-        content = self.render_markdown_report(results, max_workers=max_workers)
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write(content)
-        return content
-    
     @staticmethod
     def group_by_file(results: list[LinkCheckResult]) -> dict[str, list[LinkCheckResult]]:
         """Group results by source file."""
