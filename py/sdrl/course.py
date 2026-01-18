@@ -983,7 +983,6 @@ class ProtocolValidation(el.Step):
         task_dir = os.path.dirname(task.sourcefile)
         alt_task_dir = task_dir.replace(self.course.chapterdir, self.course.altdir, 1)
         expected_prot_filename = f"{task.name}.prot"
-        
         for search_dir in [task_dir, alt_task_dir]:
             if os.path.exists(search_dir):
                 prot_path = os.path.join(search_dir, expected_prot_filename)
@@ -993,13 +992,7 @@ class ProtocolValidation(el.Step):
 
     def do_build(self):
         """Validate protocol annotations, reporting errors or warnings based on stage."""
-        try:
-            import sdrl.protocolchecker as protocolchecker
-        except ImportError as e:
-            b.error(f"Cannot import protocol checking modules: {e}")
-            return
-        
-        # ----- validate protocol annotations for all tasks:
+        import sdrl.protocolchecker as protocolchecker
         validator = protocolchecker.ProtocolValidator()
         for task in self.course.taskdict.values():
             # Report function based on whether task is included in current build stage

@@ -105,7 +105,7 @@ class ProtocolExtractor:
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 content = f.read()
-        except Exception as e:
+        except (FileNotFoundError, UnicodeDecodeError, OSError) as e:
             b.error(f"Cannot read protocol file {filepath}: {e}")
             return ProtocolFile(filepath, [], 0)
         return self.extract_from_content(content, filepath)
@@ -227,12 +227,10 @@ class ProtocolExtractor:
                 key = stripped.split('=', 1)[0].strip()
                 if key not in known_keys:
                     rule.unknown_keys.append(f"{key}={stripped.split('=', 1)[1].strip() if len(stripped.split('=', 1)) > 1 else ''}")
-
         rule.manual_text = "\n".join(manual_block) if manual_block else None
         rule.extra_text = "\n".join(extra_block) if extra_block else None
         rule.text = "\n".join(text_block) if text_block else None
         rule.comment = "\n".join(comment_block) if comment_block else None
-
         return rule
 
 
@@ -245,11 +243,7 @@ class ProtocolValidator:
     def validate_file(self, filepath: str) -> list[str]:
         """Validate protocol annotations in a file."""
         errors = []
-        try:
-            protocol = self.extractor.extract_from_file(filepath)
-        except Exception as e:
-            errors.append(f"Cannot parse protocol file {filepath}: {e}")
-            return errors
+        protocol = self.extractor.extract_from_file(filepath)
         for entry in protocol.entries:
             rule = entry.check_rule
             if rule:
@@ -438,6 +432,6 @@ def load_encrypted_prot_file(prot_crypt_path: str, passphrase: str | None = None
         ciphertext = b.slurp_bytes(prot_crypt_path)
         plaintext = mycrypt.decrypt_gpg(ciphertext, passphrase=passphrase)
         return plaintext.decode('utf-8')
-    except Exception as e:
+    except (OSError, RuntimeError, UnicodeDecodeError) as e:
         b.warning(f"Failed to decrypt {prot_crypt_path}: {e}")
         return None

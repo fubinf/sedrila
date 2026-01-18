@@ -5,6 +5,7 @@ import os
 import pathlib
 import subprocess
 import tempfile
+import textwrap
 import traceback
 import typing as tg
 import html
@@ -63,22 +64,35 @@ XdDG5/ljMXEg2GrE5/k3AZpcXaA5fbgAAAAASUVORK5CYII="""
 favicon32x32_png = base64.b64decode(favicon32x32_png_base64)
 
 
+def _get_builddir_from_context(course) -> tuple[str, str] | None:
+    """Extract builddir from course context."""
+    if not hasattr(course, 'context'):
+        return None
+    context_path = course.context
+    if context_path.startswith('file://'):
+        local_path = context_path[7:]
+        # If path points to a file (e.g., course.json), get its parent directory
+        if os.path.isfile(local_path):
+            local_path = os.path.dirname(local_path)
+        return ('local', local_path)
+    elif context_path.startswith('http://') or context_path.startswith('https://'):
+        return ('remote', context_path)
+    return None
+
+
 def _find_encrypted_prot_file(ctx: sdrl.participant.Context) -> str | None:
     """Find first encrypted protocol file in student work directories or download from HTTP(S)."""
     if hasattr(ctx, 'course') and ctx.course:
-        course = ctx.course
-        context_path = course.context
-        # Local file handling
-        if context_path.startswith('file://'):
-            context_path = context_path[7:]
-            builddir = os.path.dirname(context_path)
+        location_type, builddir = _get_builddir_from_context(ctx.course) or (None, None)
+        if location_type == 'local':
+            # Local file handling
             if os.path.isdir(builddir):
                 for filename in os.listdir(builddir):
                     if filename.endswith('.crypt'):
                         return os.path.join(builddir, filename)
-        # HTTP(S) URL handling, download first available encrypted file to temp
-        elif context_path.startswith('http://') or context_path.startswith('https://'):
-            builddir_url = os.path.dirname(context_path)
+        elif location_type == 'remote':
+            # HTTP(S) URL handling, download first available encrypted file to temp
+            builddir_url = os.path.dirname(builddir)
             try:
                 import json
                 # Fetch course.json to find available tasks
@@ -149,11 +163,10 @@ def run(ctx: sdrl.participant.Context):
                             b.error("Failed to decrypt protocol files after maximum attempts. Starting webapp without decryption.")
             finally:
                 # Clean up temporary files from HTTP downloads
-                if os.path.exists(test_file):
-                    try:
-                        os.unlink(test_file)
-                    except OSError:
-                        pass
+                try:
+                    os.unlink(test_file)
+                except FileNotFoundError:
+                    pass
 
     # Do not enable macros, because that makes the second start of webapp within one session crash
     # b.set_register_files_callback(lambda s: None)  # in case student .md files contain weird macro calls
@@ -547,6 +560,11 @@ span.REJECTOID {
         background-color: #ddd;
         color: #000;
     }
+
+    /* Dark mode for protocol prompt counter in plain view */
+    .vwr-plain .prot-counter {
+        color: #ffffff !important;
+    }
 }
 """
 
@@ -891,21 +909,19 @@ def render_prot_compare(
     extractor = protocolchecker.ProtocolExtractor()
     prompt_regex = extractor.prompt_regex
     student_file = os.path.join(workdir_top, relpath.lstrip("/"))
-
     # If author content cannot be loaded (encrypted file not decryptable), show error
     if author_content is None:
         return "\n<p style='color: red; background-color: #ffe6e6; padding: 10px;'><strong>⚠ Comparison not available:</strong> Author protocol file is encrypted and cannot be decrypted. Only instructors with the private key can view this comparison.</p>\n"
     def compare_results() -> list[protocolchecker.CheckResult]:
         # Always use temporary file approach since author content may be from encrypted source
-        tmp_path = None
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".prot", delete=False) as tmp:
+            tmp.write(author_content or "")
+            tmp.flush()
+            tmp_path = tmp.name
         try:
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".prot", delete=False) as tmp:
-                tmp.write(author_content or "")
-                tmp.flush()
-                tmp_path = tmp.name
             return checker.compare_files(student_file, tmp_path)
         finally:
-            if tmp_path and os.path.exists(tmp_path):
+            if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
     results = compare_results()
     def color_for(res: protocolchecker.CheckResult) -> str:
@@ -940,7 +956,6 @@ def render_prot_compare(
                     result.append(f"<tr><td><div class='prot-spec-manual'>{md.render_plain_markdown(rule.text)}</div></td></tr>")
                 if rule and rule.extra_text:
                     result.append(f"<tr><td><div class='prot-spec-extra'>{md.render_plain_markdown(rule.extra_text)}</div></td></tr>")
-
                 # Show error information and expected values
                 if not res.success and res.error_message:
                     error_html = f"<div class='prot-spec-error'><pre>{html.escape(res.error_message)}</pre>"
@@ -948,53 +963,53 @@ def render_prot_compare(
                         error_html += f"<div class='prot-spec-hint' style='margin-top: 10px;'><strong>Expected command:</strong><br><code>{html.escape(res.author_entry.command)}</code>"
                         if res.author_entry.output:
                             author_output_escaped = html.escape(res.author_entry.output)
-                            error_html += f"""<br><br><details>
-<summary><strong>Expected output (click to expand)</strong></summary>
-<pre class='prot-spec-code'>{author_output_escaped}</pre>
-</details>"""
+                            error_html += textwrap.dedent(f"""<br><br><details>
+                                <summary><strong>Expected output (click to expand)</strong></summary>
+                                <pre class='prot-spec-code'>{author_output_escaped}</pre>
+                                </details>""").strip()
                         error_html += "</div>"
                     error_html += "</div>"
                     result.append(f"<tr><td>{error_html}</td></tr>")
                 elif not res.success:
+                    # show right command
                     if rule and rule.command_re and not res.command_match:
                         hint_html = f"<div class='prot-spec-error'>command_re did not match: <pre>{html.escape(rule.command_re)}</pre>"
                         if res.author_entry:
                             hint_html += f"<div class='prot-spec-hint' style='margin-top: 10px;'><strong>Standard command:</strong><br><code>{html.escape(res.author_entry.command)}</code></div>"
                         hint_html += "</div>"
                         result.append(f"<tr><td>{hint_html}</td></tr>")
-
+                    # show right output
                     if rule and rule.output_re and not res.output_match:
                         hint_html = f"<div class='prot-spec-error'>output_re did not match: <pre>{html.escape(rule.output_re)}</pre>"
                         if res.author_entry:
                             author_output_escaped = html.escape(res.author_entry.output)
-                            hint_html += f"""<div class='prot-spec-hint' style='margin-top: 10px;'>
-<details>
-<summary><strong>Standard output (click to expand)</strong></summary>
-<pre class='prot-spec-code'>{author_output_escaped}</pre>
-</details>
-</div>"""
+                            hint_html += textwrap.dedent(f"""<div class='prot-spec-hint' style='margin-top: 10px;'>
+                                <details>
+                                <summary><strong>Standard output (click to expand)</strong></summary>
+                                <pre class='prot-spec-code'>{author_output_escaped}</pre>
+                                </details>
+                                </div>""").strip()
                         hint_html += "</div>"
                         result.append(f"<tr><td>{hint_html}</td></tr>")
-
+                # show right command and output to help the instructor for review
                 if res.requires_manual_check and res.author_entry:
                     hint_html = "<div class='prot-spec-hint'><strong>Reference for manual check:</strong><br><br>"
                     hint_html += f"<strong>Expected command:</strong><br><code>{html.escape(res.author_entry.command)}</code>"
                     if res.author_entry.output:
                         author_output_escaped = html.escape(res.author_entry.output)
-                        hint_html += f"""<br><br><details>
-<summary><strong>Expected output (click to expand)</strong></summary>
-<pre class='prot-spec-code'>{author_output_escaped}</pre>
-</details>"""
+                        hint_html += textwrap.dedent(f"""<br><br><details>
+                            <summary><strong>Expected output (click to expand)</strong></summary>
+                            <pre class='prot-spec-code'>{author_output_escaped}</pre>
+                            </details>""").strip()
                     hint_html += "</div>"
                     result.append(f"<tr><td>{hint_html}</td></tr>")
-
             result.append(f"<tr><td><span class='vwr-cmd'>{html.escape(line)}</span></td></tr>")
             state.s = OUTPUT
         # Strict prompt match (maintains detailed rendering)
         elif (mm := prompt_regex.match(line)):
             color = prompt_colors[state.promptcount] if state.promptcount < len(prompt_colors) else "prot-manual-color"
             handle_promptmatch(color)
-        # Lenient prompt recognition (non-standard format containing @)
+        # Lenient prompt line recognition (non-standard format containing @)
         elif '@' in line and not line.startswith('$'):
             state.promptcount += 1
             state.s = PROMPTSEEN
@@ -1029,7 +1044,7 @@ def render_prot_plain(student_content: str) -> str:
     def handle_promptmatch():  # uses mm, result, state
         state.promptcount += 1
         state.s = PROMPTSEEN
-        # Student view: show prompt number WITHOUT color
+        # show prompt number WITHOUT color
         promptindex = f"<span class='prot-counter'>{state.promptcount}.</span>"
         front = f"<span class='vwr-front'>{esc('front')}</span>"
         userhost = f"<span class='vwr-userhost'>{esc('userhost')}</span>"
@@ -1044,7 +1059,7 @@ def render_prot_plain(student_content: str) -> str:
 
     extractor = protocolchecker.ProtocolExtractor()
     prompt_regex = extractor.prompt_regex
-    result = ["\n<table class='vwr-table'>"]
+    result = ["\n<table class='vwr-table vwr-plain'>"]
     PROMPTSEEN, OUTPUT = (1, 2)
     state = State(s=OUTPUT, promptcount=0)
     # Filter out @PROT_SPEC and @PROGRAM_CHECK annotations before rendering (students should not see them)
@@ -1072,22 +1087,22 @@ def _load_author_prot_content(workdir: sdrl.participant.Student, prot_path: str)
     import sdrl.protocolchecker as protocolchecker
     try:
         course = workdir.course
-        if course and hasattr(course, 'context'):
-            context_path = course.context
+        if course:
+            location_type, builddir = _get_builddir_from_context(course) or (None, None)
+            if location_type is None:
+                return (None, None)
             task_name = os.path.splitext(os.path.basename(prot_path))[0]
             encrypted_filename = f"{task_name}.prot.crypt"
-            # Local file path
-            if context_path.startswith('file://'):
-                context_path = context_path[7:]
-                builddir = os.path.dirname(context_path)
+            if location_type == 'local':
+                # Local file path
                 encrypted_path = os.path.join(builddir, encrypted_filename)
                 if os.path.isfile(encrypted_path):
                     content = protocolchecker.load_encrypted_prot_file(encrypted_path, passphrase=gpg_passphrase)
                     if content:
                         return (content, f"{encrypted_path} (decrypted)")
-            # Remote HTTP(S) URL
-            elif context_path.startswith('http://') or context_path.startswith('https://'):
-                builddir_url = os.path.dirname(context_path)
+            elif location_type == 'remote':
+                # Remote HTTP(S) URL
+                builddir_url = os.path.dirname(builddir)
                 encrypted_url = f"{builddir_url}/{encrypted_filename}"
                 try:
                     b.debug(f"Downloading encrypted prot file from {encrypted_url}")
@@ -1095,17 +1110,16 @@ def _load_author_prot_content(workdir: sdrl.participant.Student, prot_path: str)
                     response.raise_for_status()
                     with tempfile.NamedTemporaryFile(suffix='.prot.crypt', delete=False) as tmp:
                         tmp.write(response.content)
-                        temp_path = tmp.name
+                        tmp_path = tmp.name
                     try:
-                        content = protocolchecker.load_encrypted_prot_file(temp_path, passphrase=gpg_passphrase)
+                        content = protocolchecker.load_encrypted_prot_file(tmp_path, passphrase=gpg_passphrase)
                         if content:
                             return (content, f"{encrypted_url} (downloaded & decrypted)")
                     finally:
-                        if os.path.exists(temp_path):
-                            try:
-                                os.unlink(temp_path)
-                            except OSError:
-                                pass
+                        try:
+                            os.unlink(tmp_path)
+                        except FileNotFoundError:
+                            pass
                 except requests.RequestException as e:
                     b.warning(f"Failed to download {encrypted_url}: {e}")
     except (AttributeError, TypeError, OSError):

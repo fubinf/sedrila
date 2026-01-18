@@ -89,7 +89,6 @@ def expand_treeref(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocal
 def _register_encrypted_prot(course: sdrl.course.Coursebuilder, prot_filepath: str):
     """Register a .prot file to be encrypted and saved as .prot.crypt in the student directory."""
     import sdrl.elements as el
-    # Get instructor fingerprints (only for instructors with pubkeys)
     keyfingerprints = [instructor['keyfingerprint']
                        for instructor in course.configdict['instructors']
                        if instructor.get('keyfingerprint', None) and instructor.get('pubkey', None)]
@@ -118,10 +117,10 @@ def _register_encrypted_prot(course: sdrl.course.Coursebuilder, prot_filepath: s
             fingerprints=keyfingerprints
         )
         b.debug(f"Successfully created EncryptedProtFile: {elem}")
-    except Exception as e:
-        b.error(f"Failed to create EncryptedProtFile {outputname}: {e}")
-        import traceback
-        b.error(traceback.format_exc())
+    except TypeError as e:
+        b.error(f"Invalid parameters for EncryptedProtFile creation: {e}")
+    except AttributeError as e:
+        b.error(f"Missing attribute in course directory: {e}")
 
 
 def expand_prot(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
