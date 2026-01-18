@@ -383,47 +383,6 @@ class ProtocolChecker:
         return student_output.strip() == author_output.strip()
 
 
-class ProtocolReporter:
-    """Generates reports for protocol checking results."""
-    @staticmethod
-    def print_summary(results: list[CheckResult], student_file: str = "", author_file: str = ""):
-        """Print a summary of protocol checking results."""
-        if not results:
-            b.info("No protocol entries to check.")
-            return
-        total_entries = len(results)
-        successful = sum(1 for r in results if r.success)
-        failed = sum(1 for r in results if not r.success and not r.requires_manual_check)
-        manual_check = sum(1 for r in results if r.requires_manual_check)
-        b.info("Protocol checking results:")
-        if student_file and author_file:
-            b.info(f"  Student file: {student_file}")
-            b.info(f"  Author file: {author_file}")
-        b.info(f"  Total entries: {total_entries}")
-        b.info(f"  Passed: {successful}")
-        b.info(f"  Failed: {failed}")
-        b.info(f"  Manual check required: {manual_check}")
-        # Show failed entries
-        if failed > 0:
-            b.info("\nFailed entries:")
-            for i, result in enumerate(results):
-                if not result.success and not result.requires_manual_check:
-                    b.info(f"  Entry {i+1}: {result.error_message}")
-                    if result.student_entry:
-                        b.info(f"    Student command: {result.student_entry.command}")
-                    if result.author_entry:
-                        b.info(f"    Expected command: {result.author_entry.command}")
-        # Show manual check entries
-        if manual_check > 0:
-            b.info("\nEntries requiring manual check:")
-            for i, result in enumerate(results):
-                if result.requires_manual_check:
-                    note = result.manual_check_note or "Manual verification required"
-                    b.info(f"  Entry {i+1}: {note}")
-                    if result.student_entry:
-                        b.info(f"    Student command: {result.student_entry.command}")
-
-
 def load_encrypted_prot_file(prot_crypt_path: str, passphrase: str | None = None) -> typing.Optional[str]:
     """Load and decrypt a .prot.crypt file. If passphrase is provided, uses it for password-protected keys."""
     if not os.path.exists(prot_crypt_path):
