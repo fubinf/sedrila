@@ -239,7 +239,10 @@ def _extract_taskgroup_from_path(prot_file: Path, altdir_path: Path) -> str:
 
 
 def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[ProgramTestTarget]:
-    """Extract all @PROGRAM_CHECK blocks from .prot files in altdir."""
+    """Extract @PROGRAM_CHECK blocks from .prot files in altdir, optionally filtered by taskgroup.
+    If the environment variable SDRL_TASKGROUP is set, only extracts targets from that taskgroup.
+    This enables automatic taskgroup filtering in multi-container CI environments without CLI parameters.
+    """
     targets: List[ProgramTestTarget] = []
     altdir_path = Path(course.altdir).resolve()
     itree_root = Path(course.itreedir).resolve()
@@ -249,6 +252,10 @@ def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[Prog
     if not itree_root.exists():
         b.error(f"itreedir not found: {itree_root}")
         return targets
+    # Check for SDRL_TASKGROUP environment variable for automatic filtering
+    only_taskgroup = os.getenv('SDRL_TASKGROUP')
+    if only_taskgroup:
+        b.debug(f"SDRL_TASKGROUP environment variable set: filtering to taskgroup '{only_taskgroup}'")
     extractor = ProgramCheckHeaderExtractor()
     # Walk through all .prot files in altdir
     for prot_file in altdir_path.rglob('*.prot'):
@@ -266,6 +273,9 @@ def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[Prog
                      f"(typ={header.typ}, manual_reason={header.manual_reason if header.typ == 'manual' else 'N/A'})")
             continue
         taskgroup = _extract_taskgroup_from_path(prot_file, altdir_path)
+        # Filter by taskgroup if SDRL_TASKGROUP is set
+        if only_taskgroup and taskgroup != only_taskgroup:
+            continue
         program_file = _find_program_file(itree_root, prot_file)
         targets.append(ProgramTestTarget(
             protocol_file=prot_file,
