@@ -979,4 +979,172 @@ class ProgramChecker:
                 if not r.success and not r.skipped:
                     b.warning(f"  - {r.program_name}: {r.error_message}")
 
+    def run_tasks_with_dynamic_deps(self, targets: List[ProgramTestTarget], taskgroup: str,
+                                     itree_root: Optional[Path] = None,
+                                     show_progress: bool = True, batch_mode: bool = False) -> List[ProgramTestResult]:
+        """Run tasks in a taskgroup with dynamic dependency installation."""
+        if itree_root is None:
+            if self.itreedir:
+                itree_root = self.itreedir
+        taskgroup_targets = [t for t in targets if t.taskgroup == taskgroup]
+        configs = self.build_configs_from_targets(taskgroup_targets, itree_root)
+        sorted_configs = self.get_taskgroup_execution_order(taskgroup, configs)
+        # Get unique task names in order
+        seen_tasks = set()
+        task_names = []
+        for config in sorted_configs:
+            if config.program_name not in seen_tasks:
+                task_names.append(config.program_name)
+                seen_tasks.add(config.program_name)
+        if show_progress:
+            b.info(f"Running {len(task_names)} tasks in taskgroup '{taskgroup}' with dynamic dependencies")
+            b.info(f"Task execution order: {', '.join(task_names)}")
+        all_results = []
+        for idx, task_name in enumerate(task_names, 1):
+            if show_progress:
+                b.info(f"\n[{idx}/{len(task_names)}] Checking task: {task_name}")
+            task_results = self.run_single_task(
+                configs=sorted_configs,
+                taskgroup=taskgroup,
+                task_name=task_name
+            )
+            all_results.extend(task_results)
+            if show_progress:
+                for result in task_results:
+                    status = "✓ PASS" if result.success else ("⊘ SKIP" if result.skipped else "✗ FAIL")
+                    b.info(f"  {status}: {result.program_name}")
+        self.results = all_results
+        return all_results
+
+    def aggregate_and_merge_reports(self, reports_dir: Path, output_file: Optional[Path] = None) -> str:
+        """
+        Aggregate individual task reports into a single unified report.
+        This is used in CI to merge reports from multiple containers/jobs into one final report.
+        """
+        import re
+        from datetime import datetime
+        from dataclasses import dataclass
+
+        @dataclass
+        class AggregatedResult:
+            """Aggregated test result from parsing markdown."""
+            program_name: str
+            taskgroup: str
+            typ: str
+            success: bool
+            skipped: bool
+            execution_time: float = 0.0
+            error_message: str = ""
+            manual_reason: str = ""
+            files: str = ""
+
+        def parse_report(report_path: Path, taskgroup: str) -> List[AggregatedResult]:
+            """Parse a markdown report file and extract test results."""
+            results = []
+            content = report_path.read_text()
+            passed_section = re.search(r'## Passed Tests\n\n(.*?)(?=\n## |\Z)', content, re.DOTALL)
+            if passed_section:
+                table_rows = re.findall(r'\| `([^`]+)` \| (.*?) \| ([\d.]+)s \|', passed_section.group(1))
+                for program_name, files, exec_time in table_rows:
+                    results.append(AggregatedResult(
+                        program_name=program_name,
+                        taskgroup=taskgroup,
+                        typ='regex',
+                        success=True,
+                        skipped=False,
+                        execution_time=float(exec_time),
+                        files=files
+                    ))
+            skipped_section = re.search(r'## Skipped Tests.*?\n\n(.*?)(?=\n## |\Z)', content, re.DOTALL)
+            if skipped_section:
+                table_rows = re.findall(r'\| `([^`]+)` \| (.*?) \| (.*?) \|', skipped_section.group(1))
+                for program_name, files, reason in table_rows:
+                    results.append(AggregatedResult(
+                        program_name=program_name,
+                        taskgroup=taskgroup,
+                        typ='manual',
+                        success=False,
+                        skipped=True,
+                        manual_reason=reason,
+                        files=files
+                    ))
+            failed_section = re.search(r'## Failed Tests\n\n(.*?)(?=\n### |\n## |\Z)', content, re.DOTALL)
+            if failed_section:
+                table_rows = re.findall(r'\| `([^`]+)` \| (.*?) \| (.*?) \|', failed_section.group(1))
+                for program_name, files, error in table_rows:
+                    results.append(AggregatedResult(
+                        program_name=program_name,
+                        taskgroup=taskgroup,
+                        typ='regex',
+                        success=False,
+                        skipped=False,
+                        error_message=error,
+                        files=files
+                    ))
+            return results
+        all_results = []
+        for report_dir in sorted(reports_dir.glob('program-check-report-*')):
+            taskgroup = report_dir.name.replace('program-check-report-', '')
+            report_file = report_dir / 'program_test_report.md'
+            if report_file.exists():
+                results = parse_report(report_file, taskgroup)
+                all_results.extend(results)
+                b.info(f"Parsed {len(results)} tests from taskgroup: {taskgroup}")
+        if not all_results:
+            b.warning("No test results found to aggregate!")
+            return ""
+        report_lines = []
+        report_lines.append("# Program Test Report\n")
+        report_lines.append(f"\n**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        report_lines.append("**Run parameters:** max_workers = 4\n\n")
+        total = len(all_results)
+        passed = sum(1 for r in all_results if r.success)
+        failed = sum(1 for r in all_results if not r.success and not r.skipped)
+        skipped = sum(1 for r in all_results if r.skipped)
+        pass_rate = (passed / total * 100) if total > 0 else 0.0
+        fail_rate = (failed / total * 100) if total > 0 else 0.0
+        skip_rate = (skipped / total * 100) if total > 0 else 0.0
+        report_lines.append("## Summary\n\n")
+        report_lines.append(f"- **Total programs:** {total}\n")
+        report_lines.append(f"- **Passed:** {passed} ({pass_rate:.1f}%)\n")
+        report_lines.append(f"- **Failed:** {failed} ({fail_rate:.1f}%)\n")
+        report_lines.append(f"- **Skipped (manual test):** {skipped} ({skip_rate:.1f}%)\n\n")
+        if failed > 0:
+            report_lines.append("## Failed Tests\n\n")
+            report_lines.append("| Test | Files | Error |\n")
+            report_lines.append("|------|-------|-------|\n")
+            for r in all_results:
+                if not r.success and not r.skipped:
+                    error_msg = r.error_message.replace('\n', ' ').replace('|', '\\|')[:100]
+                    report_lines.append(f"| `{r.program_name}` | {r.files} | {error_msg} |\n")
+            report_lines.append("\n")
+            report_lines.append("### Failed Tests Detail\n\n")
+            for r in all_results:
+                if not r.success and not r.skipped:
+                    report_lines.append(f"#### {r.program_name} [REGEX]\n\n")
+                    report_lines.append(f"- **Error:** {r.error_message}\n")
+                    report_lines.append(f"- **Taskgroup:** {r.taskgroup}\n\n")
+        if skipped > 0:
+            report_lines.append("## Skipped Tests (Manual Testing Required)\n\n")
+            report_lines.append("| Test | Files | Reason |\n")
+            report_lines.append("|------|-------|--------|\n")
+            for r in all_results:
+                if r.skipped:
+                    reason = r.manual_reason.replace('\n', ' ').replace('|', '\\|')
+                    report_lines.append(f"| `{r.program_name}` | {r.files} | {reason} |\n")
+            report_lines.append("\n")
+        if passed > 0:
+            report_lines.append("## Passed Tests\n\n")
+            report_lines.append("| Test | Files | Execution Time |\n")
+            report_lines.append("|------|-------|----------------|\n")
+            for r in all_results:
+                if r.success:
+                    report_lines.append(f"| `{r.program_name}` | {r.files} | {r.execution_time:.2f}s |\n")
+            report_lines.append("\n")
+        unified_report = ''.join(report_lines)
+        if output_file:
+            output_file.write_text(unified_report)
+            b.info(f"Merged report written to {output_file}")
+        return unified_report
+
 
