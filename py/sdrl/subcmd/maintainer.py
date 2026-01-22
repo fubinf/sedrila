@@ -36,6 +36,8 @@ def add_arguments(subparser: argparse.ArgumentParser):
                            help="Check accessibility of external links. Use without argument to check all course files, or specify a single markdown file to check")
     subparser.add_argument('--check-programs', action='store_true',
                            help="Test exemplary programs against protocol files")
+    subparser.add_argument('--dynamic-deps', action='store_true',
+                           help="Use dynamic dependency installation per task (requires --check-programs and SDRL_TASKGROUP env var)")
     subparser.add_argument('--collect', action='store_true',
                            help="Collect languages and dependencies from @PROGRAM_CHECK blocks, output as JSON")
     subparser.add_argument('-o', '--output', metavar="json_file",
@@ -205,7 +207,15 @@ def add_altdir_files(files: list[str], chapterdir: str, altdir: str) -> list[str
 def check_programs_command(pargs: argparse.Namespace):
     """Execute program testing (lightweight, no course build)."""
     import sdrl.programchecker as programchecker
-    b.info("Testing exemplary programs...")
+    use_dynamic_deps = getattr(pargs, 'dynamic_deps', False)
+    if use_dynamic_deps:
+        taskgroup = os.getenv('SDRL_TASKGROUP')
+        if not taskgroup:
+            b.error("--dynamic-deps requires SDRL_TASKGROUP environment variable")
+            sys.exit(1)
+        b.info(f"Testing programs in taskgroup '{taskgroup}' with dynamic dependencies...")
+    else:
+        b.info("Testing exemplary programs...")
     targetdir_s = pargs.targetdir
     targetdir_i = targetdir_s + "_i"
     batch_mode = getattr(pargs, 'batch', False)
@@ -234,17 +244,25 @@ def check_programs_command(pargs: argparse.Namespace):
                 taskgroup_paths = paths_data.get('taskgroups', paths_data)
                 b.info(f"Loaded taskgroup isolation paths for {len(taskgroup_paths)} taskgroups")
         checker = programchecker.ProgramChecker(
-            parallel_execution=True,
+            parallel_execution=not use_dynamic_deps,
             report_dir=temp_report_dir,
             course=the_course,
             taskgroup_paths=taskgroup_paths
         )
-        show_progress = not batch_mode 
-        results = checker.test_all_programs(
-            targets=targets,
-            show_progress=show_progress,
-            batch_mode=batch_mode
-        )
+        if use_dynamic_deps:
+            results = checker.run_tasks_with_dynamic_deps(
+                targets=targets,
+                taskgroup=taskgroup,
+                show_progress=True,
+                batch_mode=batch_mode
+            )
+        else:
+            show_progress = not batch_mode
+            results = checker.test_all_programs(
+                targets=targets,
+                show_progress=show_progress,
+                batch_mode=batch_mode
+            )
         try:
             checker.generate_reports(results, batch_mode=batch_mode)
             md_temp_path = os.path.join(temp_report_dir, "program_test_report.md")
