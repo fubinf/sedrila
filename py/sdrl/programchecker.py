@@ -802,6 +802,21 @@ class ProgramChecker:
                 all_results.extend(taskgroup_results)
         return all_results
 
+    def run_single_task(self, configs: List[ProgramTestConfig], taskgroup: str, task_name: str) -> List[ProgramTestResult]:
+        """Run tests for a single task within a taskgroup."""
+        # Filter configs for this specific task in this taskgroup
+        task_configs = [
+            config for config in configs
+            if config.taskgroup == taskgroup and config.program_name == task_name]
+        if not task_configs:
+            b.warning(f"No configs found for task '{task_name}' in taskgroup '{taskgroup}'")
+            return []
+        results = []
+        for config in task_configs:
+            result = self.test_program(config)
+            results.append(result)
+        return results
+
     def collect_lang_by_taskgroup(self, targets: List[ProgramTestTarget]) -> Dict[str, List[str]]:
         """Collect language install commands grouped by taskgroup."""
         taskgroup_langs: Dict[str, set] = {}
