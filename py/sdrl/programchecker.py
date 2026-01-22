@@ -986,6 +986,11 @@ class ProgramChecker:
         if itree_root is None:
             if self.itreedir:
                 itree_root = self.itreedir
+            elif 'itreedir' in self.config_vars:
+                itree_root = Path(self.config_vars['itreedir'])
+            else:
+                b.error("itreedir not provided and not configured in ProgramChecker")
+                return []
         taskgroup_targets = [t for t in targets if t.taskgroup == taskgroup]
         configs = self.build_configs_from_targets(taskgroup_targets, itree_root)
         sorted_configs = self.get_taskgroup_execution_order(taskgroup, configs)
