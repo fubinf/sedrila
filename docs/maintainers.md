@@ -231,7 +231,7 @@ The temporary directory is removed after testing completes, preventing test fail
 
 Program testing requires language runtimes and package dependencies specified via `@PROGRAM_CHECK` blocks.
 
-Base requirements:**
+Base requirements:
 
 - Python: 3.11 or higher (required for sedrila itself)
 - itreedir: Must exist as a directory with program source files
@@ -263,19 +263,29 @@ The `deps=` field also supports multi-line commands (subsequent lines without `=
 
 For local testing, need to manually install declared dependencies. For CI, use `--collect` to get the full list.
 
-Installation and execution in CI:
+**Installation and execution in CI**:
 
-Each taskgroup maintains an isolated bin directory with dynamically modified PATH to prevent runtime conflicts between different language environments.
+Two CI configuration approaches are available:
 
-Language runtime is installed once per taskgroup, then each task's dependencies are installed fresh (isolated context).
+Single-Container Mode:
+
+All taskgroups execute in a single container with all language runtimes and dependencies installed upfront.
+Language runtimes are installed once at the beginning, then all taskgroups reuse the same environment.
 Tasks within a taskgroup execute serially respecting `assumes` dependencies; different taskgroups execute in parallel.
 Each test runs in a temporary isolated directory with only required files; the directory is automatically cleaned up after testing (success or failure).
-This isolation ensures tests don't interfere with each other and test results are reproducible.
 
 Example with 2 taskgroups (Go, Python) and 4 workers:
 - Worker 1: go-basics → go-functions → go-maps (serial)
 - Worker 2: python-basics → FastAPI-GET (serial)
 - Workers 3-4: idle
+
+Multi-Container Mode:
+
+For stricter isolation, Multi-Container Mode has also been developed. That means, each taskgroup runs in a dedicated container to avoid language-specific dependency conflicts.
+Language runtime and dependencies are installed independently in each container.
+Tasks within each taskgroup execute serially in the container, respecting their dependency order.
+After all taskgroups complete, their reports are aggregated into a unified report.
+This approach provides better isolation but involves more container overhead and is subject to GitHub API rate limits when multiple containers clone the repository simultaneously.
 
 
 ### 5.3 Test types
