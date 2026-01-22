@@ -802,21 +802,6 @@ class ProgramChecker:
                 all_results.extend(taskgroup_results)
         return all_results
 
-    def run_single_task(self, configs: List[ProgramTestConfig], taskgroup: str, task_name: str) -> List[ProgramTestResult]:
-        """Run tests for a single task within a taskgroup."""
-        # Filter configs for this specific task in this taskgroup
-        task_configs = [
-            config for config in configs
-            if config.taskgroup == taskgroup and config.program_name == task_name]
-        if not task_configs:
-            b.warning(f"No configs found for task '{task_name}' in taskgroup '{taskgroup}'")
-            return []
-        results = []
-        for config in task_configs:
-            result = self.test_program(config)
-            results.append(result)
-        return results
-
     def collect_lang_by_taskgroup(self, targets: List[ProgramTestTarget]) -> Dict[str, List[str]]:
         """Collect language install commands grouped by taskgroup."""
         taskgroup_langs: Dict[str, set] = {}
@@ -978,48 +963,6 @@ class ProgramChecker:
             for r in results:
                 if not r.success and not r.skipped:
                     b.warning(f"  - {r.program_name}: {r.error_message}")
-
-    def run_tasks_with_dynamic_deps(self, targets: List[ProgramTestTarget], taskgroup: str,
-                                     itree_root: Optional[Path] = None,
-                                     show_progress: bool = True, batch_mode: bool = False) -> List[ProgramTestResult]:
-        """Run tasks in a taskgroup with dynamic dependency installation."""
-        if itree_root is None:
-            if self.itreedir:
-                itree_root = self.itreedir
-            elif 'itreedir' in self.config_vars:
-                itree_root = Path(self.config_vars['itreedir'])
-            else:
-                b.error("itreedir not provided and not configured in ProgramChecker")
-                return []
-        taskgroup_targets = [t for t in targets if t.taskgroup == taskgroup]
-        configs = self.build_configs_from_targets(taskgroup_targets, itree_root)
-        sorted_configs = self.get_taskgroup_execution_order(taskgroup, configs)
-        # Get unique task names in order
-        seen_tasks = set()
-        task_names = []
-        for config in sorted_configs:
-            if config.program_name not in seen_tasks:
-                task_names.append(config.program_name)
-                seen_tasks.add(config.program_name)
-        if show_progress:
-            b.info(f"Running {len(task_names)} tasks in taskgroup '{taskgroup}' with dynamic dependencies")
-            b.info(f"Task execution order: {', '.join(task_names)}")
-        all_results = []
-        for idx, task_name in enumerate(task_names, 1):
-            if show_progress:
-                b.info(f"\n[{idx}/{len(task_names)}] Checking task: {task_name}")
-            task_results = self.run_single_task(
-                configs=sorted_configs,
-                taskgroup=taskgroup,
-                task_name=task_name
-            )
-            all_results.extend(task_results)
-            if show_progress:
-                for result in task_results:
-                    status = "✓ PASS" if result.success else ("⊘ SKIP" if result.skipped else "✗ FAIL")
-                    b.info(f"  {status}: {result.program_name}")
-        self.results = all_results
-        return all_results
 
     def aggregate_and_merge_reports(self, reports_dir: Path, output_file: Optional[Path] = None) -> str:
         """
