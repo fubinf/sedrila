@@ -181,7 +181,6 @@ Record enough about the process so that you can document and analyze it in your 
                                             additions in `run`
     - `mycrypt.py`: function `encrypt_gpg`, `decrypt_gpg`
     - `directory.py`: incremental build registration
-    - `instructor.py`: `def check_protocol_files`
 - Validated by `protocolchecker_test.py`
 - Discussed in https://github.com/fubinf/sedrila/issues/27
 
