@@ -27,7 +27,7 @@ class CodeSnippet:
 class SnippetExtractor:
     """Extracts code snippets from files."""
     GENERIC_START_RE = re.compile(
-        r'^SNIPPET::(?P<id>[A-Za-z0-9_]+)(?:\s+lang=(?P<lang>[\w\-]+))?$'
+        r'^SNIPPET::(?P<id>[A-Za-z0-9_]+)$'
     )
     GENERIC_END_RE = re.compile(
         r'^ENDSNIPPET(?:\s*::\s*(?P<id>[A-Za-z0-9_]+))?$'

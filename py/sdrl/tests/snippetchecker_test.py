@@ -97,7 +97,7 @@ def test_snippet_extraction():
     def another_function():
         pass
 
-    # SNIPPET::function_example lang=python
+    # SNIPPET::function_example
     def calculate_sum(a, b):
         return a + b
 
@@ -219,7 +219,7 @@ def test_snippet_marker_validation():
     code here
     # ENDSNIPPET
 
-    // SNIPPET::snippet2 lang=python
+    // SNIPPET::snippet2
     more code
     // ENDSNIPPET
     """
@@ -321,7 +321,7 @@ def test_snippet_macro_returns_plain_content():
     """Snippet expansion should insert the original source content as-is."""
     solution_content = dedent(
         """\
-        # SNIPPET::macro_lang lang=python
+        # SNIPPET::macro_lang
         print("wrapped")
         # ENDSNIPPET
         """
