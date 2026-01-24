@@ -141,32 +141,13 @@ of the same file.
 For tasks requiring command-line execution logs (`.prot` files), `sedrila` provides automated protocol comparison.
 Student protocols are checked against author protocols using `@PROT_SPEC` validation rules.
 
-#### 2.3.1 Command-line checking
-
-Basic usage:
-```bash
-sedrila instructor --check-protocols student_file.prot author_file.prot
-```
-
-This displays a console summary showing passed/failed/manual-check entries with detailed error messages.
-
-Example:
-```bash
-sedrila instructor --check-protocols \
-  student-repo/taskname.prot \
-  course-repo/altdir/ch/Chapter/Taskgroup/taskname.prot
-```
-
-Paths can be absolute or relative (resolved from current working directory).
-
 #### 2.3.2 Webapp protocol checking
 
 The instructor webapp automatically compares student and author protocols when viewing `.prot` files.
 
 If encrypted protocol files (`.prot.crypt`) are present, the webapp will prompt for your GPG passphrase
 when starting (up to 3 attempts). The passphrase is verified and cached for the session duration.
-Note: Passphrase prompts only appear for local deployments (`file://` URLs); remote HTTP(S) deployments
-cannot access encrypted files locally.
+Passphrase prompts support local (`file://` URLs) and remote HTTP(S) deployments.
 
 Encrypted protocol files are created during the build process by encrypting each protocol file with the
 public GPG keys of all instructors listed in `sedrila.yaml`. This allows every instructor to decrypt
@@ -189,6 +170,6 @@ Comparison uses `@PROT_SPEC` blocks from author protocols (see `authors.md` sect
 - `command_re=regex`: Student command must match regex (fullmatch)
 - `output_re=regex`: Student output must contain regex match (search)
 - `skip=1`: Always passes, no manual review needed
-- `manual=text`: Always passes but requires instructor review
+- `manual=text` or `manual=1, text=xxx`: Always passes but requires instructor review
 
 Entries without any spec default to manual review.
