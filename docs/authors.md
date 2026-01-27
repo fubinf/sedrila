@@ -11,9 +11,10 @@ using Markdown markup (plus calls to various sedrila-specific macros,
 plus sometimes "replacement blocks").
 
 The content below describes the details of these data (Section 1,
-including advice about what content to put where in Sections 1.2 and 1.6),
-how to generate the course website from it (Section 2),
-and how to make and maintain a fork of an existing sedrila course (Section 3).
+including advice about what content to put where in Section 1.2),
+the markup mechanisms used for authoring (Section 2),
+how to generate the course website from the source files (Section 3),
+and how to make and maintain a fork of an existing sedrila course (Section 4).
 
 
 ## 1. Content structure of a sedrila course
@@ -286,71 +287,18 @@ Add further cross-references in the text (via the `PARTREF` macros) whereever us
 perhaps in a `NOTICE` block, often near the end of the `background` section.
 
 
-### 1.3 Special sedrila markup: Macros
+### 1.3 Special sedrila markup
 
-The specific macros will be described further down.
-General things to know about macros are these:
+In addition to standard Markdown, sedrila provides several markup mechanisms:
 
-- Macros have names in all UPPERCASE and each have 0, 1, or 2 formal parameters.
-- Sedrila supplies a fixed set of macros, discussed further down.
-- Macro calls come in square brackets, parameters use a `::` as delimiter.    
-  Examples: [SOMEMACRONAME], [OTHERMACRO::arg1], [YETANOTHER::arg1::arg2].
-- If a macro is not defined or has a different number of parameters than supplied in the call,
-  sedrila will complain.
-- A macro call cannot be split over multiple lines.
-- Some macros serve as markup for blocks of text. These macros come in `X`/`ENDX` pairs:  
-  ```
-  [WARNING]
-  body text, as many lines as needed
-  [ENDWARNING]
-  ```
-- Due to the simplistic parser used, an `X`/`ENDX` block cannot be nested in another
-  `X`/`ENDX` block and both macro calls must be alone on a line by themselves.
-- Non-block macro calls can be mixed with other content on a line.
+- **Macros**: Special commands in `[UPPERCASE]` notation for structured content,
+  cross-references, file inclusion, and more. See Section 2 for details.
+- **Replacement blocks**: `<replacement id="...">...</replacement>` tags that allow
+  forked courses to substitute locale-specific content. 
+- See Section 2 for details.
 
 
-### 1.4 Special sedrila markup: replacement blocks
-
-A replacement block looks like this:
-```
-some text <replacement id="someId">text to be replaced</replacement> some more text.
-```
-The idea is that the text to be replaced is somehow location-dependent
-(such as the URL of a server of the local university)
-and other universities using the same ProPra should be able to replace it
-with their own local version in a simple manner.
-Simple means they can fork the ProPra repository but need hardly ever make
-any change to the actual task files, only to a single, central _replacements file_.
-
-The replacements file is `replacements.md` in the top level of the ProPra repo.
-It contains simply a list of replacement blocks:
-
-```
-<replacement id="someId">
-our adapted local text (could also be on a single line instead of three)
-</replacement>
-
-
-<replacement id="otherId">
-This is a longer replacement that can continue for multiple paragraphs.
-
-Replacements can use _any_ **markup**, including macro calls,
-only excluding other replacements.
-[WARNING]
-Beware of the dog!
-[ENDWARNING]
-
-## Next heading
-And so on.  
-</replacement>
-```
-
-Sedrila will replace the `text to be replaced` with its counterpart from the replacement file
-exactly as written and will remove the `<replacement id="someId">` and `</replacement>` pseudo tags.
-The `id` should start with the respective task, taskgroup, or chapter name.
-
-
-### 1.5 Task files: YAML top matter
+### 1.4 Task files: YAML top matter
 
 The meat of a SeDriLa course is in the individual task files.
 A task file is a Markdown file in a particular format.
@@ -414,287 +362,7 @@ The YAML attributes have the following meaning:
   by the `instructor` command when checking actual preconditions.
 
 
-### 1.6 `[SECTION]`/`[ENDSECTION]` macros for content structure
-
-It is useful for learners if tasks follow a recurring content structure,
-possibly with corresponding visual structure.
-The `[SECTION::sectiontype::sectionsubtype]` macro supports both.
-
-Sections follow one after another; they are usually not nested.  
-They are marked up for example like this:
-```
-[SECTION::goal::idea]
-Understand section markup
-[ENDSECTION]
-```
-
-Section types (like `goal` above) and subtypes (like `idea` above) 
-come from a fixed list declared via the
-`blockmacro_topmatter` part of `sedrila.yaml`.
-Each type and subtype will use corresponding CSS styles in the generated output,
-so that the visual appearance can be customized.
-
-Although each sedrila course can hence decide its section structure itself,
-sedrila comes with a recommendation:
-
-#### 1.6.1 Recommendation for section usage and `[SECTION]` types
-
-The entire body of a task description is divided into sections; 
-the only extra text is possibly a number of `[INSTRUCTOR]`/`[ENDINSTRUCTOR]` blocks
-before, between, or (most likely) after the sections.
-
-In contrast, chapters' and taskgroups' `index.md` files can optionally use 
-goal and background sections at their top, but then always
-continue with section-free text for characterizing the content of the chapter or taskgroup.
-
-The page title is a `<h1>` heading, `[SECTION::...]` macros by convention generate a `<h2>` heading.
-Therefore, inside sections you should use (if needed) `### ` headings.
-
-##### 1.6.1.1 `[SECTION::goal::...]`
-
-Short definition what is to be learned (this is the prefered type) or 
-achieved (if this is mostly a stepping stone for something else). 
-
-The goal is always formulated in first-person perspective ("I").
-It is either short or a bulleted list of short items.
-Can be positioned first (this is the prefered structure) or 
-nested inside the background section (using [INNERSECTION::goal::...]) or
-after the entire background.
-
-##### 1.6.1.2 `[SECTION::background::default]`  
-
-Knowledge required for understanding the instructions and solving the task.
-
-Only present if needed. Keep this short.  
-If lots of background are needed, turn it into steps of the instructions.
-
-##### 1.6.1.3 `[SECTION::instructions::...]`  
-
-The main part of the task: Instructions what to do.
-
-More strongly than for other sections, 
-this section looks hugely different depending on difficulty level.
-See the discussion of difficulty levels above and of instructions subtypes below.
-
-##### 1.6.1.4 `[SECTION::submission::...]`  
-
-Final part of the task: Description what to prepare for the instructor to check.
-
-Characterizes 
-
-- the format (eg. `.md` file or `.py` file or directory with several files),
-- the content, 
-- and perhaps quality criteria.
-
-
-#### 1.6.2 Recommendation for section subtypes
-
-##### 1.6.2.1 goal
-
-- `[SECTION::goal::product]`:  
-  A work product itself is the task's goal (because we want to have it or want to build on top of it).
-  Usually difficulty 3 or 4.
-- `[SECTION::goal::idea]`:  
-  Understanding a concept or idea is the goal. Difficulty 1, 2, or 3.
-- `[SECTION::goal::experience]`:  
-  Accumulating experience from actual technical problem-solving is the task's goal.
-  Difficulty 3 or 4.
-- `[SECTION::goal::trial]`:  
-  The task's goal is a mix of the types 'idea' (mostly) and 'experience' (smaller part). 
-  Difficulty 1 to 3 (or perhaps 4).
-
-
-##### 1.6.2.2 background
-
-- `[SECTION::background::default]`:  
-  There is only one type of background section.
-
-
-##### 1.6.2.3 instructions
-
-- `[SECTION::instructions::detailed]`:  
-  The instructions are such that the student must merely follow them closely for 
-  solving the task and hardly needs to do problem-solving themselves.
-  These tasks are easy (difficulty 1 or 2) for the students but
-  difficult for the authors, because we need to think of so many things.
-- `[SECTION::instructions::loose]`:  
-  The instructions are less complete; the student must fill instruction gaps of moderate size
-  but we provide information where to look for the material to fill them.
-  Difficulty 3 or 4.
-- `[SECTION::instructions::tricky]`:  
-  The instructions are of a general nature, far removed from the detail required for a solution.
-  The student must not only determine many details, but must also make decisions that can
-  easily go wrong, making a successful solution much harder.
-  Difficulty 4.
-
-
-##### 1.6.2.4 submission
-
-- `[SECTION::submission::reflection]`:  
-  Students submit a text containing their thoughts about something.
-- `[SECTION::submission::information]`:  
-  Students submit concrete information they found in an inquiry. 
-- `[SECTION::submission::snippet]`:  
-  Students submit a short snippet of program text, e.g. a shell command (or a few).
-- `[SECTION::submission::trace]`:  
-  Students submit a log of an interactive session or the output of a program run. 
-- `[SECTION::submission::program]`:  
-  Students submit an entire program with many moving parts.
-
-
-#### 1.6.3 `[INNERSECTION]`/`[ENDINNERSECTION]`
-
-If you insist on nesting some of your sections, use a maximum nesting depth of 1
-and use the `[INNERSECTION]`/`[ENDINNERSECTION]` pair of macros for the nested section.
-It works exactly like `[SECTION]` and the same types and subtypes apply.
-
-
-### 1.7 Instructor-only information: The `[INSTRUCTOR]` block macro
-
-- `[INSTRUCTOR::heading]`/`[ENDINSTRUCTOR]`:
-  This macro creates a distinctly-formatted block of text with a variable heading
-  that contains information to be used by the course instructors for deciding acceptance/rejection
-  of task solutions submitted by students.  
-  The macro has a special status within sedrila: sedrila generates a student version and an
-  instructor version of the course and the contents of `[INSTRUCTOR]` blocks will be misssing 
-  from the student version.
-
-
-### 1.8 Other block macros: `[NOTICE]`, `[WARNING]`, `[HINT]`, `[FOLDOUT]`
-
-- `[NOTICE]`/`[ENDNOTICE]`:    
-  A semi-important note with potentially different formatting than normal text.
-- `[WARNING]`/`[ENDWARNING]`:    
-  A warning of a pitfall to be avoided.
-  Will render as an eye-catching text box.
-- `[HINT::title text]`/`[ENDHINT]`:  
-  Information, typically in the instructions section, that is helpful for solving the task
-  but that students are intended to find out themselves.
-  Therefore, the body text of the hint is not visible initially, only the title text is.
-  Students can fold out the hint body when they recognize they need more help.
-  Use this in particular for making sure a task that is intended to be
-  difficulty 3 does not end up being difficulty 4.
-  Use it also to make it likely that a task at difficulty 2 is interesting enough for
-  somebody who would rather do difficulty 3.
-- `[FOLDOUT::title text]`/`[ENDFOLDOUT]`:  
-  Just like `[HINT]`, but without the marker that it is a hint.
-  To be used for materials that is lengthy but not important for a first overview of the task,
-  often listings.
-
-Of these, only `HINT` and `FOLDOUT` are built into sedrila, 
-whereas `NOTICE` and `WARNING` (as well as `INSTRUCTOR` above) are in fact
-defined by `sedrila.yaml` and `sedrila.css` only 
-and you can define further macros like them if needed.
-
-
-### 1.9 Other macros: `[INCLUDE]`, cross-references, counters, etc.
-
-#### 1.9.1 Macros for hyperlinks: `[HREF]`, `[PARTREF]`, `[PARTREFTITLE]`, `[PARTREFMANUAL]`, `[TERMREF]`
-
-- `[HREF::url]`: Equivalent to the plain Markdown markup `[url](url)`, but avoids the repetition
-  of the often-lengthy URL.
-- `[PARTREF::partname]`: 
-  Create a hyperlink to the part description file for task, taskgroup, chapter, or zipfile `partname`,
-  using the partname as the link text.
-- `[PARTREFTITLE::partname]`: 
-  Ditto, but using the part's title as the link text. Not recommended.
-- `[PARTREFMANUAL::partname::link text]`: 
-  Ditto, but using the given link text.
-- `[TERMREF::term]`:
-  Create a hyperlink to the glossary entry `term`; see under glossary below.
-- `[TERMREF2::term::shown form]`:
-  Create a hyperlink to the glossary entry `term` that is rendered as `shown form`.
-  If `shown form` starts with a dash, it will be appended to `term` instead of replacing it.
-  This is useful for plural forms: `[TERMREF2::file::-s]` renders as `files`, but refers to `file`.
-
-
-#### 1.9.2 Macros for instruction enumerations: `[EC]`, `[EQ]`, `[ER]`, `[EREFC]`, `[EREFQ]`, `[EREFR]`
-
-The split between `[SECTION::instructions::...]` and `[SECTION::submission::...]` is often inconvenient
-both for authors and students: The instructions may contain, say, 17 steps, and 5 of those
-produce some part of what is to be submitted in the end.
-Having to refer to those 5 in the `submission` section manually is laborious and error-prone.
-
-The macros `[EC]`, `[EQ]`, `[ER]` all generate a highlighted label containing a number
-that counts upwards in each call within each task.
-In the macro names, E stands for enumeration,
-C stands for command, Q for question, R for requirement.
-By having three separate counters, one can have tasks
-that mix up to three different submission parts of different character, 
-e.g. a protocol file create by the `script` command for commands,
-a markdown file written manually for questions,
-a python file implementing requirements, etc.
-
-The content of `[SECTION::submission::...]` can then often be a fixed boilerplate text module
-for each submission type, which can nicely be reproduced identically via the 
-`[INCLUDE]` macro (see below).
-
-In `[INSTRUCTOR]`, one may want to refer to some of those pieces with like markup.
-This can be created using the `EREFx` macros (for "reference").
-E.g. `[EREFC::3]` would refer to the third call of the commands enumeration.
-
-Sedrila does not implement a full cross-reference mechanism with labels and label references,
-because of the strong within-task locality that the cross-references will usually have,
-which makes manual cross-referencing the simpler approach.
-
-
-#### 1.9.3 `[INCLUDE]`
-
-`[INCLUDE::filename]`: inserts the entire contents of file `filename` verbatim
-into the Markdown input stream at this point.
-
-- `filename` is a path relative to the directory of the file containing the `INCLUDE` call.
-- Useful for having small Python programs (etc.) as separate files during development,
-  so they can be executed and tested.
-  The students copy/paste the file from within the page in the web browser.  
-  We recommend to put include files relevant for a single task or task group into the task group directory.
-- You can also use absolute paths: `[INCLUDE::/_include/some-blurb.md]` will include a blurb used in
-  many places that lives in a directory (in this case called `_include`) directly below the 
-  configuration setting `chapterdir`.
-
-`[INCLUDE]` pathnames can use the prefixes `ALT:` or `ITREE:` to refer to other
-base directories; see 1.14 "Confidential contents" for details.
-
-
-#### 1.9.4 `[PROT]`
-
-Include a rendered command protocol.
-`[PROT::filename.prot]`: works much like `[INCLUDE]` and obeys the same rules for the filenames.
-The difference is in file contents: With `[INCLUDE]`, contents are treated as markdown.
-If you want to include source code of some sort, you can put the `[INCLUDE]` in a
-triple-quote source code block and get the expected results.
-
-With `[PROT]`, in contrast, a sedrila-specific rendering is applied.
-This rendering assumes the file contains content copy/pasted from a terminal session
-in a shell window.
-The shell prompt must be a two-line prompt using the following structure:  
-
-```
-export PS1="\u@\h \w \t \!\n\$ "
-```
-
-You can add coloring with ANSI sequences thusly:
-```
-export PS1="\[\e[1;33m\]\u\[\e[1;31m\]@\h \[\e[0;32m\]\w \[\e[0;37m\]\t \[\e[44m\] \! \[\e[40m\]\n\$ "
-```
-
-The `[PROT]` macro will spot lines that have the structure of that prompt
-and format them in multiple colors.
-It will assume the next line is the actual command and format that in a single color.
-It will assume everything beyond (up to the next prompt) is command output and format that
-in yet another manner, all based on CSS classes which you can find in the output.
-Line structure and spaces are preserved.
-
-
-#### 1.9.5 `[TOC]`, `[DIFF]`
-
-- `[TOC]`: Generates a table of contents from the Markdown headings present in the file.
-  For the glossary, ignores headings and instead makes an alphabetical list of all term entries 
-  (main terms and synonyms).
-- `[DIFF::level]` generates the task difficulty mark for the given level, from 1 (very simple) to 4 (difficult).
-
-
-### 1.10 Taskgroup `index.md` files and chapter `index.md` files
+### 1.5 Taskgroup `index.md` files and chapter `index.md` files
 
 A **taskgroup** is described by an `index.md` file in the respective directory,
 which consists of a YAML part and text part much like a task file.
@@ -710,30 +378,17 @@ These files work like taskgroup `index.md` files, except that
 `explains` entries are not allowed.
 
 
-### 1.11 The glossary: `glossary.md` in `chapterdir`, `[TERM]`/`[TERM0]` macros
+### 1.6 The glossary: `glossary.md` in `chapterdir`
 
 The glossary is a singleton living at the `chapterdir` top-level directory.
 It is generated from a source file `glossary.md`.
 The YAML topmatter has only one attribute: `title`.
 
-The body of the file mostly consists of term definition blocks like the following
-```
-[TERM::myterm|otherform|yet another]
-As much markdown text as required for defining the term.
-- may have itemized lists 
-- and other markup
-- in particular calls to the [TERMREF]/[TERMREF2] macros described above
-[ENDTERM]
-```
-This defines a term that shows up in the glossary as `myterm`,
-but can be referenced by any of 
-`[TERMREF::myterm]`, `[TERMREF::otherform]`, or `[TERMREF::yet another]`. 
-
-Use `[TERM0]` in case no definition of the term is needed because the automatically added
-cross-references to parts mentioning and (in particular) explaining it suffice.
+The body of the file mostly consists of term definition blocks.
+For the `[TERM]` and `[TERMREF]` macros used in glossary files, see Section 2.
 
 
-### 1.12 `.zip` directories
+### 1.7 `.zip` directories
 
 At the level of a chapter or a taskgroup, you can place a subdirectory
 with a name ending in `.zip`, say, `myarchive.zip`.
@@ -751,7 +406,7 @@ if multiple files are involved, and still keep those files in an easily editable
 Use this for handsful of files. For large structures, apply separate repositories.
 
 
-### 1.13 Other files and directories
+### 1.8 Other files and directories
 
 Subdirectories at the chapter level or taskgroup level that are not
 defined to be chapters or taskgroups in `sedrila.yaml` will simply be ignored.
@@ -767,7 +422,7 @@ so the name of such a file must be globally unique.
 It should therefore start with the taskgroup name or a task name.
 
 
-### 1.14 Confidential contents: `altdir`, `itreedir`, `[TREEREF]`
+### 1.9 Confidential contents: `altdir`, `itreedir`
 
 The course for which sedrila was developed is an Open Educational Resource,
 i.e., its sources are public.
@@ -800,21 +455,12 @@ In the generated website, the entire directory tree below `itreedir`
 becomes a single, same-named ZIP file
 which can be downloaded and unpacked by instructors in order to make use of the files
 as needed.
-`[INSTRUCTOR]` blocks in tasks can refer to those files by mentioning their path
-in a call to macro `[TREEREF]`.
 
-`[TREEREF::mytask.py]`, when called in `<chapterdir>/mychapter/mygroup/mytask.md`,
-refers to the file `<itreedir>/mychapter/mygroup/mytask.py` and will render as
-`<span class="treeref-prefix"></span><span class="treeref">mychapter/mygroup/mytask.py</span><span class="treeref-suffix"></span>`
-which can be formatted with appropriate CSS.  
-Just like with `[INCLUDE]`, pathnames can be relative or absolute, so 
-`[TREEREF::/mychapter/mygroup/mytask.py]` is equivalent to the above,
-which is useful for trees that pertain to several tasks.
-`[INCLUDE]` supports the prefix `ITREE` as well:
-`[INCLUDE::ITREE:mytask.py]`
+For the macros used to reference these directories (`[INCLUDE::ALT:]`, `[INCLUDE::ITREE:]`, 
+`[TREEREF]`), see Section 2.
 
 
-### 1.15 Naming conventions
+### 1.10 Naming conventions
 
 From the point of view of the `[PARTREF]` macro, the names of all parts
 are in one single namespace, so they must all be unique.
@@ -855,53 +501,397 @@ The following rules are suggestions for how to achieve these properties.
   or the default alphabetical ordering ought to be fine.
 
 
-## 2. Calling `sedrila`
+## 2. Macros and other markup
 
-### 2.1 Default behavior
+### 2.0 Overview
 
-The standard call for generating the HTML website from a sedrila course is
-`sedrila author outputdir`.
-This will create the student version of the website at location `outputdir`
-and the instructor version at `outputdir/instructor`.
-Both versions will by default exclude all tasks, taskgroups, and chapters that have a
-`stage:` entry in their metadata.
+Sedrila extends standard Markdown with macros and replacement blocks.
+Macros are special commands written in `[UPPERCASE::parameters]` notation that provide:
 
-### 2.2 Options
+- **Block macros** for content structure: `[SECTION]`, `[INSTRUCTOR]`, `[HINT]`, `[WARNING]`, etc.
+- **Inline macros** for cross-references: `[PARTREF]`, `[TERMREF]`, `[HREF]`
+- **Content inclusion**: `[INCLUDE]`, `[PROT]`, `[SNIPPET]`
+- **Enumeration markers**: `[EC]`, `[EQ]`, `[ER]` for numbered instructions
+- **Glossary definitions**: `[TERM]`, `[TERMREF]`
+- **Utility macros**: `[TOC]`, `[DIFF]`, `[TREEREF]`
 
-- To include parts with `stage:` entry, add option `--include_stage minstage` where `minstage`
-  is the lowest stage that should be included; all higher ones will be included as well.  
-- To obtain less detailed console output during the generation, use `--log WARNING`.  
-- The first run creates and fills the cache (which is stored in the instructor directory) 
-  and subsequent runs will usually run _much_ faster.
-  If you want another full build for some reason, use `--clean`.
-- To use an alternative configuration file, use something like `--config myconfig.yaml`.  
-- Option `--sums` generates reports about the volume of tasks per chapter,
-  per difficulty, and per stage.
-- Option `--rename old_partname new_partname` shortcuts normal operation and only performs a
-  rename refactoring of the course content.
-  It requires passing a dummy `targetdir` commandline argument which is not actually used.
-  It will rename files or directories as appropriate (and occasionally beyond).
-  It will replace references in markdown files: 
-  `assumes:` and `requires:` headers as well as `PARTREF`, `INCLUDE`, `PROT`, and `TREEREF`
-  macro calls.
-  It will heuristically replace occurrences of `old_partname` in `new_partname.prot` files.
-  Practical tips:
+General things to know about macros:
 
-    - False positives are possible; make sure you inspect the protocol output on the terminal.
-    - False negatives are likely, because other file types (such as program source files) are not modified.
-      Perform a full-text search in your IDE after the rename operation to find them.
-    - Start from a clean git state, so you can reset easily if things work out badly.
-    - Do not interrupt a rename operation. A wrong, but complete rename is often easy to revert;
-      a half-done one is probably not.
-    - Make sure you adjust your config file if chapter/taskgroup directories were renamed.
-    - After a rename, perform a build to check validity.
+- Macros have names in all UPPERCASE and each have 0, 1, or 2 formal parameters.
+- Sedrila supplies a fixed set of macros, discussed in the following sections.
+- Macro calls come in square brackets, parameters use a `::` as delimiter.    
+  Examples: `[SOMEMACRONAME]`, `[OTHERMACRO::arg1]`, `[YETANOTHER::arg1::arg2]`.
+- If a macro is not defined or has a different number of parameters than supplied in the call,
+  sedrila will complain.
+- A macro call cannot be split over multiple lines.
+- Some macros serve as markup for blocks of text. These macros come in `X`/`ENDX` pairs:  
+  ```
+  [WARNING]
+  body text, as many lines as needed
+  [ENDWARNING]
+  ```
+- Due to the simplistic parser used, an `X`/`ENDX` block cannot be nested in another
+  `X`/`ENDX` block and both macro calls must be alone on a line by themselves.
+- Non-block macro calls can be mixed with other content on a line.
 
-### 2.3 Automatic validation during builds
 
-The `sedrila author` command validates course content incrementally during each build.
-Validation runs only when relevant files change and respects the `--include_stage` setting.
+### 2.1 `[SECTION]`/`[ENDSECTION]` macros for content structure
 
-#### 2.3.1 Code snippet validation: `[SNIPPET::filespec::snippetname]`
+It is useful for learners if tasks follow a recurring content structure,
+possibly with corresponding visual structure.
+The `[SECTION::sectiontype::sectionsubtype]` macro supports both.
+
+Sections follow one after another; they are usually not nested.  
+They are marked up for example like this:
+```
+[SECTION::goal::idea]
+Understand section markup
+[ENDSECTION]
+```
+
+Section types (like `goal` above) and subtypes (like `idea` above) 
+come from a fixed list declared via the
+`blockmacro_topmatter` part of `sedrila.yaml`.
+Each type and subtype will use corresponding CSS styles in the generated output,
+so that the visual appearance can be customized.
+
+Although each sedrila course can hence decide its section structure itself,
+sedrila comes with a recommendation:
+
+#### 2.1.1 Recommendation for section usage and `[SECTION]` types
+
+The entire body of a task description is divided into sections; 
+the only extra text is possibly a number of `[INSTRUCTOR]`/`[ENDINSTRUCTOR]` blocks
+before, between, or (most likely) after the sections.
+
+In contrast, chapters' and taskgroups' `index.md` files can optionally use 
+goal and background sections at their top, but then always
+continue with section-free text for characterizing the content of the chapter or taskgroup.
+
+The page title is a `<h1>` heading, `[SECTION::...]` macros by convention generate a `<h2>` heading.
+Therefore, inside sections you should use (if needed) `### ` headings.
+
+##### 2.1.1.1 `[SECTION::goal::...]`
+
+Short definition what is to be learned (this is the prefered type) or 
+achieved (if this is mostly a stepping stone for something else). 
+
+The goal is always formulated in first-person perspective ("I").
+It is either short or a bulleted list of short items.
+Can be positioned first (this is the prefered structure) or 
+nested inside the background section (using [INNERSECTION::goal::...]) or
+after the entire background.
+
+##### 2.1.1.2 `[SECTION::background::default]`  
+
+Knowledge required for understanding the instructions and solving the task.
+
+Only present if needed. Keep this short.  
+If lots of background are needed, turn it into steps of the instructions.
+
+##### 2.1.1.3 `[SECTION::instructions::...]`  
+
+The main part of the task: Instructions what to do.
+
+More strongly than for other sections, 
+this section looks hugely different depending on difficulty level.
+See the discussion of difficulty levels above and of instructions subtypes below.
+
+##### 2.1.1.4 `[SECTION::submission::...]`  
+
+Final part of the task: Description what to prepare for the instructor to check.
+
+Characterizes 
+
+- the format (eg. `.md` file or `.py` file or directory with several files),
+- the content, 
+- and perhaps quality criteria.
+
+
+#### 2.1.2 Recommendation for section subtypes
+
+##### 2.1.2.1 goal
+
+- `[SECTION::goal::product]`:  
+  A work product itself is the task's goal (because we want to have it or want to build on top of it).
+  Usually difficulty 3 or 4.
+- `[SECTION::goal::idea]`:  
+  Understanding a concept or idea is the goal. Difficulty 1, 2, or 3.
+- `[SECTION::goal::experience]`:  
+  Accumulating experience from actual technical problem-solving is the task's goal.
+  Difficulty 3 or 4.
+- `[SECTION::goal::trial]`:  
+  The task's goal is a mix of the types 'idea' (mostly) and 'experience' (smaller part). 
+  Difficulty 1 to 3 (or perhaps 4).
+
+
+##### 2.1.2.2 background
+
+- `[SECTION::background::default]`:  
+  There is only one type of background section.
+
+
+##### 2.1.2.3 instructions
+
+- `[SECTION::instructions::detailed]`:  
+  The instructions are such that the student must merely follow them closely for 
+  solving the task and hardly needs to do problem-solving themselves.
+  These tasks are easy (difficulty 1 or 2) for the students but
+  difficult for the authors, because we need to think of so many things.
+- `[SECTION::instructions::loose]`:  
+  The instructions are less complete; the student must fill instruction gaps of moderate size
+  but we provide information where to look for the material to fill them.
+  Difficulty 3 or 4.
+- `[SECTION::instructions::tricky]`:  
+  The instructions are of a general nature, far removed from the detail required for a solution.
+  The student must not only determine many details, but must also make decisions that can
+  easily go wrong, making a successful solution much harder.
+  Difficulty 4.
+
+
+##### 2.1.2.4 submission
+
+- `[SECTION::submission::reflection]`:  
+  Students submit a text containing their thoughts about something.
+- `[SECTION::submission::information]`:  
+  Students submit concrete information they found in an inquiry. 
+- `[SECTION::submission::snippet]`:  
+  Students submit a short snippet of program text, e.g. a shell command (or a few).
+- `[SECTION::submission::trace]`:  
+  Students submit a log of an interactive session or the output of a program run. 
+- `[SECTION::submission::program]`:  
+  Students submit an entire program with many moving parts.
+
+
+#### 2.1.3 `[INNERSECTION]`/`[ENDINNERSECTION]`
+
+If you insist on nesting some of your sections, use a maximum nesting depth of 1
+and use the `[INNERSECTION]`/`[ENDINNERSECTION]` pair of macros for the nested section.
+It works exactly like `[SECTION]` and the same types and subtypes apply.
+
+
+### 2.2 Instructor-only information: The `[INSTRUCTOR]` block macro
+
+- `[INSTRUCTOR::heading]`/`[ENDINSTRUCTOR]`:
+  This macro creates a distinctly-formatted block of text with a variable heading
+  that contains information to be used by the course instructors for deciding acceptance/rejection
+  of task solutions submitted by students.  
+  The macro has a special status within sedrila: sedrila generates a student version and an
+  instructor version of the course and the contents of `[INSTRUCTOR]` blocks will be misssing 
+  from the student version.
+
+
+### 2.3 Other block macros: `[NOTICE]`, `[WARNING]`, `[HINT]`, `[FOLDOUT]`
+
+- `[NOTICE]`/`[ENDNOTICE]`:    
+  A semi-important note with potentially different formatting than normal text.
+- `[WARNING]`/`[ENDWARNING]`:    
+  A warning of a pitfall to be avoided.
+  Will render as an eye-catching text box.
+- `[HINT::title text]`/`[ENDHINT]`:  
+  Information, typically in the instructions section, that is helpful for solving the task
+  but that students are intended to find out themselves.
+  Therefore, the body text of the hint is not visible initially, only the title text is.
+  Students can fold out the hint body when they recognize they need more help.
+  Use this in particular for making sure a task that is intended to be
+  difficulty 3 does not end up being difficulty 4.
+  Use it also to make it likely that a task at difficulty 2 is interesting enough for
+  somebody who would rather do difficulty 3.
+- `[FOLDOUT::title text]`/`[ENDFOLDOUT]`:  
+  Just like `[HINT]`, but without the marker that it is a hint.
+  To be used for materials that is lengthy but not important for a first overview of the task,
+  often listings.
+
+Of these, only `HINT` and `FOLDOUT` are built into sedrila, 
+whereas `NOTICE` and `WARNING` (as well as `INSTRUCTOR` above) are in fact
+defined by `sedrila.yaml` and `sedrila.css` only 
+and you can define further macros like them if needed.
+
+
+### 2.4 Other macros: `[INCLUDE]`, cross-references, counters, etc.
+
+#### 2.4.1 Macros for hyperlinks: `[HREF]`, `[PARTREF]`, `[PARTREFTITLE]`, `[PARTREFMANUAL]`, `[TERMREF]`
+
+- `[HREF::url]`: Equivalent to the plain Markdown markup `[url](url)`, but avoids the repetition
+  of the often-lengthy URL.
+- `[PARTREF::partname]`: 
+  Create a hyperlink to the part description file for task, taskgroup, chapter, or zipfile `partname`,
+  using the partname as the link text.
+- `[PARTREFTITLE::partname]`: 
+  Ditto, but using the part's title as the link text. Not recommended.
+- `[PARTREFMANUAL::partname::link text]`: 
+  Ditto, but using the given link text.
+- `[TERMREF::term]`:
+  Create a hyperlink to the glossary entry `term`; see under glossary below.
+- `[TERMREF2::term::shown form]`:
+  Create a hyperlink to the glossary entry `term` that is rendered as `shown form`.
+  If `shown form` starts with a dash, it will be appended to `term` instead of replacing it.
+  This is useful for plural forms: `[TERMREF2::file::-s]` renders as `files`, but refers to `file`.
+
+
+#### 2.4.2 Macros for instruction enumerations: `[EC]`, `[EQ]`, `[ER]`, `[EREFC]`, `[EREFQ]`, `[EREFR]`
+
+The split between `[SECTION::instructions::...]` and `[SECTION::submission::...]` is often inconvenient
+both for authors and students: The instructions may contain, say, 17 steps, and 5 of those
+produce some part of what is to be submitted in the end.
+Having to refer to those 5 in the `submission` section manually is laborious and error-prone.
+
+The macros `[EC]`, `[EQ]`, `[ER]` all generate a highlighted label containing a number
+that counts upwards in each call within each task.
+In the macro names, E stands for enumeration,
+C stands for command, Q for question, R for requirement.
+By having three separate counters, one can have tasks
+that mix up to three different submission parts of different character, 
+e.g. a protocol file create by the `script` command for commands,
+a markdown file written manually for questions,
+a python file implementing requirements, etc.
+
+The content of `[SECTION::submission::...]` can then often be a fixed boilerplate text module
+for each submission type, which can nicely be reproduced identically via the 
+`[INCLUDE]` macro (see below).
+
+In `[INSTRUCTOR]`, one may want to refer to some of those pieces with like markup.
+This can be created using the `EREFx` macros (for "reference").
+E.g. `[EREFC::3]` would refer to the third call of the commands enumeration.
+
+Sedrila does not implement a full cross-reference mechanism with labels and label references,
+because of the strong within-task locality that the cross-references will usually have,
+which makes manual cross-referencing the simpler approach.
+
+
+#### 2.4.3 `[INCLUDE]`
+
+`[INCLUDE::filename]`: inserts the entire contents of file `filename` verbatim
+into the Markdown input stream at this point.
+
+- `filename` is a path relative to the directory of the file containing the `INCLUDE` call.
+- Useful for having small Python programs (etc.) as separate files during development,
+  so they can be executed and tested.
+  The students copy/paste the file from within the page in the web browser.  
+  We recommend to put include files relevant for a single task or task group into the task group directory.
+- You can also use absolute paths: `[INCLUDE::/_include/some-blurb.md]` will include a blurb used in
+  many places that lives in a directory (in this case called `_include`) directly below the 
+  configuration setting `chapterdir`.
+
+`[INCLUDE]` pathnames can use the prefixes `ALT:` or `ITREE:` to refer to other
+base directories (see Section 1.9 "Confidential contents"):
+- `[INCLUDE::ALT:filename]` includes from the `altdir` tree
+- `[INCLUDE::ITREE:filename]` includes from the `itreedir` tree
+
+
+#### 2.4.4 `[PROT]`
+
+Include a rendered command protocol.
+`[PROT::filename.prot]`: works much like `[INCLUDE]` and obeys the same rules for the filenames.
+The difference is in file contents: With `[INCLUDE]`, contents are treated as markdown.
+If you want to include source code of some sort, you can put the `[INCLUDE]` in a
+triple-quote source code block and get the expected results.
+
+With `[PROT]`, in contrast, a sedrila-specific rendering is applied.
+This rendering assumes the file contains content copy/pasted from a terminal session
+in a shell window.
+The shell prompt must be a two-line prompt using the following structure:  
+
+```
+export PS1="\u@\h \w \t \!\n\$ "
+```
+
+You can add coloring with ANSI sequences thusly:
+```
+export PS1="\[\e[1;33m\]\u\[\e[1;31m\]@\h \[\e[0;32m\]\w \[\e[0;37m\]\t \[\e[44m\] \! \[\e[40m\]\n\$ "
+```
+
+The `[PROT]` macro will spot lines that have the structure of that prompt
+and format them in multiple colors.
+It will assume the next line is the actual command and format that in a single color.
+It will assume everything beyond (up to the next prompt) is command output and format that
+in yet another manner, all based on CSS classes which you can find in the output.
+Line structure and spaces are preserved.
+
+
+#### 2.4.5 `[TOC]`, `[DIFF]`
+
+- `[TOC]`: Generates a table of contents from the Markdown headings present in the file.
+  For the glossary, ignores headings and instead makes an alphabetical list of all term entries 
+  (main terms and synonyms).
+- `[DIFF::level]` generates the task difficulty mark for the given level, from 1 (very simple) to 4 (difficult).
+
+
+#### 2.4.6 `[TREEREF]`
+
+`[INSTRUCTOR]` blocks in tasks can refer to files in the `itreedir` by mentioning their path
+in a call to macro `[TREEREF]`.
+
+`[TREEREF::mytask.py]`, when called in `<chapterdir>/mychapter/mygroup/mytask.md`,
+refers to the file `<itreedir>/mychapter/mygroup/mytask.py` and will render as
+`<span class="treeref-prefix"></span><span class="treeref">mychapter/mygroup/mytask.py</span><span class="treeref-suffix"></span>`
+which can be formatted with appropriate CSS.  
+Just like with `[INCLUDE]`, pathnames can be relative or absolute, so 
+`[TREEREF::/mychapter/mygroup/mytask.py]` is equivalent to the above,
+which is useful for trees that pertain to several tasks.
+
+
+### 2.5 Glossary macros: `[TERM]`, `[TERM0]`, `[TERMREF]`
+
+Term definition blocks in the glossary file look like this:
+```
+[TERM::myterm|otherform|yet another]
+As much markdown text as required for defining the term.
+- may have itemized lists 
+- and other markup
+- in particular calls to the [TERMREF]/[TERMREF2] macros described above
+[ENDTERM]
+```
+This defines a term that shows up in the glossary as `myterm`,
+but can be referenced by any of 
+`[TERMREF::myterm]`, `[TERMREF::otherform]`, or `[TERMREF::yet another]`. 
+
+Use `[TERM0]` in case no definition of the term is needed because the automatically added
+cross-references to parts mentioning and (in particular) explaining it suffice.
+
+
+### 2.6 Replacement blocks
+
+A replacement block looks like this:
+```
+some text <replacement id="someId">text to be replaced</replacement> some more text.
+```
+The idea is that the text to be replaced is somehow location-dependent
+(such as the URL of a server of the local university)
+and other universities using the same ProPra should be able to replace it
+with their own local version in a simple manner.
+Simple means they can fork the ProPra repository but need hardly ever make
+any change to the actual task files, only to a single, central _replacements file_.
+
+The replacements file is `replacements.md` in the top level of the ProPra repo.
+It contains simply a list of replacement blocks:
+
+```
+<replacement id="someId">
+our adapted local text (could also be on a single line instead of three)
+</replacement>
+
+
+<replacement id="otherId">
+This is a longer replacement that can continue for multiple paragraphs.
+
+Replacements can use _any_ **markup**, including macro calls,
+only excluding other replacements.
+[WARNING]
+Beware of the dog!
+[ENDWARNING]
+
+## Next heading
+And so on.  
+</replacement>
+```
+
+Sedrila will replace the `text to be replaced` with its counterpart from the replacement file
+exactly as written and will remove the `<replacement id="someId">` and `</replacement>` pseudo tags.
+The `id` should start with the respective task, taskgroup, or chapter name.
+
+
+### 2.7 Code snippet inclusion and validation: `[SNIPPET]`
 
 `[SNIPPET::filespec::snippetname]` mirrors the syntax of `[INCLUDE::…]`:  
 `filespec` accepts absolute or relative paths, uses prefixes `ALT:` and `ITREE:` for the respective trees. `snippetname` must be a conventional identifier (letters, digits, underscores only).  
@@ -909,19 +899,19 @@ Use the `SNIPPET` macro to insert code snippets:
 
 ```markdown
 [SNIPPET::ALT::mysnippet]                              <!-- mirrors current task filename under altdir -->
-[SNIPPET::include/demo.py::mysnippet] -->              <!-- relative path -->
-[SNIPPET::/Basis/IDE/include/demo.py::mysnippet] -->   <!-- absolute path -->
+[SNIPPET::include/demo.py::mysnippet]                  <!-- relative path -->
+[SNIPPET::/Basis/IDE/include/demo.py::mysnippet]       <!-- absolute path -->
 [SNIPPET::ITREE:demo.py::mysnippet]                    <!-- relative path with ITREE -->
 [SNIPPET::ITREE:/Basis/IDE/demo.py::mysnippet]         <!-- absolute path with ITREE -->
 ```
 
 `filespec` follows the same rules as `[INCLUDE::...]`:
 
-- Plain relative or absolute paths are resolved relative to the task file’s location in `chapterdir`.
+- Plain relative or absolute paths are resolved relative to the task file's location in `chapterdir`.
 - Prefix `ALT:` switches to the corresponding path under `altdir`.
 - Prefix `ITREE:` targets `itreedir`.
 - An empty `filespec` (`[SNIPPET::::snippet]`) reuses the current filename and directory.
-- Short forms such as `[SNIPPET::ITREE::mysnippet]` reuse the current task’s relative path under `itreedir`. 
+- Short forms such as `[SNIPPET::ITREE::mysnippet]` reuse the current task's relative path under `itreedir`. 
 - Supplying only the filename (`[SNIPPET::ITREE:demo.py::mysnippet]`) or a full absolute path (`[SNIPPET::ITREE:Basis/IDE/demo.py::mysnippet]`) works exactly the same way as with `[INCLUDE]`.
 
 Mark snippets inside solution files with single-line comments whose contents are `SNIPPET::name` and `ENDSNIPPET` (optionally `ENDSNIPPET::name`). Supported comment syntaxes include the usual one-line markers of many languages (`#`, `//`, `--`, `;`, `!`, `'`, …) as well as HTML comments `<!-- -->` for Markdown files. Examples:
@@ -955,7 +945,8 @@ Automatic validation during builds:
 - Runs incrementally: validation triggers only when task or solution files change
 - Persistent errors are always reported in every build (regardless of stage)
 
-#### 2.3.2 Command protocols validation: `@PROT_SPEC`
+
+### 2.8 Command protocol validation: `@PROT_SPEC`
 
 Author protocol files (`.prot`) can include `@PROT_SPEC` blocks that specify validation rules
 for comparing student submissions with author solutions.
@@ -1064,7 +1055,55 @@ Notes:
   The download happens transparently when an instructor views a student's protocol file and possesses the GPG private key
   needed for decryption.
 
-### 2.4 Copying the build output
+
+## 3. Calling `sedrila`
+
+### 3.1 Default behavior
+
+The standard call for generating the HTML website from a sedrila course is
+`sedrila author outputdir`.
+This will create the student version of the website at location `outputdir`
+and the instructor version at `outputdir/instructor`.
+Both versions will by default exclude all tasks, taskgroups, and chapters that have a
+`stage:` entry in their metadata.
+
+### 3.2 Options
+
+- To include parts with `stage:` entry, add option `--include_stage minstage` where `minstage`
+  is the lowest stage that should be included; all higher ones will be included as well.  
+- To obtain less detailed console output during the generation, use `--log WARNING`.  
+- The first run creates and fills the cache (which is stored in the instructor directory) 
+  and subsequent runs will usually run _much_ faster.
+  If you want another full build for some reason, use `--clean`.
+- To use an alternative configuration file, use something like `--config myconfig.yaml`.  
+- Option `--sums` generates reports about the volume of tasks per chapter,
+  per difficulty, and per stage.
+- Option `--rename old_partname new_partname` shortcuts normal operation and only performs a
+  rename refactoring of the course content.
+  It requires passing a dummy `targetdir` commandline argument which is not actually used.
+  It will rename files or directories as appropriate (and occasionally beyond).
+  It will replace references in markdown files: 
+  `assumes:` and `requires:` headers as well as `PARTREF`, `INCLUDE`, `PROT`, and `TREEREF`
+  macro calls.
+  It will heuristically replace occurrences of `old_partname` in `new_partname.prot` files.
+  Practical tips:
+
+    - False positives are possible; make sure you inspect the protocol output on the terminal.
+    - False negatives are likely, because other file types (such as program source files) are not modified.
+      Perform a full-text search in your IDE after the rename operation to find them.
+    - Start from a clean git state, so you can reset easily if things work out badly.
+    - Do not interrupt a rename operation. A wrong, but complete rename is often easy to revert;
+      a half-done one is probably not.
+    - Make sure you adjust your config file if chapter/taskgroup directories were renamed.
+    - After a rename, perform a build to check validity.
+
+### 3.3 Automatic validation during builds
+
+The `sedrila author` command validates course content incrementally during each build.
+Validation runs only when relevant files change and respects the `--include_stage` setting.
+The validation features (`[SNIPPET]` and `@PROT_SPEC`) are described in Sections 2.7 and 2.8.
+
+### 3.4 Copying the build output
 
 If you are using an Apache webserver and have provided a suitable `htaccess_template`
 in your config, you could copy the entire output directory as-is to a place where the
@@ -1081,15 +1120,15 @@ the student website (i.e., copy `*.*`: `instructor` is the only entry that has n
 to a public place and then copy the visible contents of `instructor` to an access-protected place
 (the cache files are the only ones whose names start with a dot).
 
-### 2.5 Working with a development setup of sedrila
+### 3.5 Working with a development setup of sedrila
 
 If you use a development setup with a source installation of sedrila,
 use a shell alias such as 
 `alias sedrila='python /my/work/dir/sedrila/py/sedrila.py'`.
 
-## 3. Customization of a sedrila course
+## 4. Customization of a sedrila course
 
-### 3.1 Forking an existing course
+### 4.1 Forking an existing course
 
 One design goal of sedrila is that course authors should be able to fork an existing ("upstream")
 sedrila course authored by people from a different university and adapt the fork to their needs,
@@ -1105,13 +1144,13 @@ The support for this has the following components:
 
 These mechanisms are described in the next three subsections. 
 
-### 3.2 Templates for HTML layout
+### 4.2 Templates for HTML layout
 
 The format of the resulting HTML files is determined per page type by the Jinja2 templates
 in directory `templates`.
 For examples, see https://github.com/fubinf/propra-inf/tree/main/templates
 
-### 3.3 Modifying the CSS
+### 4.3 Modifying the CSS
 
 By convention, the Jinja2 templates of a course should always include exactly two
 CSS files: `sedrila.css` and `local.css`.
@@ -1122,7 +1161,7 @@ By convention, the original course puts all its styles into `sedrila.css` and
 the fork can overwrite some of them in its `local.css`.
 In the original course, `local.css` is empty and never changes.
 
-### 3.4 The `<replacement>` mechanism
+### 4.4 The `<replacement>` mechanism
 
 The authors of the original course identify all parts in their text that refer
 to local entities, for instance department names, server URLs, or local rules
@@ -1161,7 +1200,7 @@ be replaced by appropriate alternative content when rendering the fork.
 As the original course's authors never touch `replacements.md`, 
 the fork authors can modify it freely without conflict.
 
-### 3.5 `altdir` and private repos
+### 4.5 `altdir` and private repos
 
 The `altdir` and `[INCLUDE::ALT:file]` mechanisms are meant for keeping parts of the
 instructor information in a non-public repository.
@@ -1182,7 +1221,7 @@ by reading https://stackoverflow.com/questions/54215983.
 The second repo for `altdir` will often also include the `itree.zip` tree.
 Alternatively, especially if its contents are bulky, the latter could reside in a third repo.
 
-### 3.6 Translating into English
+### 4.6 Translating into English
 
 If you want an English version of a German-language SeDriLa course,
 the following approach works fairly well: Use ChatGPT 3.5, use the prompt given below.
