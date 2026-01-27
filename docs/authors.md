@@ -145,7 +145,7 @@ https://github.com/fubinf/propra-inf/blob/main/sedrila.yaml (content in German, 
   in the participants list file.
 
 
-#### 1.1.4 Entries for `sedrila instructor` and `sedrila student`
+#### 1.1.4 Entries for both `sedrila instructor` and `sedrila student`
 
 - `instructors`: The source of truth for who can give students credit
   for their work. A list of dictionaries, each of which has the following entries:
@@ -289,13 +289,17 @@ perhaps in a `NOTICE` block, often near the end of the `background` section.
 
 ### 1.3 Special sedrila markup
 
-In addition to standard Markdown, sedrila provides several markup mechanisms:
+In addition to standard Markdown, sedrila provides several additional markup mechanisms:
 
 - **Macros**: Special commands in `[UPPERCASE]` notation for structured content,
-  cross-references, file inclusion, and more. See Section 2 for details.
+  cross-references, file inclusion, and more.
+  See Sections 2.0 to 2.8 for details.
 - **Replacement blocks**: `<replacement id="...">...</replacement>` tags that allow
   forked courses to substitute locale-specific content. 
-- See Section 2 for details.
+  See Section 2.9 for details.
+- **Checking specifications** such as `@PROT_SPEC` blocks that allow sedrila to perform
+  useful checking for non-authors (instructors, maintainers).
+  See Sections 2.10 to 2.12 for details.
 
 
 ### 1.4 Task files: YAML top matter
@@ -434,7 +438,8 @@ in order not to tempt students too much to simply look it up.
 Two entries in the `sedrila.yaml` file support this:
 First, `altdir` ("alternative directory") points to a directory tree of chapters and taskgroups 
 similar to `chapterdir` where files can be placed that contain information to be 
-made part of the `[INSTRUCTOR]` sections of tasks by means of `[INCLUDE]`.
+made part of the `[INSTRUCTOR]` sections of tasks by means of `[INCLUDE]` and `[PROT]`.
+Refer to sections 2.2, 2.6.1, 2.6.3 for explanations of these.
 For instance task `<chapterdir>/mychapter/mygroup/mytask.md` may have 
 `[INCLUDE::ALT:mytask.md]` as the body of its `[INSTRUCTOR]` block and that
 file would then contain the confidential instructor information.
@@ -455,9 +460,6 @@ In the generated website, the entire directory tree below `itreedir`
 becomes a single, same-named ZIP file
 which can be downloaded and unpacked by instructors in order to make use of the files
 as needed.
-
-For the macros used to reference these directories (`[INCLUDE::ALT:]`, `[INCLUDE::ITREE:]`, 
-`[TREEREF]`), see Section 2.
 
 
 ### 1.10 Naming conventions
@@ -501,9 +503,9 @@ The following rules are suggestions for how to achieve these properties.
   or the default alphabetical ordering ought to be fine.
 
 
-## 2. Macros and other markup
+## 2. Specialized sedrila markup: Macros, replacement blocks, checking specifications
 
-### 2.0 Overview
+### 2.0 Introduction to macros
 
 Sedrila extends standard Markdown with macros and replacement blocks.
 Macros are special commands written in `[UPPERCASE::parameters]` notation that provide:
@@ -524,13 +526,13 @@ General things to know about macros:
 - If a macro is not defined or has a different number of parameters than supplied in the call,
   sedrila will complain.
 - A macro call cannot be split over multiple lines.
-- Some macros serve as markup for blocks of text. These macros come in `X`/`ENDX` pairs:  
+- Some macros serve as markup for entire blocks of text. These macros come in `X`/`ENDX` pairs:  
   ```
   [WARNING]
   body text, as many lines as needed
   [ENDWARNING]
   ```
-- Due to the simplistic parser used, an `X`/`ENDX` block cannot be nested in another
+- Due to the simplistic parser used, most `X`/`ENDX` blocks cannot be nested in another
   `X`/`ENDX` block and both macro calls must be alone on a line by themselves.
 - Non-block macro calls can be mixed with other content on a line.
 
@@ -708,9 +710,7 @@ defined by `sedrila.yaml` and `sedrila.css` only
 and you can define further macros like them if needed.
 
 
-### 2.4 Other macros: `[INCLUDE]`, cross-references, counters, etc.
-
-#### 2.4.1 Macros for hyperlinks: `[HREF]`, `[PARTREF]`, `[PARTREFTITLE]`, `[PARTREFMANUAL]`, `[TERMREF]`
+### 2.4 Macros for hyperlinks: `[HREF]`, `[PARTREF]`, `[PARTREFTITLE]`, `[PARTREFMANUAL]`, `[TERMREF]`
 
 - `[HREF::url]`: Equivalent to the plain Markdown markup `[url](url)`, but avoids the repetition
   of the often-lengthy URL.
@@ -729,7 +729,7 @@ and you can define further macros like them if needed.
   This is useful for plural forms: `[TERMREF2::file::-s]` renders as `files`, but refers to `file`.
 
 
-#### 2.4.2 Macros for instruction enumerations: `[EC]`, `[EQ]`, `[ER]`, `[EREFC]`, `[EREFQ]`, `[EREFR]`
+### 2.5 Macros for instruction enumerations: `[EC]`, `[EQ]`, `[ER]`, `[EREFC]`, `[EREFQ]`, `[EREFR]`
 
 The split between `[SECTION::instructions::...]` and `[SECTION::submission::...]` is often inconvenient
 both for authors and students: The instructions may contain, say, 17 steps, and 5 of those
@@ -758,8 +758,9 @@ Sedrila does not implement a full cross-reference mechanism with labels and labe
 because of the strong within-task locality that the cross-references will usually have,
 which makes manual cross-referencing the simpler approach.
 
+### 2.6 Macros for file inclusion: `[INCLUDE]`, `[SNIPPET]`, `[PROT]`
 
-#### 2.4.3 `[INCLUDE]`
+#### 2.6.1 `[INCLUDE]`
 
 `[INCLUDE::filename]`: inserts the entire contents of file `filename` verbatim
 into the Markdown input stream at this point.
@@ -779,7 +780,49 @@ base directories (see Section 1.9 "Confidential contents"):
 - `[INCLUDE::ITREE:filename]` includes from the `itreedir` tree
 
 
-#### 2.4.4 `[PROT]`
+#### 2.6.2 `[SNIPPET]`
+
+`[SNIPPET::filespec::snippetname]` is a cousin of `[INCLUDE]`;
+it serves to include _parts of_ a file.
+As with `[INCLUDE]`, `filespec` accepts absolute or relative paths and the `ALT:` and `ITREE:` prefixes.
+`snippetname` must be a conventional identifier (letters, digits, underscores only).  
+The purpose is inserting code snippets from entire solution files, which avoids
+textual duplication (and hence the problems that would come with it):
+
+```markdown
+[SNIPPET::ALT::mysnippet]                              <!-- mirrors current task filename under altdir -->
+[SNIPPET::include/demo.py::mysnippet]                  <!-- relative path -->
+[SNIPPET::/Basis/IDE/include/demo.py::mysnippet]       <!-- absolute path -->
+[SNIPPET::ITREE:demo.py::mysnippet]                    <!-- relative path with ITREE -->
+[SNIPPET::ITREE:/Basis/IDE/demo.py::mysnippet]         <!-- absolute path with ITREE -->
+```
+
+Mark snippets inside solution files with single-line comments whose contents are `SNIPPET::name` and `ENDSNIPPET`
+(optionally `ENDSNIPPET::name`). 
+Supported comment syntaxes include the usual one-line markers of many languages 
+(`#`, `//`, `--`, `;`, `!`, `'`, …) as well as HTML comments `<!-- -->` for Markdown files. 
+Examples:
+
+```python
+# SNIPPET::mysnippet
+def helper():
+    return 42
+# ENDSNIPPET
+```
+
+```c
+// SNIPPET::loop_example
+for (int i = 0; i < n; ++i) {
+    printf("%d\n", i);
+}
+// ENDSNIPPET
+```
+
+Snippet content (excluding marker lines) is inserted verbatim, preserving formatting.
+It is an error if no snippet of that name exists.
+
+
+#### 2.6.3 `[PROT]`
 
 Include a rendered command protocol.
 `[PROT::filename.prot]`: works much like `[INCLUDE]` and obeys the same rules for the filenames.
@@ -805,33 +848,12 @@ The `[PROT]` macro will spot lines that have the structure of that prompt
 and format them in multiple colors.
 It will assume the next line is the actual command and format that in a single color.
 It will assume everything beyond (up to the next prompt) is command output and format that
-in yet another manner, all based on CSS classes which you can find in the output.
+in yet another manner, all based on CSS classes which you can look up in the output
+in order to define suitable formatting.
 Line structure and spaces are preserved.
 
 
-#### 2.4.5 `[TOC]`, `[DIFF]`
-
-- `[TOC]`: Generates a table of contents from the Markdown headings present in the file.
-  For the glossary, ignores headings and instead makes an alphabetical list of all term entries 
-  (main terms and synonyms).
-- `[DIFF::level]` generates the task difficulty mark for the given level, from 1 (very simple) to 4 (difficult).
-
-
-#### 2.4.6 `[TREEREF]`
-
-`[INSTRUCTOR]` blocks in tasks can refer to files in the `itreedir` by mentioning their path
-in a call to macro `[TREEREF]`.
-
-`[TREEREF::mytask.py]`, when called in `<chapterdir>/mychapter/mygroup/mytask.md`,
-refers to the file `<itreedir>/mychapter/mygroup/mytask.py` and will render as
-`<span class="treeref-prefix"></span><span class="treeref">mychapter/mygroup/mytask.py</span><span class="treeref-suffix"></span>`
-which can be formatted with appropriate CSS.  
-Just like with `[INCLUDE]`, pathnames can be relative or absolute, so 
-`[TREEREF::/mychapter/mygroup/mytask.py]` is equivalent to the above,
-which is useful for trees that pertain to several tasks.
-
-
-### 2.5 Glossary macros: `[TERM]`, `[TERM0]`, `[TERMREF]`
+### 2.7 Glossary macros: `[TERM]`, `[TERM0]`, `[TERMREF]`
 
 Term definition blocks in the glossary file look like this:
 ```
@@ -850,7 +872,30 @@ Use `[TERM0]` in case no definition of the term is needed because the automatica
 cross-references to parts mentioning and (in particular) explaining it suffice.
 
 
-### 2.6 Replacement blocks
+### 2.8 Other macros
+#### 2.8.1 `[TOC]`, `[DIFF]`
+
+- `[TOC]`: Generates a table of contents from the Markdown headings present in the file.
+  For the glossary, ignores headings and instead makes an alphabetical list of all term entries 
+  (main terms and synonyms).
+- `[DIFF::level]` generates the task difficulty mark for the given level, from 1 (very simple) to 4 (difficult).
+
+
+#### 2.8.2 `[TREEREF]`
+
+`[INSTRUCTOR]` blocks in tasks can refer to files in the `itreedir` by mentioning their path
+in a call to macro `[TREEREF]`.
+
+`[TREEREF::mytask.py]`, when called in `<chapterdir>/mychapter/mygroup/mytask.md`,
+refers to the file `<itreedir>/mychapter/mygroup/mytask.py` and will render as
+`<span class="treeref-prefix"></span><span class="treeref">mychapter/mygroup/mytask.py</span><span class="treeref-suffix"></span>`
+which can be formatted with appropriate CSS.  
+Just like with `[INCLUDE]`, pathnames can be relative or absolute, so 
+`[TREEREF::/mychapter/mygroup/mytask.py]` is equivalent to the above,
+which is useful for trees that pertain to several tasks.
+
+
+### 2.9 Replacement blocks: `<replacement>...</replacement>`
 
 A replacement block looks like this:
 ```
@@ -891,62 +936,9 @@ exactly as written and will remove the `<replacement id="someId">` and `</replac
 The `id` should start with the respective task, taskgroup, or chapter name.
 
 
-### 2.7 Code snippet inclusion and validation: `[SNIPPET]`
-
-`[SNIPPET::filespec::snippetname]` mirrors the syntax of `[INCLUDE::…]`:  
-`filespec` accepts absolute or relative paths, uses prefixes `ALT:` and `ITREE:` for the respective trees. `snippetname` must be a conventional identifier (letters, digits, underscores only).  
-Use the `SNIPPET` macro to insert code snippets:
-
-```markdown
-[SNIPPET::ALT::mysnippet]                              <!-- mirrors current task filename under altdir -->
-[SNIPPET::include/demo.py::mysnippet]                  <!-- relative path -->
-[SNIPPET::/Basis/IDE/include/demo.py::mysnippet]       <!-- absolute path -->
-[SNIPPET::ITREE:demo.py::mysnippet]                    <!-- relative path with ITREE -->
-[SNIPPET::ITREE:/Basis/IDE/demo.py::mysnippet]         <!-- absolute path with ITREE -->
-```
-
-`filespec` follows the same rules as `[INCLUDE::...]`:
-
-- Plain relative or absolute paths are resolved relative to the task file's location in `chapterdir`.
-- Prefix `ALT:` switches to the corresponding path under `altdir`.
-- Prefix `ITREE:` targets `itreedir`.
-- An empty `filespec` (`[SNIPPET::::snippet]`) reuses the current filename and directory.
-- Short forms such as `[SNIPPET::ITREE::mysnippet]` reuse the current task's relative path under `itreedir`. 
-- Supplying only the filename (`[SNIPPET::ITREE:demo.py::mysnippet]`) or a full absolute path (`[SNIPPET::ITREE:Basis/IDE/demo.py::mysnippet]`) works exactly the same way as with `[INCLUDE]`.
-
-Mark snippets inside solution files with single-line comments whose contents are `SNIPPET::name` and `ENDSNIPPET` (optionally `ENDSNIPPET::name`). Supported comment syntaxes include the usual one-line markers of many languages (`#`, `//`, `--`, `;`, `!`, `'`, …) as well as HTML comments `<!-- -->` for Markdown files. Examples:
-
-```python
-# SNIPPET::mysnippet
-def helper():
-    return 42
-# ENDSNIPPET
-```
-
-```c
-// SNIPPET::loop_example
-for (int i = 0; i < n; ++i) {
-    printf("%d\n", i);
-}
-// ENDSNIPPET
-```
-
-Snippet content (excluding marker lines) is inserted verbatim, preserving formatting, and the referenced file is tracked as a dependency just like for `[INCLUDE::...]`.
-
-Automatic validation during builds:
-
-- Checks that referenced snippet IDs exist in the specified files
-- Verifies snippet markers are properly formed (no unclosed or mismatched markers)
-- Reports invalid references with file and line numbers
-- Validates all tasks but respects `--include_stage` for error reporting:
-
-    - Tasks matching the stage filter: **errors**
-    - Tasks excluded by the stage filter: **warnings**
-- Runs incrementally: validation triggers only when task or solution files change
-- Persistent errors are always reported in every build (regardless of stage)
 
 
-### 2.8 Command protocol validation: `@PROT_SPEC`
+### 2.10 Checking specification for command protocols: `@PROT_SPEC`
 
 Author protocol files (`.prot`) can include `@PROT_SPEC` blocks that specify validation rules
 for comparing student submissions with author solutions.
@@ -1056,6 +1048,16 @@ Notes:
   needed for decryption.
 
 
+### 2.11 Checking specification for program tests: `@PROG_CHECK`
+
+See in [Maintainers documentation](maintainers.md).
+
+
+### 2.12 Checking specification for external links: `@LINK_SPEC`
+
+See in [Maintainers documentation](maintainers.md).
+
+
 ## 3. Calling `sedrila`
 
 ### 3.1 Default behavior
@@ -1101,7 +1103,14 @@ Both versions will by default exclude all tasks, taskgroups, and chapters that h
 
 The `sedrila author` command validates course content incrementally during each build.
 Validation runs only when relevant files change and respects the `--include_stage` setting.
-The validation features (`[SNIPPET]` and `@PROT_SPEC`) are described in Sections 2.7 and 2.8.
+There are three types of validation:
+
+- Validation of implicit constraints, e.g., that `[INCLUDE::myfile]` requires `myfile` to exist.
+- Validation of constraints formulated by `sedrila.yaml` config settings, e.g.,
+  that a `stage: x` entry in a task file needs a corresponding stage declaration in `stages`.
+- Validation of explicit constraints formulated in checking specifications, e.g., `@PROT_SPEC` entries.
+
+Invalid content is reported as detailed error messages.
 
 ### 3.4 Copying the build output
 
