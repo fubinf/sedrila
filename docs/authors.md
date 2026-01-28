@@ -944,7 +944,21 @@ Author protocol files (`.prot`) can include `@PROT_SPEC` blocks that specify val
 for comparing student submissions with author solutions.
 For actual comparison of student protocols during instructor checking, see `instructors.md` section 2.3.
 
-Specification syntax:
+This function supports different entries:
+
+Single-line entries:
+
+- `command_re=regex`: Command must match the following regex (fullmatch)
+- `output_re=regex`: Output must contain regex match (search)
+- `skip=1`: Skip checking entirely (always passes, no manual review needed)
+
+Multi-line entries (continuation lines indented by 4 spaces):
+
+- `manual=text`: Manual review information
+- `extra=text`: Additional information
+- `comment=text`: Comment text
+
+Example with command_re and output_re:
 ```
 @PROT_SPEC
 command_re=^ls -la$
@@ -955,25 +969,23 @@ total 16
 -rw-r--r-- 1 user user 0 Jan 1 12:00 file.txt
 ```
 
-Single-line entries:
-
-- `command_re=regex`: Command must match this regex
-- `output_re=regex`: Output must contain this regex match
-- `skip=1`: Skip checking entirely (always passes, no manual review needed)
-- `manual=1`: Require manual instructor review (passes automatically but flagged)
-
-Multi-line entries (continuation lines indented by 4 spaces):
-
-- `manual=Markdown text`: Manual review with inline Markdown instructions
-- `extra=Markdown text`: Additional information (does not trigger manual review)
-- `text=Markdown text`: General text content
-- `comment=Markdown text`: Comment text
-
-Example with multi-line manual instruction:
+Example with command_re and output_re + extra + comment:
 ```
 @PROT_SPEC
-command_re=^ls -a$
-output_re=\b\.bashrc\b
+command_re=^ls -la$
+output_re=\btotal\b
+extra=I am Extra
+  Still Extra
+comment=I am comment
+user@host /path 10:00:00 1
+$ ls -la
+total 16
+-rw-r--r-- 1 user user 0 Jan 1 12:00 file.txt
+```
+
+Example only with manual instruction:
+```
+@PROT_SPEC
 manual=Make sure there are **at least 10 files**.
     If there are fewer, command 4 will not work as intended.
 user@host /tmp 10:00:00 1
@@ -981,26 +993,13 @@ $ ls -a
 .bashrc  .profile  file1.txt
 ```
 
-Example with multi-line manual=1 + text instruction:
+Example with command_re + output_re + manual + extra + comment instruction:
 ```
 @PROT_SPEC
 command_re=^ls -a$
 output_re=\b\.bashrc\b
-manual=1
-text=Make sure there are **at least 10 files**.
-    If there are fewer, command 4 will not work as intended.
-user@host /tmp 10:00:00 1
-$ ls -a
-.bashrc  .profile  file1.txt
-```
-
-Example with multi-line manual + extra + comment instruction:
-```
-@PROT_SPEC
-command_re=^ls -a$
-output_re=\b\.bashrc\b
-manual=Make sure there are **at least 10 files**.
-    If there are fewer, command 4 will not work as intended.
+manual=Additional check details.
+    This can be used with any mode.
 extra=I am Extra
 comment=I am comment
 user@host /tmp 10:00:00 1
@@ -1008,31 +1007,45 @@ $ ls -a
 .bashrc  .profile  file1.txt
 ```
 
+Example with skip:
+```
+@PROT_SPEC
+skip=1
+user@host /tmp 10:00:00 1
+$ ls -a
+.bashrc  .profile  file1.txt
+```
 
-Automatic validation during `sedrila author` builds:
+Visual display in the sedrila author course build:
+
+Each command entry is color-coded in the rendered protocol:
+
+- Green (`prot-ok-color`): Automated checks passed
+- Red (`prot-alert-color`): Automated checks failed
+- Yellow (`prot-manual-color`): Only manual review requested (no automated checks), or entry has no spec
+- Grey (`prot-skip-color`): Entry marked with `skip=1`
+
+Notes:
 
 - Validates regex syntax for `command_re` and `output_re`
-- Rejects mixing `skip=1` with `command_re`, `output_re`, or `manual`
-- Warns if `manual=1` lacks a `text=` entry or inline text
+- Rejects mixing `skip=1` with others (`command_re`, `output_re`, or `manual`)
+- Warns if `manual=` lacks inline text
 - Reports errors when specs lack all of `command_re`, `output_re`, `manual`, and `skip` (requires at least one)
-- A command with no specification at all is equivalent to a command that has a `manual=` entry only. 
 - Validates all tasks but respects `--include_stage` for error reporting:
 
     - Tasks matching the stage filter: **errors**
     - Tasks excluded by the stage filter: **warnings**
 - Runs incrementally: triggers only when `.prot` files change
-
-Notes:
-
-- Commands without any spec default to requiring manual review
+- A command without `@PROT_SPEC` block at all is equivalent to a command that has a `manual=` entry only. 
 - A `@PROT_SPEC` block must contain at least one directive (`command_re`, `output_re`, `skip`, or `manual`)
-- `command_re` and `output_re` are optional: you can provide both, only one, or neither
+- Automated checks only occur if `command_re` or `output_re` are specified:
 
-  - If `command_re` is omitted, the command must match exactly (after trimming whitespace)
-  - If `output_re` is omitted, the output must match exactly (after trimming whitespace)
-  - Omitting both is equivalent to requiring exact matches for both command and output
+  - If `command_re` is provided, the student's command must match the regex (using fullmatch)
+  - If `output_re` is provided, the student's output must contain a match for the regex (using search)
+- `manual=` can be used independently or together with regex checks to request instructor review
+- When `command_re=` and/or `output_re=` are present, the color is determined solely by the automated check result (green for pass, red for fail). `manual=` in this case is supplementary information for the instructor, not affecting the color.
 - Use `skip=1` for commands with no meaningful output (e.g., `cd`)
-- Use `manual=` for variable output requiring instructor judgment (e.g., HTTP responses with timestamps)
+- Use `manual=` for commands requiring instructor judgment (e.g., variable output, timestamps)
 - `@PROT_SPEC` blocks are filtered out when rendering protocols for students
 - Only `.prot` files referenced by `[PROT::]` macros in markdown are registered for encryption.
 - During the build, referenced `.prot` files are automatically encrypted (using instructor public keys from `sedrila.yaml`)

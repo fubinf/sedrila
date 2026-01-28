@@ -20,10 +20,8 @@ class CheckRule:
     output_re: typing.Optional[str] = None
     skip: bool = False
     manual: bool = False
-    manual_is_pure: bool = False  # True if manual=1 (pure digit), False if manual=<text>
     manual_text: typing.Optional[str] = None
     extra_text: typing.Optional[str] = None
-    text: typing.Optional[str] = None
     comment: typing.Optional[str] = None
     unknown_keys: typing.List[str] = None  # Track unknown key-value pairs for error reporting
 
@@ -168,10 +166,9 @@ class ProtocolExtractor:
         rule = CheckRule()
         manual_block: list[str] = []
         extra_block: list[str] = []
-        text_block: list[str] = []
         comment_block: list[str] = []
         current_block: typing.Optional[tuple[str, list[str]]] = None
-        known_keys = {'command_re', 'output_re', 'skip', 'manual', 'extra', 'text', 'comment'}
+        known_keys = {'command_re', 'output_re', 'skip', 'manual', 'extra', 'comment'}
 
         for raw_line in spec_lines:
             line = raw_line.rstrip()
@@ -191,10 +188,8 @@ class ProtocolExtractor:
             if stripped.startswith("manual="):
                 rule.manual = True
                 inline = stripped[len("manual="):].strip()
-                # Mark as pure if it's exactly "1" with no inline text
-                if inline == "1":
-                    rule.manual_is_pure = True
-                elif inline:
+                # Collect all manual text (inline or multiline)
+                if inline:
                     manual_block.append(inline)
                 current_block = ("manual", manual_block)
                 continue
@@ -204,19 +199,13 @@ class ProtocolExtractor:
                     extra_block.append(inline)
                 current_block = ("extra", extra_block)
                 continue
-            if stripped.startswith("text="):
-                inline = stripped[len("text="):].strip()
-                if inline:
-                    text_block.append(inline)
-                current_block = ("text", text_block)
-                continue
             if stripped.startswith("comment="):
                 inline = stripped[len("comment="):].strip()
                 if inline:
                     comment_block.append(inline)
                 current_block = ("comment", comment_block)
                 continue
-            # handle indented continuation (manual/extra/text/comment)
+            # handle indented continuation (manual/extra/comment)
             if current_block and raw_line.startswith("    "):
                 _, target = current_block
                 target.append(raw_line[4:])
@@ -229,7 +218,6 @@ class ProtocolExtractor:
                     rule.unknown_keys.append(f"{key}={stripped.split('=', 1)[1].strip() if len(stripped.split('=', 1)) > 1 else ''}")
         rule.manual_text = "\n".join(manual_block) if manual_block else None
         rule.extra_text = "\n".join(extra_block) if extra_block else None
-        rule.text = "\n".join(text_block) if text_block else None
         rule.comment = "\n".join(comment_block) if comment_block else None
         return rule
 
@@ -259,7 +247,7 @@ class ProtocolValidator:
             for unknown in rule.unknown_keys:
                 key = unknown.split('=', 1)[0]
                 errors.append(f"line {line_num}: Unknown key '{key}' in @PROT_SPEC block. "
-                            f"Valid keys: command_re, output_re, skip, manual, extra, text, comment")
+                            f"Valid keys: command_re, output_re, skip, manual, extra, comment")
         if rule.skip and (rule.command_re or rule.output_re or rule.manual):
             errors.append(f"line {line_num}: skip cannot be combined with command_re/output_re/manual")
         if rule.command_re:
@@ -272,10 +260,8 @@ class ProtocolValidator:
                 re.compile(rule.output_re)
             except re.error as e:
                 errors.append(f"line {line_num}: Invalid output_re '{rule.output_re}': {e}")
-        if rule.manual and not rule.manual_text and not rule.text:
-            errors.append(f"line {line_num}: manual requires text= entry or inline text")
-        if rule.manual_is_pure and not rule.text:
-            errors.append(f"line {line_num}: manual=1 requires a text= entry")
+        if rule.manual and not rule.manual_text:
+            errors.append(f"line {line_num}: manual requires inline text or continuation lines")
         if not any([rule.command_re, rule.output_re, rule.skip, rule.manual]) and not rule.unknown_keys:
             errors.append(f"line {line_num}: specification contains neither automated check nor manual/skip")
         if rule.extra_text and not any([rule.command_re, rule.output_re, rule.skip, rule.manual]):
@@ -339,16 +325,7 @@ class ProtocolChecker:
                 requires_manual_check=False,
                 manual_check_note=None,
             )
-        if rule.manual:
-            return CheckResult(
-                student_entry=student_entry,
-                author_entry=author_entry,
-                command_match=True,
-                output_match=True,
-                success=True,
-                requires_manual_check=True,
-                manual_check_note=rule.manual_text or "Manual check required",
-            )
+        # Perform automated checks if any regex rules exist
         command_match = self._compare_command(student_entry.command, author_entry.command, rule)
         output_match = self._compare_output(student_entry.output, author_entry.output, rule)
         success = command_match and output_match
@@ -360,6 +337,9 @@ class ProtocolChecker:
             if not output_match:
                 error_parts.append("output mismatch")
             error_message = "; ".join(error_parts)
+        # Determine if manual check is required
+        # Manual is independent of automated checks and can coexist
+        requires_manual = rule.manual
         return CheckResult(
             student_entry=student_entry,
             author_entry=author_entry,
@@ -367,20 +347,23 @@ class ProtocolChecker:
             output_match=output_match,
             success=success,
             error_message=error_message,
+            requires_manual_check=requires_manual,
+            manual_check_note=rule.manual_text or "Manual check required" if requires_manual else None,
         )
 
     def _compare_command(self, student_cmd: str, author_cmd: str, rule: CheckRule) -> bool:
         """Compare commands based on the rule."""
         if rule.command_re:
             return bool(re.fullmatch(rule.command_re, student_cmd.strip()))
-        return student_cmd.strip() == author_cmd.strip()
+        # If no command_re is specified, no automatic check is performed
+        return True
 
     def _compare_output(self, student_output: str, author_output: str, rule: CheckRule) -> bool:
         """Compare outputs based on the rule."""
         if rule.output_re:
             return bool(re.search(rule.output_re, student_output))
-        # Default exact match while ignoring surrounding whitespace
-        return student_output.strip() == author_output.strip()
+        # If no output_re is specified, no automatic check is performed
+        return True
 
 
 def load_encrypted_prot_file(prot_crypt_path: str, passphrase: str | None = None) -> typing.Optional[str]:

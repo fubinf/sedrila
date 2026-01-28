@@ -928,11 +928,21 @@ def render_prot_compare(
         rule = res.author_entry.check_rule if res.author_entry else None
         if rule and rule.skip:
             return "prot-skip-color"
-        if res.requires_manual_check:
+        # Check if there are automated checks (regex rules)
+        has_automated_check = rule and (rule.command_re or rule.output_re)
+        if has_automated_check:
+            # If there are automated checks, use their results (green/red)
+            # manual= is just additional information, doesn't affect the color
+            if res.success:
+                return "prot-ok-color"
+            else:
+                return "prot-alert-color"
+        else:
+            if res.requires_manual_check:
+                return "prot-manual-color"
+            if not res.success:
+                return "prot-alert-color"
             return "prot-manual-color"
-        if res.success:
-            return "prot-ok-color"
-        return "prot-alert-color"
     prompt_colors = [color_for(res) for res in results]
     result = ["\n<table class='vwr-table'>"]
     PROMPTSEEN, OUTPUT = (1, 2)
@@ -952,8 +962,6 @@ def render_prot_compare(
                 rule = res.author_entry.check_rule if res.author_entry else None
                 if rule and rule.manual_text:
                     result.append(f"<tr><td><div class='prot-spec-manual'>{md.render_plain_markdown(rule.manual_text)}</div></td></tr>")
-                if rule and rule.text:
-                    result.append(f"<tr><td><div class='prot-spec-manual'>{md.render_plain_markdown(rule.text)}</div></td></tr>")
                 if rule and rule.extra_text:
                     result.append(f"<tr><td><div class='prot-spec-extra'>{md.render_plain_markdown(rule.extra_text)}</div></td></tr>")
                 # Show error information and expected values

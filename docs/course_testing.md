@@ -49,8 +49,8 @@ It ends when the next line is a valid sedrila-style command prompt.
 
 All lines of the specification are suppressed (not shown as such) when rendering the `.prot` file.
 
-There are four possible single-line spec entries (`command_re=`, `output_re=`, `skip=`, `manual=`)
-and two multiline spec entries (`text=`, `comment=`).
+There are three possible single-line spec entries (`command_re=`, `output_re=`, `skip=`)
+and two multiline spec entries (`manual=`, `extra=`, `comment=`).
 A spec entry must start at the beginning of a line.
 
 `command_re=` is followed by a regular expression. 
@@ -63,12 +63,11 @@ The output following the command below the specification must match this regular
 correct without any checking.
 `skip` must not be used together with `command_re`, `output_re`, or `manual`.
 
-`manual=` is followed by `1`: `manual=1`. This says nothing about the success of automated checking,
+`manual=` is followed by text. This says nothing about the success of automated checking,
 but indicates the instructor should apply manual checking.
-A warning will be issued if a command with `manual=1` does not also have a `text=` entry.
 `manual` can be used together with `command_re` or `output_re`.
 
-`manual=` is followed by one or several lines of Markdown text that will be rendered
+`manual=` is followed by one or several lines of text that will be rendered
 and shown in between the command prompt and the command itself.
 This says nothing about the success of automated checking,
 but indicates the instructor should apply manual checking.

@@ -167,9 +167,10 @@ Manual entries display the author's instructions for what to check.
 
 Comparison uses `@PROT_SPEC` blocks from author protocols (see `authors.md` section 2.3.2):
 
-- `command_re=regex`: Student command must match regex (fullmatch)
-- `output_re=regex`: Student output must contain regex match (search)
+- `command_re=`: Student command must match regex (fullmatch); if omitted, command check passes automatically
+- `output_re=`: Student output must contain regex match (search); if omitted, output check passes automatically
 - `skip=1`: Always passes, no manual review needed
-- `manual=text` or `manual=1, text=xxx`: Always passes but requires instructor review
+- `manual=text`: adds manual checking information for instructor (independent of automated checks); can be combined with regex checks
 
 Entries without any spec default to manual review.
+Entries with `command_re=` and/or `output_re=` perform automated checks (green/red) even if `manual=` is present.

@@ -221,10 +221,9 @@ def prot_html(content: str) -> str:
             color = "prot-manual-color"
         elif rule.skip:
             color = "prot-skip-color"
-        elif rule.manual:
-            color = "prot-manual-color"
-        else:
-            # run automated check of author entry against itself to see if spec fits content
+        elif rule.command_re or rule.output_re:
+            # If there are automated checks, use their results (green/red)
+            # manual= is just additional information, doesn't affect the color
             try:
                 result_check = checker._compare_entries(entry, entry)
                 if result_check.success:
@@ -239,12 +238,13 @@ def prot_html(content: str) -> str:
                         errs.append(f"<div class='prot-spec-error'><pre>{html.escape(label)}</pre> did not match</div>")
             except Exception:
                 color = "prot-alert-color"
+        else:
+            # No automated checks: only manual review
+            color = "prot-manual-color"
         if rule and rule.manual_text:
             manuals = f"<div class='prot-spec-manual'>{md.render_plain_markdown(rule.manual_text)}</div>"
         if rule and rule.extra_text:
             extras = f"<div class='prot-spec-extra'>{md.render_plain_markdown(rule.extra_text)}</div>"
-        if rule and rule.text:
-            texts = f"<div class='prot-spec-manual'>{md.render_plain_markdown(rule.text)}</div>"
         prompt_classes.append(color)
         manual_blocks.append(manuals)
         extra_blocks.append(extras)
