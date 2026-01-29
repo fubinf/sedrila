@@ -666,7 +666,7 @@ class ProgramChecker:
                     )
                     # Regex mode: use output_re pattern matching
                     if command_test.check_rule is None or not command_test.check_rule.output_re:
-                        raise ValueError(f"No @PROT_SPEC block found for command: {command_test.command}")
+                        raise ValueError(f"No @PROT_SPEC block or output_re not found for command: {command_test.command}")
                     validation_result = self._validate_output_regex(
                         actual,
                         command_test.expected_output,

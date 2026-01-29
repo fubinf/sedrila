@@ -176,11 +176,11 @@ def test_default_manual_when_no_spec():
 
 
 def test_warns_when_manual_without_text():
-    """Ensure manual=1 without text= or inline text triggers a warning."""
-    content_with_warning = _dedent(
+    """Ensure manual without inline text or continuation lines triggers an error."""
+    content_with_error = _dedent(
         """
         @PROT_SPEC
-        manual=1
+        manual=
         user@host /tmp 10:00:00 1
         $ echo test
         test
@@ -195,31 +195,31 @@ def test_warns_when_manual_without_text():
         test
         """
     )
-    content_ok_text = _dedent(
+    content_ok_continuation = _dedent(
         """
         @PROT_SPEC
-        manual=1
-        text=Please inspect the output
+        manual=
+            Please inspect the output
         user@host /tmp 10:00:00 1
         $ echo test
         test
         """
     )
     with tempfile.NamedTemporaryFile(mode="w", suffix=".prot") as f:
-        f.write(content_with_warning)
+        f.write(content_with_error)
         f.flush()
         errors = protocolchecker.ProtocolValidator().validate_file(f.name)
-        assert any("manual=1 requires a text= entry" in e for e in errors)
+        assert any("manual requires inline text or continuation lines" in e for e in errors)
     with tempfile.NamedTemporaryFile(mode="w", suffix=".prot") as f:
         f.write(content_ok_inline)
         f.flush()
         errors = protocolchecker.ProtocolValidator().validate_file(f.name)
-        assert not any("manual=1 requires" in e for e in errors)
+        assert not any("manual requires" in e for e in errors)
     with tempfile.NamedTemporaryFile(mode="w", suffix=".prot") as f:
-        f.write(content_ok_text)
+        f.write(content_ok_continuation)
         f.flush()
         errors = protocolchecker.ProtocolValidator().validate_file(f.name)
-        assert not any("manual=1 requires" in e for e in errors)
+        assert not any("manual requires" in e for e in errors)
 
 
 def test_detects_unknown_keys():
