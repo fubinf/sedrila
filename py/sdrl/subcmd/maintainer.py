@@ -42,8 +42,6 @@ def add_arguments(subparser: argparse.ArgumentParser):
                            help="Output file for --collect (if not specified, writes to stdout)")
     subparser.add_argument('--batch', action='store_true',
                            help="Use batch/CI-friendly output: concise output, only show failures, complete error list at end")
-    subparser.add_argument('--taskgroup-paths', metavar="json_file",
-                           help="JSON file mapping taskgroup names to isolated installation paths (e.g., {\"Python\": \"/tmp/taskgroup_Python\", \"Go\": \"/tmp/taskgroup_Go\"})")
     subparser.add_argument('targetdir', nargs='?',
                            help="Directory for maintenance reports (optional for --collect)")
 
@@ -226,17 +224,9 @@ def check_programs_command(pargs: argparse.Namespace):
         )
         _build_metadata_only(directory)
         targets = programchecker.extract_program_test_targets(the_course)
-        # Read taskgroup_paths if provided
-        taskgroup_paths = {}
-        if pargs.taskgroup_paths:
-            with open(pargs.taskgroup_paths, 'r') as f:
-                paths_data = json.load(f)
-                taskgroup_paths = paths_data.get('taskgroups', paths_data)
-                b.info(f"Loaded taskgroup isolation paths for {len(taskgroup_paths)} taskgroups")
         checker = programchecker.ProgramChecker(
             report_dir=temp_report_dir,
-            course=the_course,
-            taskgroup_paths=taskgroup_paths
+            course=the_course
         )
         show_progress = not batch_mode
         results = checker.test_all_programs(
@@ -293,57 +283,27 @@ def collect_command(pargs: argparse.Namespace):
         _build_metadata_only(directory)
         targets = programchecker.extract_program_test_targets(the_course)
         checker = programchecker.ProgramChecker(course=the_course)
-        lang_by_taskgroup = checker.collect_lang_by_taskgroup(targets)
         deps_by_task = checker.collect_deps_by_task(targets)
-        taskgroups = {}
+        # Collect all unique lang commands
+        all_lang_commands = set()
         for target in targets:
-            taskgroup = target.taskgroup
+            header = target.program_check_header
+            commands = header.get_lang_install_commands()
+            all_lang_commands.update(commands)
+        # Build simple task list
+        tasks = {}
+        for target in targets:
             task_name = target.protocol_file.stem
-            if taskgroup not in taskgroups:
-                taskgroups[taskgroup] = {
-                    "lang": lang_by_taskgroup.get(taskgroup, []),
-                    "tasks": {}
-                }
             task_obj = the_course.task(task_name)
             assumes = task_obj.assumes if task_obj else []
-            taskgroups[taskgroup]["tasks"][task_name] = {
+            tasks[task_name] = {
                 "deps": deps_by_task.get(task_name, []),
-                "assumes": assumes
+                "assumes": assumes,
+                "protocol": str(target.protocol_file)
             }
-        for taskgroup in taskgroups:
-            execution_order = []
-            tasks_in_group = set(taskgroups[taskgroup]["tasks"].keys())
-            visited = set()
-            to_visit = list(tasks_in_group)
-            while to_visit:
-                task_name = to_visit.pop(0)
-                if task_name in visited:
-                    continue
-                task_obj = the_course.task(task_name)
-                if not task_obj:
-                    visited.add(task_name)
-                    execution_order.append(task_name)
-                    continue
-                assumes_satisfied = True
-                for assumed_task in task_obj.assumes:
-                    if assumed_task in tasks_in_group and assumed_task not in visited:
-                        assumes_satisfied = False
-                        break
-                if assumes_satisfied:
-                    visited.add(task_name)
-                    execution_order.append(task_name)
-                else:
-                    to_visit.append(task_name)
-            taskgroups[taskgroup]["execution_order"] = execution_order
-            # Aggregate deps at taskgroup level (deduplicated)
-            taskgroup_deps = []
-            for task_data in taskgroups[taskgroup]["tasks"].values():
-                for dep in task_data.get("deps", []):
-                    if dep not in taskgroup_deps:
-                        taskgroup_deps.append(dep)
-            taskgroups[taskgroup]["deps"] = taskgroup_deps
         result = {
-            "taskgroups": taskgroups
+            "lang": sorted(list(all_lang_commands)),
+            "tasks": tasks
         }
         # Output to file or stdout
         output_json = json.dumps(result, indent=2, sort_keys=True)

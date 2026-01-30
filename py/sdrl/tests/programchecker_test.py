@@ -100,14 +100,6 @@ def test_get_install_commands_splits_deps():
     assert "pip install uvicorn" in commands
 
 
-def test_extract_taskgroup_from_path():
-    """Verify taskgroup extraction from .prot file path."""
-    prot_file = Path("/course/altdir/ch/Sprachen/Python/python_basics/basics.prot")
-    altdir_path = Path("/course/altdir")
-    taskgroup = programchecker._extract_taskgroup_from_path(prot_file, altdir_path)
-    assert taskgroup == "python_basics", f"Expected 'python_basics', got '{taskgroup}'"
-
-
 def test_find_program_file_by_matching_stem():
     """Verify program file is found by matching .prot stem."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -169,7 +161,6 @@ def test_program_execution_with_regex_validation():
             protocol_file=prot_file,
             program_check_header=header,
             working_dir=altdir,
-            taskgroup="Python",
             command_tests=command_tests
         )
         result = checker.test_program(config)
@@ -213,7 +204,6 @@ def test_program_execution_failure():
             protocol_file=prot_file,
             program_check_header=header,
             working_dir=altdir,
-            taskgroup="Python",
             command_tests=command_tests
         )
         result = checker.test_program(config)

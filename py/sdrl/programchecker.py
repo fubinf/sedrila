@@ -175,7 +175,6 @@ class ProgramTestConfig:
     protocol_file: Path
     program_check_header: ProgramCheckHeader
     working_dir: Path
-    taskgroup: str
     command_tests: List[CommandTest] = field(default_factory=list)
     timeout: int = 30
 
@@ -185,7 +184,6 @@ class ProgramTestTarget:
     """Maps a protocol file to its program location."""
     protocol_file: Path
     program_check_header: ProgramCheckHeader
-    taskgroup: str  # e.g., "Go", "Python", "Frameworks"
     program_file: Optional[Path] = None  # path to the actual program file
 
 
@@ -231,18 +229,8 @@ def _find_program_file(itree_root: Path, prot_file: Path) -> Optional[Path]:
         return None
 
 
-def _extract_taskgroup_from_path(prot_file: Path, altdir_path: Path) -> str:
-    """Extract taskgroup name from .prot file path."""
-    rel_path = prot_file.relative_to(altdir_path)
-    parent_dirs = rel_path.parent.parts
-    return parent_dirs[-1]
-
-
 def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[ProgramTestTarget]:
-    """Extract @PROGRAM_CHECK blocks from .prot files in altdir, optionally filtered by taskgroup.
-    If the environment variable SDRL_TASKGROUP is set, only extracts targets from that taskgroup.
-    This enables automatic taskgroup filtering in multi-container CI environments without CLI parameters.
-    """
+    """Extract @PROGRAM_CHECK blocks from .prot files in altdir."""
     targets: List[ProgramTestTarget] = []
     altdir_path = Path(course.altdir).resolve()
     itree_root = Path(course.itreedir).resolve()
@@ -252,10 +240,6 @@ def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[Prog
     if not itree_root.exists():
         b.error(f"itreedir not found: {itree_root}")
         return targets
-    # Check for SDRL_TASKGROUP environment variable for automatic filtering
-    only_taskgroup = os.getenv('SDRL_TASKGROUP')
-    if only_taskgroup:
-        b.debug(f"SDRL_TASKGROUP environment variable set: filtering to taskgroup '{only_taskgroup}'")
     extractor = ProgramCheckHeaderExtractor()
     # Walk through all .prot files in altdir
     for prot_file in altdir_path.rglob('*.prot'):
@@ -272,15 +256,10 @@ def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[Prog
             b.warning(f"@PROGRAM_CHECK block in {prot_file} missing required fields "
                      f"(typ={header.typ}, manual_reason={header.manual_reason if header.typ == 'manual' else 'N/A'})")
             continue
-        taskgroup = _extract_taskgroup_from_path(prot_file, altdir_path)
-        # Filter by taskgroup if SDRL_TASKGROUP is set
-        if only_taskgroup and taskgroup != only_taskgroup:
-            continue
         program_file = _find_program_file(itree_root, prot_file)
         targets.append(ProgramTestTarget(
             protocol_file=prot_file,
             program_check_header=header,
-            taskgroup=taskgroup,
             program_file=program_file
         ))
     return targets
@@ -289,21 +268,17 @@ def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[Prog
 class ProgramChecker:
     """Main program testing class for SeDriLa courses."""
     DEFAULT_TIMEOUT = 30
-    def __init__(self, course_root: Path = None, parallel_execution: bool = True,
-                 report_dir: str = None, max_workers: Optional[int] = None,
+    def __init__(self, course_root: Path = None,
+                 report_dir: str = None,
                  itreedir: Optional[Path] = None, chapterdir: Optional[Path] = None,
-                 course: Optional[Any] = None, config_vars: Optional[Dict[str, str]] = None,
-                 taskgroup_paths: Optional[Dict[str, str]] = None):
+                 course: Optional[Any] = None, config_vars: Optional[Dict[str, str]] = None):
         """Initialize ProgramChecker."""
         self.course_root = course_root or Path.cwd()
         self.report_dir = report_dir or str(Path.cwd())
         self.results: List[ProgramTestResult] = []
-        self.parallel_execution = parallel_execution
-        self.max_workers = self._determine_max_workers(max_workers)
         self.itreedir = itreedir
         self.chapterdir = chapterdir
         self.course = course
-        self.taskgroup_paths = taskgroup_paths or {}
         # Extract altdir and itreedir paths (same as extract_program_test_targets uses)
         self._altdir_path = Path(course.altdir).resolve() if course else None
         self._itreedir_path = Path(course.itreedir).resolve() if course else None
@@ -337,53 +312,33 @@ class ProgramChecker:
                         vars_dict[attr_name] = str(value)
         return vars_dict
 
-    @staticmethod
-    def _determine_max_workers(override: Optional[int]) -> int:
-        """Resolve worker count from override or environment variable."""
-        default_workers = 4
-        if override is not None:
-            if override < 1:
-                b.warning("max_workers must be >= 1; using default 4")
-                return default_workers
-            return override
-        env_value = os.getenv("SDRL_PROGCHECK_MAX_WORKERS")
-        if not env_value:
-            return default_workers
-        try:
-            parsed = int(env_value)
-            if parsed < 1:
-                raise ValueError("value must be >= 1")
-            return parsed
-        except ValueError:
-            b.warning(f"Invalid SDRL_PROGCHECK_MAX_WORKERS='{env_value}', using default")
-            return default_workers
-
-    def get_taskgroup_execution_order(self, taskgroup: str, configs: List[ProgramTestConfig]) -> List[ProgramTestConfig]:
-        """Sort configs within a taskgroup by task dependency order."""
+    def _get_global_execution_order(self, configs: List[ProgramTestConfig]) -> List[ProgramTestConfig]:
+        """Sort all configs globally by task dependency order (across all taskgroups)."""
         if not self.course or not hasattr(self.course, 'get_all_assumed_tasks'):
             return configs
-        # Extract task names from configs (map program name to task name)
-        taskgroup_tasks: Dict[str, ProgramTestConfig] = {}
+        # Build mapping from program name to config
+        all_tasks: Dict[str, ProgramTestConfig] = {}
         for config in configs:
             task_name = config.program_name
-            taskgroup_tasks[task_name] = config
+            all_tasks[task_name] = config
+        # Build dependencies across all tasks
         task_deps: Dict[str, set[str]] = {}
-        for task_name in taskgroup_tasks:
+        for task_name in all_tasks:
             all_assumed = self.course.get_all_assumed_tasks(task_name)
-            deps_in_group = {t for t in all_assumed if t in taskgroup_tasks}
-            task_deps[task_name] = deps_in_group
+            deps_in_all = {t for t in all_assumed if t in all_tasks}
+            task_deps[task_name] = deps_in_all
+        # Topological sort
         sorted_tasks: List[str] = []
-        remaining = set(taskgroup_tasks.keys())
+        remaining = set(all_tasks.keys())
         while remaining:
             ready_tasks = {t for t in remaining if task_deps[t].isdisjoint(remaining)}
             if not ready_tasks:
-                b.warning(f"Circular dependency detected in taskgroup {taskgroup}, "
-                         f"executing remaining tasks in arbitrary order: {remaining}")
+                b.warning(f"Circular dependency detected, executing remaining tasks in arbitrary order: {remaining}")
                 sorted_tasks.extend(sorted(remaining))
                 break
             sorted_tasks.extend(sorted(ready_tasks))
             remaining -= ready_tasks
-        return [taskgroup_tasks[t] for t in sorted_tasks]
+        return [all_tasks[t] for t in sorted_tasks]
 
     def build_configs_from_targets(self, targets: List[ProgramTestTarget],
                                    itree_root: Path) -> List[ProgramTestConfig]:
@@ -419,7 +374,6 @@ class ProgramChecker:
                 protocol_file=prot_file,
                 program_check_header=header,
                 working_dir=program_path.parent,
-                taskgroup=target.taskgroup,
                 command_tests=command_tests,
                 timeout=self.DEFAULT_TIMEOUT
             )
@@ -661,8 +615,7 @@ class ProgramChecker:
                     actual = self._run_command(
                         substituted_command,
                         temp_dir,
-                        config.timeout,
-                        taskgroup=config.taskgroup
+                        config.timeout
                     )
                     # Regex mode: use output_re pattern matching
                     if command_test.check_rule is None or not command_test.check_rule.output_re:
@@ -709,15 +662,9 @@ class ProgramChecker:
         except re.error as e:
             return {'success': False, 'error_message': f"Invalid regex pattern '{check_rule.output_re}': {e}"}
 
-    def _run_command(self, command: str, working_dir: Path, timeout: int,
-                     taskgroup: Optional[str] = None) -> str:
+    def _run_command(self, command: str, working_dir: Path, timeout: int) -> str:
         """Run a command and return its output."""
         env = os.environ.copy()
-        # If taskgroup is specified and has a path, modify PATH to use taskgroup bin
-        if taskgroup and taskgroup in self.taskgroup_paths:
-            lang_dir = self.taskgroup_paths[taskgroup]
-            bin_dir = str(Path(lang_dir) / "bin")
-            env['PATH'] = f"{bin_dir}:{env.get('PATH', '')}"
         try:
             result = sp.run(
                 command,
@@ -734,87 +681,23 @@ class ProgramChecker:
             raise TimeoutError(f"Command timed out after {timeout}s: {command}")
 
     def run_tests(self, configs: List[ProgramTestConfig], show_progress: bool = False) -> List[ProgramTestResult]:
-        """Run all program tests with per-taskgroup parallel execution."""
+        """Run all program tests with global dependency order (no parallel execution)."""
         if not configs:
             return []
-        configs_by_taskgroup: Dict[str, List[ProgramTestConfig]] = {}
-        for config in configs:
-            if config.taskgroup not in configs_by_taskgroup:
-                configs_by_taskgroup[config.taskgroup] = []
-            configs_by_taskgroup[config.taskgroup].append(config)
-        for taskgroup in configs_by_taskgroup:
-            configs_by_taskgroup[taskgroup] = self.get_taskgroup_execution_order(
-                taskgroup, configs_by_taskgroup[taskgroup]
-            )
-        num_taskgroups = len(configs_by_taskgroup)
-        if self.parallel_execution and num_taskgroups > 1:
-            return self._run_taskgroups_parallel(configs_by_taskgroup, show_progress)
-        else:
-            return self._run_taskgroups_sequential(configs_by_taskgroup, show_progress)
-
-    def _run_taskgroups_sequential(self, configs_by_taskgroup: Dict[str, List[ProgramTestConfig]],
-                                   show_progress: bool = False) -> List[ProgramTestResult]:
-        """Run taskgroups sequentially (configs within each group are already sorted by dependency)."""
+        # Global topological sort across all tasks
+        sorted_configs = self._get_global_execution_order(configs)
+        # Serial execution of all tasks
         results = []
-        total_configs = sum(len(configs) for configs in configs_by_taskgroup.values())
-        completed = 0
-        for taskgroup, configs in sorted(configs_by_taskgroup.items()):
+        total = len(sorted_configs)
+        for i, config in enumerate(sorted_configs, 1):
             if show_progress:
-                b.info(f"Processing taskgroup: {taskgroup}")
-            for config in configs:
-                completed += 1
-                if show_progress:
-                    b.info(f"  Testing {config.program_name} ({completed}/{total_configs})...")
-                result = self.test_program(config)
-                results.append(result)
-                if show_progress:
-                    status = "✓ PASS" if result.success else ("⊘ SKIP" if result.skipped else "✗ FAIL")
-                    b.info(f"    {status}")
+                b.info(f"Testing {config.program_name} ({i}/{total})...")
+            result = self.test_program(config)
+            results.append(result)
+            if show_progress:
+                status = "✓ PASS" if result.success else ("⊘ SKIP" if result.skipped else "✗ FAIL")
+                b.info(f"  {status}")
         return results
-
-    def _run_taskgroups_parallel(self, configs_by_taskgroup: Dict[str, List[ProgramTestConfig]],
-                                 show_progress: bool = False) -> List[ProgramTestResult]:
-        """Run taskgroups in parallel, with serial execution within each taskgroup."""
-        results_lock = __import__('threading').Lock()
-        all_results: List[ProgramTestResult] = []
-        total_configs = sum(len(configs) for configs in configs_by_taskgroup.values())
-        completed_count = [0]  # Use list for mutability in nested function
-
-        def run_taskgroup(taskgroup: str, configs: List[ProgramTestConfig]) -> List[ProgramTestResult]:
-            """Run all configs in a taskgroup sequentially."""
-            taskgroup_results = []
-            for config in configs:
-                result = self.test_program(config)
-                taskgroup_results.append(result)
-                with results_lock:
-                    completed_count[0] += 1
-                    if show_progress:
-                        status = "✓" if result.success else ("⊘" if result.skipped else "✗")
-                        b.info(f"  {status} {config.program_name} ({completed_count[0]}/{total_configs})")
-            return taskgroup_results
-        with ThreadPoolExecutor(max_workers=min(self.max_workers, len(configs_by_taskgroup))) as executor:
-            futures = {
-                executor.submit(run_taskgroup, taskgroup, configs): taskgroup
-                for taskgroup, configs in configs_by_taskgroup.items()
-            }
-            for future in as_completed(futures):
-                taskgroup_results = future.result()
-                all_results.extend(taskgroup_results)
-        return all_results
-
-    def collect_lang_by_taskgroup(self, targets: List[ProgramTestTarget]) -> Dict[str, List[str]]:
-        """Collect language install commands grouped by taskgroup."""
-        taskgroup_langs: Dict[str, set] = {}
-        for target in targets:
-            header = target.program_check_header
-            commands = header.get_lang_install_commands()
-            if target.taskgroup not in taskgroup_langs:
-                taskgroup_langs[target.taskgroup] = set()
-            taskgroup_langs[target.taskgroup].update(commands)
-        result = {}
-        for taskgroup, commands_set in taskgroup_langs.items():
-            result[taskgroup] = sorted(list(commands_set))
-        return result
 
     def collect_deps_by_task(self, targets: List[ProgramTestTarget]) -> Dict[str, List[str]]:
         """Collect dependency install commands grouped by task name."""
@@ -825,34 +708,6 @@ class ProgramChecker:
             commands = header.get_install_commands()
             task_deps[program_name] = commands if commands else []
         return task_deps
-
-    def collect_metadata_by_taskgroup(self, targets: List[ProgramTestTarget]) -> Dict[str, Any]:
-        """Collect metadata grouped by taskgroup including lang and deps."""
-        taskgroup_metadata: Dict[str, Dict[str, Any]] = {}
-        for target in targets:
-            taskgroup = target.taskgroup
-            header = target.program_check_header
-            program_name = target.protocol_file.stem
-            # Initialize taskgroup if not exists
-            if taskgroup not in taskgroup_metadata:
-                taskgroup_metadata[taskgroup] = {
-                    'lang': [],
-                    'deps': [],
-                    'tasks': []
-                }
-            lang_commands = header.get_lang_install_commands()
-            for cmd in lang_commands:
-                if cmd not in taskgroup_metadata[taskgroup]['lang']:
-                    taskgroup_metadata[taskgroup]['lang'].append(cmd)
-            dep_commands = header.get_install_commands()
-            for cmd in dep_commands:
-                if cmd not in taskgroup_metadata[taskgroup]['deps']:
-                    taskgroup_metadata[taskgroup]['deps'].append(cmd)
-            taskgroup_metadata[taskgroup]['tasks'].append({
-                'program': program_name,
-                'protocol': str(target.protocol_file)
-            })
-        return taskgroup_metadata
 
     def test_all_programs(self, targets: List[ProgramTestTarget], itree_root: Optional[Path] = None,
                          show_progress: bool = True, batch_mode: bool = False) -> List[ProgramTestResult]:
@@ -897,8 +752,6 @@ class ProgramChecker:
         report_lines = []
         report_lines.append("# Program Test Report\n\n")
         report_lines.append(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-        worker_value = os.getenv("SDRL_PROGCHECK_MAX_WORKERS", str(self.max_workers))
-        report_lines.append(f"**Run parameters:** max_workers = {worker_value}\n\n")
         total = len(results)
         passed = sum(1 for r in results if r.success)
         failed = sum(1 for r in results if not r.success and not r.skipped)
@@ -963,136 +816,4 @@ class ProgramChecker:
             for r in results:
                 if not r.success and not r.skipped:
                     b.warning(f"  - {r.program_name}: {r.error_message}")
-
-    def aggregate_and_merge_reports(self, reports_dir: Path, output_file: Optional[Path] = None) -> str:
-        """
-        Aggregate individual task reports into a single unified report.
-        This is used in CI to merge reports from multiple containers/jobs into one final report.
-        """
-        import re
-        from datetime import datetime
-        from dataclasses import dataclass
-
-        @dataclass
-        class AggregatedResult:
-            """Aggregated test result from parsing markdown."""
-            program_name: str
-            taskgroup: str
-            typ: str
-            success: bool
-            skipped: bool
-            execution_time: float = 0.0
-            error_message: str = ""
-            manual_reason: str = ""
-            files: str = ""
-
-        def parse_report(report_path: Path, taskgroup: str) -> List[AggregatedResult]:
-            """Parse a markdown report file and extract test results."""
-            results = []
-            content = report_path.read_text()
-            passed_section = re.search(r'## Passed Tests\n\n(.*?)(?=\n## |\Z)', content, re.DOTALL)
-            if passed_section:
-                table_rows = re.findall(r'\| `([^`]+)` \| (.*?) \| ([\d.]+)s \|', passed_section.group(1))
-                for program_name, files, exec_time in table_rows:
-                    results.append(AggregatedResult(
-                        program_name=program_name,
-                        taskgroup=taskgroup,
-                        typ='regex',
-                        success=True,
-                        skipped=False,
-                        execution_time=float(exec_time),
-                        files=files
-                    ))
-            skipped_section = re.search(r'## Skipped Tests.*?\n\n(.*?)(?=\n## |\Z)', content, re.DOTALL)
-            if skipped_section:
-                table_rows = re.findall(r'\| `([^`]+)` \| (.*?) \| (.*?) \|', skipped_section.group(1))
-                for program_name, files, reason in table_rows:
-                    results.append(AggregatedResult(
-                        program_name=program_name,
-                        taskgroup=taskgroup,
-                        typ='manual',
-                        success=False,
-                        skipped=True,
-                        manual_reason=reason,
-                        files=files
-                    ))
-            failed_section = re.search(r'## Failed Tests\n\n(.*?)(?=\n### |\n## |\Z)', content, re.DOTALL)
-            if failed_section:
-                table_rows = re.findall(r'\| `([^`]+)` \| (.*?) \| (.*?) \|', failed_section.group(1))
-                for program_name, files, error in table_rows:
-                    results.append(AggregatedResult(
-                        program_name=program_name,
-                        taskgroup=taskgroup,
-                        typ='regex',
-                        success=False,
-                        skipped=False,
-                        error_message=error,
-                        files=files
-                    ))
-            return results
-        all_results = []
-        for report_dir in sorted(reports_dir.glob('program-check-report-*')):
-            taskgroup = report_dir.name.replace('program-check-report-', '')
-            report_file = report_dir / 'program_test_report.md'
-            if report_file.exists():
-                results = parse_report(report_file, taskgroup)
-                all_results.extend(results)
-                b.info(f"Parsed {len(results)} tests from taskgroup: {taskgroup}")
-        if not all_results:
-            b.warning("No test results found to aggregate!")
-            return ""
-        report_lines = []
-        report_lines.append("# Program Test Report\n")
-        report_lines.append(f"\n**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-        report_lines.append("**Run parameters:** max_workers = 4\n\n")
-        total = len(all_results)
-        passed = sum(1 for r in all_results if r.success)
-        failed = sum(1 for r in all_results if not r.success and not r.skipped)
-        skipped = sum(1 for r in all_results if r.skipped)
-        pass_rate = (passed / total * 100) if total > 0 else 0.0
-        fail_rate = (failed / total * 100) if total > 0 else 0.0
-        skip_rate = (skipped / total * 100) if total > 0 else 0.0
-        report_lines.append("## Summary\n\n")
-        report_lines.append(f"- **Total programs:** {total}\n")
-        report_lines.append(f"- **Passed:** {passed} ({pass_rate:.1f}%)\n")
-        report_lines.append(f"- **Failed:** {failed} ({fail_rate:.1f}%)\n")
-        report_lines.append(f"- **Skipped (manual test):** {skipped} ({skip_rate:.1f}%)\n\n")
-        if failed > 0:
-            report_lines.append("## Failed Tests\n\n")
-            report_lines.append("| Test | Files | Error |\n")
-            report_lines.append("|------|-------|-------|\n")
-            for r in all_results:
-                if not r.success and not r.skipped:
-                    error_msg = r.error_message.replace('\n', ' ').replace('|', '\\|')[:100]
-                    report_lines.append(f"| `{r.program_name}` | {r.files} | {error_msg} |\n")
-            report_lines.append("\n")
-            report_lines.append("### Failed Tests Detail\n\n")
-            for r in all_results:
-                if not r.success and not r.skipped:
-                    report_lines.append(f"#### {r.program_name} [REGEX]\n\n")
-                    report_lines.append(f"- **Error:** {r.error_message}\n")
-                    report_lines.append(f"- **Taskgroup:** {r.taskgroup}\n\n")
-        if skipped > 0:
-            report_lines.append("## Skipped Tests (Manual Testing Required)\n\n")
-            report_lines.append("| Test | Files | Reason |\n")
-            report_lines.append("|------|-------|--------|\n")
-            for r in all_results:
-                if r.skipped:
-                    reason = r.manual_reason.replace('\n', ' ').replace('|', '\\|')
-                    report_lines.append(f"| `{r.program_name}` | {r.files} | {reason} |\n")
-            report_lines.append("\n")
-        if passed > 0:
-            report_lines.append("## Passed Tests\n\n")
-            report_lines.append("| Test | Files | Execution Time |\n")
-            report_lines.append("|------|-------|----------------|\n")
-            for r in all_results:
-                if r.success:
-                    report_lines.append(f"| `{r.program_name}` | {r.files} | {r.execution_time:.2f}s |\n")
-            report_lines.append("\n")
-        unified_report = ''.join(report_lines)
-        if output_file:
-            output_file.write_text(unified_report)
-            b.info(f"Merged report written to {output_file}")
-        return unified_report
-
 
