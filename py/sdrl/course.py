@@ -547,7 +547,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         b.spit_bytes(elem.outputfile_i, encryptedlist)
 
     def _prescan_prot_files(self):
-        """Scan all markdown files for [PROT::...] macros and pre-register EncryptedProtFiles."""
+        """Scan all markdown files for [PROT::...] macros and pre-register ProtFiles."""
         import re
         prot_pattern = re.compile(r'\[PROT::([^\]]+)\]')
         keyfingerprints = [instructor['keyfingerprint']
@@ -600,7 +600,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         """Register a .prot file for encryption before directory.build()."""
         basename = os.path.basename(prot_filepath)
         outputname = f"{basename}.crypt"
-        existing = self.directory.get_the(el.EncryptedProtFile, outputname)
+        existing = self.directory.get_the(el.ProtFile, outputname)
         if existing:
             return
         self.directory.make_the(el.Sourcefile, prot_filepath)
@@ -608,7 +608,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         def transform_with_pubkeys(elem):
             return Coursebuilder._transform_prot_file(elem, pubkey_data)
         self.directory.make_the(
-            el.EncryptedProtFile,
+            el.ProtFile,
             outputname,
             sourcefile=prot_filepath,
             targetdir_s=self.targetdir_s,
@@ -619,7 +619,15 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
 
     @staticmethod
     def _transform_prot_file(elem: el.TransformedFile, pubkey_data: dict | None = None):
-        """Encrypt a .prot file and save encrypted version to the student directory only."""
+        """Validate @PROT_SPEC annotations in .prot file, then encrypt it."""
+        # Validate protocol annotations
+        import sdrl.protocolchecker as protocolchecker
+        validator = protocolchecker.ProtocolValidator()
+        errors = validator.validate_file(elem.sourcefile)
+        for error in errors:
+            b.error(error, file=elem.sourcefile)
+
+        # Encrypt the file
         with open(elem.sourcefile, 'rb') as f:
             plaintext = f.read()
         encrypted = mycrypt.encrypt_gpg(plaintext, elem.fingerprints, pubkey_data=pubkey_data)
@@ -663,7 +671,6 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         # ----- create MetadataDerivation, validations, baseresources, participants list:
         self.directory.make_the(MetadataDerivation, self.name, part=self, course=self)
         self.directory.make_the(SnippetValidation, self.name, part=self, course=self)
-        self.directory.make_the(ProtocolValidation, self.name, part=self, course=self)
         self._add_baseresources()
         self._add_participantslist()
 
@@ -952,53 +959,3 @@ class SnippetValidation(el.Step):
                 if not result.success:
                     report_func(result.error_message,
                                file=f"{result.reference.source_file}:{result.reference.line_number}")
-
-
-class ProtocolValidation(el.Step):
-    """Validate protocol check annotations in .prot files."""
-    course: Coursebuilder
-
-    def check_existing_resource(self):
-        """Implement incremental build: only validate when dependencies change."""
-        self.state = cache.State.AS_BEFORE
-        for dep in self.my_dependencies():
-            if not hasattr(dep, 'state'):
-                dep.check_existing_resource()
-            if dep.state != cache.State.AS_BEFORE:
-                self.state = cache.State.HAS_CHANGED
-                break
-
-    def my_dependencies(self) -> tg.Iterable['el.Element']:
-        """Declare dependencies on ALL protocol files in the course."""
-        deps = []
-        for task in self.course.taskdict.values():
-            prot_file = self._get_protocol_file(task)
-            if prot_file:
-                sourcefile_elem = self.directory.make_or_get_the(el.Sourcefile, prot_file)
-                deps.append(sourcefile_elem)
-        return deps
-
-    def _get_protocol_file(self, task: 'Taskbuilder') -> str | None:
-        """Find the protocol file for a given task (taskname.prot belongs to task 'taskname')."""
-        task_dir = os.path.dirname(task.sourcefile)
-        alt_task_dir = task_dir.replace(self.course.chapterdir, self.course.altdir, 1)
-        expected_prot_filename = f"{task.name}.prot"
-        for search_dir in [task_dir, alt_task_dir]:
-            if os.path.exists(search_dir):
-                prot_path = os.path.join(search_dir, expected_prot_filename)
-                if os.path.exists(prot_path):
-                    return prot_path
-        return None
-
-    def do_build(self):
-        """Validate protocol annotations, reporting errors or warnings based on stage."""
-        import sdrl.protocolchecker as protocolchecker
-        validator = protocolchecker.ProtocolValidator()
-        for task in self.course.taskdict.values():
-            # Report function based on whether task is included in current build stage
-            report_func = b.warning if task.to_be_skipped else b.error
-            prot_file = self._get_protocol_file(task)
-            if prot_file:
-                errors = validator.validate_file(prot_file)
-                for error in errors:
-                    report_func(error, file=prot_file)

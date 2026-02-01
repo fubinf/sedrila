@@ -237,6 +237,14 @@ class ProtocolValidator:
             if rule:
                 rule_errors = self._validate_check_rule(rule, entry.line_number)
                 errors.extend([f"{filepath}:{err}" for err in rule_errors])
+                # Check if the rule matches the actual command and output
+                if not rule.skip:
+                    if rule.command_re:
+                        match_errors = self._validate_rule_matches_command(rule, entry, entry.line_number)
+                        errors.extend([f"{filepath}:{err}" for err in match_errors])
+                    if rule.output_re:
+                        match_errors = self._validate_rule_matches_output(rule, entry, entry.line_number)
+                        errors.extend([f"{filepath}:{err}" for err in match_errors])
         return errors
 
     def _validate_check_rule(self, rule: CheckRule, line_num: int) -> list[str]:
@@ -266,6 +274,29 @@ class ProtocolValidator:
             errors.append(f"line {line_num}: specification contains neither automated check nor manual/skip")
         if rule.extra_text and not any([rule.command_re, rule.output_re, rule.skip, rule.manual]):
             errors.append(f"line {line_num}: extra= without command_re/output_re/skip/manual is not useful")
+        return errors
+
+    def _validate_rule_matches_command(self, rule: CheckRule, entry: ProtocolEntry, line_num: int) -> list[str]:
+        """Validate that a command_re pattern actually matches the command that follows the @PROT_SPEC block."""
+        errors: list[str] = []
+        if rule.command_re:
+            try:
+                if not re.search(rule.command_re, entry.command.strip()):
+                    errors.append(f"line {line_num}: command_re pattern '{rule.command_re}' does not match the following command: {entry.command.strip()}")
+            except re.error as e:
+                errors.append(f"line {line_num}: Invalid command_re '{rule.command_re}': {e}")
+        return errors
+
+    def _validate_rule_matches_output(self, rule: CheckRule, entry: ProtocolEntry, line_num: int) -> list[str]:
+        """Validate that an output_re pattern actually matches the output that follows the command."""
+        errors: list[str] = []
+        if rule.output_re:
+            try:
+                if not re.search(rule.output_re, entry.output):
+                    output_preview = entry.output[:100] + "..." if len(entry.output) > 100 else entry.output
+                    errors.append(f"line {line_num}: output_re pattern '{rule.output_re}' does not match the following output: {repr(output_preview)}")
+            except re.error as e:
+                errors.append(f"line {line_num}: Invalid output_re '{rule.output_re}': {e}")
         return errors
 
 
@@ -333,9 +364,15 @@ class ProtocolChecker:
         if not success:
             error_parts = []
             if not command_match:
-                error_parts.append("command mismatch")
+                if rule.command_re:
+                    error_parts.append(f"command mismatch (pattern: {rule.command_re}, actual: {student_entry.command.strip()})")
+                else:
+                    error_parts.append("command mismatch")
             if not output_match:
-                error_parts.append("output mismatch")
+                if rule.output_re:
+                    error_parts.append(f"output mismatch (pattern: {rule.output_re})")
+                else:
+                    error_parts.append("output mismatch")
             error_message = "; ".join(error_parts)
         # Determine if manual check is required
         # Manual is independent of automated checks and can coexist
@@ -354,7 +391,7 @@ class ProtocolChecker:
     def _compare_command(self, student_cmd: str, author_cmd: str, rule: CheckRule) -> bool:
         """Compare commands based on the rule."""
         if rule.command_re:
-            return bool(re.fullmatch(rule.command_re, student_cmd.strip()))
+            return bool(re.search(rule.command_re, student_cmd.strip()))
         # If no command_re is specified, no automatic check is performed
         return True
 

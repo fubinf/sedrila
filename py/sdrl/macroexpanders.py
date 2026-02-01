@@ -97,7 +97,7 @@ def _register_encrypted_prot(course: sdrl.course.Coursebuilder, prot_filepath: s
         return
     basename = os.path.basename(prot_filepath)
     outputname = f"{basename}.crypt"
-    existing = course.directory.get_the(el.EncryptedProtFile, outputname)
+    existing = course.directory.get_the(el.ProtFile, outputname)
     if existing:
         return
     course.directory.make_the(el.Sourcefile, prot_filepath)
@@ -108,7 +108,7 @@ def _register_encrypted_prot(course: sdrl.course.Coursebuilder, prot_filepath: s
         def transform_with_pubkeys(elem):
             return sdrl.course.Coursebuilder._transform_prot_file(elem, pubkey_data)
         elem = course.directory.make_the(
-            el.EncryptedProtFile,
+            el.ProtFile,
             outputname,
             sourcefile=prot_filepath,
             targetdir_s=course.targetdir_s,
@@ -116,9 +116,9 @@ def _register_encrypted_prot(course: sdrl.course.Coursebuilder, prot_filepath: s
             transformation=transform_with_pubkeys,
             fingerprints=keyfingerprints
         )
-        b.debug(f"Successfully created EncryptedProtFile: {elem}")
+        b.debug(f"Successfully created ProtFile: {elem}")
     except TypeError as e:
-        b.error(f"Invalid parameters for EncryptedProtFile creation: {e}")
+        b.error(f"Invalid parameters for ProtFile creation: {e}")
     except AttributeError as e:
         b.error(f"Missing attribute in course directory: {e}")
 

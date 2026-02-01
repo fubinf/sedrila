@@ -40,7 +40,7 @@ Element
         Zipfile
       TransformedFile
         ParticipantsList
-        EncryptedProtFile
+        ProtFile
   Source
     Configelement
     Sourcefile
@@ -48,7 +48,6 @@ Element
   Step
     MetadataDerivation
     SnippetValidation
-    ProtocolValidation
 ```
 
 
@@ -676,10 +675,11 @@ class ParticipantsList(TransformedFile):
     pass  # no extra code, only attributes
 
 
-class EncryptedProtFile(TransformedFile):
+class ProtFile(TransformedFile):
     """
-    Encrypted protocol file for instructor use.
-    The .prot file is encrypted with instructor GPG keys and saved as .prot.crypt
+    Protocol file for instructor use.
+    Validates @PROT_SPEC annotations and encrypts the .prot file with instructor GPG keys,
+    saving as .prot.crypt
     """
     fingerprints: list[str]  # keyfingerprint field of each instructor that has it set
 
