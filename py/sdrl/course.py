@@ -670,7 +670,6 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         self.namespace_add(self.glossary)
         # ----- create MetadataDerivation, validations, baseresources, participants list:
         self.directory.make_the(MetadataDerivation, self.name, part=self, course=self)
-        self.directory.make_the(SnippetValidation, self.name, part=self, course=self)
         self._add_baseresources()
         self._add_participantslist()
 
@@ -887,75 +886,3 @@ class MetadataDerivation(el.Step):
         self.course.check_links()
 
 
-class SnippetValidation(el.Step):
-    """Validate code snippet references and definitions in course files."""
-    course: Coursebuilder
-    # ----- File types to exclude from snippet validation (binary, generated, or system files)
-    EXCLUDED_EXTENSIONS = {'.zip', '.tar', '.gz', '.bz2', '.xz', '.7z',
-                          '.exe', '.bin', '.so', '.dll', '.dylib',
-                          '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.ico', '.svg',
-                          '.pdf', '.doc', '.docx', '.xls', '.xlsx',
-                          '.pyc', '.pyo', '.o', '.a', '.class',
-                          '.db', '.sqlite', '.sqlite3'}
-    EXCLUDED_NAMES = {'.DS_Store', 'Thumbs.db', '__pycache__'}
-
-    def _iter_solution_files(self, task) -> tg.Iterator[str]:
-        """Iterate over solution files in altdir for a given task."""
-        task_dir = os.path.dirname(task.sourcefile)
-        alt_task_dir = task_dir.replace(self.course.chapterdir, self.course.altdir, 1)
-        if not os.path.exists(alt_task_dir):
-            return
-        for file in os.listdir(alt_task_dir):
-            if (file.startswith('.') or 
-                file in self.EXCLUDED_NAMES or
-                any(file.endswith(ext) for ext in self.EXCLUDED_EXTENSIONS)):
-                continue
-            solution_path = os.path.join(alt_task_dir, file)
-            if os.path.isfile(solution_path):
-                yield solution_path
-
-    def check_existing_resource(self):
-        """Implement incremental build: only validate when dependencies change."""
-        # ----- Start by assuming nothing has changed
-        self.state = cache.State.AS_BEFORE
-        for dep in self.my_dependencies():
-            # Ensure dependency state is initialized
-            if not hasattr(dep, 'state'):
-                dep.check_existing_resource()
-            if dep.state != cache.State.AS_BEFORE:
-                self.state = cache.State.HAS_CHANGED
-                break
-
-    def my_dependencies(self) -> tg.Iterable['el.Element']:
-        """Declare dependencies on ALL tasks (like answer-task correspondence checking)."""
-        deps = []
-        # ----- Add dependencies on ALL task source files and solution files (regardless of stage)
-        for task in self.course.taskdict.values():
-            # Depend on task markdown file
-            sourcefile_elem = self.directory.get_the(el.Sourcefile, task.sourcefile)
-            if sourcefile_elem:
-                deps.append(sourcefile_elem)
-            # Depend on solution files in altdir
-            for solution_path in self._iter_solution_files(task):
-                # Get existing Sourcefile or create if it doesn't exist yet
-                sourcefile_elem = self.directory.make_or_get_the(el.Sourcefile, solution_path)
-                deps.append(sourcefile_elem)
-        return deps
-
-    def do_build(self):
-        """Validate snippet references and definitions, reporting errors or warnings based on stage."""
-        import sdrl.snippetchecker as snippetchecker
-        validator = snippetchecker.SnippetValidator()
-        for task in self.course.taskdict.values():
-            report_func = b.warning if task.to_be_skipped else b.error
-            # Validate snippet definitions in solution files
-            for solution_path in self._iter_solution_files(task):
-                errors = validator._validate_snippet_markers_in_file(solution_path)
-                for error in errors:
-                    report_func(error, file=solution_path)
-            # Validate snippet references in task files
-            results = validator.validate_file_references(task.sourcefile, self.course)
-            for result in results:
-                if not result.success:
-                    report_func(result.error_message,
-                               file=f"{result.reference.source_file}:{result.reference.line_number}")

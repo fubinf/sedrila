@@ -439,8 +439,16 @@ class SnippetValidator:
         _, errors = extractor.extract_snippets_from_content(content, filepath, collect_errors=True)
         return errors
 
+    def collect_snippet_validations_for_file(self, filepath: str, course) -> dict[str, bool]:
+        """Collect validation results for all snippet references in a file."""
+        results = self.validate_file_references(filepath, course)
+        validation_dict = {}
+        for result in results:
+            validation_dict[result.reference.snippet_id] = result.success
+        return validation_dict
 
-def expand_snippet_macro(course, macrocall) -> str:
+
+def expand_snippet(course, macrocall) -> str:
     """Macro expander for [SNIPPET::filespec::snippet_id]."""
     filespec = (macrocall.arg1 or "").strip()
     snippet_id = (macrocall.arg2 or "").strip()

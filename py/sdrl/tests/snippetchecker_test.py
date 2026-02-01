@@ -310,7 +310,7 @@ def test_snippet_macro_expansion_records_dependency():
         config_path = _create_test_config(temp_dir)
         course = MockCourse(config_path)
         md_mock, macrocall = _create_macrocall(task_file, "ALT:", "macro_snip")
-        result = snippetchecker.expand_snippet_macro(course, macrocall)
+        result = snippetchecker.expand_snippet(course, macrocall)
         assert "return 7 * 6" in result
         expected_path = os.path.normpath(answer_file)
         assert expected_path in md_mock.includefiles
@@ -332,7 +332,7 @@ def test_snippet_macro_returns_plain_content():
         config_path = _create_test_config(temp_dir)
         course = MockCourse(config_path)
         _, macrocall = _create_macrocall(task_file, "ALT:", "macro_lang")
-        result = snippetchecker.expand_snippet_macro(course, macrocall)
+        result = snippetchecker.expand_snippet(course, macrocall)
         assert result == 'print("wrapped")\n'
 
 
@@ -346,7 +346,7 @@ def test_snippet_macro_missing_file():
         _, macrocall = _create_macrocall(task_file, filespec, "missing_snippet")
         errors = []
         macrocall.error = errors.append
-        result = snippetchecker.expand_snippet_macro(course, macrocall)
+        result = snippetchecker.expand_snippet(course, macrocall)
         assert result == ""
         assert errors, "Expected error for missing file"
         assert "File not found" in errors[0]

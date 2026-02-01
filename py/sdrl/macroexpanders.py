@@ -19,7 +19,7 @@ def register_macros(course: sdrl.course.Coursebuilder):
     macros.register_macro('INCLUDE', 1, MM.EARLY,
                           functools.partial(expand_include, course))
     macros.register_macro('SNIPPET', 2, MM.EARLY,
-                          functools.partial(snippetchecker.expand_snippet_macro, course))
+                          functools.partial(snippetchecker.expand_snippet, course))
     # ----- register INNER-mode macros:
     macros.register_macro('HREF', 1, MM.INNER,
                           functools.partial(expand_href, course))  # show and link a URL
