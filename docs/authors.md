@@ -820,6 +820,7 @@ for (int i = 0; i < n; ++i) {
 
 Snippet content (excluding marker lines) is inserted verbatim, preserving formatting.
 It is an error if no snippet of that name exists.
+Snippet validation occurs automatically during task file builds, like `[INCLUDE]` file references.
 
 
 #### 2.6.3 `[PROT]`
@@ -1118,7 +1119,8 @@ The `sedrila author` command validates course content incrementally during each 
 Validation runs only when relevant files change and respects the `--include_stage` setting.
 There are three types of validation:
 
-- Validation of implicit constraints, e.g., that `[INCLUDE::myfile]` requires `myfile` to exist.
+- Validation of implicit constraints, e.g., that `[INCLUDE::myfile]` requires `myfile` to exist,
+  and that `[SNIPPET::filespec::snippetname]` requires the snippet to exist in the specified file.
 - Validation of constraints formulated by `sedrila.yaml` config settings, e.g.,
   that a `stage: x` entry in a task file needs a corresponding stage declaration in `stages`.
 - Validation of explicit constraints formulated in checking specifications, e.g., `@PROT_SPEC` entries.
