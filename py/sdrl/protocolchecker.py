@@ -403,13 +403,13 @@ class ProtocolChecker:
         return True
 
 
-def load_encrypted_prot_file(prot_crypt_path: str, passphrase: str | None = None) -> typing.Optional[str]:
-    """Load and decrypt a .prot.crypt file. If passphrase is provided, uses it for password-protected keys."""
+def load_encrypted_prot_file(prot_crypt_path: str) -> typing.Optional[str]:
+    """Load and decrypt a .prot.crypt file. GPG will request passphrase via gpg-agent if needed."""
     if not os.path.exists(prot_crypt_path):
         return None
     try:
         ciphertext = b.slurp_bytes(prot_crypt_path)
-        plaintext = mycrypt.decrypt_gpg(ciphertext, passphrase=passphrase)
+        plaintext = mycrypt.decrypt_gpg(ciphertext)
         return plaintext.decode('utf-8')
     except (OSError, RuntimeError, UnicodeDecodeError) as e:
         b.warning(f"Failed to decrypt {prot_crypt_path}: {e}")

@@ -1,6 +1,5 @@
 """Browse the virtual file system of a sdrl.participant.Context; see submissions and mark them."""
 import base64
-import getpass
 import os
 import pathlib
 import subprocess
@@ -16,6 +15,7 @@ import bottle  # https://bottlepy.org/docs/dev/
 import requests
 
 import base as b
+import mycrypt
 import sdrl.argparser
 import sdrl.constants as c
 import sdrl.course
@@ -33,9 +33,6 @@ WEBAPP_JS_URL = "/script.js"
 SEDRILA_REPLACE_URL = "/sedrila-replace.action"
 SEDRILA_UPDATE_URL = "/sedrila-update.action"
 WORK_REPORT_URL = "/work.report"
-
-# Global variable to store GPG passphrase for decrypting protocol files
-gpg_passphrase: str | None = None
 
 favicon32x32_png_base64 = """iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAE0ElEQVRYR8VXR0hdWxTdzxI1OrAG
 K1ZQbDGoOFBEUOyiYsUKtmAdOPslIPzPR2fB2CAqqFgRLAiCJEKcKIgogi3YosFGdKCiEcvLXSf/
@@ -127,40 +124,41 @@ def _find_encrypted_prot_file(ctx: sdrl.participant.Context) -> str | None:
     return None
 
 
-def _verify_gpg_passphrase(test_file: str, passphrase: str) -> bool:
-    """Verify that passphrase can decrypt a test file."""
+def _prime_gpg_agent(test_file: str) -> bool:
+    """Prime gpg-agent by attempting to decrypt a test protocol file.
+    This triggers GPG to request passphrase via pinentry if needed,
+    and gpg-agent caches it for the session.
+    """
     import sdrl.protocolchecker as protocolchecker
     try:
-        content = protocolchecker.load_encrypted_prot_file(test_file, passphrase=passphrase)
+        content = protocolchecker.load_encrypted_prot_file(test_file)
         return content is not None
-    except Exception:
+    except RuntimeError as e:
+        b.debug(f"Failed to prime GPG agent: {e}")
+        return False
+
+
+def _verify_gpg_keys(test_file: str) -> bool:
+    """Verify that GPG private key exists and can decrypt a test file."""
+    import sdrl.protocolchecker as protocolchecker
+    try:
+        content = protocolchecker.load_encrypted_prot_file(test_file)
+        return content is not None
+    except RuntimeError:
         return False
 
 
 def run(ctx: sdrl.participant.Context):
-    global gpg_passphrase
     # Make sure context is globally accessible for HTTP request handlers
     sdrl.participant._context = ctx
     # Only instructors need to decrypt protocol files
     if ctx.is_instructor:
-        # Check if there are encrypted protocol files and ask for passphrase
+        # Find an encrypted protocol file to prime gpg-agent with
         test_file = _find_encrypted_prot_file(ctx)
         if test_file:
             try:
-                b.info("Encrypted protocol files found. Please enter GPG passphrase to decrypt them.")
-                max_attempts = 3
-                for attempt in range(max_attempts):
-                    passphrase = getpass.getpass("Enter GPG passphrase: ")
-                    if _verify_gpg_passphrase(test_file, passphrase):
-                        gpg_passphrase = passphrase
-                        b.info("Passphrase verified successfully. Starting webapp...")
-                        break
-                    else:
-                        remaining = max_attempts - attempt - 1
-                        if remaining > 0:
-                            b.warning(f"Incorrect passphrase. {remaining} attempt(s) remaining.")
-                        else:
-                            b.error("Failed to decrypt protocol files after maximum attempts. Starting webapp without decryption.")
+                # Prime gpg-agent by attempting to decrypt (triggers passphrase prompt in shell)
+                _prime_gpg_agent(test_file)
             finally:
                 # Clean up temporary files from HTTP downloads
                 try:
@@ -1091,7 +1089,6 @@ def render_prot_plain(student_content: str) -> str:
 
 def _load_author_prot_content(workdir: sdrl.participant.Student, prot_path: str) -> tuple[str | None, str | None]:
     """Load author .prot file content for comparison with student submission."""
-    global gpg_passphrase
     import sdrl.protocolchecker as protocolchecker
     try:
         course = workdir.course
@@ -1105,7 +1102,7 @@ def _load_author_prot_content(workdir: sdrl.participant.Student, prot_path: str)
                 # Local file path
                 encrypted_path = os.path.join(builddir, encrypted_filename)
                 if os.path.isfile(encrypted_path):
-                    content = protocolchecker.load_encrypted_prot_file(encrypted_path, passphrase=gpg_passphrase)
+                    content = protocolchecker.load_encrypted_prot_file(encrypted_path)
                     if content:
                         return (content, f"{encrypted_path} (decrypted)")
             elif location_type == 'remote':
@@ -1120,7 +1117,7 @@ def _load_author_prot_content(workdir: sdrl.participant.Student, prot_path: str)
                         tmp.write(response.content)
                         tmp_path = tmp.name
                     try:
-                        content = protocolchecker.load_encrypted_prot_file(tmp_path, passphrase=gpg_passphrase)
+                        content = protocolchecker.load_encrypted_prot_file(tmp_path)
                         if content:
                             return (content, f"{encrypted_url} (downloaded & decrypted)")
                     finally:

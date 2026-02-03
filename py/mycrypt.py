@@ -2,6 +2,8 @@
 import typing as tg
 import tempfile
 import shutil
+import os
+import subprocess
 
 import gnupg
 
@@ -45,7 +47,17 @@ def decrypt_gpg(ciphertext: bytes, passphrase: str | None = None) -> bytes:
     any of the pubkeys used in encryption.
     If passphrase is provided, uses it to unlock password-protected private keys.
     """
-    gpg = gnupg.GPG()  # uses ~/.gnupg by default
+    # Set GPG_TTY to allow pinentry to prompt for passphrase in terminal
+    env = os.environ.copy()
+    if 'GPG_TTY' not in env:
+        try:
+            tty = subprocess.run(['tty'], capture_output=True, text=True, check=False)
+            if tty.returncode == 0 and tty.stdout.strip():
+                env['GPG_TTY'] = tty.stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+    gpg = gnupg.GPG(env=env)  # uses ~/.gnupg by default
     decrypted = gpg.decrypt(ciphertext, always_trust=True, passphrase=passphrase)
     if not decrypted.ok:
         raise RuntimeError("Decryption failed: " + decrypted.status)
