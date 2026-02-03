@@ -1055,8 +1055,8 @@ Notes:
 - **GPG password management**: sedrila delegates all password handling to GPG and `gpg-agent`. When the webapp starts,
   it attempts to decrypt a test protocol file, which triggers GPG to request the passphrase (via `pinentry`) if needed.
   The password is then cached by `gpg-agent` for the session (typically 1 hour), so subsequent operations don't require re-entering it.
-  WSL users should install `pinentry-tty` (`sudo apt-get install pinentry-tty`) and configure `~/.gnupg/gpg-agent.conf`
-  with `pinentry-program /usr/bin/pinentry-tty` for proper password prompting.
+  WSL users should install `pinentry-tty` (`sudo apt-get install pinentry-tty`; WSL's default pinentry-curses cannot communicate with TTY)
+  and configure `~/.gnupg/gpg-agent.conf` with `pinentry-program /usr/bin/pinentry-tty` for proper password prompting.
 - Instructors can point to the output folder of a local `sedrila author` build using a `file://` URL in their student.yaml
   configuration (e.g., `course_url: file:///home/author/my-course/out/`). The webapp will then load and decrypt the `.prot.crypt`
   files directly from the local build output, enabling protocol comparison without requiring a web server.
