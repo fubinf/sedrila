@@ -949,8 +949,8 @@ This function supports different entries:
 
 Single-line entries:
 
-- `command_re=regex`: Command must match the following regex (fullmatch)
-- `output_re=regex`: Output must contain regex match (search)
+- `command_re=regex`: Command must contain a match for the regex (search mode). Use `^` and `$` anchors if you need full-line matching.
+- `output_re=regex`: Output must contain a match for the regex (search mode)
 - `skip=1`: Skip checking entirely (always passes, no manual review needed)
 
 Multi-line entries (continuation lines indented by 4 spaces):
@@ -1041,8 +1041,8 @@ Notes:
 - A `@PROT_SPEC` block must contain at least one directive (`command_re`, `output_re`, `skip`, or `manual`)
 - Automated checks only occur if `command_re` or `output_re` are specified:
 
-  - If `command_re` is provided, the student's command must match the regex (using fullmatch)
-  - If `output_re` is provided, the student's output must contain a match for the regex (using search)
+  - Both `command_re` and `output_re` use search mode (match anywhere in the string)
+  - Use regex anchors (`^` for start, `$` for end) when you need exact matching
 - `manual=` can be used independently or together with regex checks to request instructor review
 - When `command_re=` and/or `output_re=` are present, the color is determined solely by the automated check result (green for pass, red for fail). `manual=` in this case is supplementary information for the instructor, not affecting the color.
 - Use `skip=1` for commands with no meaningful output (e.g., `cd`)
@@ -1052,6 +1052,11 @@ Notes:
 - During the build, referenced `.prot` files are automatically encrypted (using instructor public keys from `sedrila.yaml`)
   and saved as `.prot.crypt` in the student output directory. This prevents students from viewing comparison results;
   only instructors with the corresponding private key can decrypt and see whether a student's protocol matches the reference.
+- **GPG password management**: sedrila delegates all password handling to GPG and `gpg-agent`. When the webapp starts,
+  it attempts to decrypt a test protocol file, which triggers GPG to request the passphrase (via `pinentry`) if needed.
+  The password is then cached by `gpg-agent` for the session (typically 1 hour), so subsequent operations don't require re-entering it.
+  WSL users should install `pinentry-tty` (`sudo apt-get install pinentry-tty`) and configure `~/.gnupg/gpg-agent.conf`
+  with `pinentry-program /usr/bin/pinentry-tty` for proper password prompting.
 - Instructors can point to the output folder of a local `sedrila author` build using a `file://` URL in their student.yaml
   configuration (e.g., `course_url: file:///home/author/my-course/out/`). The webapp will then load and decrypt the `.prot.crypt`
   files directly from the local build output, enabling protocol comparison without requiring a web server.
