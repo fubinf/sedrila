@@ -37,7 +37,7 @@ def add_arguments(subparser: argparse.ArgumentParser):
     subparser.add_argument('--check-programs', action='store_true',
                            help="Test exemplary programs against protocol files")
     subparser.add_argument('--collect', action='store_true',
-                           help="Collect languages and dependencies from @PROGRAM_CHECK blocks, output as JSON")
+                           help="Collect languages and dependencies from @TEST_SPEC blocks, output as JSON")
     subparser.add_argument('-o', '--output', metavar="json_file",
                            help="Output file for --collect (if not specified, writes to stdout)")
     subparser.add_argument('--batch', action='store_true',
@@ -264,7 +264,7 @@ def check_programs_command(pargs: argparse.Namespace):
 
 
 def collect_command(pargs: argparse.Namespace):
-    """Collect languages, dependencies, and task assumes from @PROGRAM_CHECK blocks."""
+    """Collect languages, dependencies, and task assumes from @TEST_SPEC blocks."""
     import sdrl.programchecker as programchecker
     # Use temporary directory for cache
     temp_cache_dir = tempfile.mkdtemp(prefix='sedrila_collect_')

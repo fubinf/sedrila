@@ -2,7 +2,7 @@
 Program testing functionality for SeDriLa courses.
 
 Automatically tests exemplary programs from itreedir against their corresponding
-protocol files (.prot) using metadata from @PROGRAM_CHECK blocks.
+protocol files (.prot) using metadata from @TEST_SPEC blocks.
 """
 
 import subprocess as sp
@@ -28,18 +28,18 @@ PROGRAM_FILE_EXCLUDE_SUFFIXES = {
 }
 
 def filter_program_check_annotations(content: str) -> str:
-    """Remove @PROGRAM_CHECK blocks before rendering."""
+    """Remove @TEST_SPEC blocks before rendering."""
     lines: list[str] = []
     skip_program_check = False
     for raw_line in content.split('\n'):
         line = raw_line.rstrip()
         if skip_program_check:
-            # End of @PROGRAM_CHECK block (blank line)
+            # End of @TEST_SPEC block (blank line)
             if not line.strip():
                 skip_program_check = False
                 continue
             continue
-        if line.strip() == "@PROGRAM_CHECK":
+        if line.strip() == "@TEST_SPEC":
             skip_program_check = True
             continue
         lines.append(line)
@@ -47,7 +47,7 @@ def filter_program_check_annotations(content: str) -> str:
 
 @dataclass
 class ProgramCheckHeader:
-    """Metadata for program checking from @PROGRAM_CHECK block in .prot file."""
+    """Metadata for program checking from @TEST_SPEC block in .prot file."""
     lang: Optional[str] = None           # e.g., "apt-get install -y golang-go\napt-get install -y make"
     deps: Optional[str] = None           # e.g., "pip install fastapi\npip install uvicorn"
     typ: Optional[str] = None            # e.g., "exact", "regex", "manual"
@@ -86,18 +86,18 @@ class ProgramCheckHeader:
         return commands
 
 class ProgramCheckHeaderExtractor:
-    """Extracts and parses @PROGRAM_CHECK blocks from .prot file content."""
+    """Extracts and parses @TEST_SPEC blocks from .prot file content."""
 
     @staticmethod
     def extract_from_content(content: str) -> Optional[ProgramCheckHeader]:
-        """Extract @PROGRAM_CHECK block from protocol content."""
+        """Extract @TEST_SPEC block from protocol content."""
         lines = content.split('\n')
         in_block = False
         block_lines: List[str] = []
         for line in lines:
             stripped = line.strip()
             # Block start
-            if stripped == "@PROGRAM_CHECK":
+            if stripped == "@TEST_SPEC":
                 in_block = True
                 continue
             # Block end (blank line)
@@ -112,7 +112,7 @@ class ProgramCheckHeaderExtractor:
 
     @staticmethod
     def _parse_header_block(block_lines: List[str]) -> ProgramCheckHeader:
-        """Parse key=value pairs from @PROGRAM_CHECK block."""
+        """Parse key=value pairs from @TEST_SPEC block."""
         header = ProgramCheckHeader()
         known_keys = {'lang', 'deps', 'typ', 'manual_reason', 'files'}
         last_key = None  # Track the last key to handle multi-line deps
@@ -129,7 +129,7 @@ class ProgramCheckHeaderExtractor:
                 value = value.strip()
                 if key not in known_keys:
                     header.unknown_keys.append(key)
-                    b.warning(f"Unknown @PROGRAM_CHECK key: {key}")
+                    b.warning(f"Unknown @TEST_SPEC key: {key}")
                     last_key = None
                     continue
                 setattr(header, key, value)
@@ -141,13 +141,13 @@ class ProgramCheckHeaderExtractor:
                 elif last_key == 'lang' and header.lang is not None:
                     header.lang += '\n' + line
                 else:
-                    b.warning(f"Invalid @PROGRAM_CHECK line (missing '='): {line}")
+                    b.warning(f"Invalid @TEST_SPEC line (missing '='): {line}")
                     last_key = None
         return header
 
     @staticmethod
     def extract_from_file(prot_filepath: str) -> Optional[ProgramCheckHeader]:
-        """Extract @PROGRAM_CHECK from a .prot file."""
+        """Extract @TEST_SPEC from a .prot file."""
         try:
             content = Path(prot_filepath).read_text(encoding='utf-8')
             return ProgramCheckHeaderExtractor.extract_from_content(content)
@@ -230,7 +230,7 @@ def _find_program_file(itree_root: Path, prot_file: Path) -> Optional[Path]:
 
 
 def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[ProgramTestTarget]:
-    """Extract @PROGRAM_CHECK blocks from .prot files in altdir."""
+    """Extract @TEST_SPEC blocks from .prot files in altdir."""
     targets: List[ProgramTestTarget] = []
     altdir_path = Path(course.altdir).resolve()
     itree_root = Path(course.itreedir).resolve()
@@ -250,10 +250,10 @@ def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[Prog
             continue
         header = extractor.extract_from_content(content)
         if not header:
-            # No @PROGRAM_CHECK block
+            # No @TEST_SPEC block
             continue
         if not header.is_valid():
-            b.warning(f"@PROGRAM_CHECK block in {prot_file} missing required fields "
+            b.warning(f"@TEST_SPEC block in {prot_file} missing required fields "
                      f"(typ={header.typ}, manual_reason={header.manual_reason if header.typ == 'manual' else 'N/A'})")
             continue
         program_file = _find_program_file(itree_root, prot_file)

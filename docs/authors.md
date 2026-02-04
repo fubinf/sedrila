@@ -1067,7 +1067,7 @@ Notes:
   needed for decryption.
 
 
-### 2.11 Checking specification for program tests: `@PROG_CHECK`
+### 2.11 Checking specification for program tests: `@TEST_SPEC`
 
 See in [Maintainers documentation](maintainers.md).
 

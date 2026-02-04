@@ -250,7 +250,7 @@ def prot_html(content: str) -> str:
         extra_blocks.append(extras)
         text_blocks.append(texts)
         error_blocks.append(errs)
-    # Filter out @PROT_SPEC and @PROGRAM_CHECK markup before rendering
+    # Filter out @PROT_SPEC and @TEST_SPEC markup before rendering
     content = protocolchecker.filter_prot_check_annotations(content)
     content = programchecker_mod.filter_program_check_annotations(content)
     for line in content.split('\n'):

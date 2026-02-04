@@ -12,14 +12,14 @@ def _dedent(payload: str) -> str:
 
 # Test data constants
 PROGRAM_CHECK_BASIC = _dedent("""
-    @PROGRAM_CHECK
+    @TEST_SPEC
     lang=apt-get install -y python3-pip
     deps=pip install fastapi
     typ=regex
 """)
 
 PROGRAM_CHECK_MULTILINE = _dedent("""
-    @PROGRAM_CHECK
+    @TEST_SPEC
     lang=apt-get install -y golang-go
     apt-get install -y make
     deps=go get github.com/lib/pq
@@ -39,7 +39,7 @@ PROT_SPEC_BASIC = _dedent("""
 
 
 def test_extracts_program_check_from_content():
-    """Verify @PROGRAM_CHECK block extraction from protocol content."""
+    """Verify @TEST_SPEC block extraction from protocol content."""
     content = PROGRAM_CHECK_BASIC + "\n" + PROT_SPEC_BASIC
     header = programchecker.ProgramCheckHeaderExtractor.extract_from_content(content)
     assert header is not None
@@ -118,10 +118,10 @@ def test_find_program_file_by_matching_stem():
 
 
 def test_filter_program_check_annotations():
-    """Verify @PROGRAM_CHECK blocks are removed from content."""
+    """Verify @TEST_SPEC blocks are removed from content."""
     content = PROGRAM_CHECK_BASIC + "\n" + PROT_SPEC_BASIC + "\n$ echo done\ndone"
     filtered = programchecker.filter_program_check_annotations(content)
-    assert "@PROGRAM_CHECK" not in filtered
+    assert "@TEST_SPEC" not in filtered
     assert "typ=regex" not in filtered
     assert "$ python test.py" in filtered
     assert "$ echo done" in filtered
@@ -137,7 +137,7 @@ def test_program_execution_with_regex_validation():
         prog_file.write_text("print('Hello World 123')")
         prot_file = altdir / "hello.prot"
         prot_file.write_text(_dedent("""
-            @PROGRAM_CHECK
+            @TEST_SPEC
             typ=regex
 
             @PROT_SPEC
@@ -180,7 +180,7 @@ def test_program_execution_failure():
         prog_file.write_text("print('Goodbye World')")
         prot_file = altdir / "test.prot"
         prot_file.write_text(_dedent("""
-            @PROGRAM_CHECK
+            @TEST_SPEC
             typ=regex
 
             @PROT_SPEC

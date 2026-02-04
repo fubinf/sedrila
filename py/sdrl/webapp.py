@@ -945,7 +945,7 @@ def render_prot_compare(
     result = ["\n<table class='vwr-table'>"]
     PROMPTSEEN, OUTPUT = (1, 2)
     state = State(s=OUTPUT, promptcount=0)
-    # Filter out @PROT_SPEC and @PROGRAM_CHECK annotations before rendering
+    # Filter out @PROT_SPEC and @TEST_SPEC annotations before rendering
     import sdrl.programchecker as programchecker_mod
     content = protocolchecker.filter_prot_check_annotations(student_content)
     content = programchecker_mod.filter_program_check_annotations(content)
@@ -1068,7 +1068,7 @@ def render_prot_plain(student_content: str) -> str:
     result = ["\n<table class='vwr-table vwr-plain'>"]
     PROMPTSEEN, OUTPUT = (1, 2)
     state = State(s=OUTPUT, promptcount=0)
-    # Filter out @PROT_SPEC and @PROGRAM_CHECK annotations before rendering (students should not see them)
+    # Filter out @PROT_SPEC and @TEST_SPEC annotations before rendering (students should not see them)
     content = protocolchecker.filter_prot_check_annotations(student_content)
     content = programchecker_mod.filter_program_check_annotations(content)
     for line in content.split('\n'):

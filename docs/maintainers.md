@@ -139,7 +139,7 @@ Program testing executes stored commands from `.prot` files and verifies output 
 
 How it works:
 
-- Scans `.prot` files in `altdir` for `@PROGRAM_CHECK` blocks
+- Scans `.prot` files in `altdir` for `@TEST_SPEC` blocks
 - Extracts metadata: language, dependencies, test type
 - Locates program files in `itreedir` via path replacement
 - If `files=` field is present: maps short file names to absolute paths via the `.files` file,
@@ -163,22 +163,22 @@ sedrila maintainer --check-programs -- /tmp/progtest
 For CI via GitHub Actions, the workflow exposes `max_workers` input.
 When using `--batch`, failed tests are summarized at the end for quick error identification in CI runs.
 
-### 5.1 @PROGRAM_CHECK block format
+### 5.1 @TEST_SPEC block format
 
-`@PROGRAM_CHECK` blocks contain metadata for automated testing.
+`@TEST_SPEC` blocks contain metadata for automated testing.
 Placement and syntax:
 
 - Should be at `.prot` file start (recommended for clarity)
-- Block starts with line containing only `@PROGRAM_CHECK`
+- Block starts with line containing only `@TEST_SPEC`
 - Block ends at first blank line
 - Inside block: one `key=value` per line, no spaces around `=`
 - `lang` and `deps` can span multiple lines (subsequent lines without `=` are appended as separate commands)
-- No comments allowed inside @PROGRAM_CHECK block
+- No comments allowed inside @TEST_SPEC block
 
 Example:
 
 ```
-@PROGRAM_CHECK
+@TEST_SPEC
 lang=apt-get install -y python3-pip
 deps=pip install numpy
 pip install requests>=2.0
@@ -229,7 +229,7 @@ The temporary directory is removed after testing completes, preventing test fail
 
 ### 5.2 Operating environment and dependencies
 
-Program testing requires language runtimes and package dependencies specified via `@PROGRAM_CHECK` blocks.
+Program testing requires language runtimes and package dependencies specified via `@TEST_SPEC` blocks.
 
 Base requirements:
 
@@ -290,7 +290,7 @@ This approach provides better isolation but involves more container overhead and
 
 ### 5.3 Test types
 
-The `typ=` field in `@PROGRAM_CHECK` determines how a program is tested.
+The `typ=` field in `@TEST_SPEC` determines how a program is tested.
 
 **regex**: Pattern-based output verification
 
