@@ -111,11 +111,11 @@ def course_env(include_stage: str):
     ("comment", "expect_success", "expect_error"),
     [
         pytest.param("", False, "404", id="no_rule_404_fails"),
-        pytest.param("<!-- LINK_CHECK: status=404 -->\n", True, None, id="rule_404_expected_ok"),
+        pytest.param("<!-- @LINK_SPEC: status=404 -->\n", True, None, id="rule_404_expected_ok"),
     ],
 )
 def test_status_rule_controls_result(tmp_path, monkeypatch, comment, expect_success, expect_error):
-    """Validate that LINK_CHECK status overrides success evaluation."""
+    """Validate that @LINK_SPEC status overrides success evaluation."""
     url = TEST_URL_SEDRILA_404
     markdown = f"""# Test File
     {comment}Broken link: [Target]({url})
@@ -144,9 +144,9 @@ def test_content_rule(tmp_path, monkeypatch):
     url1 = TEST_URL_SEDRILA
     url2 = f"{TEST_URL_SEDRILA}/docs"
     markdown = f"""# Test File
-    <!-- LINK_CHECK: content="{TEST_CONTENT_SEDRILA}" -->
+    <!-- @LINK_SPEC: content="{TEST_CONTENT_SEDRILA}" -->
     Good link: [Docs]({url1})
-    <!-- LINK_CHECK: content="{TEST_CONTENT_NONEXISTENT}" -->
+    <!-- @LINK_SPEC: content="{TEST_CONTENT_NONEXISTENT}" -->
     Bad link: [Docs again]({url2})
     """
     path = write_markdown(tmp_path, markdown)
@@ -165,11 +165,11 @@ def test_content_rule(tmp_path, monkeypatch):
     assert "Required text" in (by_text[TEST_CONTENT_NONEXISTENT].error_message or "")
 
 def test_extractor_parses_rules_and_macros(tmp_path):
-    """Confirm the extractor reads LINK_CHECK rules and HREF macros."""
+    """Confirm the extractor reads @LINK_SPEC rules and HREF macros."""
     markdown = f"""# Test File
-    <!-- LINK_CHECK: status=301, timeout=15, ignore_cert=true -->
+    <!-- @LINK_SPEC: status=301, timeout=15, ignore_cert=true -->
     Regular link: [Regular]({TEST_URL_EXAMPLE})
-    <!-- LINK_CHECK: content="hello world" -->
+    <!-- @LINK_SPEC: content="hello world" -->
     Another link: [Another](https://example.org)
     Macro link: [HREF::https://github.com/fubinf/sedrila]
     """

@@ -55,12 +55,12 @@ class LinkExtractor:
     # Regex patterns for different link formats
     MARKDOWN_LINK_PATTERN = r'\[([^\]]*)\]\(([^)]+)\)'
     HREF_MACRO_PATTERN = r'\[HREF::([^\]]+)\]'
-    LINK_CHECK_COMMENT_PATTERN = r'<!--\s*LINK_CHECK:\s*([^-]+)\s*-->'
+    LINK_SPEC_COMMENT_PATTERN = r'<!--\s*@LINK_SPEC:\s*([^-]+)\s*-->'
     
     def __init__(self):
         self.markdown_regex = re.compile(self.MARKDOWN_LINK_PATTERN)
         self.href_macro_regex = re.compile(self.HREF_MACRO_PATTERN)
-        self.link_check_regex = re.compile(self.LINK_CHECK_COMMENT_PATTERN)
+        self.link_spec_regex = re.compile(self.LINK_SPEC_COMMENT_PATTERN)
     
     def extract_links_from_file(self, filepath: str) -> list[ExternalLink]:
         """Extract all external links from a markdown file."""
@@ -74,10 +74,10 @@ class LinkExtractor:
         lines = content.split('\n')
         current_validation_rule = None
         for line_num, line in enumerate(lines, 1):
-            # Check for LINK_CHECK comments
-            link_check_match = self.link_check_regex.search(line)
-            if link_check_match:
-                current_validation_rule = self._parse_validation_rule(link_check_match.group(1))
+            # Check for @LINK_SPEC comments
+            link_spec_match = self.link_spec_regex.search(line)
+            if link_spec_match:
+                current_validation_rule = self._parse_validation_rule(link_spec_match.group(1))
                 continue
             # Extract standard markdown links: [text](url)
             for match in self.markdown_regex.finditer(line):
@@ -101,7 +101,7 @@ class LinkExtractor:
     
     @staticmethod
     def _parse_validation_rule(rule_text: str) -> LinkValidationRule:
-        """Parse validation rule from LINK_CHECK comment."""
+        """Parse validation rule from @LINK_SPEC comment."""
         rule = LinkValidationRule()
         # Parse key=value pairs
         for part in rule_text.split(','):
@@ -114,7 +114,7 @@ class LinkExtractor:
                     try:
                         rule.expected_status = int(value)
                     except ValueError:
-                        base.warning(f"Invalid status code in LINK_CHECK: {value}")
+                        base.warning(f"Invalid status code in @LINK_SPEC: {value}")
                 elif key == 'content' or key == 'text':
                     rule.required_text = value
                 elif key == 'ignore_cert':
@@ -123,7 +123,7 @@ class LinkExtractor:
                     try:
                         rule.timeout = int(value)
                     except ValueError:
-                        base.warning(f"Invalid timeout in LINK_CHECK: {value}")
+                        base.warning(f"Invalid timeout in @LINK_SPEC: {value}")
         return rule
 
 

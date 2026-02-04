@@ -112,13 +112,13 @@ By default, links are considered successful if they return 2xx or 3xx status cod
 You can specify custom validation rules using HTML comments before links:
 
 ```markdown
-<!-- LINK_CHECK: status=403 -->
+<!-- @LINK_SPEC: status=403 -->
 [Restricted Resource](https://example.com/restricted)
 
-<!-- LINK_CHECK: content="Welcome" -->
+<!-- @LINK_SPEC: content="Welcome" -->
 [Must contain text](https://example.com/)
 
-<!-- LINK_CHECK: status=302, timeout=30, ignore_cert=true -->
+<!-- @LINK_SPEC: status=302, timeout=30, ignore_cert=true -->
 [Complex validation](https://redirect.example.com)
 ```
 
