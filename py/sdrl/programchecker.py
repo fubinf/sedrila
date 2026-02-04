@@ -48,16 +48,16 @@ def filter_program_check_annotations(content: str) -> str:
 @dataclass
 class ProgramCheckHeader:
     """Metadata for program checking from @TEST_SPEC block in .prot file."""
+    typ: str                             # e.g., "regex", "manual" (REQUIRED)
     lang: Optional[str] = None           # e.g., "apt-get install -y golang-go\napt-get install -y make"
     deps: Optional[str] = None           # e.g., "pip install fastapi\npip install uvicorn"
-    typ: Optional[str] = None            # e.g., "exact", "regex", "manual"
     manual_reason: Optional[str] = None  # reason for manual testing (for typ=manual)
     files: Optional[str] = None          # additional files for multi-file programs
     unknown_keys: List[str] = field(default_factory=list)
 
     def is_valid(self) -> bool:
         """Check if header has required fields and valid values."""
-        if self.typ is None:
+        if not self.typ or self.typ == "":
             return False
         if self.typ not in ('manual', 'regex'):
             return False
@@ -113,7 +113,8 @@ class ProgramCheckHeaderExtractor:
     @staticmethod
     def _parse_header_block(block_lines: List[str]) -> ProgramCheckHeader:
         """Parse key=value pairs from @TEST_SPEC block."""
-        header = ProgramCheckHeader()
+        # Create header with temporary typ value (will be overwritten during parsing)
+        header = ProgramCheckHeader(typ="")
         known_keys = {'lang', 'deps', 'typ', 'manual_reason', 'files'}
         last_key = None  # Track the last key to handle multi-line deps
         for raw_line in block_lines:
@@ -192,6 +193,7 @@ class ProgramTestResult:
     """Result of running and testing a program."""
     program_name: str
     success: bool
+    typ: str  # Test mode: "regex" or "manual" (set from ProgramCheckHeader)
     protocol_file: str = ""  # Path to the .prot file (from configuration)
     program_file: str = ""  # Path to the program file
     additional_files: List[str] = field(default_factory=list)  # Files referenced via files=
@@ -204,7 +206,6 @@ class ProgramTestResult:
     exit_code: int = 0
     skip_category: str = ""  # e.g., "manual", "missing_deps"
     manual_reason: str = ""  # Human-readable reason for manual testing
-    typ: str = "exact"  # Test mode: "exact", "regex", or "manual"
 
     def __str__(self) -> str:
         status = "PASS" if self.success else ("SKIP" if self.skipped else "FAIL")
@@ -592,7 +593,7 @@ class ProgramChecker:
             protocol_file=prot_file_display,
             program_file=program_file_display,
             additional_files=additional_files,
-            typ=config.program_check_header.typ or 'exact'
+            typ=config.program_check_header.typ
         )
         start_time = time.time()
         temp_dir = None

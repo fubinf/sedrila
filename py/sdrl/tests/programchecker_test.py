@@ -78,8 +78,8 @@ def test_header_is_valid_with_typ_manual():
 
 def test_header_invalid_missing_typ():
     """Verify header is invalid without typ field."""
-    header = programchecker.ProgramCheckHeader()
-    assert not header.is_valid(), "Header without typ should be invalid"
+    header = programchecker.ProgramCheckHeader(typ="")
+    assert not header.is_valid(), "Header with empty typ should be invalid"
 
 
 def test_header_invalid_manual_without_reason():
