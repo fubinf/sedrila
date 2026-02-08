@@ -181,11 +181,20 @@ class ProgramTestTarget:
 
 
 @dataclass
+class ProtSpecBlockResult:
+    """Result for a single @PROT_SPEC block within a .prot file."""
+    block_index: int  # 0-indexed position of block in file
+    command: str  # The command that was tested
+    status: str  # "passed", "failed", "manual", "skip"
+    error_message: str = ""
+    manual_reason: str = ""
+
+
+@dataclass
 class ProgramTestResult:
     """Result of running and testing a program."""
     program_name: str
     success: bool
-    typ: str  # Test mode: "regex" or "manual" (set from ProgramCheckHeader)
     protocol_file: str = ""  # Path to the .prot file (from configuration)
     program_file: str = ""  # Path to the program file
     additional_files: List[str] = field(default_factory=list)  # Files referenced via files=
@@ -196,12 +205,26 @@ class ProgramTestResult:
     skipped: bool = False
     execution_time: float = 0.0
     exit_code: int = 0
-    skip_category: str = ""  # e.g., "manual", "missing_deps"
     manual_reason: str = ""  # Human-readable reason for manual testing
+    block_results: List[ProtSpecBlockResult] = field(default_factory=list)  # Per-block results
 
     def __str__(self) -> str:
         status = "PASS" if self.success else ("SKIP" if self.skipped else "FAIL")
         return f"{self.program_name}: {status}"
+
+    def get_block_stats(self) -> dict:
+        """Get statistics of block results."""
+        stats = {
+            'passed': 0,
+            'failed': 0,
+            'manual': 0,
+            'skip': 0,
+            'total': len(self.block_results)
+        }
+        for block in self.block_results:
+            if block.status in stats:
+                stats[block.status] += 1
+        return stats
 
 
 def _find_program_file(itree_root: Path, prot_file: Path) -> Optional[Path]:
@@ -645,8 +668,7 @@ class ProgramChecker:
             success=False,
             protocol_file=prot_file_display,
             program_file=program_file_display,
-            additional_files=additional_files,
-            typ="auto"  # Will be determined by check_rule content
+            additional_files=additional_files
         )
         start_time = time.time()
         temp_dir = None
@@ -656,11 +678,22 @@ class ProgramChecker:
             # Execute commands and validate based on check_rule
             has_auto_test = False
             manual_reasons = []
-            for command_test in config.command_tests:
+            block_results = []
+            for block_idx, command_test in enumerate(config.command_tests):
                 try:
                     rule = command_test.check_rule
+                    # Check if this block has a spec
                     if rule is None or (not rule.output_re and rule.exitcode is None):
-                        manual_reasons.append(rule.manual_text if rule and rule.manual_text else "No automated checks specified")
+                        # Manual or skip block
+                        manual_reason = rule.manual_text if rule and rule.manual_text else "No automated checks specified"
+                        status = "manual" if rule else "skip"
+                        block_results.append(ProtSpecBlockResult(
+                            block_index=block_idx,
+                            command=command_test.command,
+                            status=status,
+                            manual_reason=manual_reason
+                        ))
+                        manual_reasons.append(manual_reason)
                         continue  # Skip this block, continue with next
                     has_auto_test = True
                     # Substitute file names only if mapping exists
@@ -674,6 +707,8 @@ class ProgramChecker:
                         config.timeout
                     )
                     # Validate output_re if specified
+                    block_passed = True
+                    block_error = ""
                     if rule.output_re:
                         validation_result = self._validate_output_regex(
                             actual_output,
@@ -681,30 +716,51 @@ class ProgramChecker:
                             rule
                         )
                         if not validation_result['success']:
+                            block_passed = False
+                            block_error = validation_result['error_message']
                             result.actual_output = actual_output
                             result.expected_output = command_test.expected_output
-                            result.error_message = validation_result['error_message']
+                            result.error_message = block_error
                             result.exit_code = actual_exitcode
-                            return result
                     # Validate exitcode if specified
-                    if rule.exitcode is not None:
+                    if block_passed and rule.exitcode is not None:
                         if actual_exitcode != rule.exitcode:
+                            block_passed = False
+                            block_error = f"Exit code mismatch: expected {rule.exitcode}, got {actual_exitcode}"
                             result.actual_output = actual_output
-                            result.error_message = f"Exit code mismatch: expected {rule.exitcode}, got {actual_exitcode}"
+                            result.error_message = block_error
                             result.exit_code = actual_exitcode
-                            return result
-                except TimeoutError:
-                    result.error_message = f"Timeout executing: {command_test.command}"
+                    # Record block result
+                    block_results.append(ProtSpecBlockResult(
+                        block_index=block_idx,
+                        command=command_test.command,
+                        status="passed" if block_passed else "failed",
+                        error_message=block_error
+                    ))
+                    # If this block failed, stop and return failure
+                    if not block_passed:
+                        result.block_results = block_results
+                        return result
+                except (TimeoutError, Exception) as e:
+                    # Set error message based on exception type
+                    if isinstance(e, TimeoutError):
+                        result.error_message = f"Timeout executing: {command_test.command}"
+                    else:
+                        result.error_message = str(e)
+                    # Record failed block and return
+                    block_results.append(ProtSpecBlockResult(
+                        block_index=block_idx,
+                        command=command_test.command,
+                        status="failed",
+                        error_message=result.error_message
+                    ))
+                    result.block_results = block_results
                     return result
-                except Exception as e:
-                    result.error_message = str(e)
-                    return result
+            result.block_results = block_results
             # After processing all blocks, check if any auto test was executed
             if not has_auto_test:
                 result.skipped = True
-                result.skip_category = 'manual'
                 result.manual_reason = "; ".join(manual_reasons) if manual_reasons else "No automated checks specified"
-                result.typ = "manual"
                 return result
             result.success = True
         except Exception as e:
@@ -765,7 +821,13 @@ class ProgramChecker:
             result = self.test_program(config)
             results.append(result)
             if show_progress:
-                status = "✓ PASS" if result.success else ("⊘ SKIP" if result.skipped else "✗ FAIL")
+                # Classify based on block content
+                if self._has_failed_blocks(result):
+                    status = "✗ FAIL"
+                elif self._has_manual_blocks(result):
+                    status = "⊙ MANUAL"
+                else:
+                    status = "✓ PASS"
                 b.info(f"  {status}")
         return results
 
@@ -813,6 +875,30 @@ class ProgramChecker:
         files.extend(result.additional_files)
         return "<br>".join([f"`{f}`" for f in files if f])
 
+    def _format_block_stats_for_report(self, result: ProgramTestResult) -> str:
+        """Format block statistics for report table."""
+        if not result.block_results:
+            return "N/A"
+        stats = result.get_block_stats()
+        parts = []
+        if stats['passed'] > 0:
+            parts.append(f"{stats['passed']} passed")
+        if stats['failed'] > 0:
+            parts.append(f"{stats['failed']} failed")
+        if stats['manual'] > 0:
+            parts.append(f"{stats['manual']} manual")
+        if stats['skip'] > 0:
+            parts.append(f"{stats['skip']} skip")
+        return "<br>".join(parts) if parts else "0 blocks"
+
+    def _has_manual_blocks(self, result: ProgramTestResult) -> bool:
+        """Check if result has any manual blocks."""
+        return any(b.status == 'manual' for b in result.block_results)
+
+    def _has_failed_blocks(self, result: ProgramTestResult) -> bool:
+        """Check if result has any failed blocks."""
+        return not result.success and not result.skipped
+
     def generate_reports(self, results: List[ProgramTestResult], batch_mode: bool = False,
                          incomplete_warnings: List[str] = None):
         """Generate markdown report from test results."""
@@ -831,58 +917,79 @@ class ProgramChecker:
             for warning in incomplete_warnings:
                 report_lines.append(f"- {warning.replace(chr(10), ' ')}\n")
             report_lines.append("\n")
+        # Classify results based on block content
+        failed_results = [r for r in results if self._has_failed_blocks(r)]
+        manual_results = [r for r in results if self._has_manual_blocks(r) and not self._has_failed_blocks(r)]
+        passed_skip_results = [r for r in results if not self._has_failed_blocks(r) and not self._has_manual_blocks(r)]
         total = len(results)
-        passed = sum(1 for r in results if r.success)
-        failed = sum(1 for r in results if not r.success and not r.skipped)
-        skipped = sum(1 for r in results if r.skipped)
-        pass_rate = (passed / total * 100) if total > 0 else 0.0
-        fail_rate = (failed / total * 100) if total > 0 else 0.0
-        skip_rate = (skipped / total * 100) if total > 0 else 0.0
+        failed_count = len(failed_results)
+        manual_count = len(manual_results)
+        passed_skip_count = len(passed_skip_results)
+        fail_rate = (failed_count / total * 100) if total > 0 else 0.0
+        manual_rate = (manual_count / total * 100) if total > 0 else 0.0
+        passed_skip_rate = (passed_skip_count / total * 100) if total > 0 else 0.0
+        # Calculate block-level statistics
+        total_blocks = sum(len(r.block_results) for r in results)
+        blocks_passed = sum(sum(1 for b in r.block_results if b.status == 'passed') for r in results)
+        blocks_failed = sum(sum(1 for b in r.block_results if b.status == 'failed') for r in results)
+        blocks_manual = sum(sum(1 for b in r.block_results if b.status == 'manual') for r in results)
+        blocks_skip = sum(sum(1 for b in r.block_results if b.status == 'skip') for r in results)
         report_lines.append("## Summary\n\n")
+        report_lines.append("### Program-Level Statistics\n\n")
         report_lines.append(f"- **Total programs:** {total}\n")
-        report_lines.append(f"- **Passed:** {passed} ({pass_rate:.1f}%)\n")
-        report_lines.append(f"- **Failed:** {failed} ({fail_rate:.1f}%)\n")
-        report_lines.append(f"- **Skipped (manual test):** {skipped} ({skip_rate:.1f}%)\n\n")
-        if failed > 0:
+        report_lines.append(f"- **Failed:** {failed_count} ({fail_rate:.1f}%)\n")
+        report_lines.append(f"- **Manual test required:** {manual_count} ({manual_rate:.1f}%)\n")
+        report_lines.append(f"- **Passed and skipped:** {passed_skip_count} ({passed_skip_rate:.1f}%)\n\n")
+        if total_blocks > 0:
+            report_lines.append("### Block-Level Statistics\n\n")
+            report_lines.append(f"- **Total @PROT_SPEC blocks:** {total_blocks}\n")
+            report_lines.append(f"- **Passed:** {blocks_passed}\n")
+            report_lines.append(f"- **Failed:** {blocks_failed}\n")
+            report_lines.append(f"- **Manual:** {blocks_manual}\n")
+            report_lines.append(f"- **Skip:** {blocks_skip}\n\n")
+        # Failed Tests section
+        if failed_count > 0:
             report_lines.append("## Failed Tests\n\n")
-            report_lines.append("| Test | Files | Error |\n")
-            report_lines.append("|------|-------|-------|\n")
-            for r in results:
-                if not r.success and not r.skipped:
-                    error_msg = r.error_message.replace('\n', ' ').replace('|', '\\|')[:100]
-                    files_str = self._format_files_for_report(r)
-                    report_lines.append(f"| `{r.program_name}` | {files_str} | {error_msg} |\n")
+            report_lines.append("| Test | Files | @PROT_SPEC Blocks | Error |\n")
+            report_lines.append("|------|-------|-------------------|-------|\n")
+            for r in failed_results:
+                error_msg = r.error_message.replace('\n', ' ').replace('|', '\\|')[:100]
+                files_str = self._format_files_for_report(r)
+                blocks_str = self._format_block_stats_for_report(r)
+                report_lines.append(f"| `{r.program_name}` | {files_str} | {blocks_str} | {error_msg} |\n")
             report_lines.append("\n")
-
             report_lines.append("### Failed Tests Detail\n\n")
-            for r in results:
-                if not r.success and not r.skipped:
-                    mode_label = f"[{r.typ.upper()}]" if r.typ else "[REGEX]"
-                    report_lines.append(f"#### {r.program_name} {mode_label}\n\n")
-                    report_lines.append(f"- **Error:** {r.error_message}\n")
-                    if r.expected_output:
-                        report_lines.append(f"- **Expected output:**\n```\n{r.expected_output[:500]}\n```\n")
-                    if r.actual_output:
-                        report_lines.append(f"- **Actual output:**\n```\n{r.actual_output[:500]}\n```\n")
-                    report_lines.append("\n")
-        if skipped > 0:
-            report_lines.append("## Skipped Tests (Manual Testing Required)\n\n")
-            report_lines.append("| Test | Files | Reason |\n")
-            report_lines.append("|------|-------|--------|\n")
-            for r in results:
-                if r.skipped:
-                    reason = r.manual_reason.replace('\n', ' ').replace('|', '\\|')
-                    files_str = self._format_files_for_report(r)
-                    report_lines.append(f"| `{r.program_name}` | {files_str} | {reason} |\n")
+            for r in failed_results:
+                report_lines.append(f"#### {r.program_name}\n\n")
+                report_lines.append(f"- **Error:** {r.error_message}\n")
+                if r.expected_output:
+                    report_lines.append(f"- **Expected output:**\n```\n{r.expected_output[:500]}\n```\n")
+                if r.actual_output:
+                    report_lines.append(f"- **Actual output:**\n```\n{r.actual_output[:500]}\n```\n")
+                report_lines.append("\n")
+        # Manual Test Required section
+        if manual_count > 0:
+            report_lines.append("## Manual Tests\n\n")
+            report_lines.append("| Test | Files | @PROT_SPEC Blocks | Reason |\n")
+            report_lines.append("|------|-------|-------------------|--------|\n")
+            for r in manual_results:
+                # Extract manual reason from block results
+                manual_reasons = [b.manual_reason for b in r.block_results if b.status == 'manual' and b.manual_reason]
+                reason = "; ".join(manual_reasons) if manual_reasons else r.manual_reason
+                reason = reason.replace('\n', ' ').replace('|', '\\|')
+                files_str = self._format_files_for_report(r)
+                blocks_str = self._format_block_stats_for_report(r)
+                report_lines.append(f"| `{r.program_name}` | {files_str} | {blocks_str} | {reason} |\n")
             report_lines.append("\n")
-        if passed > 0:
-            report_lines.append("## Passed Tests\n\n")
-            report_lines.append("| Test | Files | Execution Time |\n")
-            report_lines.append("|------|-------|----------------|\n")
-            for r in results:
-                if r.success:
-                    files_str = self._format_files_for_report(r)
-                    report_lines.append(f"| `{r.program_name}` | {files_str} | {r.execution_time:.2f}s |\n")
+        # Passed and Skipped Tests section
+        if passed_skip_count > 0:
+            report_lines.append("## Passed and skiped Tests\n\n")
+            report_lines.append("| Test | Files | @PROT_SPEC Blocks | Execution Time |\n")
+            report_lines.append("|------|-------|-------------------|----------------|\n")
+            for r in passed_skip_results:
+                files_str = self._format_files_for_report(r)
+                blocks_str = self._format_block_stats_for_report(r)
+                report_lines.append(f"| `{r.program_name}` | {files_str} | {blocks_str} | {r.execution_time:.2f}s |\n")
             report_lines.append("\n")
         report_path = Path(self.report_dir) / "program_test_report.md"
         report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -890,9 +997,8 @@ class ProgramChecker:
             f.write(''.join(report_lines))
         b.info(f"Report written to {report_path}")
         # Print batch summary if requested
-        if batch_mode and failed > 0:
-            b.warning(f"Failed {failed} programs:")
-            for r in results:
-                if not r.success and not r.skipped:
-                    b.warning(f"  - {r.program_name}: {r.error_message}")
+        if batch_mode and failed_count > 0:
+            b.warning(f"Failed {failed_count} programs:")
+            for r in failed_results:
+                b.warning(f"  - {r.program_name}: {r.error_message}")
 
