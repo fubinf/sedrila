@@ -387,8 +387,9 @@ class ProtocolChecker:
                     error_parts.append("output mismatch")
             error_message = "; ".join(error_parts)
         # Determine if manual check is required
-        # Manual is independent of automated checks and can coexist
-        requires_manual = rule.manual
+        # Manual check only applies when no automated checks exist
+        has_automated_check = rule.command_re or rule.output_re
+        requires_manual = rule.manual and not has_automated_check
         return CheckResult(
             student_entry=student_entry,
             author_entry=author_entry,
