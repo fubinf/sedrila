@@ -48,22 +48,10 @@ def filter_program_check_annotations(content: str) -> str:
 @dataclass
 class ProgramCheckHeader:
     """Metadata for program checking from @TEST_SPEC block in .prot file."""
-    typ: str                             # e.g., "regex", "manual" (REQUIRED)
     lang: Optional[str] = None           # e.g., "apt-get install -y golang-go\napt-get install -y make"
     deps: Optional[str] = None           # e.g., "pip install fastapi\npip install uvicorn"
-    manual_reason: Optional[str] = None  # reason for manual testing (for typ=manual)
     files: Optional[str] = None          # additional files for multi-file programs
     unknown_keys: List[str] = field(default_factory=list)
-
-    def is_valid(self) -> bool:
-        """Check if header has required fields and valid values."""
-        if not self.typ or self.typ == "":
-            return False
-        if self.typ not in ('manual', 'regex'):
-            return False
-        if self.typ == 'manual' and not self.manual_reason:
-            return False
-        return True
 
     def get_lang_install_commands(self) -> List[str]:
         """Return list of install commands from lang."""
@@ -93,12 +81,14 @@ class ProgramCheckHeaderExtractor:
         """Extract @TEST_SPEC block from protocol content."""
         lines = content.split('\n')
         in_block = False
+        found_marker = False
         block_lines: List[str] = []
         for line in lines:
             stripped = line.strip()
             # Block start
             if stripped == "@TEST_SPEC":
                 in_block = True
+                found_marker = True
                 continue
             # Block end (blank line)
             if in_block and not stripped:
@@ -106,16 +96,18 @@ class ProgramCheckHeaderExtractor:
             # Collect block content
             if in_block:
                 block_lines.append(line)
-        if not block_lines:
+        # If @TEST_SPEC marker was found, return header even if empty
+        if not found_marker:
             return None
+        if not block_lines:
+            return ProgramCheckHeader()
         return ProgramCheckHeaderExtractor._parse_header_block(block_lines)
 
     @staticmethod
     def _parse_header_block(block_lines: List[str]) -> ProgramCheckHeader:
         """Parse key=value pairs from @TEST_SPEC block."""
-        # Create header with temporary typ value (will be overwritten during parsing)
-        header = ProgramCheckHeader(typ="")
-        known_keys = {'lang', 'deps', 'typ', 'manual_reason', 'files'}
+        header = ProgramCheckHeader()
+        known_keys = {'lang', 'deps', 'files'}
         last_key = None  # Track the last key to handle multi-line deps
         for raw_line in block_lines:
             line = raw_line.strip()
@@ -230,6 +222,31 @@ def _find_program_file(itree_root: Path, prot_file: Path) -> Optional[Path]:
         return None
 
 
+def check_prot_file_completeness(filepath: str) -> bool:
+    """Check if a file has @TEST_SPEC but no @PROT_SPEC. Returns True if incomplete."""
+    try:
+        content = Path(filepath).read_text(encoding='utf-8')
+        has_test_spec = '@TEST_SPEC' in content
+        has_prot_spec = '@PROT_SPEC' in content
+        return has_test_spec and not has_prot_spec
+    except (FileNotFoundError, OSError):
+        return False
+
+
+def validate_prot_files_completeness(course: sdrl.course.Coursebuilder) -> List[str]:
+    """Check all .prot files have @PROT_SPEC if they have @TEST_SPEC."""
+    warnings: List[str] = []
+    altdir_path = Path(course.altdir).resolve()
+    for prot_file in altdir_path.rglob('*.prot'):
+        if check_prot_file_completeness(str(prot_file)):
+            rel_path = prot_file.relative_to(altdir_path)
+            warnings.append(
+                f"Protocol file has @TEST_SPEC but no @PROT_SPEC: {rel_path}\n"
+                f"  → This file will be skipped during program testing"
+            )
+    return warnings
+
+
 def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[ProgramTestTarget]:
     """Extract @TEST_SPEC blocks from .prot files in altdir."""
     targets: List[ProgramTestTarget] = []
@@ -252,10 +269,6 @@ def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[Prog
         header = extractor.extract_from_content(content)
         if not header:
             # No @TEST_SPEC block
-            continue
-        if not header.is_valid():
-            b.warning(f"@TEST_SPEC block in {prot_file} missing required fields "
-                     f"(typ={header.typ}, manual_reason={header.manual_reason if header.typ == 'manual' else 'N/A'})")
             continue
         program_file = _find_program_file(itree_root, prot_file)
         targets.append(ProgramTestTarget(
@@ -361,14 +374,10 @@ class ProgramChecker:
                 continue
             seen_pairs.add(pair_key)
             # Parse commands from .prot file
-            if header.typ == 'manual':
-                # Manual tests don't need parsing
-                command_tests = []
-            else:
-                command_tests = self.parse_command_tests_from_prot(prot_file, typ=header.typ)
-                if not command_tests:
-                    b.debug(f"No testable commands in {prot_file}")
-                    continue
+            command_tests = self.parse_command_tests_from_prot(prot_file)
+            if not command_tests:
+                b.debug(f"No testable commands in {prot_file}")
+                continue
             config = ProgramTestConfig(
                 program_path=program_path,
                 program_name=program_path.stem,
@@ -381,14 +390,10 @@ class ProgramChecker:
             configs.append(config)
         return configs
 
-    def parse_command_tests_from_prot(self, prot_file: Path, typ: str = 'regex') -> List[CommandTest]:
+    def parse_command_tests_from_prot(self, prot_file: Path) -> List[CommandTest]:
         """Parse all command tests from .prot file."""
-        if typ == 'manual':
-            # Manual tests don't need parsing
-            return []
-        # Always use regex mode for parsing
         if not self.has_prot_spec_blocks(prot_file):
-            b.debug(f"No @PROT_SPEC blocks in {prot_file}, cannot parse regex mode")
+            b.debug(f"No @PROT_SPEC blocks in {prot_file}")
             return []
         return self._parse_regex_mode(prot_file)
 
@@ -593,50 +598,66 @@ class ProgramChecker:
             protocol_file=prot_file_display,
             program_file=program_file_display,
             additional_files=additional_files,
-            typ=config.program_check_header.typ
+            typ="auto"  # Will be determined by check_rule content
         )
         start_time = time.time()
         temp_dir = None
         try:
-            if config.program_check_header.typ == 'manual':
-                result.skipped = True
-                result.skip_category = 'manual'
-                result.manual_reason = config.program_check_header.manual_reason or "Manual testing required"
-                return result
             temp_dir, file_mapping = self._create_isolated_test_context(config)
             self._cleanup_generated_files(temp_dir, config.program_name)
-            # Execute commands for all program types (except manual which already returned)
+            # Execute commands and validate based on check_rule
+            has_auto_test = False
+            manual_reasons = []
             for command_test in config.command_tests:
                 try:
+                    rule = command_test.check_rule
+                    if rule is None or (not rule.output_re and rule.exitcode is None):
+                        manual_reasons.append(rule.manual_text if rule and rule.manual_text else "No automated checks specified")
+                        continue  # Skip this block, continue with next
+                    has_auto_test = True
                     # Substitute file names only if mapping exists
                     if file_mapping:
                         substituted_command = self._substitute_file_names_in_command(command_test.command, file_mapping)
                     else:
                         substituted_command = command_test.command
-                    actual = self._run_command(
+                    actual_output, actual_exitcode = self._run_command(
                         substituted_command,
                         temp_dir,
                         config.timeout
                     )
-                    # Regex mode: use output_re pattern matching
-                    if command_test.check_rule is None or not command_test.check_rule.output_re:
-                        raise ValueError(f"No @PROT_SPEC block or output_re not found for command: {command_test.command}")
-                    validation_result = self._validate_output_regex(
-                        actual,
-                        command_test.expected_output,
-                        command_test.check_rule
-                    )
-                    if not validation_result['success']:
-                        result.actual_output = actual
-                        result.expected_output = command_test.expected_output
-                        result.error_message = validation_result['error_message']
-                        return result
+                    # Validate output_re if specified
+                    if rule.output_re:
+                        validation_result = self._validate_output_regex(
+                            actual_output,
+                            command_test.expected_output,
+                            rule
+                        )
+                        if not validation_result['success']:
+                            result.actual_output = actual_output
+                            result.expected_output = command_test.expected_output
+                            result.error_message = validation_result['error_message']
+                            result.exit_code = actual_exitcode
+                            return result
+                    # Validate exitcode if specified
+                    if rule.exitcode is not None:
+                        if actual_exitcode != rule.exitcode:
+                            result.actual_output = actual_output
+                            result.error_message = f"Exit code mismatch: expected {rule.exitcode}, got {actual_exitcode}"
+                            result.exit_code = actual_exitcode
+                            return result
                 except TimeoutError:
                     result.error_message = f"Timeout executing: {command_test.command}"
                     return result
                 except Exception as e:
                     result.error_message = str(e)
                     return result
+            # After processing all blocks, check if any auto test was executed
+            if not has_auto_test:
+                result.skipped = True
+                result.skip_category = 'manual'
+                result.manual_reason = "; ".join(manual_reasons) if manual_reasons else "No automated checks specified"
+                result.typ = "manual"
+                return result
             result.success = True
         except Exception as e:
             result.error_message = str(e)
@@ -663,8 +684,8 @@ class ProgramChecker:
         except re.error as e:
             return {'success': False, 'error_message': f"Invalid regex pattern '{check_rule.output_re}': {e}"}
 
-    def _run_command(self, command: str, working_dir: Path, timeout: int) -> str:
-        """Run a command and return its output."""
+    def _run_command(self, command: str, working_dir: Path, timeout: int) -> Tuple[str, int]:
+        """Run a command and return (output, exitcode)."""
         env = os.environ.copy()
         try:
             result = sp.run(
@@ -677,7 +698,7 @@ class ProgramChecker:
                 shell=True,  # Allow shell interpretation for commands
                 env=env
             )
-            return result.stdout + result.stderr
+            return result.stdout + result.stderr, result.returncode
         except sp.TimeoutExpired:
             raise TimeoutError(f"Command timed out after {timeout}s: {command}")
 
@@ -744,15 +765,24 @@ class ProgramChecker:
         files.extend(result.additional_files)
         return "<br>".join([f"`{f}`" for f in files if f])
 
-    def generate_reports(self, results: List[ProgramTestResult], batch_mode: bool = False):
+    def generate_reports(self, results: List[ProgramTestResult], batch_mode: bool = False,
+                         incomplete_warnings: List[str] = None):
         """Generate markdown report from test results."""
+        if incomplete_warnings is None:
+            incomplete_warnings = []
         if not results:
             b.warning("No test results to report")
             return
         from datetime import datetime
         report_lines = []
         report_lines.append("# Program Test Report\n\n")
-        report_lines.append(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        report_lines.append(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+        # Add warnings about incomplete protocol files if any
+        if incomplete_warnings:
+            report_lines.append("## Incomplete Protocol Files\n\n")
+            for warning in incomplete_warnings:
+                report_lines.append(f"- {warning.replace(chr(10), ' ')}\n")
+            report_lines.append("\n")
         total = len(results)
         passed = sum(1 for r in results if r.success)
         failed = sum(1 for r in results if not r.success and not r.skipped)

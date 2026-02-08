@@ -182,7 +182,6 @@ Example:
 lang=apt-get install -y python3-pip
 deps=pip install numpy
 pip install requests>=2.0
-typ=regex
 
 @PROT_SPEC
 command_re=^python myscript\.py$
@@ -192,11 +191,11 @@ $ python myscript.py
 Hello World
 ```
 
-Required fields:
+**Important:** `@TEST_SPEC` block requires at least one `@PROT_SPEC` block in command protocol.
+Files with `@TEST_SPEC` but no `@PROT_SPEC` will be skipped and generate warnings during
+course building and program test.
 
-`typ=<test type>`: One of `regex`, `manual`
-
-Optional fields:
+Supported fields:
 
 `lang=<install command>`: Language runtime installation command(s) for the target system (e.g., Debian 12).
 Can span multiple lines (subsequent lines without `=` are appended as separate install commands).
@@ -205,9 +204,6 @@ Examples: `lang=apt-get install -y golang-go`, `lang=apt-get install -y python3-
 `deps=<install command>`: Package dependency installation command(s).
 Can span multiple lines (subsequent lines without `=` are appended as separate install commands).
 Examples: `deps=pip install numpy requests`, `deps=go get github.com/lib/pq`
-
-`manual_reason=<text>`: Required when `typ=manual`. Explains why manual testing is needed.
-Example: `manual_reason=Output contains timestamps`
 
 `files=<list>`: Comma-separated list of additional files used by the program (short names only, e.g., `helper.py`).
 Create a corresponding `.files` file in the **altdir** directory (same location as `.prot` file, e.g., `altdir/ch/Sprachen/Go/go-test.files`) with one file path per line.
@@ -288,19 +284,14 @@ After all taskgroups complete, their reports are aggregated into a unified repor
 This approach provides better isolation but involves more container overhead and is subject to GitHub API rate limits when multiple containers clone the repository simultaneously.
 
 
-### 5.3 Test types
+### 5.3 Automated vs. Manual Testing
 
-The `typ=` field in `@TEST_SPEC` determines how a program is tested.
+Test execution mode is determined automatically by `@PROT_SPEC` block content:
 
-**regex**: Pattern-based output verification
+**Automated**: When `@PROT_SPEC` includes `output_re` or `exitcode`, commands execute and output is validated against the specified rules.
+Use for deterministic programs with stable or pattern-matchable output.
 
-Commands are executed and output matched against regex patterns in `@PROT_SPEC` blocks.
-
-Use `typ=regex` for deterministic programs with stable output or output with acceptable variations.
-
-**manual**: Manual verification required
-
-Test execution is skipped; requires `manual_reason=` field explaining why.
-
-Use `typ=manual` for non-deterministic output, interactive programs, timing-dependent behavior, or environment-specific results.
+**Manual**: When `@PROT_SPEC` has neither `output_re` nor `exitcode`, test execution is skipped.
+Use for non-deterministic output, interactive programs, timing-dependent behavior, or environment-specific results.
+The `manual=` field documents why automated testing is not possible for that protocol block.
 

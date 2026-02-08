@@ -15,7 +15,6 @@ PROGRAM_CHECK_BASIC = _dedent("""
     @TEST_SPEC
     lang=apt-get install -y python3-pip
     deps=pip install fastapi
-    typ=regex
 """)
 
 PROGRAM_CHECK_MULTILINE = _dedent("""
@@ -24,7 +23,6 @@ PROGRAM_CHECK_MULTILINE = _dedent("""
     apt-get install -y make
     deps=go get github.com/lib/pq
     go get github.com/spf13/cobra
-    typ=regex
 """)
 
 PROT_SPEC_BASIC = _dedent("""
@@ -45,7 +43,6 @@ def test_extracts_program_check_from_content():
     assert header is not None
     assert header.lang == "apt-get install -y python3-pip"
     assert header.deps == "pip install fastapi"
-    assert header.typ == "regex"
 
 
 def test_parses_multiline_lang_and_deps():
@@ -61,38 +58,10 @@ def test_parses_multiline_lang_and_deps():
     assert "go get github.com/spf13/cobra" in header.deps
 
 
-def test_header_is_valid_with_typ_regex():
-    """Verify header validity with typ=regex."""
-    header = programchecker.ProgramCheckHeader(typ="regex")
-    assert header.is_valid(), "Header with typ=regex should be valid"
-
-
-def test_header_is_valid_with_typ_manual():
-    """Verify header validity with typ=manual and manual_reason."""
-    header = programchecker.ProgramCheckHeader(
-        typ="manual",
-        manual_reason="Reason for manual testing"
-    )
-    assert header.is_valid(), "Header with typ=manual and reason should be valid"
-
-
-def test_header_invalid_missing_typ():
-    """Verify header is invalid without typ field."""
-    header = programchecker.ProgramCheckHeader(typ="")
-    assert not header.is_valid(), "Header with empty typ should be invalid"
-
-
-def test_header_invalid_manual_without_reason():
-    """Verify manual typ requires manual_reason."""
-    header = programchecker.ProgramCheckHeader(typ="manual")
-    assert not header.is_valid(), "Manual typ without reason should be invalid"
-
-
 def test_get_install_commands_splits_deps():
     """Verify get_install_commands() splits deps by newline."""
     header = programchecker.ProgramCheckHeader(
-        deps="pip install fastapi\npip install uvicorn",
-        typ="regex"
+        deps="pip install fastapi\npip install uvicorn"
     )
     commands = header.get_install_commands()
     assert len(commands) == 2, f"Expected 2 commands, got {len(commands)}"
@@ -122,7 +91,7 @@ def test_filter_program_check_annotations():
     content = PROGRAM_CHECK_BASIC + "\n" + PROT_SPEC_BASIC + "\n$ echo done\ndone"
     filtered = programchecker.filter_program_check_annotations(content)
     assert "@TEST_SPEC" not in filtered
-    assert "typ=regex" not in filtered
+    assert "apt-get install" not in filtered
     assert "$ python test.py" in filtered
     assert "$ echo done" in filtered
 
@@ -138,7 +107,6 @@ def test_program_execution_with_regex_validation():
         prot_file = altdir / "hello.prot"
         prot_file.write_text(_dedent("""
             @TEST_SPEC
-            typ=regex
 
             @PROT_SPEC
             command_re=^python hello\\.py$
@@ -154,7 +122,7 @@ def test_program_execution_with_regex_validation():
             report_dir=str(tmpdir_path)
         )
         checker._altdir_path = tmpdir_path / "altdir"
-        command_tests = checker.parse_command_tests_from_prot(prot_file, typ="regex")
+        command_tests = checker.parse_command_tests_from_prot(prot_file)
         config = programchecker.ProgramTestConfig(
             program_path=prog_file,
             program_name="hello",
@@ -167,7 +135,6 @@ def test_program_execution_with_regex_validation():
         # Verify result - when successful, regex matched correctly
         assert result.success, f"Program execution failed: {result.error_message}"
         assert result.program_name == "hello"
-        assert result.typ == "regex"
 
 
 def test_program_execution_failure():
@@ -181,7 +148,6 @@ def test_program_execution_failure():
         prot_file = altdir / "test.prot"
         prot_file.write_text(_dedent("""
             @TEST_SPEC
-            typ=regex
 
             @PROT_SPEC
             command_re=^python test\\.py$
@@ -197,7 +163,7 @@ def test_program_execution_failure():
             report_dir=str(tmpdir_path)
         )
         checker._altdir_path = tmpdir_path / "altdir"
-        command_tests = checker.parse_command_tests_from_prot(prot_file, typ="regex")
+        command_tests = checker.parse_command_tests_from_prot(prot_file)
         config = programchecker.ProgramTestConfig(
             program_path=prog_file,
             program_name="test",
