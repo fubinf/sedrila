@@ -341,6 +341,8 @@ class ProgramChecker:
             all_assumed = self.course.get_all_assumed_tasks(task_name)
             deps_in_all = {t for t in all_assumed if t in all_tasks}
             task_deps[task_name] = deps_in_all
+        # Check for missing @TEST_SPEC in dependency chains
+        self._check_dependency_chain_gaps(all_tasks, task_deps)
         # Topological sort
         sorted_tasks: List[str] = []
         remaining = set(all_tasks.keys())
@@ -353,6 +355,52 @@ class ProgramChecker:
             sorted_tasks.extend(sorted(ready_tasks))
             remaining -= ready_tasks
         return [all_tasks[t] for t in sorted_tasks]
+
+    def _check_dependency_chain_gaps(self, marked_tasks: Dict[str, ProgramTestConfig],
+                                     filtered_deps: Dict[str, set[str]]) -> None:
+        """Warn about missing @TEST_SPEC markers in dependency chains."""
+        if not hasattr(self.course, 'taskdict'):
+            return
+        marked_set = set(marked_tasks.keys())
+        missing_with_path: Dict[str, List[str]] = {}
+        for task_name in marked_set:
+            deps_marked = filtered_deps[task_name]
+            for marked_dep in deps_marked:
+                path = self._find_shortest_path(task_name, marked_dep)
+                if path and len(path) > 2:
+                    for i in range(1, len(path) - 1):
+                        intermediate = path[i]
+                        if intermediate not in marked_set:
+                            if intermediate not in missing_with_path or len(path) < len(missing_with_path[intermediate]):
+                                missing_with_path[intermediate] = path
+        for missing_task in sorted(missing_with_path.keys()):
+            path = missing_with_path[missing_task]
+            path_str = ' -> '.join(reversed(path))
+            b.warning(
+                f"Task '{missing_task}' is missing @TEST_SPEC but appears in dependency chain: {path_str}"
+            )
+
+    def _find_shortest_path(self, start: str, end: str) -> Optional[List[str]]:
+        """Find shortest dependency path from start to end using BFS."""
+        if start == end:
+            return [start]
+        if not hasattr(self.course, 'taskdict'):
+            return None
+        from collections import deque
+        queue = deque([(start, [start])])
+        visited = {start}
+        while queue:
+            current, path = queue.popleft()
+            task_obj = self.course.taskdict.get(current)
+            if not task_obj or not hasattr(task_obj, 'assumes'):
+                continue
+            for assumed in task_obj.assumes:
+                if assumed == end:
+                    return path + [assumed]
+                if assumed not in visited:
+                    visited.add(assumed)
+                    queue.append((assumed, path + [assumed]))
+        return None
 
     def build_configs_from_targets(self, targets: List[ProgramTestTarget],
                                    itree_root: Path) -> List[ProgramTestConfig]:
