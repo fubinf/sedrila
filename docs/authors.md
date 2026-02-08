@@ -1023,8 +1023,8 @@ Each command entry is color-coded in the rendered protocol:
 
 - Green (`prot-ok-color`): Automated checks passed
 - Red (`prot-alert-color`): Automated checks failed
-- Yellow (`prot-manual-color`): Only manual review requested (no automated checks), or entry has no spec
-- Grey (`prot-skip-color`): Entry marked with `skip=1`
+- Yellow (`prot-manual-color`): Only manual review requested (no automated checks)
+- Grey (`prot-skip-color`): Entry marked with `skip=1`, or entry has no spec
 
 Notes:
 
@@ -1037,7 +1037,7 @@ Notes:
     - Tasks matching the stage filter: **errors**
     - Tasks excluded by the stage filter: **warnings**
 - Runs incrementally: triggers only when `.prot` files change
-- A command without `@PROT_SPEC` block at all is equivalent to a command that has a `manual=` entry only. 
+- A command without `@PROT_SPEC` block at all is equivalent to a command that has a `skip=1` entry. 
 - A `@PROT_SPEC` block must contain at least one directive (`command_re`, `output_re`, `skip`, or `manual`)
 - Automated checks only occur if `command_re` or `output_re` are specified:
 

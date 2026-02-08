@@ -345,7 +345,7 @@ class ProtocolChecker:
 
     def _compare_entries(self, student_entry: ProtocolEntry, author_entry: ProtocolEntry) -> CheckResult:
         """Compare a single student entry with author entry."""
-        rule = author_entry.check_rule or CheckRule(manual=True)  # default to manual when no spec exists
+        rule = author_entry.check_rule or CheckRule(skip=True)  # default to skip when no spec exists
         if rule.skip:
             return CheckResult(
                 student_entry=student_entry,

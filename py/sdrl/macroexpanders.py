@@ -217,8 +217,8 @@ def prot_html(content: str) -> str:
         texts = ""
         errs: list[str] = []
         if rule is None:
-            # No specification at all - equivalent to manual=
-            color = "prot-manual-color"
+            # No specification at all: default to skip
+            color = "prot-skip-color"
         elif rule.skip:
             color = "prot-skip-color"
         elif rule.command_re or rule.output_re:

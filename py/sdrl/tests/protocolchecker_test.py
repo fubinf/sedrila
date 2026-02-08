@@ -147,7 +147,7 @@ def test_filter_removes_spec_blocks():
 
 
 def test_default_manual_when_no_spec():
-    """Without specs we default to requiring manual review."""
+    """Without specs we default to skip."""
     author_content = _dedent(
         """
         user@host /tmp 10:00:00 1
@@ -170,9 +170,9 @@ def test_default_manual_when_no_spec():
         student_f.write(student_content)
         student_f.flush()
         result = protocolchecker.ProtocolChecker().compare_files(student_f.name, author_f.name)[0]
-    assert result.success, "Comparison should succeed without specs"
-    assert result.requires_manual_check, "Missing specs should trigger manual review"
-    assert result.manual_check_note == "Manual check required", "Unexpected manual note"
+    assert result.success, "Comparison should succeed without specs (default to skip)"
+    assert not result.requires_manual_check, "Missing specs should default to skip (no manual review)"
+    assert result.manual_check_note is None, "Skip mode should not have manual note"
 
 
 def test_warns_when_manual_without_text():
