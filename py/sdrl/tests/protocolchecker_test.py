@@ -16,6 +16,7 @@ def test_extracts_spec_and_rules():
         @PROT_SPEC
         command_re=^ls -la$
         output_re=^total
+        exitcode=0
         manual=Please check the file count
             There should be at least 3 files
         extra=Additional notes
@@ -38,6 +39,7 @@ def test_extracts_spec_and_rules():
     assert first.check_rule is not None, "check_rule should be populated"
     assert first.check_rule.command_re == "^ls -la$", f"Unexpected command_re {first.check_rule.command_re}"
     assert first.check_rule.output_re == "^total", f"Unexpected output_re {first.check_rule.output_re}"
+    assert first.check_rule.exitcode == 0, f"Expected exitcode=0, got {first.check_rule.exitcode}"
     assert first.check_rule.manual_text == "Please check the file count\nThere should be at least 3 files", (
         f"Unexpected manual text {first.check_rule.manual_text}"
     )
@@ -45,7 +47,7 @@ def test_extracts_spec_and_rules():
 
 
 def test_validate_rejects_invalid_spec():
-    """Ensure skip mixing and invalid regexes are rejected."""
+    """Ensure skip mixing, invalid regexes, and out-of-range exitcode are rejected."""
     invalid_content = _dedent(
         """
         @PROT_SPEC
@@ -60,6 +62,13 @@ def test_validate_rejects_invalid_spec():
         user@host /tmp 10:01:00 2
         $ echo "x"
         x
+
+        @PROT_SPEC
+        exitcode=256
+        command_re=^test$
+        user@host /tmp 10:02:00 3
+        $ test
+        output
         """
     )
     with tempfile.NamedTemporaryFile(mode="w", suffix=".prot") as f:
@@ -68,6 +77,7 @@ def test_validate_rejects_invalid_spec():
         errors = protocolchecker.ProtocolValidator().validate_file(f.name)
     assert any("skip cannot be combined" in e for e in errors), "Expected skip+regex error"
     assert any("Invalid output_re" in e for e in errors), "Expected invalid regex error"
+    assert any("exitcode must be between 0 and 255" in e for e in errors), "Expected exitcode range error"
 
 
 def test_compare_respects_skip_manual_and_regex():

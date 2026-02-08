@@ -18,6 +18,7 @@ class CheckRule:
     """Rule parsed from a single @PROT_SPEC block."""
     command_re: typing.Optional[str] = None
     output_re: typing.Optional[str] = None
+    exitcode: typing.Optional[int] = None
     skip: bool = False
     manual: bool = False
     manual_text: typing.Optional[str] = None
@@ -168,7 +169,7 @@ class ProtocolExtractor:
         extra_block: list[str] = []
         comment_block: list[str] = []
         current_block: typing.Optional[tuple[str, list[str]]] = None
-        known_keys = {'command_re', 'output_re', 'skip', 'manual', 'extra', 'comment'}
+        known_keys = {'command_re', 'output_re', 'exitcode', 'skip', 'manual', 'extra', 'comment'}
 
         for raw_line in spec_lines:
             line = raw_line.rstrip()
@@ -179,6 +180,10 @@ class ProtocolExtractor:
                 continue
             if stripped.startswith("output_re="):
                 rule.output_re = stripped[len("output_re="):].strip()
+                current_block = None
+                continue
+            if stripped.startswith("exitcode="):
+                rule.exitcode = int(stripped[len("exitcode="):].strip())
                 current_block = None
                 continue
             if stripped.startswith("skip="):
@@ -255,7 +260,9 @@ class ProtocolValidator:
             for unknown in rule.unknown_keys:
                 key = unknown.split('=', 1)[0]
                 errors.append(f"line {line_num}: Unknown key '{key}' in @PROT_SPEC block. "
-                            f"Valid keys: command_re, output_re, skip, manual, extra, comment")
+                            f"Valid keys: command_re, output_re, exitcode, skip, manual, extra, comment")
+        if rule.exitcode is not None and not (0 <= rule.exitcode <= 255):
+            errors.append(f"line {line_num}: exitcode must be between 0 and 255 (got {rule.exitcode})")
         if rule.skip and (rule.command_re or rule.output_re or rule.manual):
             errors.append(f"line {line_num}: skip cannot be combined with command_re/output_re/manual")
         if rule.command_re:

@@ -951,6 +951,7 @@ Single-line entries:
 
 - `command_re=regex`: Command must contain a match for the regex (search mode). Use `^` and `$` anchors if you need full-line matching.
 - `output_re=regex`: Output must contain a match for the regex (search mode)
+- `exitcode=N`: Expected exit code (0-255). Used by automated program testing to verify command exit status (optional).
 - `skip=1`: Skip checking entirely (always passes, no manual review needed)
 
 Multi-line entries (continuation lines indented by 4 spaces):
