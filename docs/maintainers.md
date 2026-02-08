@@ -153,15 +153,7 @@ Examples:
 - `sedrila maintainer --check-programs -- /tmp/progtest`
 - `sedrila maintainer --batch --check-programs -- /tmp/progtest` (batch mode)
 
-Concurrency control via `SDRL_PROGCHECK_MAX_WORKERS` (default: 4, recommended for local: CPU thread count):
-
-```bash
-export SDRL_PROGCHECK_MAX_WORKERS=4
-sedrila maintainer --check-programs -- /tmp/progtest
-```
-
-For CI via GitHub Actions, the workflow exposes `max_workers` input.
-When using `--batch`, failed tests are summarized at the end for quick error identification in CI runs.
+When using `--batch`, test progress is suppressed and failures are summarized at the end for quick CI error identification.
 
 ### 5.1 @TEST_SPEC block format
 
@@ -175,27 +167,7 @@ Placement and syntax:
 - `lang` and `deps` can span multiple lines (subsequent lines without `=` are appended as separate commands)
 - No comments allowed inside @TEST_SPEC block
 
-Example:
-
-```
-@TEST_SPEC
-lang=apt-get install -y python3-pip
-deps=pip install numpy
-pip install requests>=2.0
-
-@PROT_SPEC
-command_re=^python myscript\.py$
-output_re=Hello World
-
-$ python myscript.py
-Hello World
-```
-
-**Important:** `@TEST_SPEC` block requires at least one `@PROT_SPEC` block in command protocol.
-Files with `@TEST_SPEC` but no `@PROT_SPEC` will be skipped and generate warnings during
-course building and program test.
-
-Supported fields:
+Supported fields (all optional):
 
 `lang=<install command>`: Language runtime installation command(s) for the target system (e.g., Debian 12).
 Can span multiple lines (subsequent lines without `=` are appended as separate install commands).
@@ -217,6 +189,23 @@ The `.files` file supports the `$` variable for relative paths. Example for `itr
 
 Programchecker automatically reads the `.files` file from altdir, substitutes `$itreedir` variable with the actual path from sedrila.yaml, and resolves relative paths.
 If no `.files` file is provided or a file is not listed, programchecker looks for it in the same directory as the `.prot` file.
+
+Example with single line `lang`, multiple lines `deps` and `.files`:
+
+```
+@TEST_SPEC
+lang=apt-get install -y python3-pip
+deps=pip install numpy
+pip install requests>=2.0
+files=py-test.json
+
+@PROT_SPEC
+command_re=^python myscript\.py py-test\.json$
+output_re=Hello World
+
+$ python myscript.py py-test.json
+Hello World
+```
 
 During test execution, each command (`$` line) and expected output are extracted as a single test.
 Commands execute sequentially in the isolated directory; test passes only if all commands match.
@@ -244,7 +233,7 @@ Examples:
 - `lang=apt-get install -y python3-pip` → installs Python 3 pip
 
 The `lang=` field supports multi-line install commands (subsequent lines without `=` are appended).
-If a task group has multiple tasks with `lang=` declarations, only unique commands are installed (deduplication).
+If multiple tasks have same `lang=` declarations, only unique commands are installed (deduplication).
 
 Package dependencies:
 
@@ -257,31 +246,15 @@ Tasks without a `deps=` field will use only the taskgroup's language runtime wit
 
 The `deps=` field also supports multi-line commands (subsequent lines without `=` are appended).
 
+**Note**: If `.prot` file already contains dependency installation commands in the `@PROT_SPEC` blocks (e.g., `pip install`, `npm install`), these commands will be executed automatically during CI runs. In such cases, you don't need to redundantly declare them in `lang=` or `deps=` fields in `@TEST_SPEC`.
+
 For local testing, need to manually install declared dependencies. For CI, use `--collect` to get the full list.
 
-**Installation and execution in CI**:
+Installation and execution in CI:
 
-Two CI configuration approaches are available:
-
-Single-Container Mode:
-
-All taskgroups execute in a single container with all language runtimes and dependencies installed upfront.
-Language runtimes are installed once at the beginning, then all taskgroups reuse the same environment.
-Tasks within a taskgroup execute serially respecting `assumes` dependencies; different taskgroups execute in parallel.
+All tests execute serially in a single container with all language runtimes and dependencies installed upfront.
+Execution order respects task dependencies (`assumes`) via topological sorting.
 Each test runs in a temporary isolated directory with only required files; the directory is automatically cleaned up after testing (success or failure).
-
-Example with 2 taskgroups (Go, Python) and 4 workers:
-- Worker 1: go-basics → go-functions → go-maps (serial)
-- Worker 2: python-basics → FastAPI-GET (serial)
-- Workers 3-4: idle
-
-Multi-Container Mode:
-
-For stricter isolation, Multi-Container Mode has also been developed. That means, each taskgroup runs in a dedicated container to avoid language-specific dependency conflicts.
-Language runtime and dependencies are installed independently in each container.
-Tasks within each taskgroup execute serially in the container, respecting their dependency order.
-After all taskgroups complete, their reports are aggregated into a unified report.
-This approach provides better isolation but involves more container overhead and is subject to GitHub API rate limits when multiple containers clone the repository simultaneously.
 
 
 ### 5.3 Automated vs. Manual Testing

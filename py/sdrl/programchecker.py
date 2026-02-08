@@ -806,7 +806,8 @@ class ProgramChecker:
         except sp.TimeoutExpired:
             raise TimeoutError(f"Command timed out after {timeout}s: {command}")
 
-    def run_tests(self, configs: List[ProgramTestConfig], show_progress: bool = False) -> List[ProgramTestResult]:
+    def run_tests(self, configs: List[ProgramTestConfig], show_progress: bool = False,
+                  batch_mode: bool = False) -> List[ProgramTestResult]:
         """Run all program tests with global dependency order (no parallel execution)."""
         if not configs:
             return []
@@ -815,12 +816,14 @@ class ProgramChecker:
         # Serial execution of all tasks
         results = []
         total = len(sorted_configs)
+        if batch_mode:
+            b.info(f"Testing {total} programs...")
         for i, config in enumerate(sorted_configs, 1):
-            if show_progress:
+            if show_progress and not batch_mode:
                 b.info(f"Testing {config.program_name} ({i}/{total})...")
             result = self.test_program(config)
             results.append(result)
-            if show_progress:
+            if show_progress and not batch_mode:
                 # Classify based on block content
                 if self._has_failed_blocks(result):
                     status = "✗ FAIL"
@@ -859,9 +862,9 @@ class ProgramChecker:
             b.error(f"itreedir is not a directory: {itree_root}")
             return []
         configs = self.build_configs_from_targets(targets, itree_root)
-        if show_progress:
+        if show_progress and not batch_mode:
             b.info(f"Found {len(configs)} programs to test")
-        results = self.run_tests(configs, show_progress=show_progress)
+        results = self.run_tests(configs, show_progress=show_progress, batch_mode=batch_mode)
         self.results = results
         return results
 
@@ -899,11 +902,8 @@ class ProgramChecker:
         """Check if result has any failed blocks."""
         return not result.success and not result.skipped
 
-    def generate_reports(self, results: List[ProgramTestResult], batch_mode: bool = False,
-                         incomplete_warnings: List[str] = None):
+    def generate_reports(self, results: List[ProgramTestResult], batch_mode: bool = False):
         """Generate markdown report from test results."""
-        if incomplete_warnings is None:
-            incomplete_warnings = []
         if not results:
             b.warning("No test results to report")
             return
@@ -911,12 +911,6 @@ class ProgramChecker:
         report_lines = []
         report_lines.append("# Program Test Report\n\n")
         report_lines.append(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
-        # Add warnings about incomplete protocol files if any
-        if incomplete_warnings:
-            report_lines.append("## Incomplete Protocol Files\n\n")
-            for warning in incomplete_warnings:
-                report_lines.append(f"- {warning.replace(chr(10), ' ')}\n")
-            report_lines.append("\n")
         # Classify results based on block content
         failed_results = [r for r in results if self._has_failed_blocks(r)]
         manual_results = [r for r in results if self._has_manual_blocks(r) and not self._has_failed_blocks(r)]

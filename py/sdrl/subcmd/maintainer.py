@@ -223,10 +223,6 @@ def check_programs_command(pargs: argparse.Namespace):
             directory=directory
         )
         _build_metadata_only(directory)
-        # Validate completeness of .prot files
-        incomplete_warnings = programchecker.validate_prot_files_completeness(the_course)
-        for warning in incomplete_warnings:
-            b.warning(warning)
         targets = programchecker.extract_program_test_targets(the_course)
         checker = programchecker.ProgramChecker(
             report_dir=temp_report_dir,
@@ -239,8 +235,7 @@ def check_programs_command(pargs: argparse.Namespace):
             batch_mode=batch_mode
         )
         try:
-            checker.generate_reports(results, batch_mode=batch_mode,
-                                    incomplete_warnings=incomplete_warnings)
+            checker.generate_reports(results, batch_mode=batch_mode)
             md_temp_path = os.path.join(temp_report_dir, "program_test_report.md")
             with open(md_temp_path, 'r', encoding='utf-8') as f:
                 md_content = f.read()
