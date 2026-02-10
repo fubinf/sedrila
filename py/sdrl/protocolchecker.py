@@ -268,8 +268,8 @@ class ProtocolValidator:
                             f"Valid keys: command_re, output_re, exitcode, skip, manual, extra, comment")
         if rule.exitcode is not None and not (0 <= rule.exitcode <= 255):
             errors.append(f"line {line_num}: exitcode must be between 0 and 255 (got {rule.exitcode})")
-        if rule.skip and (rule.command_re or rule.output_re or rule.manual):
-            errors.append(f"line {line_num}: skip cannot be combined with command_re/output_re/manual")
+        if rule.skip and (rule.command_re or rule.output_re or rule.manual or rule.exitcode is not None):
+            errors.append(f"line {line_num}: skip cannot be combined with command_re/output_re/manual/exitcode")
         if rule.command_re:
             try:
                 re.compile(rule.command_re)

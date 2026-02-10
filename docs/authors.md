@@ -951,7 +951,7 @@ Single-line entries:
 
 - `command_re=regex`: Command must contain a match for the regex (search mode). Use `^` and `$` anchors if you need full-line matching.
 - `output_re=regex`: Output must contain a match for the regex (search mode)
-- `exitcode=N`: Expected exit code (0-255). Used by automated program testing to verify command exit status (optional).
+- `exitcode=N`: Expected exit code (0-255). Used by automated program testing (see section 2.11) to verify command exit status (optional).
 - `skip=1`: Skip checking entirely (always passes, no manual review needed)
 
 Multi-line entries (continuation lines indented by 4 spaces):
@@ -1029,8 +1029,11 @@ Each command entry is color-coded in the rendered protocol:
 
 Notes:
 
+- `exitcode` is primarily used for automated program testing in `@TEST_SPEC` (section 2.11),
+  so it can be combined with `command_re`, `output_re`, and `manual` in `@PROT_SPEC`.
+  However, `skip=1` cannot be combined with `exitcode` (or any other check).
 - Validates regex syntax for `command_re` and `output_re`
-- Rejects mixing `skip=1` with others (`command_re`, `output_re`, or `manual`)
+- Rejects mixing `skip=1` with others (`command_re`, `output_re`, `manual`, or `exitcode`)
 - Warns if `manual=` lacks inline text
 - Reports errors when specs lack all of `command_re`, `output_re`, `manual`, and `skip` (requires at least one)
 - Validates all tasks but respects `--include_stage` for error reporting:
@@ -1039,7 +1042,6 @@ Notes:
     - Tasks excluded by the stage filter: **warnings**
 - Runs incrementally: triggers only when `.prot` files change
 - A command without `@PROT_SPEC` block at all is equivalent to a command that has a `skip=1` entry. 
-- A `@PROT_SPEC` block must contain at least one directive (`command_re`, `output_re`, `skip`, or `manual`)
 - Automated checks only occur if `command_re` or `output_re` are specified:
 
   - Both `command_re` and `output_re` use search mode (match anywhere in the string)
