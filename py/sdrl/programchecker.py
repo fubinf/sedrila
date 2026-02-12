@@ -171,7 +171,6 @@ class ProgramTestTarget:
     """Maps a protocol file to its program location."""
     protocol_file: Path
     program_check_header: ProgramCheckHeader
-    program_file: Optional[Path] = None  # path to the actual program file
 
 
 @dataclass
@@ -257,11 +256,9 @@ def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[Prog
         if not header:
             # No @TEST_SPEC block
             continue
-        program_file = _find_program_file(itree_root, prot_file)
         targets.append(ProgramTestTarget(
             protocol_file=prot_file,
-            program_check_header=header,
-            program_file=program_file
+            program_check_header=header
         ))
     return targets
 
@@ -285,7 +282,6 @@ def check_test_spec_dependency_gaps(course) -> None:
         all_assumed = course.get_all_assumed_tasks(task_name)
         task_deps[task_name] = {t for t in all_assumed if t in marked_set}
     # Find gaps: intermediate tasks missing @TEST_SPEC
-    from collections import deque
     missing_with_path: Dict[str, List[str]] = {}
     for task_name in marked_set:
         for marked_dep in task_deps[task_name]:
@@ -670,7 +666,6 @@ class ProgramChecker:
                     if rule.output_re:
                         validation_result = self._validate_output_regex(
                             actual_output,
-                            command_test.expected_output,
                             rule
                         )
                         if not validation_result['success']:
@@ -733,7 +728,7 @@ class ProgramChecker:
             result.execution_time = time.time() - start_time
         return result
 
-    def _validate_output_regex(self, actual_output: str, expected_output: str,
+    def _validate_output_regex(self, actual_output: str,
                               check_rule: CheckRule) -> Dict[str, Any]:
         """Validate output using regex pattern from CheckRule."""
         if not check_rule.output_re or not check_rule.output_re.strip():
