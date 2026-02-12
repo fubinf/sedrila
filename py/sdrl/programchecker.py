@@ -366,11 +366,17 @@ class ProgramChecker:
         for config in configs:
             task_name = config.program_name
             all_tasks[task_name] = config
-        # Build dependencies across all tasks
+        # Build dependencies across all tasks (assumes + requires)
         task_deps: Dict[str, set[str]] = {}
         for task_name in all_tasks:
             all_assumed = self.course.get_all_assumed_tasks(task_name)
             deps_in_all = {t for t in all_assumed if t in all_tasks}
+            # Also consider requires dependencies
+            task_obj = self.course.task(task_name)
+            if task_obj:
+                for required in task_obj.requires:
+                    if required in all_tasks:
+                        deps_in_all.add(required)
             task_deps[task_name] = deps_in_all
         # Topological sort
         sorted_tasks: List[str] = []

@@ -255,7 +255,7 @@ For local testing, need to manually install declared dependencies. For CI, use `
 Installation and execution in CI:
 
 All tests execute serially in a single container with all language runtimes and dependencies installed upfront.
-Execution order respects task dependencies (`assumes`) via topological sorting.
+Execution order respects task dependencies (`assumes` and `requires`) via topological sorting.
 Each test runs in a temporary isolated directory with only required files; the directory is automatically cleaned up after testing (success or failure).
 
 
