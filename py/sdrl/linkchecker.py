@@ -492,7 +492,6 @@ class LinkCheckReporter:
         if 'ssl' in error_lower or 'certificate' in error_lower:
             return 'ssl'
         # HTTP status codes
-        import re
         status_match = re.search(r'\b(4\d{2}|5\d{2})\b', error_message)
         if status_match:
             return status_match.group(1)
