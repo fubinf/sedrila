@@ -237,12 +237,8 @@ def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[Prog
     """Extract @TEST_SPEC blocks from .prot files in altdir."""
     targets: List[ProgramTestTarget] = []
     altdir_path = Path(course.altdir).resolve()
-    itree_root = Path(course.itreedir).resolve()
     if not altdir_path.exists():
         b.error(f"altdir not found: {altdir_path}")
-        return targets
-    if not itree_root.exists():
-        b.error(f"itreedir not found: {itree_root}")
         return targets
     extractor = ProgramCheckHeaderExtractor()
     # Walk through all .prot files in altdir
@@ -324,21 +320,14 @@ def _find_shortest_path(course, start: str, end: str) -> Optional[List[str]]:
 class ProgramChecker:
     """Main program testing class for SeDriLa courses."""
     DEFAULT_TIMEOUT = 30
-    def __init__(self, course_root: Path = None,
-                 report_dir: str = None,
-                 itreedir: Optional[Path] = None, chapterdir: Optional[Path] = None,
+    def __init__(self, report_dir: str = None,
+                 itreedir: Optional[Path] = None,
                  course: Optional[Any] = None, config_vars: Optional[Dict[str, str]] = None):
         """Initialize ProgramChecker."""
-        self.course_root = course_root or Path.cwd()
         self.report_dir = report_dir or str(Path.cwd())
-        self.results: List[ProgramTestResult] = []
         self.itreedir = itreedir
-        self.chapterdir = chapterdir
         self.course = course
-        # Extract altdir and itreedir paths (same as extract_program_test_targets uses)
         self._altdir_path = Path(course.altdir).resolve() if course else None
-        self._itreedir_path = Path(course.itreedir).resolve() if course else None
-        # Build config_vars from course object or use provided config_vars
         self.config_vars = self._build_config_vars(config_vars)
 
     def _build_config_vars(self, config_vars: Optional[Dict[str, str]]) -> Dict[str, str]:
@@ -432,33 +421,17 @@ class ProgramChecker:
         return configs
 
     def parse_command_tests_from_prot(self, prot_file: Path) -> List[CommandTest]:
-        """Parse all command tests from .prot file."""
-        if not self.has_prot_spec_blocks(prot_file):
-            b.debug(f"No @PROT_SPEC blocks in {prot_file}")
-            return []
-        return self._parse_regex_mode(prot_file)
-
-    def has_prot_spec_blocks(self, prot_file: Path) -> bool:
-        """Check if .prot file contains @PROT_SPEC blocks."""
-        try:
-            content = prot_file.read_text(encoding='utf-8')
-            return '@PROT_SPEC' in content
-        except OSError:
-            return False
-
-    def _parse_regex_mode(self, prot_file: Path) -> List[CommandTest]:
-        """Parse commands using ProtocolExtractor and attach CheckRule to each CommandTest."""
+        """Extract command tests from .prot file using ProtocolExtractor."""
         extractor = ProtocolExtractor()
         protocol_file = extractor.extract_from_file(str(prot_file))
-        command_tests: List[CommandTest] = []
-        for entry in protocol_file.entries:
-            command_test = CommandTest(
+        return [
+            CommandTest(
                 command=entry.command,
                 expected_output=entry.output,
                 check_rule=entry.check_rule
             )
-            command_tests.append(command_test)
-        return command_tests
+            for entry in protocol_file.entries
+        ]
 
     def _cleanup_generated_files(self, working_dir: Path, program_name: str) -> None:
         """Clean up files generated during program testing."""

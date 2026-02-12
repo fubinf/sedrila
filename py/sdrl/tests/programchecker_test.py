@@ -118,7 +118,6 @@ def test_program_execution_with_regex_validation():
         """))
         header = programchecker.ProgramCheckHeaderExtractor.extract_from_file(str(prot_file))
         checker = programchecker.ProgramChecker(
-            course_root=tmpdir_path,
             report_dir=str(tmpdir_path)
         )
         checker._altdir_path = tmpdir_path / "altdir"
@@ -158,7 +157,6 @@ def test_program_execution_failure():
         """))
         header = programchecker.ProgramCheckHeaderExtractor.extract_from_file(str(prot_file))
         checker = programchecker.ProgramChecker(
-            course_root=tmpdir_path,
             report_dir=str(tmpdir_path)
         )
         checker._altdir_path = tmpdir_path / "altdir"
