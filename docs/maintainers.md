@@ -142,9 +142,8 @@ How it works:
 - Scans `.prot` files in `altdir` for `@TEST_SPEC` blocks
 - Extracts metadata: language, dependencies, test type
 - Locates program files in `itreedir` via path replacement
-- If `files=` field is present: maps short file names to absolute paths via the `.files` file,
-  then substitutes file names in test commands with their absolute paths, in order to test programs
-  in `.files` file automatically
+- If `files=` field is present: maps file names to paths via the `.files` file,
+  copies them into the isolated test directory, and substitutes file names in commands with their actual paths
 - Executes commands and compares output
 - Generates report: `program_test_report.md` in `targetdir_i`
 
@@ -180,15 +179,13 @@ Examples: `deps=pip install numpy requests`, `deps=go get github.com/lib/pq`
 `files=<list>`: Comma-separated list of additional files used by the program (short names only, e.g., `helper.py`).
 Create a corresponding `.files` file in the **altdir** directory (same location as `.prot` file, e.g., `altdir/ch/Sprachen/Go/go-test.files`) with one file path per line.
 
-The `.files` file supports the `$` variable for relative paths. Example for `itreedir`:
+The `.files` file supports three path formats per line:
 
-```
-../../../$itreedir/Sprachen/Go/go-test.go
-../../../$itreedir/Sprachen/Go/go-test_extra.go
-```
+- Simple filename (e.g., `data.json`): resolved relative to the `.files` file's directory, for when `.files`, `.prot`, and the referenced file are all in the same directory
+- Relative path (e.g., `subdir/data.json`): resolved relative to the `.files` file's directory
+- Variable path (e.g., `../../../$itreedir/Sprachen/Go/go-test.go`): `$itreedir` is substituted with the actual path from `sedrila.yaml`
 
-Programchecker automatically reads the `.files` file from altdir, substitutes `$itreedir` variable with the actual path from sedrila.yaml, and resolves relative paths.
-If no `.files` file is provided or a file is not listed, programchecker looks for it in the same directory as the `.prot` file.
+Both the `.files` file and all declared files must exist; missing entries cause errors.
 
 Example with single line `lang`, multiple lines `deps` and `.files`:
 

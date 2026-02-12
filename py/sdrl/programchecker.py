@@ -625,8 +625,8 @@ class ProgramChecker:
                     abs_path_str = self._substitute_variables_in_path(rel_path)
                     abs_path = Path(abs_path_str)
                 elif '/' not in rel_path and '\\' not in rel_path:
-                    # Simple filename (no path separators), relative to .prot file's directory
-                    abs_path = (config.protocol_file.parent / rel_path).resolve()
+                    # Simple filename (no path separators), relative to .files file's directory
+                    abs_path = (files_file_dir / rel_path).resolve()
                 else:
                     # Path with slashes but no variables, relative to .files directory
                     abs_path = (files_file_dir / rel_path).resolve()
