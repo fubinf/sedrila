@@ -236,11 +236,6 @@ class ProtocolValidator:
     def validate_file(self, filepath: str) -> list[str]:
         """Validate protocol annotations in a file."""
         errors = []
-        # Check if file has @TEST_SPEC but no @PROT_SPEC
-        import sdrl.programchecker
-        if sdrl.programchecker.check_prot_file_completeness(filepath):
-            errors.append(f"{filepath}: Protocol file has @TEST_SPEC but no @PROT_SPEC (will be skipped during program testing)")
-
         protocol = self.extractor.extract_from_file(filepath)
         for entry in protocol.entries:
             rule = entry.check_rule

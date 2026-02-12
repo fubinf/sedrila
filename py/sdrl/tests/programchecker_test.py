@@ -128,7 +128,6 @@ def test_program_execution_with_regex_validation():
             program_name="hello",
             protocol_file=prot_file,
             program_check_header=header,
-            working_dir=altdir,
             command_tests=command_tests
         )
         result = checker.test_program(config)
@@ -169,7 +168,6 @@ def test_program_execution_failure():
             program_name="test",
             protocol_file=prot_file,
             program_check_header=header,
-            working_dir=altdir,
             command_tests=command_tests
         )
         result = checker.test_program(config)

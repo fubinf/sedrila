@@ -9,8 +9,6 @@ import subprocess as sp
 import os
 import time
 import tempfile
-import json
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple, Any
@@ -154,9 +152,6 @@ class CommandTest:
     """Single command test extracted from .prot file"""
     command: str                    # The command to run
     expected_output: str            # Expected output for this command
-    has_errors: bool = False        # True if output contains Traceback/errors
-    needs_interaction: bool = False # True if command needs user input
-    has_redirection: bool = False   # True if command has >/< redirection
     check_rule: Optional[CheckRule] = None  # For regex mode validation (from @PROT_SPEC)
 
 
@@ -167,7 +162,6 @@ class ProgramTestConfig:
     program_name: str
     protocol_file: Path
     program_check_header: ProgramCheckHeader
-    working_dir: Path
     command_tests: List[CommandTest] = field(default_factory=list)
     timeout: int = 30
 
@@ -201,16 +195,11 @@ class ProgramTestResult:
     actual_output: str = ""
     expected_output: str = ""
     error_message: str = ""
-    missing_dependencies: List[str] = field(default_factory=list)
     skipped: bool = False
     execution_time: float = 0.0
     exit_code: int = 0
     manual_reason: str = ""  # Human-readable reason for manual testing
     block_results: List[ProtSpecBlockResult] = field(default_factory=list)  # Per-block results
-
-    def __str__(self) -> str:
-        status = "PASS" if self.success else ("SKIP" if self.skipped else "FAIL")
-        return f"{self.program_name}: {status}"
 
     def get_block_stats(self) -> dict:
         """Get statistics of block results."""
@@ -243,31 +232,6 @@ def _find_program_file(itree_root: Path, prot_file: Path) -> Optional[Path]:
         return candidates[0] if candidates else None
     except (ValueError, IndexError):
         return None
-
-
-def check_prot_file_completeness(filepath: str) -> bool:
-    """Check if a file has @TEST_SPEC but no @PROT_SPEC. Returns True if incomplete."""
-    try:
-        content = Path(filepath).read_text(encoding='utf-8')
-        has_test_spec = '@TEST_SPEC' in content
-        has_prot_spec = '@PROT_SPEC' in content
-        return has_test_spec and not has_prot_spec
-    except (FileNotFoundError, OSError):
-        return False
-
-
-def validate_prot_files_completeness(course: sdrl.course.Coursebuilder) -> List[str]:
-    """Check all .prot files have @PROT_SPEC if they have @TEST_SPEC."""
-    warnings: List[str] = []
-    altdir_path = Path(course.altdir).resolve()
-    for prot_file in altdir_path.rglob('*.prot'):
-        if check_prot_file_completeness(str(prot_file)):
-            rel_path = prot_file.relative_to(altdir_path)
-            warnings.append(
-                f"Protocol file has @TEST_SPEC but no @PROT_SPEC: {rel_path}\n"
-                f"  → This file will be skipped during program testing"
-            )
-    return warnings
 
 
 def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[ProgramTestTarget]:
@@ -387,8 +351,6 @@ class ProgramChecker:
             all_assumed = self.course.get_all_assumed_tasks(task_name)
             deps_in_all = {t for t in all_assumed if t in all_tasks}
             task_deps[task_name] = deps_in_all
-        # Check for missing @TEST_SPEC in dependency chains
-        self._check_dependency_chain_gaps(all_tasks, task_deps)
         # Topological sort
         sorted_tasks: List[str] = []
         remaining = set(all_tasks.keys())
@@ -477,7 +439,6 @@ class ProgramChecker:
                 program_name=program_path.stem,
                 protocol_file=prot_file,
                 program_check_header=header,
-                working_dir=program_path.parent,
                 command_tests=command_tests,
                 timeout=self.DEFAULT_TIMEOUT
             )
@@ -539,24 +500,8 @@ class ProgramChecker:
         except (OSError, shutil.Error) as exc:
             b.debug(f"Error during cleanup for {program_name}: {exc}")
 
-    def _create_command_test(self, command: str, output: str) -> Optional[CommandTest]:
-        """Create a CommandTest from command and expected output."""
-        if not command.strip():
-            return None
-        has_errors = bool(re.search(r'(Traceback|Error|error|failed)', output))
-        needs_interaction = bool(re.search(r'[<>|&]', command))
-        has_redirection = bool(re.search(r'[<>]', command))
-        return CommandTest(
-            command=command,
-            expected_output=output,
-            has_errors=has_errors,
-            needs_interaction=needs_interaction,
-            has_redirection=has_redirection
-        )
-
     def _substitute_variables_in_path(self, path: str) -> str:
         """Substitute all $variable_name references in path using config_vars."""
-        import re
         pattern = r'\$([a-zA-Z_][a-zA-Z0-9_]*)'
         variables = re.findall(pattern, path)
         if not variables:
@@ -952,8 +897,8 @@ class ProgramChecker:
         blocks_manual = sum(sum(1 for b in r.block_results if b.status == 'manual') for r in results)
         blocks_skip = sum(sum(1 for b in r.block_results if b.status == 'skip') for r in results)
         report_lines.append("## Summary\n\n")
-        report_lines.append("### Program-Level Statistics\n\n")
-        report_lines.append(f"- **Total programs:** {total}\n")
+        report_lines.append("### Test-Level Statistics\n\n")
+        report_lines.append(f"- **Total tests:** {total}\n")
         report_lines.append(f"- **Failed:** {failed_count} ({fail_rate:.1f}%)\n")
         report_lines.append(f"- **Manual test required:** {manual_count} ({manual_rate:.1f}%)\n")
         report_lines.append(f"- **Passed and skipped:** {passed_skip_count} ({passed_skip_rate:.1f}%)\n\n")
