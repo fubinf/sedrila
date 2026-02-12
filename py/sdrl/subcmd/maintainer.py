@@ -297,9 +297,11 @@ def collect_command(pargs: argparse.Namespace):
             task_name = target.protocol_file.stem
             task_obj = the_course.task(task_name)
             assumes = task_obj.assumes if task_obj else []
+            requires = task_obj.requires if task_obj else []
             tasks[task_name] = {
                 "deps": deps_by_task.get(task_name, []),
                 "assumes": assumes,
+                "requires": requires,
                 "protocol": str(target.protocol_file)
             }
         result = {
