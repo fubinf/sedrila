@@ -284,12 +284,13 @@ def collect_command(pargs: argparse.Namespace):
         targets = programchecker.extract_program_test_targets(the_course)
         checker = programchecker.ProgramChecker(course=the_course)
         deps_by_task = checker.collect_deps_by_task(targets)
-        # Collect all unique lang commands
+        # Collect all unique lang and deps commands
         all_lang_commands = set()
+        all_deps_commands = set()
         for target in targets:
             header = target.program_check_header
-            commands = header.get_lang_install_commands()
-            all_lang_commands.update(commands)
+            all_lang_commands.update(header.get_lang_install_commands())
+            all_deps_commands.update(header.get_install_commands())
         # Build simple task list
         tasks = {}
         for target in targets:
@@ -303,6 +304,7 @@ def collect_command(pargs: argparse.Namespace):
             }
         result = {
             "lang": sorted(list(all_lang_commands)),
+            "deps": sorted(list(all_deps_commands)),
             "tasks": tasks
         }
         # Output to file or stdout
