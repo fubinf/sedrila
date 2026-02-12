@@ -32,7 +32,7 @@ def test_extracts_spec_and_rules():
     )
     extractor = protocolchecker.ProtocolExtractor()
     protocol = extractor.extract_from_content(sample_content)
-    assert protocol.total_entries == 2, f"Expected 2 entries, got {protocol.total_entries}"
+    assert len(protocol.entries) == 2, f"Expected 2 entries, got {len(protocol.entries)}"
     first = protocol.entries[0]
     assert first.command == "ls -la", f"Unexpected command {first.command}"
     assert "total 16" in first.output, f"Missing expected output in {first.output}"

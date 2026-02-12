@@ -202,7 +202,7 @@ def prot_html(content: str) -> str:
         extractor = protocolchecker.ProtocolExtractor()
         proto = extractor.extract_from_content(content)
     except Exception:
-        proto = protocolchecker.ProtocolFile("", [], 0)
+        proto = protocolchecker.ProtocolFile("", [])
     prompt_classes: list[str] = []
     manual_blocks: list[str] = []
     extra_blocks: list[str] = []

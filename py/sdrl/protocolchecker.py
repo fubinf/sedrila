@@ -45,10 +45,6 @@ class ProtocolFile:
     """Represents a complete protocol file with metadata."""
     filepath: str
     entries: list[ProtocolEntry]
-    total_entries: int
-
-    def __str__(self) -> str:
-        return f"Protocol file {self.filepath} with {self.total_entries} entries"
 
 
 @dataclass
@@ -106,7 +102,7 @@ class ProtocolExtractor:
                 content = f.read()
         except (FileNotFoundError, UnicodeDecodeError, OSError) as e:
             b.error(f"Cannot read protocol file {filepath}: {e}")
-            return ProtocolFile(filepath, [], 0)
+            return ProtocolFile(filepath, [])
         return self.extract_from_content(content, filepath)
 
     def extract_from_content(self, content: str, filepath: str = "") -> ProtocolFile:
@@ -160,7 +156,7 @@ class ProtocolExtractor:
             entries.append(
                 ProtocolEntry(current_command, output, current_line_num, current_command_rule)
             )
-        return ProtocolFile(filepath, entries, len(entries))
+        return ProtocolFile(filepath, entries)
 
     def _parse_check_rule(self, spec_lines: list[str]) -> CheckRule:
         """Parse check rule from a @PROT_SPEC block (full lines)."""
@@ -364,8 +360,8 @@ class ProtocolChecker:
                 manual_check_note=None,
             )
         # Perform automated checks if any regex rules exist
-        command_match = self._compare_command(student_entry.command, author_entry.command, rule)
-        output_match = self._compare_output(student_entry.output, author_entry.output, rule)
+        command_match = self._compare_command(student_entry.command, rule)
+        output_match = self._compare_output(student_entry.output, rule)
         success = command_match and output_match
         error_message = None
         if not success:
@@ -396,18 +392,16 @@ class ProtocolChecker:
             manual_check_note=rule.manual_text or "Manual check required" if requires_manual else None,
         )
 
-    def _compare_command(self, student_cmd: str, author_cmd: str, rule: CheckRule) -> bool:
-        """Compare commands based on the rule."""
+    def _compare_command(self, student_cmd: str, rule: CheckRule) -> bool:
+        """Compare student command against the rule's command_re pattern."""
         if rule.command_re:
             return bool(re.search(rule.command_re, student_cmd.strip()))
-        # If no command_re is specified, no automatic check is performed
         return True
 
-    def _compare_output(self, student_output: str, author_output: str, rule: CheckRule) -> bool:
-        """Compare outputs based on the rule."""
+    def _compare_output(self, student_output: str, rule: CheckRule) -> bool:
+        """Compare student output against the rule's output_re pattern."""
         if rule.output_re:
             return bool(re.search(rule.output_re, student_output))
-        # If no output_re is specified, no automatic check is performed
         return True
 
 
