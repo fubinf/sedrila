@@ -302,6 +302,29 @@ def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[Prog
     return targets
 
 
+def check_test_spec_dependency_gaps(course) -> None:
+    """Check for missing @TEST_SPEC in dependency chains between marked tasks.
+    Standalone function suitable for calling during author build."""
+    if not hasattr(course, 'altdir') or not hasattr(course, 'taskdict'):
+        return
+    targets = extract_program_test_targets(course)
+    if not targets:
+        return
+    checker = ProgramChecker(course=course)
+    marked_tasks: Dict[str, Any] = {}
+    for target in targets:
+        task_name = target.protocol_file.stem
+        marked_tasks[task_name] = target
+    task_deps: Dict[str, set] = {}
+    for task_name in marked_tasks:
+        if hasattr(course, 'get_all_assumed_tasks'):
+            all_assumed = course.get_all_assumed_tasks(task_name)
+            task_deps[task_name] = {t for t in all_assumed if t in marked_tasks}
+        else:
+            task_deps[task_name] = set()
+    checker._check_dependency_chain_gaps(marked_tasks, task_deps)
+
+
 class ProgramChecker:
     """Main program testing class for SeDriLa courses."""
     DEFAULT_TIMEOUT = 30

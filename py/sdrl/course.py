@@ -884,5 +884,7 @@ class MetadataDerivation(el.Step):
         self.course.add_inverse_links()
         self.course.compute_taskorder()
         self.course.check_links()
+        import sdrl.programchecker as programchecker
+        programchecker.check_test_spec_dependency_gaps(self.course)
 
 

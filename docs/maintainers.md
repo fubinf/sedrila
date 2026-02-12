@@ -212,10 +212,10 @@ Commands execute sequentially in the isolated directory; test passes only if all
 Before testing, generated files are cleaned up to ensure a fresh environment (databases, logs, cache directories).
 The temporary directory is removed after testing completes, preventing test failures from residual files.
 
-Dependency chain warnings: If a task appears in a dependency chain between two tasks with `@TEST_SPEC` 
-but lacks `@TEST_SPEC` itself, a warning is issued. 
-Example: `Task 'go-pointers' is missing @TEST_SPEC but appears in dependency chain: go-functions -> go-pointers -> go-http-server`. 
-These warnings don't interrupt testing; they just indicate potential gaps in test coverage.
+Dependency chain warnings: If a task appears in a dependency chain between two tasks with `@TEST_SPEC`
+but lacks `@TEST_SPEC` itself, a warning is issued during `sedrila author` build and `sedrila maintainer --check-programs`.
+Example: `Task 'go-pointers' is missing @TEST_SPEC but appears in dependency chain: go-functions -> go-pointers -> go-http-server`.
+These warnings don't interrupt the build or testing; they just indicate potential gaps in test coverage.
 
 ### 5.2 Operating environment and dependencies
 
