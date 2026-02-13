@@ -846,14 +846,14 @@ class ProgramChecker:
         # Classify results based on block content
         failed_results = [r for r in results if self._has_failed_blocks(r)]
         manual_results = [r for r in results if self._has_manual_blocks(r) and not self._has_failed_blocks(r)]
-        passed_skip_results = [r for r in results if not self._has_failed_blocks(r) and not self._has_manual_blocks(r)]
+        passed_results = [r for r in results if not self._has_failed_blocks(r) and not self._has_manual_blocks(r)]
         total = len(results)
         failed_count = len(failed_results)
         manual_count = len(manual_results)
-        passed_skip_count = len(passed_skip_results)
+        passed_count = len(passed_results)
         fail_rate = (failed_count / total * 100) if total > 0 else 0.0
         manual_rate = (manual_count / total * 100) if total > 0 else 0.0
-        passed_skip_rate = (passed_skip_count / total * 100) if total > 0 else 0.0
+        passed_rate = (passed_count / total * 100) if total > 0 else 0.0
         # Calculate block-level statistics
         total_blocks = sum(len(r.block_results) for r in results)
         blocks_passed = sum(sum(1 for b in r.block_results if b.status == 'passed') for r in results)
@@ -865,7 +865,7 @@ class ProgramChecker:
         report_lines.append(f"- **Total tests:** {total}\n")
         report_lines.append(f"- **Failed:** {failed_count} ({fail_rate:.1f}%)\n")
         report_lines.append(f"- **Manual test required:** {manual_count} ({manual_rate:.1f}%)\n")
-        report_lines.append(f"- **Passed and skipped:** {passed_skip_count} ({passed_skip_rate:.1f}%)\n\n")
+        report_lines.append(f"- **Passed:** {passed_count} ({passed_rate:.1f}%)\n\n")
         if total_blocks > 0:
             report_lines.append("### Block-Level Statistics\n\n")
             report_lines.append(f"- **Total @PROT_SPEC blocks:** {total_blocks}\n")
@@ -907,12 +907,12 @@ class ProgramChecker:
                 blocks_str = self._format_block_stats_for_report(r)
                 report_lines.append(f"| `{r.program_name}` | {files_str} | {blocks_str} | {reason} |\n")
             report_lines.append("\n")
-        # Passed and Skipped Tests section
-        if passed_skip_count > 0:
-            report_lines.append("## Passed and skiped Tests\n\n")
+        # Passed Tests section
+        if passed_count > 0:
+            report_lines.append("## Passed Tests\n\n")
             report_lines.append("| Test | Files | @PROT_SPEC Blocks | Execution Time |\n")
             report_lines.append("|------|-------|-------------------|----------------|\n")
-            for r in passed_skip_results:
+            for r in passed_results:
                 files_str = self._format_files_for_report(r)
                 blocks_str = self._format_block_stats_for_report(r)
                 report_lines.append(f"| `{r.program_name}` | {files_str} | {blocks_str} | {r.execution_time:.2f}s |\n")
