@@ -111,6 +111,7 @@ def test_program_execution_with_regex_validation():
             @PROT_SPEC
             command_re=^python hello\\.py$
             output_re=Hello World \\d+
+            exitcode=0
 
             user@host /tmp 10:00:00 1
             $ python hello.py
@@ -136,11 +137,12 @@ def test_program_execution_with_regex_validation():
 
 
 def test_program_execution_failure():
-    """Real integration test: program fails when output doesn't match regex."""
+    """Real integration test: program fails when output or exitcode doesn't match."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir_path = Path(tmpdir)
         altdir = tmpdir_path / "altdir" / "ch" / "Python" / "basics"
         altdir.mkdir(parents=True)
+        # --- Case 1: output_re mismatch ---
         prog_file = altdir / "test.py"
         prog_file.write_text("print('Goodbye World')")
         prot_file = altdir / "test.prot"
@@ -169,7 +171,33 @@ def test_program_execution_failure():
             command_tests=command_tests
         )
         result = checker.test_program(config)
-        # Verify failure
         assert not result.success, "Expected test to fail due to output mismatch"
         assert "does not match regex" in result.error_message or \
                "Output does not match" in result.error_message
+        # --- Case 2: exitcode mismatch ---
+        prog_file2 = altdir / "exittest.py"
+        prog_file2.write_text("print('OK')")  # exits with 0
+        prot_file2 = altdir / "exittest.prot"
+        prot_file2.write_text(_dedent("""
+            @TEST_SPEC
+
+            @PROT_SPEC
+            command_re=^python exittest\\.py$
+            exitcode=42
+
+            user@host /tmp 10:00:00 1
+            $ python exittest.py
+            OK
+        """))
+        header2 = programchecker.ProgramCheckHeaderExtractor.extract_from_file(str(prot_file2))
+        command_tests2 = checker.parse_command_tests_from_prot(prot_file2)
+        config2 = programchecker.ProgramTestConfig(
+            program_path=prog_file2,
+            program_name="exittest",
+            protocol_file=prot_file2,
+            program_check_header=header2,
+            command_tests=command_tests2
+        )
+        result2 = checker.test_program(config2)
+        assert not result2.success, "Expected test to fail due to exitcode mismatch"
+        assert "Exit code mismatch" in result2.error_message
