@@ -158,13 +158,17 @@ def run(ctx: sdrl.participant.Context):
         if test_file:
             try:
                 # Prime gpg-agent by attempting to decrypt (triggers passphrase prompt in shell)
-                _prime_gpg_agent(test_file)
+                if not _prime_gpg_agent(test_file):
+                    b.warning("GPG decryption failed. Protocol comparisons will not be available. "
+                              "Check that gpg-agent is running and your private key is available.")
             finally:
                 # Clean up temporary files from HTTP downloads
                 try:
                     os.unlink(test_file)
                 except FileNotFoundError:
                     pass
+        else:
+            b.warning("No encrypted protocol files found. Protocol comparisons will not be available.")
 
     # Do not enable macros, because that makes the second start of webapp within one session crash
     # b.set_register_files_callback(lambda s: None)  # in case student .md files contain weird macro calls
