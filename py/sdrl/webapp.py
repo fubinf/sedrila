@@ -26,6 +26,7 @@ import sdrl.participant
 meaning = """Specialized webserver for locally viewing contents of one or more student repo work directories."""
 CSS = "class='sview'"  # to be included in HTML tags
 DEBUG = False  # turn off debug for release
+_gpg_available = False  # set to True after successful GPG priming
 DEFAULT_PORT = '8077'
 FAVICON_URL = "/favicon-32x32.png"
 WEBAPP_CSS_URL = "/webapp.css"
@@ -152,13 +153,16 @@ def run(ctx: sdrl.participant.Context):
     # Make sure context is globally accessible for HTTP request handlers
     sdrl.participant._context = ctx
     # Only instructors need to decrypt protocol files
+    global _gpg_available
     if ctx.is_instructor:
         # Find an encrypted protocol file to prime gpg-agent with
         test_file = _find_encrypted_prot_file(ctx)
         if test_file:
             try:
                 # Prime gpg-agent by attempting to decrypt (triggers passphrase prompt in shell)
-                if not _prime_gpg_agent(test_file):
+                if _prime_gpg_agent(test_file):
+                    _gpg_available = True
+                else:
                     b.warning("GPG decryption failed. Protocol comparisons will not be available. "
                               "Check that gpg-agent is running and your private key is available.")
             finally:
@@ -1093,6 +1097,8 @@ def render_prot_plain(student_content: str) -> str:
 
 def _load_author_prot_content(workdir: sdrl.participant.Student, prot_path: str) -> tuple[str | None, str | None]:
     """Load author .prot file content for comparison with student submission."""
+    if not _gpg_available:
+        return (None, None)
     import sdrl.protocolchecker as protocolchecker
     try:
         course = workdir.course
