@@ -18,8 +18,6 @@ Element
         Content
         IncludeList_s
         IncludeList_i
-        SnippetList_s
-        SnippetList_i
         TermrefList
       FreshPiece
         LinkslistBottom
@@ -305,47 +303,41 @@ class Body(Piece):  # abstract class
         if self.cache.is_dirty(self.sourcefile):
             self.state = c.State.HAS_CHANGED  # force re-build for previous dirty files
 
-    def do_do_build(self, includelist_class: type, snippetlist_class: type, render_mode: b.Mode):
+    def do_do_build(self, includelist_class: type, render_mode: b.Mode):
         # --- prepare:
         content = self.directory.get_the(Content, self.name)
-        # --- build body and byproduct includeslist/snippetlist:
-        # includeslist/snippetlist gets filled when building self, but is also a dependency of self!
+        # --- build body and byproduct includeslist:
+        # includeslist gets filled when building self, but is also a dependency of self!
         # As a dependency, it gets built earlier, so the includes found here will come into effect
         # only during the next run, via the cache.
         includeslist = self.directory.get_the(includelist_class, self.name)
-        snippetlist = self.directory.make_or_get_the(snippetlist_class, self.name)
         macros.switch_part(self.name)
         mddict = self.render(content.value, render_mode)
         html, includes, self.termrefs = (mddict['html'], mddict['includefiles'], mddict['termrefs'])
         self.handle_value_and_state(html)
         includeslist.handle_value_and_state(includes)
-        # --- validate and collect snippet references:
-        import sdrl.snippetchecker as snippetchecker
-        validator = snippetchecker.SnippetValidator()
-        snippet_validations = validator.collect_snippet_validations_for_file(self.sourcefile, self.course)
-        snippetlist.handle_value_and_state(snippet_validations)
 
     def render(self, content: str, render_mode: b.Mode) -> dict:
         return md.render_markdown(self.sourcefile, self.name, content, render_mode,
                                   self.course.blockmacro_topmatter)
 
 class Body_s(Body):
-    """Student HTML page text content.  Byproducts: IncludeList_s, SnippetList_s, Termreflist."""
+    """Student HTML page text content.  Byproducts: IncludeList_s, Termreflist."""
     def do_build(self):
-        self.do_do_build(IncludeList_s, SnippetList_s, b.Mode.STUDENT)
+        self.do_do_build(IncludeList_s, b.Mode.STUDENT)
         # --- build byproduct termreflist (body_i.termrefs ought to be identical to self.termrefs):
         termreflist = self.directory.get_the(TermrefList, self.name)
         termreflist.handle_value_and_state(self.termrefs)
 
 
 class Body_i(Body):
-    """Instructor HTML page text content.  Byproduct: IncludeList_i, SnippetList_i."""
+    """Instructor HTML page text content.  Byproduct: IncludeList_i."""
     def do_build(self):
-        self.do_do_build(IncludeList_i, SnippetList_i, b.Mode.INSTRUCTOR)
+        self.do_do_build(IncludeList_i, b.Mode.INSTRUCTOR)
 
 
 class Glossarybody(Body):
-    """Glossarypage content.  Byproduct: IncludeList_s, SnippetList_s."""
+    """Glossarypage content.  Byproduct: IncludeList_s."""
     switch_macros_op: tg.Callable
     expand_toc_op: tg.Callable
 
@@ -360,7 +352,7 @@ class Glossarybody(Body):
     def do_build(self):
         self.switch_macros_op()
         self.part.fill_mentionedbylists()  # noqa
-        self.do_do_build(IncludeList_s, SnippetList_s, b.Mode.STUDENT)
+        self.do_do_build(IncludeList_s, b.Mode.STUDENT)
 
     def render(self, content: str, render_mode: b.Mode) -> dict:
         extended_content = self.expand_toc_op(content)
@@ -403,16 +395,6 @@ class IncludeList_s(Byproduct):
 class IncludeList_i(Byproduct):
     """List of names of files INCLUDEd by a Part in its instructor version."""
     CACHED_TYPE = 'set'  # which kind of value is in the cache
-
-
-class SnippetList_s(Byproduct):
-    """Snippets referenced by a Part in its student version (with validation results)."""
-    CACHED_TYPE = 'dict'  # {snippet_id: validation_result}
-
-
-class SnippetList_i(Byproduct):
-    """Snippets referenced by a Part in its instructor version (with validation results)."""
-    CACHED_TYPE = 'dict'  # {snippet_id: validation_result}
 
 
 class TermrefList(Byproduct):
