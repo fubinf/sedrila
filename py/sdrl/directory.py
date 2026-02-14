@@ -20,9 +20,9 @@ class Directory:
         self.managed_types = [
             # Each has a downcased dict attribute use by get_the()/make_the().
             # The ordering is the build ordering:
-            el.Sourcefile, el.CopiedFile, el.ReportFile, el.ParticipantsList, el.ProtFile,
+            el.Sourcefile, el.CopiedFile, el.ReportFile, el.ParticipantsList,
             el.Zipdir, el.Zipfile,
-            el.Topmatter, el.Content, course.MetadataDerivation,
+            el.Topmatter, el.Content, course.MetadataDerivation, el.ProtFile,
             el.IncludeList_s, el.IncludeList_i, el.SnippetList_s, el.SnippetList_i, el.TermrefList,
             el.Body_s, el.Body_i, el.Glossarybody,
             el.Toc, el.LinkslistBottom,

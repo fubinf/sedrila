@@ -605,8 +605,9 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
             return
         self.directory.make_the(el.Sourcefile, prot_filepath)
         pubkey_data = self.instructor_pubkeys
+        course = self
         def transform_with_pubkeys(elem):
-            return Coursebuilder._transform_prot_file(elem, pubkey_data)
+            return Coursebuilder._transform_prot_file(elem, pubkey_data, course)
         self.directory.make_the(
             el.ProtFile,
             outputname,
@@ -618,14 +619,22 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         )
 
     @staticmethod
-    def _transform_prot_file(elem: el.TransformedFile, pubkey_data: dict | None = None):
+    def _transform_prot_file(elem: el.TransformedFile, pubkey_data: dict | None = None,
+                             course: 'Coursebuilder | None' = None):
         """Validate @PROT_SPEC annotations in .prot file, then encrypt it."""
         # Validate protocol annotations
         import sdrl.protocolchecker as protocolchecker
         validator = protocolchecker.ProtocolValidator()
         errors = validator.validate_file(elem.sourcefile)
+        # Determine report level: error for tasks in stage filter, warning for excluded tasks
+        report = b.error
+        if course:
+            prot_basename = os.path.splitext(os.path.basename(elem.sourcefile))[0]
+            task = course.directory.get_the(Task, prot_basename)
+            if task and getattr(task, 'skipthis', False):
+                report = b.warning
         for error in errors:
-            b.error(error, file=elem.sourcefile)
+            report(error, file=elem.sourcefile)
 
         # Encrypt the file
         with open(elem.sourcefile, 'rb') as f:
