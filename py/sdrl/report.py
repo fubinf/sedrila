@@ -1,4 +1,4 @@
-"""Volume reports for course statistics."""
+"""Reports with statistics of course (for author) or student work (for student and instructor)."""
 import dataclasses
 import datetime as dt
 import typing as tg
@@ -12,6 +12,7 @@ if tg.TYPE_CHECKING:
 
 @dataclasses.dataclass
 class Volumereport:
+    """Data content of a report; column 1 is str, the others are numbers."""
     rows: list[tuple]
     columnheads: tg.Sequence[str]
 
