@@ -10,6 +10,7 @@ import sdrl.constants as c
 import sdrl.course
 import sdrl.participant
 import sdrl.repo as r
+import sdrl.report
 import sdrl.webapp
 
 meaning = """Help instructors evaluate students' submissions of several finished tasks.
@@ -49,6 +50,9 @@ def execute(pargs: argparse.Namespace):
     if pargs.op:
         OP_CMDS[pargs.op](context)  # execute one command via lookup table, with duck-typed arg
     else:
+        for name, stud in context.students.items():
+            b.info(f"'{name}' work report (in hours):")
+            sdrl.report.print_volume_report(stud.course, author_mode=False)
         run_command_loop(context, MENU, MENU_HELP, MENU_CMDS)
 
 

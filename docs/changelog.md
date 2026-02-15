@@ -3,6 +3,7 @@
 
 ## Version 2.12.0 (upcoming)
 - `student`, `instructor`: Webapp now suppresses the meaningless `TimeoutError` stacktraces
+- `student`, `instructor`: Display a student work summary report before entering command loop 
 - ...
 
 
