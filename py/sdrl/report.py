@@ -12,9 +12,11 @@ if tg.TYPE_CHECKING:
 
 @dataclasses.dataclass
 class Volumereport:
-    rows: tg.Sequence[tg.Tuple[str, int, float]]
+    rows: list[tuple]
     columnheads: tg.Sequence[str]
 
+
+# ----- author mode reports:
 
 def volume_report_per_chapter(course: 'sdrl.course.Course') -> Volumereport:
     return _volume_report(course, course.chapters, "Chapter",
@@ -45,7 +47,49 @@ def _volume_report(course: 'sdrl.course.Course', rowitems: tg.Iterable, column1h
     return Volumereport(result, (column1head, "#Tasks", "Timevalue"))
 
 
-def print_volume_report(course: 'sdrl.course.Course'):
+# ----- student/instructor mode reports:
+
+def _has_been_worked_on(task: 'sdrl.course.Task') -> bool:
+    return task.workhours > 0 or task.is_accepted or task.rejections > 0
+
+
+def si_volume_report_per_chapter(course: 'sdrl.course.Course') -> Volumereport:
+    return _si_volume_report(course, course.chapters, "Chapter",
+                             lambda t, c: t.taskgroup.chapter == c, lambda c: c.name)
+
+
+def si_volume_report_per_difficulty(course: 'sdrl.course.Course') -> Volumereport:
+    from sdrl.course import Task
+    return _si_volume_report(course, Task.DIFFICULTY_RANGE, "Difficulty",
+                             lambda t, d: t.difficulty == d, lambda d: h.difficulty_levels[d-1])
+
+
+def _si_volume_report(course: 'sdrl.course.Course', rowitems: tg.Iterable, column1head: str,
+                      select: tg.Callable, render: tg.Callable) -> Volumereport:
+    """Tuples of (category, worktime_sum, accept_sum, reject_sum)."""
+    result = []
+    for row in rowitems:
+        tasks = [t for t in course.taskdict.values() if select(t, row) and _has_been_worked_on(t)]
+        if not tasks:
+            continue
+        worktime = sum(t.workhours for t in tasks)
+        accept = sum(t.timevalue for t in tasks if t.is_accepted)
+        reject = sum(t.timevalue for t in tasks if t.rejections > 0 and not t.is_accepted)
+        result.append((render(row), worktime, accept, reject))
+    return Volumereport(result, (column1head, "Worktime", "Accept", "Reject"))
+
+
+# ----- printing:
+
+def print_volume_report(course: 'sdrl.course.Course', author_mode: bool):
+    """Show volume reports: author mode shows all tasks, student/instructor mode shows worked-on tasks only."""
+    if author_mode:
+        _print_author_volume_report(course)
+    else:
+        _print_si_volume_report(course)
+
+
+def _print_author_volume_report(course: 'sdrl.course.Course'):
     """Show total timevalues per stage, difficulty, and chapter."""
     # ----- print cumulative timevalues per stage as comma-separated values (CSV):
     report_per_stage = volume_report_per_stage(course)
@@ -74,4 +118,28 @@ def print_volume_report(course: 'sdrl.course.Course'):
             totaltasks += numtasks
             totaltime += timevalue
         table.add_row("[b]=TOTAL", f"[b]{totaltasks}", "[b]%5.1f" % totaltime)
+        b.rich_print(table)  # noqa
+
+
+def _print_si_volume_report(course: 'sdrl.course.Course'):
+    """Show worktime, accepted, and rejected timevalues per difficulty and chapter."""
+    for report in (si_volume_report_per_difficulty(course),
+                   si_volume_report_per_chapter(course)):
+        table = b.Table()
+        for head in report.columnheads:
+            justify = "left" if head == report.columnheads[0] else "right"
+            table.add_column(head, justify=justify)
+        total_worktime = total_accept = total_reject = 0.0
+        for name, worktime, accept, reject in report.rows:
+            table.add_row(name,
+                          "%5.1f" % worktime,
+                          "%5.1f" % accept,
+                          "%5.1f" % reject)
+            total_worktime += worktime
+            total_accept += accept
+            total_reject += reject
+        table.add_row("[b]=TOTAL",
+                      "[b]%5.1f" % total_worktime,
+                      "[b]%5.1f" % total_accept,
+                      "[b]%5.1f" % total_reject)
         b.rich_print(table)  # noqa

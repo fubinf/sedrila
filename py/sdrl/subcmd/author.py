@@ -80,7 +80,7 @@ def create_and_build_course(pargs, targetdir_i, targetdir_s) -> sdrl.course.Cour
     # ----- clean up and report:
     purge_leftover_outputfiles(directory, targetdir_s, targetdir_i)
     if pargs.sums:
-        sdrl.report.print_volume_report(the_course)
+        sdrl.report.print_volume_report(the_course, author_mode=True)
     the_cache.close()  # write back changes
     return the_course
 
