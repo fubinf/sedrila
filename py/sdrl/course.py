@@ -481,23 +481,6 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         # ----- compute taskorder (or report dependency cycle if one is found):
         self.taskorder = self._taskordering_for_toc(graph)
 
-    @dataclasses.dataclass
-    class Volumereport:
-        rows: tg.Sequence[tg.Tuple[str, int, float]]
-        columnheads: tg.Sequence[str]
-
-    def volume_report_per_chapter(self) -> Volumereport:
-        return self._volume_report(self.chapters, "Chapter",
-                                   lambda t, c: t.taskgroup.chapter == c, lambda c: c.name)
-
-    def volume_report_per_difficulty(self) -> Volumereport:
-        return self._volume_report(Task.DIFFICULTY_RANGE, "Difficulty",
-                                   lambda t, d: t.difficulty == d, lambda d: h.difficulty_levels[d-1])
-
-    def volume_report_per_stage(self) -> Volumereport:
-        return self._volume_report(self.stages + [None], "Stage",
-                                   lambda t, s: t.stage == s, lambda s: s or "done", include_all=True)
-
     def _add_baseresources(self):
         for direntry in os.scandir(self.baseresourcedir):
             if direntry.is_file():
@@ -696,19 +679,6 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
             msg = "Some tasks' 'assumes' or 'requires' dependencies form a cycle:\n"
             b.critical(msg + exc.args[1])
         return result
-
-    def _volume_report(self, rowitems: tg.Iterable, column1head: str,
-                       select: tg.Callable[[Task, tg.Any], bool],
-                       render: tg.Callable[[tg.Any], str],
-                       include_all=False) -> Volumereport:
-        """Tuples of (category, num_tasks, timevalue_sum)."""
-        result = []
-        for row in rowitems:
-            num_tasks = sum((1 for t in self.taskdict.values() if select(t, row) and not t.to_be_skipped))
-            timevalue_sum = sum((t.timevalue for t in self.taskdict.values() if select(t, row) and not t.to_be_skipped))
-            if num_tasks > 0 or include_all:
-                result.append((render(row), num_tasks, timevalue_sum))
-        return self.Volumereport(result, (column1head, "#Tasks", "Timevalue"))
 
 
 class Chapter(el.Part):

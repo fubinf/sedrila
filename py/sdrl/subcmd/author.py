@@ -1,14 +1,8 @@
 """
 Generate the website with incremental build.
 See the architecture sketch in docs/internal_notes.md.
-TODO:
-- 
-- use sedrila2.yaml, force titles to be in topmatter
-- eventually: kick out author, rename author2 to author, changelog, adjust docs
 """
 import argparse
-import csv
-import datetime as dt
 import json
 import os
 import os.path
@@ -22,6 +16,7 @@ import sdrl.elements as el
 import sdrl.directory as dir
 import sdrl.macroexpanders as macroexpanders
 import sdrl.rename
+import sdrl.report
 
 
 meaning = """Creates and renders an instance of a SeDriLa course with incremental build.
@@ -85,7 +80,7 @@ def create_and_build_course(pargs, targetdir_i, targetdir_s) -> sdrl.course.Cour
     # ----- clean up and report:
     purge_leftover_outputfiles(directory, targetdir_s, targetdir_i)
     if pargs.sums:
-        print_volume_report(the_course)
+        sdrl.report.print_volume_report(the_course)
     the_cache.close()  # write back changes
     return the_course
 
@@ -123,38 +118,6 @@ def prepare_itree_zip(the_course: sdrl.course.Coursebuilder):
     the_course.directory.make_the(el.Zipdir, the_course.itreedir, parent=the_course)
     the_course.directory.make_the(el.Zipfile, os.path.basename(the_course.itreedir), parent=the_course, 
                                   sourcefile=the_course.itreedir, instructor_only=True)
-
-
-def print_volume_report(course: sdrl.course.Coursebuilder):
-    """Show total timevalues per stage, difficulty, and chapter."""
-    # ----- print cumulative timevalues per stage as comma-separated values (CSV):
-    volume_report_per_stage = course.volume_report_per_stage()
-    print("date", end="")
-    for stage, numtasks, timevalue in volume_report_per_stage.rows:
-        print(f",{stage}", end="")
-    print("")  # newline
-    print(dt.date.today().strftime("%Y-%m-%d"), end="")
-    for stage, numtasks, timevalue in volume_report_per_stage.rows:
-        print(",%.2f" % timevalue, end="")
-    print("")  # newline
-
-    # ----- print all reports as rich tables:
-    for report in (volume_report_per_stage,
-                   course.volume_report_per_difficulty(),
-                   course.volume_report_per_chapter()):
-        table = b.Table()
-        table.add_column(report.columnheads[0])
-        table.add_column(report.columnheads[1], justify="right")
-        table.add_column(report.columnheads[2], justify="right")
-        totaltasks = totaltime = 0
-        for name, numtasks, timevalue in report.rows:
-            table.add_row(name,
-                          str(numtasks),
-                          "%5.1f" % timevalue)
-            totaltasks += numtasks
-            totaltime += timevalue
-        table.add_row("[b]=TOTAL", f"[b]{totaltasks}", "[b]%5.1f" % totaltime)
-        b.rich_print(table)  # noqa
 
 
 def purge_leftover_outputfiles(directory: dir.Directory, targetdir_s: str, targetdir_i: str):
