@@ -1082,6 +1082,14 @@ See in [Maintainers documentation](maintainers.md).
 
 ## 3. Calling `sedrila`
 
+### 3.0 Installation
+
+If you make use of `PROT_SPEC` anywhere, `sedrila` will need to encrypt the prot files
+in order to include them available to instructors.
+To do that, it will make use of GNUpg much like `instructor` use of `sedrila` will.
+Therefore, you need to perform the same setup as an instructor; 
+see Section 1.1 in the [instructors documentation](instructors.md). 
+
 ### 3.1 Default behavior
 
 The standard call for generating the HTML website from a sedrila course is
