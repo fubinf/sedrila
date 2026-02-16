@@ -12,6 +12,7 @@ Under Windows, use WSL. `sedrila` does not work natively in Windows.
 - Install `gpg`:  
   On Debian/Ubuntu, do `sudo apt install gnupg`.  
   For other platforms, see [GnuPG downloads](https://gnupg.org/download/index.html).
+- Add `export GPG_TTY=$(tty)` to your `.bashrc` for proper PIN-entry support.
 - Generate key: `gpg --full-generate-key`  
   Use the name and email that the students should get to see.
   Make sure, the key does not expire during the courses for which you intend to use it.
