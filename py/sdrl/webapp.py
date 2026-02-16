@@ -1,5 +1,6 @@
 """Browse the virtual file system of a sdrl.participant.Context; see submissions and mark them."""
 import base64
+import json
 import os
 import pathlib
 import subprocess
@@ -14,11 +15,9 @@ import bottle  # https://bottlepy.org/docs/dev/
 import requests
 
 import base as b
-import mycrypt
 import sdrl.argparser
 import sdrl.constants as c
 import sdrl.course
-import sdrl.macroexpanders as macroexpanders
 import sdrl.markdown as md
 import sdrl.participant
 
@@ -71,9 +70,9 @@ def _get_builddir_from_context(course) -> tuple[str, str] | None:
         # If path points to a file (e.g., course.json), get its parent directory
         if os.path.isfile(local_path):
             local_path = os.path.dirname(local_path)
-        return ('local', local_path)
+        return 'local', local_path
     elif context_path.startswith('http://') or context_path.startswith('https://'):
-        return ('remote', context_path)
+        return 'remote', context_path
     return None
 
 
@@ -91,12 +90,12 @@ def _find_encrypted_prot_file(ctx: sdrl.participant.Context) -> str | None:
             # HTTP(S) URL handling, download first available encrypted file to temp
             builddir_url = os.path.dirname(builddir)
             try:
-                import json
                 # Fetch course.json to find available tasks
                 course_json_url = f"{builddir_url}/course.json"
                 response = requests.get(course_json_url, timeout=5)
                 course_data = response.json()
                 # Recursively find all 'name' values in course structure
+                
                 def find_names(data):
                     names = []
                     if isinstance(data, dict):
@@ -594,6 +593,7 @@ document.querySelectorAll('.sedrila-replace').forEach(t => {
 });
 """ % SEDRILA_REPLACE_URL
 
+
 @bottle.route("/")
 def serve_index():
     ctx = sdrl.participant.get_context()
@@ -640,7 +640,8 @@ def serve_index():
     """
     return html_for_layout("sedrila", body)
 
-@bottle.route(SEDRILA_UPDATE_URL, method = "POST")
+
+@bottle.route(SEDRILA_UPDATE_URL, method="POST")
 def serve_sedrila_update():
     """
     Update the state of a task in the sedrila webapp
@@ -655,17 +656,14 @@ def serve_sedrila_update():
     student = ctx.studentlist[idx]
     taskname = html.unescape(data.taskname)
     new_state = data.new_state
-
     if not student.set_state(taskname, new_state):
         bottle.response.status = 404
         return f"invalid task ({taskname}) or state ({new_state})"
-
     if "return_file" in data:
         return bottle.redirect(f"/tasks/{taskname}/{html.unescape(data.return_file)}")
-    elif not "no_redirect" in data:
+    elif "no_redirect" not in data:
         return bottle.redirect(f"/tasks/{taskname}")
-
-    return { "updated_state": new_state }
+    return {"updated_state": new_state}
 
 
 @bottle.route(FAVICON_URL)
@@ -685,6 +683,7 @@ def serve_js():
     bottle.response.content_type = 'text/javascript'
     return webapp_js
 
+
 @bottle.route("/raw/<student_idx>/<path:path>")
 def serve_raw(student_idx: str, path: str):
     ctx = sdrl.participant.get_context()
@@ -693,6 +692,7 @@ def serve_raw(student_idx: str, path: str):
         raise bottle.HTTPError(status=404, body="invalid student idx")
     student = ctx.studentlist[idx]
     return bottle.static_file(student.path_actualpath(f"/{path}"), root='.')
+
 
 @bottle.route("/tasks/<taskname>/<path:path>")
 @bottle.route("/tasks/<taskname>")
@@ -703,7 +703,8 @@ def serve_task(taskname: str, path: str | None = None):
     raw_files = set()
     for s in ctx.studentlist:
         task = s.submissions.task(taskname)
-        if task: raw_files.update(task.files)
+        if task: 
+            raw_files.update(task.files)
     files = sorted(raw_files)
 
     files_bar = "".join(f"""
@@ -712,18 +713,21 @@ def serve_task(taskname: str, path: str | None = None):
         </a>
     """ for f in files)
 
-    if path: path = "/" + path
-    elif len(files) > 0: path = files[0]
+    if path: 
+        path = "/" + path
+    elif len(files) > 0: 
+        path = files[0]
 
     def html_for_button(student_idx: int, state: str, task: sdrl.participant.SubmissionTask) -> str:
         return_file = f"<input type='hidden' name='return_file' value='{html.escape(path[1:])}'/>" if path else None
+        is_noncheck = task.state is None and state == c.SUBMISSION_NONCHECK_MARK
         return f"""
             <form class="action-button" action="{SEDRILA_UPDATE_URL}" method="POST"/>
                 <input type="hidden" name="taskname" value="{html.escape(taskname)}"/>
                 <input type="hidden" name="student_idx" value="{html.escape(str(student_idx))}"/>
                 <input type="hidden" name="new_state" value="{html.escape(state)}"/>
                 {return_file or ""}
-                <label class="{"active" if task.state == state or (task.state == None and state == c.SUBMISSION_NONCHECK_MARK) else ""}">
+                <label class="{"active" if task.state == state or is_noncheck else ""}">
                     {state}
                     <input type="submit"/>
                 </label>
@@ -734,11 +738,13 @@ def serve_task(taskname: str, path: str | None = None):
     for i, s in enumerate(ctx.studentlist):
         t = s.submissions.task(taskname)
         if t:
+            is_check = t.is_student_checkable or (t.is_checkable and is_instructor)
+            is_noncheck = t.is_student_checkable and not is_instructor
             buttons_markup.append(f"""
             <div class="student-buttons">
                 <div>{s.student_gituser}</div>
-                {html_for_button(i, c.SUBMISSION_CHECK_MARK, t) if t.is_student_checkable or (t.is_checkable and is_instructor) else ""}
-                {html_for_button(i, c.SUBMISSION_NONCHECK_MARK, t) if t.is_student_checkable and not is_instructor else ""}
+                {html_for_button(i, c.SUBMISSION_CHECK_MARK, t) if is_check else ""}
+                {html_for_button(i, c.SUBMISSION_NONCHECK_MARK, t) if is_noncheck else ""}
                 {html_for_button(i, c.SUBMISSION_ACCEPT_MARK, t) if is_instructor and t.is_checkable else ""}
                 {html_for_button(i, c.SUBMISSION_REJECT_MARK, t) if is_instructor and t.is_checkable else ""}
                 {"REJECT_FINAL" if t.state == sdrl.participant.SubmissionTaskState.REJECT_FINAL else ""}
@@ -775,6 +781,7 @@ def serve_task(taskname: str, path: str | None = None):
     """
     return html_for_layout(taskname, body, selected=taskname)
 
+
 def html_for_file(studentlist: list[sdrl.participant.Student], mypath, is_instructor: bool = False) -> str:
     """
     Page body showing each Workdir's version (if existing) of file mypath, and pairwise diffs where possible.
@@ -799,10 +806,10 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath, is_instru
     filename = os.path.basename(mypath)
     frontname, suffix = os.path.splitext(filename)
 
-    def append_one_file(idx):
+    def append_one_file(index):
         path = html.escape(workdir.path_actualpath(mypath))
         if not suffix or suffix[1:] in binaryfile_suffixes:
-            lines.append(f"<a href='/raw/{idx}/{path}'>{path}</a>")
+            lines.append(f"<a href='/raw/{index}/{path}'>{path}</a>")
             kinds.append(BINARY)
             return
         content = b.slurp(f"{workdir.topdir}{mypath}")
@@ -824,17 +831,17 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath, is_instru
         else:  # any other suffix: assume this is a sourcefile
             language = suffix2lang.get(suffix[1:], "")
             if language == 'html':
-                lines.append(f"<a href='/raw/{idx}/{path}'>view as HTML page</a>")
+                lines.append(f"<a href='/raw/{index}/{path}'>view as HTML page</a>")
             lines.append(f"```{language}")
             lines.append(content.rstrip("\n"))
             lines.append(f"```")
         kinds.append(SRC)
 
-    def append_diff():
-        prevdir = studentlist[idx - 1]  # previous workdir
+    def append_diff(index):
+        prevdir = studentlist[index - 1]  # previous workdir
         toc.append(f"<a href='#diff-{html.escape(prevdir.topdir)}-{html.escape(workdir.topdir)}'>diff</a>  ")
         lines.append(f"<h2 id='diff-{html.escape(prevdir.topdir)}-{html.escape(workdir.topdir)}' {CSS}"
-                     f">{idx - 1}/{idx}. diff {html.escape(prevdir.topdir)}/{html.escape(workdir.topdir)}</h2>")
+                     f">{index - 1}/{index}. diff {html.escape(prevdir.topdir)}/{html.escape(workdir.topdir)}</h2>")
         if kinds[-2:] != [SRC, SRC]:
             lines.append("No diff shown. It requires two source files, which we do not have here.")
             return
@@ -849,14 +856,13 @@ def html_for_file(studentlist: list[sdrl.participant.Student], mypath, is_instru
     toc = []
     for idx, workdir in enumerate(studentlist):
         toc.append(f"<a href='#{html.escape(workdir.topdir)}'>{idx}. {html.escape(workdir.topdir)}</a>  ")
-        # lines.append(f"<h2 id='{html.escape(workdir.topdir)}' {CSS}>{idx}. {html.escape(workdir.topdir)}: {html.escape(filename)}</h2>")
         if not workdir.path_exists(mypath):
             lines.append(f"(('{html.escape(mypath)}' does not exist in '{html.escape(workdir.topdir)}'))")
             kinds.append(MISSING)
         else:
             append_one_file(idx)
         if idx % 2 == 1:
-            append_diff()
+            append_diff(idx)
     # ----- render:
     the_toc, the_lines = '\n'.join(toc), '\n'.join(lines)
     the_html = md.render_plain_markdown(the_lines)
@@ -910,7 +916,11 @@ def render_prot_compare(
     student_file = os.path.join(workdir_top, relpath.lstrip("/"))
     # If author content cannot be loaded (encrypted file not decryptable), show error
     if author_content is None:
-        return "\n<p style='color: red; background-color: #ffe6e6; padding: 10px;'><strong>⚠ Comparison not available:</strong> Author protocol file is encrypted and cannot be decrypted. Only instructors with the private key can view this comparison.</p>\n"
+        return ("\n<p style='color: red; background-color: #ffe6e6; padding: 10px;'>"
+                "<strong>⚠ Comparison not available: </strong>"
+                "Author protocol file is encrypted and cannot be decrypted. "
+                "Only instructors with the private key can view this comparison.</p>\n")
+
     def compare_results() -> list[protocolchecker.CheckResult]:
         # Always use temporary file approach since author content may be from encrypted source
         with tempfile.NamedTemporaryFile(mode="w", suffix=".prot", delete=False) as tmp:
@@ -923,6 +933,7 @@ def render_prot_compare(
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
     results = compare_results()
+    
     def color_for(res: protocolchecker.CheckResult) -> str:
         rule = res.author_entry.check_rule if res.author_entry else None
         if rule and rule.skip:
@@ -960,14 +971,18 @@ def render_prot_compare(
                 res = results[idx]
                 rule = res.author_entry.check_rule if res.author_entry else None
                 if rule and rule.manual_text:
-                    result.append(f"<tr><td><div class='prot-spec-manual'>{md.render_plain_markdown(rule.manual_text)}</div></td></tr>")
+                    result.append(f"<tr><td><div class='prot-spec-manual'>"
+                                  f"{md.render_plain_markdown(rule.manual_text)}</div></td></tr>")
                 if rule and rule.extra_text:
-                    result.append(f"<tr><td><div class='prot-spec-extra'>{md.render_plain_markdown(rule.extra_text)}</div></td></tr>")
+                    result.append(f"<tr><td><div class='prot-spec-extra'>"
+                                  f"{md.render_plain_markdown(rule.extra_text)}</div></td></tr>")
                 # Show error information and expected values
                 if not res.success and res.error_message:
                     error_html = f"<div class='prot-spec-error'><pre>{html.escape(res.error_message)}</pre>"
                     if res.author_entry:
-                        error_html += f"<div class='prot-spec-hint' style='margin-top: 10px;'><strong>Expected command:</strong><br><code>{html.escape(res.author_entry.command)}</code>"
+                        error_html += (f"<div class='prot-spec-hint' style='margin-top: 10px;'>"
+                                       f"<strong>Expected command:</strong><br>"
+                                       f"<code>{html.escape(res.author_entry.command)}</code>")
                         if res.author_entry.output:
                             author_output_escaped = html.escape(res.author_entry.output)
                             error_html += textwrap.dedent(f"""<br><br><details>
@@ -1358,6 +1373,7 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
             </tr>
         </table>
     """
+
 
 def diff_files(path1: str, path2: str) -> str:
     problem1 = b.problem_with_path(path1)
