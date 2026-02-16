@@ -391,6 +391,7 @@ a.file {
     padding: 1rem;
     margin: 1rem;
     background-color: var(--wa-black-10);
+    opacity: 0.8;
 }
 
 #task-main {
