@@ -2,7 +2,9 @@
 
 
 ## Version 2.12.0 (upcoming)
-- `student`, `instructor`: Webapp now suppresses the meaningless `TimeoutError` stacktraces
+- `author`: introduce `<!-- sedrila: macros off -->` markup to suppress false "undefined macro" 
+  error messages in code blocks containing bracketed ALLCAPS as in `myarray[MYCONSTANT]`
+- `student`, `instructor`: Webapp server is now properly multithreaded, no more meaningless `TimeoutError` stacktraces
 - `student`, `instructor`: Display a student work summary report before entering command loop
 - `student`, `instructor`: webapp: make buttons in the lower right slightly transparent, 
   so that the text behind it stays legible.

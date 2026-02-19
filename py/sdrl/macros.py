@@ -112,13 +112,31 @@ macro_regexp = (r"(?P<ppre></?p>)?"
                 r"(?=[^(]|$)(?P<ppost></?p>)?")  
 # bracketed all-caps: [ALL2_CAPS] with zero to two arguments: [NAME::arg] or [NAME::arg1::arg2]
 # suppress matches on normal links: [TEXT](url)
+macros_off_regexp = r"<!--\s*sedrila:\s*macros\s*off\s*-->"  # marker for non-nestable block without macro expansion
+macros_on_regexp = r"<!--\s*sedrila:\s*macros\s*off\s*end\s*-->"  # end marker
 
 
 def expand_macros(sourcefile: str, partname: str, markup: str, is_early_phase=False) -> str:
     """Apply matching macrodefs, report errors for non-matching macro calls."""
     def my_expand_macro(mm: re.Match) -> str:
         return expand_macro(sourcefile, partname, mm, is_early_phase)
-    return re.sub(macro_regexp, my_expand_macro, markup)
+
+    def extract_block(mm: re.Match) -> str:
+        # keep markers on first pass, remove them on second pass:
+        blocks.append(mm.group(0) if is_early_phase else mm.group(2))
+        return mm.group(1) + mm.group(3)
+
+    # Extract content of macros-off blocks, leaving only the adjacent markers:
+    blocks: list[str] = []
+    combined_regexp = f"({macros_off_regexp})(.*?)({macros_on_regexp})"
+    markup = re.sub(combined_regexp, extract_block, markup, flags=re.DOTALL)
+    # Expand macros in the remaining markup (block contents are absent):
+    markup = re.sub(macro_regexp, my_expand_macro, markup)
+    # Restore block contents in place of each adjacent marker pair:
+    block_iter = iter(blocks)
+    combined_markers_regexp = f"({macros_off_regexp})({macros_on_regexp})"
+    markup = re.sub(combined_markers_regexp, lambda mm: next(block_iter), markup)
+    return markup
 
 
 def expand_macro(sourcefile: str, partname: str, mm: re.Match, is_early_phase=False) -> str:

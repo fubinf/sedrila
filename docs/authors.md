@@ -294,12 +294,14 @@ In addition to standard Markdown, sedrila provides several additional markup mec
 - **Macros**: Special commands in `[UPPERCASE]` notation for structured content,
   cross-references, file inclusion, and more.
   See Sections 2.0 to 2.8 for details.
-- **Replacement blocks**: `<replacement id="...">...</replacement>` tags that allow
-  forked courses to substitute locale-specific content. 
+- **Preventing macro expansion**: How to protect code from being mistaken for macro calls.
   See Section 2.9 for details.
+- **Replacement blocks**: `<replacement id="...">...</replacement>` tags that allow
+  forked courses to substitute locale-specific content.
+  See Section 2.10 for details.
 - **Checking specifications** such as `@PROT_SPEC` blocks that allow sedrila to perform
   useful checking for non-authors (instructors, maintainers).
-  See Sections 2.10 to 2.12 for details.
+  See Sections 2.11 to 2.13 for details.
 
 
 ### 1.4 Task files: YAML top matter
@@ -896,7 +898,32 @@ Just like with `[INCLUDE]`, pathnames can be relative or absolute, so
 which is useful for trees that pertain to several tasks.
 
 
-### 2.9 Replacement blocks: `<replacement>...</replacement>`
+### 2.9 Preventing macro expansion
+
+Bracketed expressions in program code can be mistaken for macro calls.
+For instance, `myarray[MYCONSTANT]` makes sedrila think a macro named `MYCONSTANT` is to be called.
+Since this macro does not exist, sedrila reports a misleading "undefined macro" error.
+
+To prevent this, wrap any code block containing such expressions in special HTML comment markers:
+
+```
+<!-- sedrila: macros off -->
+(some code here)
+myarray[MYCONSTANT] = 42
+(more code here)
+<!-- sedrila: macros off end -->
+```
+
+Everything between `<!-- sedrila: macros off -->` and `<!-- sedrila: macros off end -->` is passed
+through without macro expansion. The markers themselves do not appear in the rendered output.
+Note that these markers cannot be nested.
+
+The markers can be placed inside or outside a fenced code block (triple backticks):
+both positions work because sedrila scans for macros in the raw Markdown text before parsing.
+Conceptually, placing them outside is the appropriate style.
+
+
+### 2.10 Replacement blocks: `<replacement>...</replacement>`
 
 A replacement block looks like this:
 ```
@@ -939,7 +966,7 @@ The `id` should start with the respective task, taskgroup, or chapter name.
 
 
 
-### 2.10 Checking specification for command protocols: `@PROT_SPEC`
+### 2.11 Checking specification for command protocols: `@PROT_SPEC`
 
 Author protocol files (`.prot`) can include `@PROT_SPEC` blocks that specify validation rules
 for comparing student submissions with author solutions.
@@ -951,7 +978,7 @@ Single-line entries:
 
 - `command_re=regex`: Command must contain a match for the regex (search mode). Use `^` and `$` anchors if you need full-line matching.
 - `output_re=regex`: Output must contain a match for the regex (search mode)
-- `exitcode=N`: Expected exit code (0-255). Used by automated program testing (see section 2.11) to verify command exit status (optional).
+- `exitcode=N`: Expected exit code (0-255). Used by automated program testing (see section 2.12) to verify command exit status (optional).
 - `skip=1`: Skip checking entirely (always passes, no manual review needed)
 
 Multi-line entries (continuation lines indented by 4 spaces):
@@ -1029,7 +1056,7 @@ Each command entry is color-coded in the rendered protocol:
 
 Notes:
 
-- `exitcode` is primarily used for automated program testing in `@TEST_SPEC` (section 2.11),
+- `exitcode` is primarily used for automated program testing in `@TEST_SPEC` (section 2.12),
   so it can be combined with `command_re`, `output_re`, and `manual` in `@PROT_SPEC`.
   However, `skip=1` cannot be combined with `exitcode` (or any other check).
 - Validates regex syntax for `command_re` and `output_re`
@@ -1070,12 +1097,12 @@ Notes:
   needed for decryption.
 
 
-### 2.11 Checking specification for program tests: `@TEST_SPEC`
+### 2.12 Checking specification for program tests: `@TEST_SPEC`
 
 See in [Maintainers documentation](maintainers.md).
 
 
-### 2.12 Checking specification for external links: `@LINK_SPEC`
+### 2.13 Checking specification for external links: `@LINK_SPEC`
 
 See in [Maintainers documentation](maintainers.md).
 

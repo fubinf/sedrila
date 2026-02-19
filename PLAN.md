@@ -1,20 +1,38 @@
-I want to extend report.py such that it can also generate reports for the student and instructor role.
-There, the report should not cover all tasks, but rather only those the student has actually
-worked on and ignore the rest (including suppressing entire chapters or difficulty levels
-if zero tasks from them have been worked on).
+Currently, bracketed expressions in program code in tasks can be mistaken for macro calls:
+`myarray[MYCONSTANT]` makes sedrila think a macro named `MYCONSTANT` is to be called.
+This macro does not exist, triggering a misleading, false-positve "undefined macro" error message.
 
-Such a report should replace the current report's columns 2 and 3 (titled "#Tasks" and "Timevalue") 
-by the following:
-"worktime" (sum of task.worktime), 
-"accept" (sum of task.timevalue if task.is_accepted else 0), 
-"reject" (sum of task.timevalue if task.rejections > 0 and not task.is_accepted else 0)
+We want to get rid of this behavior.
 
-Change the main entry point signature to 
-print_volume_report(course: 'sdrl.course.Course', author_mode: bool)
-where author_mode means the current report and not author_mode means the new version as
-sketched above.
-The new version contains only the chapter and difficulty level tables,
-not the stage table nor the stage volume summary at the very top.
+The right solution would be to exclude all backquoted content from macro expansion.
+However, since sedrila does not use a proper Markdown parser, rather mostly only a simplistic scanner,
+this is not easy to accomplish.
 
-Ask if anything is unclear.
-Execute the change otherwise.
+So we resort to the following crude-but-effective approach:
+Task authors must bracket any code block containing one or more pseudo-macrocalls in marker comments like so
+(imagine triple quotes around the code block; markers can be inside or outside those triple quotes):
+```
+<!-- sedrila: macros off -->
+(more code here)
+myarray[MYCONSTANT] = 42
+(still more code here)
+<!-- sedrila: macros off end -->
+```
+
+We apply the following logic to `expand_macros` in `macros.py`.
+- `macros_off_regexp` and `macros_om_regexp` are the block markers.
+- When we expand macros, we find any stretch `block` of `markup` between block markers.
+- we leave the block markers in, store `block` in a list `blocks` of blocks, and remove `block` from `markup`
+- we perform macro expansion on the remainder of `markup`
+- we find the `len(blocks)` pairs of block markers and replace each by the corresponding block,
+  so that the end result consists of unchanged blocks, macro-expanded other markup, and no block markers.
+
+Make this change to `expand_macros` now.
+Then add a test of this new functionality in `macros_test.py`. 
+The test should have _two_ non-expanded blocks, not only one.
+Then amend the documentation: Insert a new section 2.9 "Preventing macro expansion" into `authors.md`
+that shortly describes the problem and the solution along the lines as above (but with
+visible triple quotes; we are using the Python Markdown module).
+
+Ask if anything is unclear about the above plan.
+When all is clear, execute it.

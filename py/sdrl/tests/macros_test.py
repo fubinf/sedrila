@@ -27,6 +27,27 @@ def test_expand_nonexisting_macro(capsys):
     assert "not defined" in out
 
 
+def test_expand_macros_off():
+    b._testmode_reset()
+    macros._testmode_reset()
+    macros.register_macro('MA', 0, macros.MM.INNER, expander)
+    markup = ("before [MA] \n"
+              "<!-- sedrila: macros off -->\n"
+              "first block [NOTAMACRO]\n"
+              "<!-- sedrila: macros off end -->\n"
+              " between [MA]\n"
+              "<!-- sedrila: macros off -->`second block [ALSONOTAMACRO]`<!-- sedrila: macros off end -->"
+              " after [MA]")
+    expected = ("before MA(None,None) \n"
+                "\n"
+                "first block [NOTAMACRO]\n"
+                "\n"
+                " between MA(None,None)\n"
+                "`second block [ALSONOTAMACRO]`"
+                " after MA(None,None)")
+    assert macros.expand_macros("-", "-", markup) == expected
+
+
 def test_expand_macro_with_wrong_args(capsys):
     b._testmode_reset()
     macros._testmode_reset()
