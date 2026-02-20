@@ -1,5 +1,7 @@
 # pytest tests
 
+import markdown as md_lib
+
 import base as b
 import sdrl.macros as macros
 import sdrl.macroexpanders
@@ -46,6 +48,29 @@ def test_expand_macros_off():
                 "`second block [ALSONOTAMACRO]`"
                 " after MA(None,None)")
     assert macros.expand_macros("-", "-", markup) == expected
+
+
+def test_expand_macros_off_two_phase():
+    """The early phase must normalize inline macros-off blocks to multi-line form.
+    Otherwise Markdown moves same-line post-block content inside the block,
+    preventing late-phase expansion of macros that follow the block."""
+    b._testmode_reset()
+    macros._testmode_reset()
+    macros.register_macro('MA', 0, macros.MM.INNER, expander)
+    md = md_lib.Markdown()
+    off = "<!-- sedrila: macros off -->"
+    end = "<!-- sedrila: macros off end -->"
+    content = "`bool isNotPrime[ARRAY_SIZE];`"
+    for markup2 in [f"{off}{content}{end} [MA]",            # all on one line (reported broken)
+                    f"{off}{content}\n{end} [MA]",           # off+content inline, end on next line
+                    f"{off}\n{content}{end} [MA]",           # off on own line, content+end inline
+                    f"{off}\n{content}\n{end} [MA]"]:        # all on separate lines
+        after_early = macros.expand_macros("-", "-", markup2, is_early_phase=True)
+        md.reset()
+        html = md.convert(after_early)
+        result = macros.expand_macros("-", "-", html)
+        assert "MA(None,None)" in result, \
+            f"[MA] not expanded in two-phase pipeline for: {markup2!r}\n  html={html!r}"
 
 
 def test_expand_macro_with_wrong_args(capsys):

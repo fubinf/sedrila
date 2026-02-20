@@ -123,7 +123,14 @@ def expand_macros(sourcefile: str, partname: str, markup: str, is_early_phase=Fa
 
     def extract_block(mm: re.Match) -> str:
         # keep markers on first pass, remove them on second pass:
-        blocks.append(mm.group(0) if is_early_phase else mm.group(2))
+        if is_early_phase:
+            # Normalize to multi-line form: if content is inline (no leading newline),
+            # add newlines around it. Otherwise Markdown moves same-line post-block
+            # content inside the block, hiding it from late-phase macro expansion.
+            content = mm.group(2).strip('\n')
+            blocks.append(f"{mm.group(1)}\n{content}\n{mm.group(3)}")
+        else:
+            blocks.append(mm.group(2))
         return mm.group(1) + mm.group(3)
 
     # Extract content of macros-off blocks, leaving only the adjacent markers:
