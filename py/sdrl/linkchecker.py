@@ -149,7 +149,8 @@ class LinkChecker:
         self.max_workers = self._determine_max_workers(max_workers)
         # Set browser-like headers to avoid triggering anti-crawling mechanisms
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'User-Agent': ('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                           'Chrome/120.0.0.0 Safari/537.36'),
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9,de;q=0.8',
             'Accept-Encoding': 'gzip, deflate, br',
@@ -211,7 +212,8 @@ class LinkChecker:
                 expected_status = link.validation_rule.expected_status if link.validation_rule else None
                 if expected_status:
                     status_ok = response.status_code == expected_status
-                    error_message = None if status_ok else f"Expected HTTP {expected_status}, got {response.status_code}"
+                    msg_body = f"Expected HTTP {expected_status}, got {response.status_code}"
+                    error_message = None if status_ok else msg_body
                 else:
                     # Default: consider 2xx and 3xx status codes as success
                     status_ok = 200 <= response.status_code < 400
@@ -333,7 +335,8 @@ class LinkChecker:
             base.info(f"Found {total_original_links} external links to validate")
             if total_original_links != total_unique_links:
                 duplicate_count = total_original_links - total_unique_links
-                base.info(f"After deduplication: {total_unique_links} unique URLs ({duplicate_count} duplicates removed)")
+                base.info(f"After deduplication: {total_unique_links} unique URLs "
+                          f"({duplicate_count} duplicates removed)")
             else:
                 base.info(f"All {total_unique_links} links are unique URLs")
         elif batch_mode:
@@ -404,6 +407,7 @@ class LinkStatistics:
     domain_failures: dict[str, int] = None
     status_codes: dict[int, int] = None
     error_types: dict[str, int] = None
+    
     def __post_init__(self):
         if self.domains is None:
             self.domains = {}
@@ -455,7 +459,7 @@ class LinkCheckReporter:
             # Domain analysis
             try:
                 domain = urlparse(link.url).netloc.lower()
-            except:
+            except RuntimeError:
                 domain = 'invalid'
             stats.domains[domain] = stats.domains.get(domain, 0) + 1
             if not result.success:
@@ -507,26 +511,16 @@ class LinkCheckReporter:
         lines.append(f"**Run parameters:** max_workers = {worker_value}\n\n")
         # Summary
         lines.append("## Summary\n\n")
-        lines.append(f"- **Total links found:** {stats.total_links} (includes duplicate URLs)\n")
-        lines.append(f"- **Unique URLs checked:** {stats.unique_urls_checked}\n")
-        if stats.unique_urls_checked != stats.total_links and stats.total_links:
-            duplicates = stats.total_links - stats.unique_urls_checked
-            percentage = (duplicates / stats.total_links) * 100
-            lines.append(f"- **Duplicate URLs:** {duplicates} ({percentage:.1f}%)\n")
-        lines.append(f"- **Successful:** {stats.successful_links} ({stats.success_rate:.1f}%)\n")
+        duplicates = stats.total_links - stats.unique_urls_checked
+        percentage = (duplicates / stats.total_links) * 100
+        lines.append(f"- {stats.total_links} in {stats.files_with_links} files; "
+                     f"this includes {duplicates} ({percentage:.1f}%) duplicates\n")
         failed_rate = (100 - stats.success_rate) if stats.total_links else 0.0
-        lines.append(f"- **Failed:** {stats.failed_links} ({failed_rate:.1f}%)\n")
-        lines.append(f"- **Files with links:** {stats.files_with_links}\n")
-        lines.append(f"- **Files with failed links:** {stats.files_with_failed_links}\n\n")
-        # Clarification about duplicate handling
-        if stats.unique_urls_checked != stats.total_links and stats.total_links:
-            lines.append("### Note on Link Deduplication\n\n")
-            lines.append(f"Found {stats.total_links} total link references, but only {stats.unique_urls_checked} unique URLs. ")
-            lines.append("Each unique URL is checked only once for efficiency, but the result applies to all instances of that URL. ")
-            lines.append("This explains why the number of failed links may seem lower than expected.\n\n")
+        lines.append(f"- {stats.failed_links} ({failed_rate:.1f}%) failed links "
+                     f"in {stats.files_with_failed_links} files")
         # Top domains
         if stats.domains:
-            lines.append("## Top Link Target Domains\n\n")
+            lines.append("## Link target domains with multiple failures\n\n")
             lines.append("| Domain | Links | #Failed Links |\n")
             lines.append("|--------|-------|---------------|\n")
             sorted_domains = sorted(
@@ -539,12 +533,19 @@ class LinkCheckReporter:
             )
             for domain, count in sorted_domains[:15]:
                 failed = stats.domain_failures.get(domain, 0)
+                if failed <= 1:
+                    break
                 lines.append(f"| `{domain}` | {count} | {failed} |\n")
             lines.append("\n")
         # Failed links table (sorted by URL for better grouping)
         failed_results = [r for r in results if not r.success]
         if failed_results:
             lines.append("## Failed Links\n\n")
+            lines.append("Sorted by URL. See below for sorting by source file path.  \n")
+            linkspec_url = "https://sedrila.readthedocs.io/en/latest/maintainers/#4-link-checking-check-links"
+            lines.append("Either fix the link or ignore the error by placing "
+                         "`<!-- @LINK_SPEC: status=403 -->` (etc.) on the line preceding the link.  \n"
+                         f"See the [@LINK_SPEC documentation]({linkspec_url}).\n\n")
             lines.append("| Status | URL | File | Line |\n")
             lines.append("|------------|-----|------|------|\n")
             for result in sorted(failed_results, key=lambda r: (r.link.url, r.link.source_file, r.link.line_number)):
