@@ -123,7 +123,6 @@ def _replace_macros(line: str, oldname: str, newname: str):
         return f"[{m.group('cmd')}{m.group('stuff1')}{newname}{m.group('stuff2')}]"
 
     line = line.replace(f"[PARTREF::{oldname}]", f"[PARTREF::{newname}]")
-    line = line.replace(f"[PARTREFTITLE::{oldname}]", f"[PARTREFTITLE::{newname}]")
     line = line.replace(f"[PARTREFMANUAL::{oldname}::", f"[PARTREFMANUAL::{newname}::")
     # a partname is a greedy match to r'[-\w]+', so in a match to
     # rf'([-\w]*)({re.escape(oldname)})([-\w]*)' for which groups 1 and 3 are empty, is a partname match.

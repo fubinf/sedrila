@@ -4,6 +4,7 @@
 ## Version 2.12.0 (upcoming)
 - `author`: introduce `<!-- sedrila: macros off -->` markup to suppress false "undefined macro" 
   error messages in code blocks containing bracketed ALLCAPS as in `myarray[MYCONSTANT]`
+- `author`: remove the `PARTREFTITLE` macro, nobody ever uses it
 - `student`, `instructor`: Webapp server is now properly multithreaded, no more meaningless `TimeoutError` stacktraces
 - `student`, `instructor`: Display a student work summary report before entering command loop
 - `student`, `instructor`: webapp: make buttons in the lower right slightly transparent, 
