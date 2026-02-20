@@ -4,13 +4,34 @@ an entire course cohort.
 
 Goals:
 - Understand difficulty level distribution across the students.
+- Understand what tasks/taskgroups are most popular or unpopular
 - Identify tasks with too-low or too-high time value (via worktime) or difficulty (via resubmissions).
 - Understand re-submission behavior patterns (per people, per tasks, over time).
-- Understand work time patterns (workdays, weekly trends, etc.)
+- Understand typical orderings in which taskgroups are chosen in the students' work
+- Understand work time patterns (workdays, weekly trends, submission intervals, etc.)
+- Understand submission patterns (intensity over time, submission size)
+- Understand load distribution among instructors
+
+Expect 100-500 different tasks, 50-80 taskgroups, 10-20 chapters,
+30-500 students, 2-5 instructors,
+14-52 weeks course duration, time values in range 0.5h to 4h (with rare exceptions up to 50h,
+it is OK to cut those off),
+resubmission of tasks allowed once per task, rejection rates of 0-20%.
+
+Eventually, this should have the following properties:
+- runs a webserver (as webapp.py does) to display all evaluations as a single, long webpage
+- the page starts with an overview (link list) of the evaluations
+- uses mostly plots (with good titles above and concise explanatory text below), but also some textual presentations
+- plots often use the quartile format like plot_weekly_student_quantiles() does
+- besides such time series plots, categorical ones (e.g. a few stacked barcharts) are useful,
+  and maybe a small number of other types
+- plot types are mostly used more than once, their code avoids duplication (generic plot routines
+  parameterized with data extraction functions or so) 
+- plots can use absolute numbers or percentages
+- color palettes are configurable
 """
 import contextlib
 import datetime as dt
-import functools
 import glob
 import os
 import pickle
