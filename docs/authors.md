@@ -712,14 +712,14 @@ defined by `sedrila.yaml` and `sedrila.css` only
 and you can define further macros like them if needed.
 
 
-### 2.4 Macros for hyperlinks: `[HREF]`, `[PARTREF]`, `[PARTREFMANUAL]`, `[TERMREF]`
+### 2.4 Macros for hyperlinks: `[HREF]`, `[PARTREF]`, `[PARTREF2]`, `[TERMREF]`
 
 - `[HREF::url]`: Equivalent to the plain Markdown markup `[url](url)`, but avoids the repetition
   of the often-lengthy URL.
 - `[PARTREF::partname]`: 
   Create a hyperlink to the part description file for task, taskgroup, chapter, or zipfile `partname`,
   using the partname as the link text.
-- `[PARTREFMANUAL::partname::link text]`: 
+- `[PARTREF2::partname::link text]`: 
   Ditto, but using the given link text.
 - `[TERMREF::term]`:
   Create a hyperlink to the glossary entry `term`; see under glossary below.

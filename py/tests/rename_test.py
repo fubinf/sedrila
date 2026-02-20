@@ -25,7 +25,7 @@ def test_replace_macros():
 
     # ----- matches:
     assert r_m("a [PARTREF::ol-d] b") == "a [PARTREF::new] b"
-    assert r_m("a[PARTREFMANUAL::ol-d::manualstuff]b") == "a[PARTREFMANUAL::new::manualstuff]b"
+    assert r_m("a[PARTREF2::ol-d::manualstuff]b") == "a[PARTREF2::new::manualstuff]b"
     assert r_m("[INCLUDE::ol-d]") == "[INCLUDE::new]"
     assert r_m("[INCLUDE::/a/b/ol-d/c]") == "[INCLUDE::/a/b/new/c]"
     assert r_m("[INCLUDE::ol-d/c]") == "[INCLUDE::new/c]"
