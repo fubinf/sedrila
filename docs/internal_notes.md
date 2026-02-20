@@ -184,8 +184,7 @@ so that the build can proceed type-by-type forwards through that ordering.
 The method-level design of the build is documented at the top of `elements.py`.
 
 The `Step` class (also in `elements.py`) is used for intermediate build products 
-(e.g., `MetadataDerivation`) and validation steps that check source file consistency
-(e.g., `SnippetValidation`, `ProtocolValidation`). Steps declare dependencies on sources
+(e.g., `MetadataDerivation`). Steps declare dependencies on sources
 and participate in incremental builds by checking if their dependencies have changed.
 
 
