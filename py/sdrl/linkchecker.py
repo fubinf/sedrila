@@ -517,7 +517,7 @@ class LinkCheckReporter:
                      f"this includes {duplicates} ({percentage:.1f}%) duplicates\n")
         failed_rate = (100 - stats.success_rate) if stats.total_links else 0.0
         lines.append(f"- {stats.failed_links} ({failed_rate:.1f}%) failed links "
-                     f"in {stats.files_with_failed_links} files")
+                     f"in {stats.files_with_failed_links} files\n\n")
         # Top domains
         if stats.domains:
             lines.append("## Link target domains with multiple failures\n\n")
