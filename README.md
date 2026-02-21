@@ -44,11 +44,8 @@ Also: Perhaps use deply for checking the layer structure described in internal_n
 https://github.com/vashkatsi/deply
 
 
-### 1.2 `instructor`: Handling instructors' trees of student repos
+### 1.2 `instructor`
 
-- Add `participants_file` (a CSV file) to `sedrila.yaml`, 
-  export its `student_id` and `student_gituser` columns to the website's `/instructor/participants.json`, and 
-  use it to warn upon submissions from students not admitted to the course.
 - Reject submissions where `course_url` is different from what it was in that repo's first accepted submission.
 
 

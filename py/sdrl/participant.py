@@ -11,6 +11,7 @@ import typing as tg
 
 import argparse_subcommand as ap_sub
 import requests
+import yaml
 
 import base as b
 import sgit
@@ -232,7 +233,6 @@ class Student:
 
     @property
     def is_participant(self) -> bool:
-        return True  # TODO 1: implement instructor-side use of participantslist
         pid = getattr(self, self.participant_attrname)
         return pid in self.participantslist if pid else True  # an absent participantslist contains everybody
 
@@ -242,13 +242,13 @@ class Student:
         return p['student_attribute'] if p else None
 
     @property
-    def participantslist(self) -> list[str]:
-        rawlist = requests.get
+    def participantslist(self) -> list[str] | None:
+        """retrieve, decrypt, extract column. Or return None if no list exists."""
         return ...
 
     @property
     def participantslist_url(self) -> set[str]:
-        return f"{self.course_url}/instructor/{c.PARTICIPANTSLIST_FILE}"
+        return f"{self.course_url}/{c.PARTICIPANTSLIST_FILE}"
 
     @property
     def participantfile_path(self) -> str:
