@@ -258,7 +258,7 @@ class Student:
                 ciphertext = response.content
             plaintext = mycrypt.decrypt_gpg(ciphertext)
             return [entry for entry in plaintext.decode('utf8').splitlines() if entry]
-        except Exception:  # noqa
+        except (OSError, requests.RequestException, RuntimeError, UnicodeDecodeError, b.CritialError):
             b.warning("could not retrieve/decrypt participants list. Ignoring participants check.",
                       file=self.participantslist_url)
             return None
