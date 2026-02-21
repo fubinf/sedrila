@@ -1,8 +1,7 @@
 """
 Command protocol checker for SeDriLa courses.
 
-Based on docs/course_testing.md Section 2, this parses @PROT_SPEC blocks,
-validates them, and compares author/student protocol files.
+Parses @PROT_SPEC blocks, validates them, and compares author/student protocol files.
 """
 import os
 import re
