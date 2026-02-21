@@ -80,6 +80,7 @@ def execute(pargs: ap_sub.Namespace):
         write_report_page(pargs.outputdir, [], pargs.startdate, 0, 0)
         b.warning("No events found. Wrote empty evaluator report.")
         return
+    b.info(f"Creating evaluator report in '{pargs.outputdir}/index.html'")
     events_df = as_events_df(events, pargs.startdate_dt)
     weeks_df = weekly_studentsum(events_df)
     weekly_df = pd.DataFrame(fill_all_weeks(weeks_df))
@@ -183,6 +184,7 @@ def collect_events(repodirs: list[str]) -> list[repo.Event]:
     """Visit subdirs, collect repo.event_list in each, cache result. Or return result from cache."""
     # ----- use data from cache:
     if os.path.isfile(c.EVENTCACHE_FILENAME):
+        b.info("Relying on cached event data from previous run")
         with open(c.EVENTCACHE_FILENAME, 'rb') as f:
             result = pickle.load(f)
         return result
@@ -194,6 +196,7 @@ def collect_events(repodirs: list[str]) -> list[repo.Event]:
     for repodir in repodirs:
         student_username = os.path.basename(repodir)
         with contextlib.chdir(repodir):
+            b.info(f"### processing {repodir}:")
             student = sdrl.participant.Student('.', is_instructor=False)
             course_json = student.get_course_metadata(student.course_url)
             course = sdrl.course.CourseSI(course_json, student_username)
@@ -303,10 +306,11 @@ def plot_weekly_student_quantiles(weekly_df: pd.DataFrame, evtype: str, attrname
 
 
 def task_data_from_repos(repodirs: list[str]) -> dict[str, dict[str, tg.Any]]:
+    b.info(f"Obtaining list of tasks via first student repo's {c.PARTICIPANT_FILE}")
     if not repodirs:
         return {}
     with contextlib.chdir(repodirs[0]):
-        student = sdrl.participant.Student('.', is_instructor=False)
+        student = sdrl.participant.Student('.', is_instructor=False, filter_submission=False)
         course_json = student.get_course_metadata(student.course_url)
         course = sdrl.course.CourseSI(course_json, os.path.basename(repodirs[0]))
     return {

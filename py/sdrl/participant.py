@@ -164,7 +164,7 @@ class Student:
     student_gituser: str
     partner_gituser: str
 
-    def __init__(self, rootdir: str, is_instructor: bool):
+    def __init__(self, rootdir: str, is_instructor: bool, filter_submission=True):
         self.topdir = rootdir = rootdir.rstrip('/')
         self.is_instructor = is_instructor
         if is_instructor:
@@ -200,9 +200,14 @@ class Student:
         if not os.path.isfile(self.submissionfile_path):
             self.submission = dict()
         else:
-            self.submission = b.slurp_yaml(self.submissionfile_path)
-            b.validate_dict_unsurprisingness(self.submissionfile_path, self.submission)
-        self.filter_submission()
+            try:
+                self.submission = b.slurp_yaml(self.submissionfile_path)
+                b.validate_dict_unsurprisingness(self.submissionfile_path, self.submission)
+            except yaml.scanner.ScannerError:
+                self.submission = dict()  # ignore broken YAML file (e.g. from a merge conflict)
+        if filter_submission:
+            self.filter_submission()
+        
 
     @functools.cached_property
     def course(self) -> sdrl.course.CourseSI:
