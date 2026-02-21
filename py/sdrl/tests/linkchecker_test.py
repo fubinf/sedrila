@@ -473,11 +473,17 @@ def test_failed_links_sorted_by_url_in_report():
         source_file="a.md",
         line_number=3
     )
-    link_fail_other = linkchecker.ExternalLink(
-        url="https://another.org/resource",
-        text="Other",
+    link_fail_other1 = linkchecker.ExternalLink(
+        url="https://another.org/resource1",
+        text="Other1",
         source_file="c.md",
         line_number=2
+    )
+    link_fail_other2 = linkchecker.ExternalLink(
+        url="https://another.org/resource2",
+        text="Other2",
+        source_file="c.md",
+        line_number=3
     )
     link_pass = linkchecker.ExternalLink(
         url="https://example.com/ok",
@@ -488,14 +494,15 @@ def test_failed_links_sorted_by_url_in_report():
     results = [
         linkchecker.LinkCheckResult(link=link_fail_b, success=False, status_code=500, error_message="HTTP 500"),
         linkchecker.LinkCheckResult(link=link_fail_a, success=False, status_code=404, error_message="HTTP 404"),
-        linkchecker.LinkCheckResult(link=link_fail_other, success=False, status_code=502, error_message="HTTP 502"),
+        linkchecker.LinkCheckResult(link=link_fail_other1, success=False, status_code=502, error_message="HTTP 502"),
+        linkchecker.LinkCheckResult(link=link_fail_other2, success=False, status_code=503, error_message="HTTP 503"),
         linkchecker.LinkCheckResult(link=link_pass, success=True, status_code=200),
     ]
     markdown = reporter.render_markdown_report(results, max_workers=5)
-    # Verify the Top Domains table reflects failed link counts.
+    # Verify the Top Domains table reflects failed link counts (only domains with multiple failures).
     assert "| Domain | Links | #Failed Links |" in markdown
     assert "| `example.com` | 3 | 2 |" in markdown
-    assert "| `another.org` | 1 | 1 |" in markdown
+    assert "| `another.org` | 2 | 2 |" in markdown
     # Extract failed link rows and ensure they are ordered by URL.
     failed_section = markdown.split("## Failed Links")[1]
     rows = [

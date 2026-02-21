@@ -115,7 +115,7 @@ class LinkExtractor:
                         rule.expected_status = int(value)
                     except ValueError:
                         base.warning(f"Invalid status code in @LINK_SPEC: {value}")
-                elif key == 'content' or key == 'text':
+                elif key == 'content':
                     rule.required_text = value
                 elif key == 'ignore_cert':
                     rule.ignore_cert = value.lower() in ('true', '1', 'yes')
