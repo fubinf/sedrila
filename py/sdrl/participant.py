@@ -14,6 +14,7 @@ import requests
 import yaml
 
 import base as b
+import mycrypt
 import sgit
 import sdrl.constants as c
 import sdrl.course
@@ -233,21 +234,37 @@ class Student:
 
     @property
     def is_participant(self) -> bool:
-        pid = getattr(self, self.participant_attrname)
-        return pid in self.participantslist if pid else True  # an absent participantslist contains everybody
+        attrname = self.participant_attrname
+        pid = getattr(self, attrname, None) if attrname else None
+        participants = self.participantslist
+        return pid in participants if pid and participants is not None else True
 
     @property
     def participant_attrname(self) -> str | None:
-        p = self.course.configdict.get('participant', None)
-        return p['student_attribute'] if p else None
+        p = self.course.configdict.get('participants', None)
+        return p.get('student_attribute') if p else None
 
     @property
     def participantslist(self) -> list[str] | None:
         """retrieve, decrypt, extract column. Or return None if no list exists."""
-        return ...
+        FILE_URL_PREFIX = 'file://'
+        if not self.participant_attrname:
+            return None
+        try:
+            if self.participantslist_url.startswith(FILE_URL_PREFIX):
+                ciphertext = b.slurp_bytes(self.participantslist_url[len(FILE_URL_PREFIX):])
+            else:
+                response = requests.get(self.participantslist_url)
+                ciphertext = response.content
+            plaintext = mycrypt.decrypt_gpg(ciphertext)
+            return [entry for entry in plaintext.decode('utf8').splitlines() if entry]
+        except (OSError, requests.RequestException, RuntimeError, UnicodeDecodeError, b.CritialError):
+            b.warning("could not retrieve/decrypt participants list. Ignoring participants check.",
+                      file=self.participantslist_url)
+            return None
 
     @property
-    def participantslist_url(self) -> set[str]:
+    def participantslist_url(self) -> str:
         return f"{self.course_url}/{c.PARTICIPANTSLIST_FILE}"
 
     @property
@@ -561,4 +578,3 @@ def _submission_re(studentoid) -> re.Pattern:
     longest_first = sorted(sorted(studentoid.submission_tasknames), key=len, reverse=True)  # decreasing specificity
     items_re = '|'.join([re.escape(item) for item in longest_first])  # noqa, item has the right type
     return re.compile(f"\\b({items_re})\\b")  # match task names only as words or multiwords
-
