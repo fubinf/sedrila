@@ -253,7 +253,7 @@ class LinkChecker:
                         success=False,
                         error_message="Connection timeout"
                     )
-                time.sleep(1 * (attempt + 1))  # Exponential backoff
+                time.sleep(1 * (attempt + 1))
             except requests.exceptions.ConnectionError as e:
                 if attempt == self.max_retries:
                     return LinkCheckResult(
