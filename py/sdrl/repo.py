@@ -76,9 +76,12 @@ def event_list(course: sdrl.course.Course, student_username: str, commits: tg.Se
     for tc_entry in taskcheck_entries_from_commits(instructor_commits):
         commit = tc_entry.commit
         taskname = tc_entry.taskname
+        task = course.task(taskname)
+        if not task:
+            continue
         event = Event(ET.accept if is_accepted(tc_entry.tasknote) else ET.reject, 
                       student_username, commit.author_email, commit.author_date, 
-                      taskname, course.task(taskname).timevalue)
+                      taskname, task.timevalue)
         result.append(event)
     for work_entry in work_entries_from_commits(commits):
         commit = work_entry.commit
@@ -174,7 +177,7 @@ def work_entries_from_commits(commits: tg.Iterable[sgit.Commit]) -> tg.Sequence[
             continue
         taskname, worktime = parts  # unpack
         result.append(WorkEntry(commit, taskname, worktime))
-    print(len(result), "worktime entry commits")
+    b.info(f"{len(result)} worktime entry commits")
     return result
 
 
@@ -236,6 +239,8 @@ def _accumulate_timevalues_and_attempts(checked_entries: tg.Sequence[TaskCheckEn
     for check in checked_entries:
         b.debug(f"tuple: {check.commit.hash}, {check.taskname}, {check.tasknote}")
         task = course.task(check.taskname)
+        if not task:
+            continue
         overridden = check.tasknote.startswith(c.SUBMISSION_OVERRIDE_PREFIX)
         tasknote = check.tasknote[len(c.SUBMISSION_OVERRIDE_PREFIX):] if overridden else check.tasknote
         if tasknote.startswith(c.SUBMISSION_ACCEPT_MARK):
