@@ -142,7 +142,7 @@ as `mytaskname.prot.crypt`and encrypt it such that only instuctors can read it.
 Such functionality is already provided in `mycrypt.py` and used in 
 `Coursebuilder._transform_participantslist()` and `test_sedrila_author()`.
 (Notes: (1) Yes, unfortunately that makes things a lot more complicated.
-(2) The participantslist-checking functionality is currently unfinished)
+(2) This mechanism is now also used by `sedrila instructor` for participant validation.)
 
 The implementation will have to be called in the `expand_prot()` macroexpander.
 Funneling the `.prot` data to that point for the webapp case needs to be done via the
