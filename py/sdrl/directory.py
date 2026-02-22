@@ -15,6 +15,7 @@ class Directory:
     def __init__(self, cache):
         import sdrl.elements as el
         import sdrl.course as course
+        import sdrl.coursebuilder as coursebuilder
         import sdrl.glossary as glossary
         self.cache = cache
         self.managed_types = [
@@ -22,7 +23,7 @@ class Directory:
             # The ordering is the build ordering:
             el.Sourcefile, el.CopiedFile, el.ReportFile, el.ParticipantsList,
             el.Zipdir, el.Zipfile,
-            el.Topmatter, el.Content, course.MetadataDerivation, el.ProtFile,
+            el.Topmatter, el.Content, coursebuilder.MetadataDerivation, el.ProtFile,
             el.IncludeList_s, el.IncludeList_i, el.TermrefList,
             el.Body_s, el.Body_i, el.Glossarybody,
             el.Toc, el.LinkslistBottom,

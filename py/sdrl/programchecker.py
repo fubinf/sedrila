@@ -17,6 +17,7 @@ import re
 
 import base as b
 import sdrl.course
+import sdrl.coursebuilder
 from sdrl.protocolchecker import CheckRule, ProtocolExtractor
 
 
@@ -233,7 +234,7 @@ def _find_program_file(itree_root: Path, prot_file: Path) -> Optional[Path]:
         return None
 
 
-def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[ProgramTestTarget]:
+def extract_program_test_targets(course: sdrl.coursebuilder.Coursebuilder) -> List[ProgramTestTarget]:
     """Extract @TEST_SPEC blocks from .prot files in altdir."""
     targets: List[ProgramTestTarget] = []
     altdir_path = Path(course.altdir).resolve()

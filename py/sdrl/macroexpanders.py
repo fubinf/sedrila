@@ -7,12 +7,13 @@ import base as b
 import html
 import sdrl.constants as c
 import sdrl.course
+import sdrl.coursebuilder
 import sdrl.macros as macros
 import sdrl.markdown as md
 import sdrl.snippetchecker as snippetchecker
 
 
-def register_macros(course: sdrl.course.Coursebuilder):
+def register_macros(course: sdrl.coursebuilder.Coursebuilder):
     MM = macros.MM
     b.debug("registering macros")
     # ----- register EARLY-mode macros:
@@ -35,7 +36,7 @@ def register_macros(course: sdrl.course.Coursebuilder):
     macros.register_macro('EREFC', 1, MM.INNER, expand_enumerationref)
     macros.register_macro('EREFQ', 1, MM.INNER, expand_enumerationref)
     macros.register_macro('EREFR', 1, MM.INNER, expand_enumerationref)
-    macros.register_macro('DIFF', 1, MM.INNER, sdrl.course.Taskbuilder.expand_diff)
+    macros.register_macro('DIFF', 1, MM.INNER, sdrl.coursebuilder.Taskbuilder.expand_diff)
     # ----- register hard-coded block macros:
     macros.register_macro('PROT', 1, MM.BLOCK, functools.partial(expand_prot, course))
     macros.register_macro('SECTION', 2, MM.BLOCKSTART, expand_section)
@@ -59,18 +60,18 @@ def register_macros(course: sdrl.course.Coursebuilder):
         macros.register_macro(f'END{key}', 0, MM.BLOCKEND, expand_block)
 
 
-def expand_href(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocall) -> str:  # noqa
+def expand_href(course: sdrl.coursebuilder.Coursebuilder, macrocall: macros.Macrocall) -> str:  # noqa
     return f"<a href='{macrocall.arg1}'>{macrocall.arg1}</a>"
 
 
-def expand_partref(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocall) -> str:
+def expand_partref(course: sdrl.coursebuilder.Coursebuilder, macrocall: macros.Macrocall) -> str:
     part = course.get_part(macrocall.filename, macrocall.arg1)
     linktext = dict(PARTREF=part.name, 
                     PARTREF2=macrocall.arg2)[macrocall.macroname]
     return f"<a href='{part.outputfile}' class='partref-link'>{html.escape(linktext)}</a>"
 
 
-def expand_treeref(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocall) -> str:
+def expand_treeref(course: sdrl.coursebuilder.Coursebuilder, macrocall: macros.Macrocall) -> str:
     actualpath = includefile_path(course, macrocall, itree_mode=True)
     showpath = actualpath[len(course.itreedir)+1:]  # skip itreedir part of path
     if not os.path.exists(actualpath):
@@ -83,7 +84,7 @@ def expand_treeref(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocal
     return f"{prefix}{mainpart}{suffix}"
 
 
-def _register_encrypted_prot(course: sdrl.course.Coursebuilder, prot_filepath: str):
+def _register_encrypted_prot(course: sdrl.coursebuilder.Coursebuilder, prot_filepath: str):
     """Register a .prot file to be encrypted and saved as .prot.crypt in the student directory."""
     import sdrl.elements as el
     keyfingerprints = [instructor['keyfingerprint']
@@ -103,7 +104,7 @@ def _register_encrypted_prot(course: sdrl.course.Coursebuilder, prot_filepath: s
     try:
         pubkey_data = getattr(course, 'instructor_pubkeys', {})
         def transform_with_pubkeys(elem):
-            return sdrl.course.Coursebuilder._transform_prot_file(elem, pubkey_data)
+            return sdrl.coursebuilder.Coursebuilder._transform_prot_file(elem, pubkey_data)
         elem = course.directory.make_the(
             el.ProtFile,
             outputname,
@@ -124,10 +125,10 @@ def expand_prot(course: sdrl.course.Course, macrocall: macros.Macrocall) -> str:
     """[PROT::somedir/file.prot]. Plain paths in viewer mode, INCLUDE-style paths in author mode."""
     import sdrl.elements as el
     path = macrocall.arg1
-    author_mode = isinstance(course, sdrl.course.Coursebuilder)  # in viewer mode we receive a dummy
+    author_mode = isinstance(course, sdrl.coursebuilder.Coursebuilder)  # in viewer mode we receive a dummy
     b.debug(f"expand_prot: {macrocall.arg1}, author_mode={author_mode}")
     if author_mode:
-        assert isinstance(course, sdrl.course.Coursebuilder)
+        assert isinstance(course, sdrl.coursebuilder.Coursebuilder)
         path = includefile_path(course, macrocall, itree_mode=False)
         b.debug(f"expand_prot: resolved to {path}")
     if not os.path.exists(path):
@@ -360,7 +361,7 @@ def expand_enumerationref(macrocall: macros.Macrocall) -> str:
     return f"<span class='{classname}'>{value}</span>"
 
 
-def expand_include(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocall) -> str:
+def expand_include(course: sdrl.coursebuilder.Coursebuilder, macrocall: macros.Macrocall) -> str:
     """
     [INCLUDE::filename] inserts file contents into the Markdown text.
     If the file has suffix *.md, it is macro-expanded beforehands,
@@ -389,7 +390,7 @@ def expand_include(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocal
         return rawcontent
 
 
-def includefile_path(course: sdrl.course.Coursebuilder, macrocall: macros.Macrocall, itree_mode=False) -> str:
+def includefile_path(course: sdrl.coursebuilder.Coursebuilder, macrocall: macros.Macrocall, itree_mode=False) -> str:
     """
     Normal mode constructs normal paths in chapterdir, those with prefix 'ALT:' in altdir, and
     those with prefix 'ITREE:' in itreedir

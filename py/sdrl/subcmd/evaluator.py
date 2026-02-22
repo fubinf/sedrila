@@ -47,6 +47,7 @@ import base as b
 import sgit
 import sdrl.constants as c
 import sdrl.course
+import sdrl.course_si
 import sdrl.participant
 import sdrl.repo as repo
 
@@ -199,7 +200,7 @@ def collect_events(repodirs: list[str]) -> list[repo.Event]:
             b.info(f"### processing {repodir}:")
             student = sdrl.participant.Student('.', is_instructor=False)
             course_json = student.get_course_metadata(student.course_url)
-            course = sdrl.course.CourseSI(course_json, student_username)
+            course = sdrl.course_si.CourseSI(course_json, student_username)
             commits = sgit.commits_of_local_repo(chronological=True)
             this_batch = repo.event_list(course, student_username, commits)
             result.extend(this_batch)
@@ -312,7 +313,7 @@ def task_data_from_repos(repodirs: list[str]) -> dict[str, dict[str, tg.Any]]:
     with contextlib.chdir(repodirs[0]):
         student = sdrl.participant.Student('.', is_instructor=False, filter_submission=False)
         course_json = student.get_course_metadata(student.course_url)
-        course = sdrl.course.CourseSI(course_json, os.path.basename(repodirs[0]))
+        course = sdrl.course_si.CourseSI(course_json, os.path.basename(repodirs[0]))
     return {
         taskname: dict(path=task.path, timevalue=task.timevalue, difficulty=task.difficulty)
         for taskname, task in course.taskdict.items()

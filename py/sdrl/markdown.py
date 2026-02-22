@@ -59,7 +59,7 @@ class SedrilaMarkdown(markdown.Markdown):
     context_sourcefile: str
     partname: str
     blockmacro_topmatter: dict[str, str]
-    course: tg.Optional['sdrl.course.Coursebuilder']  # For accessing chapterdir/altdir
+    course: tg.Optional['sdrl.coursebuilder.Coursebuilder']  # For accessing chapterdir/altdir
     includefiles: set[str]  # [INCLUDE::...], [PROT::...] will add a filename here
     termrefs: set[str]  # [TERMREF::...] will add a term alias here
 

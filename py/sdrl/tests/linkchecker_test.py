@@ -10,6 +10,7 @@ import base as b
 import cache
 import sdrl.constants as c
 import sdrl.course
+import sdrl.coursebuilder
 import sdrl.directory as dir
 import sdrl.elements
 import sdrl.linkchecker as linkchecker
@@ -82,7 +83,7 @@ def course_env(include_stage: str):
             the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=True)
             b.set_register_files_callback(the_cache.set_file_dirty)
             directory = dir.Directory(the_cache)
-            course = sdrl.course.Coursebuilder(
+            course = sdrl.coursebuilder.Coursebuilder(
                 configfile='sedrila.yaml',
                 context='test',
                 include_stage=include_stage,

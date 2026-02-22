@@ -12,6 +12,7 @@ import base as b
 import cache
 import sdrl.constants as c
 import sdrl.course
+import sdrl.coursebuilder
 import sdrl.elements as el
 import sdrl.directory as dir
 import sdrl.macroexpanders as macroexpanders
@@ -62,12 +63,12 @@ def do_rename(configfile: str, old_partname: str, new_partname: str):
     sdrl.rename.rename_part(chapterdir, altdir, itreedir, old_partname, new_partname)
     
     
-def create_and_build_course(pargs, targetdir_i, targetdir_s) -> sdrl.course.Coursebuilder:
+def create_and_build_course(pargs, targetdir_i, targetdir_s) -> sdrl.coursebuilder.Coursebuilder:
     # ----- prepare build:
     the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=pargs.clean)
     b.set_register_files_callback(the_cache.set_file_dirty)
     directory = dir.Directory(the_cache)
-    the_course = sdrl.course.Coursebuilder(
+    the_course = sdrl.coursebuilder.Coursebuilder(
         configfile=pargs.config, context=pargs.config, include_stage=pargs.include_stage,
         targetdir_s=targetdir_s, targetdir_i=targetdir_i, directory=directory)
     # ----- perform main part of build:
@@ -85,7 +86,7 @@ def create_and_build_course(pargs, targetdir_i, targetdir_s) -> sdrl.course.Cour
     return the_course
 
 
-def generate_htaccess(course: sdrl.course.Coursebuilder):
+def generate_htaccess(course: sdrl.coursebuilder.Coursebuilder):
     if not course.htaccess_template:
         return  # nothing to do
     userlist = [u['webaccount'] for u in course.instructors]
@@ -110,7 +111,7 @@ def prepare_directories(targetdir_s: str, targetdir_i: str):
         os.mkdir(targetdir_i)
 
 
-def prepare_itree_zip(the_course: sdrl.course.Coursebuilder):
+def prepare_itree_zip(the_course: sdrl.coursebuilder.Coursebuilder):
     if not the_course.itreedir:
         return  # nothing to do
     if not the_course.itreedir.endswith(".zip"):

@@ -17,6 +17,7 @@ import base as b
 import sgit
 import sdrl.constants as c
 import sdrl.course
+import sdrl.course_si
 import sdrl.repo as r
 
 
@@ -211,8 +212,8 @@ class Student:
         
 
     @functools.cached_property
-    def course(self) -> sdrl.course.CourseSI:
-        return sdrl.course.CourseSI(configdict=self.course_metadata, context=self.course_metadata_url)
+    def course(self) -> sdrl.course_si.CourseSI:
+        return sdrl.course_si.CourseSI(configdict=self.course_metadata, context=self.course_metadata_url)
 
     @functools.cached_property
     def course_metadata(self) -> b.StrAnyDict:
@@ -223,7 +224,7 @@ class Student:
         return self.get_course_metadata_url(self.course_url)
 
     @functools.cached_property
-    def course_with_work(self) -> sdrl.course.CourseSI:
+    def course_with_work(self) -> sdrl.course_si.CourseSI:
         """Set task.is_accepted and task.rejections values in course."""
         with contextlib.chdir(self.topdir):
             b.info(f"'{self.topdir}':\t reading commit history")

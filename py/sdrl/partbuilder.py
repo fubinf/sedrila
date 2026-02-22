@@ -168,11 +168,11 @@ class PartbuilderMixin:  # to be mixed into a Part class
 
 def toc(structure: el.Part) -> str:
     """Return a table-of-contents HTML fragment for the given structure via structural recursion."""
-    import sdrl.course
+    import sdrl.coursebuilder
     parts = structure.structure_path()
     fulltoc = len(parts) == 1  # path only contains course
-    assert isinstance(parts[-1], sdrl.course.Coursebuilder)
-    course = tg.cast(sdrl.course.Coursebuilder, parts[-1])
+    assert isinstance(parts[-1], sdrl.coursebuilder.Coursebuilder)
+    course = tg.cast(sdrl.coursebuilder.Coursebuilder, parts[-1])
     result = ['']  # start with a newline
     for chapter in course.chapters:  # noqa
         if chapter.to_be_skipped:

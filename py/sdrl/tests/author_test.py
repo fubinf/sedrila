@@ -13,6 +13,7 @@ import base as b
 import mycrypt
 import sdrl.constants as c
 import sdrl.course as course
+import sdrl.coursebuilder as coursebuilder
 import sdrl.macros as macros
 import sdrl.subcmd.author as author
 
@@ -325,7 +326,7 @@ def test_sedrila_author(capfd):
         assert participantslist == b"123\n124"
         # TODO 3: check bottomlinkslist
 
-def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -> tuple[course.Coursebuilder, str]:
+def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -> tuple[coursebuilder.Coursebuilder, str]:
     pargs = argparse.Namespace()
     pargs.config = c.AUTHOR_CONFIG_FILENAME
     pargs.clean = start_clean
@@ -346,7 +347,7 @@ def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -
     return this_course, catcher.get_block(step)
 
 
-def check_output1(course: course.Coursebuilder, actual_output1: str, expected_output1: str, errors: int):
+def check_output1(course: coursebuilder.Coursebuilder, actual_output1: str, expected_output1: str, errors: int):
     with contextlib.chdir(course.targetdir_s):
         check_filelist(expected_filelist1)
         assert os.path.exists(os.path.join(course.targetdir_i, c.HTACCESS_FILE))
@@ -357,7 +358,7 @@ def check_output1(course: course.Coursebuilder, actual_output1: str, expected_ou
         assert b.num_errors == errors  # see expected_output1: 2 errors, 1 warning
 
 
-def check_output2(course: course.Coursebuilder, actual_output2: str, expected_output2: str, 
+def check_output2(course: coursebuilder.Coursebuilder, actual_output2: str, expected_output2: str, 
                   errors: int = 0, filelist=expected_filelist1):
     with contextlib.chdir(course.targetdir_s):
         check_filelist(filelist)

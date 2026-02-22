@@ -22,7 +22,7 @@ class Glossary(sdrl.partbuilder.PartbuilderMixin, el.Part):
     """
     TEMPLATENAME = 'glossary.html'
     body_s: el.Body_s  # we derive body_i 
-    course: 'sdrl.course.Coursebuilder'
+    course: 'sdrl.coursebuilder.Coursebuilder'
     explainedby: dict[str, set[str]]  # explainedby[term] == partnames_with_explain
     mentionedby: dict[str, set[str]]  # mentionedby[term] == partnames_with_termref
     termdefs: set[str]  # what has a [TERMx] in glossary.md

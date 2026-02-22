@@ -11,6 +11,7 @@ import base as b
 import sgit
 import sdrl.constants as c
 import sdrl.course
+import sdrl.course_si
 import sdrl.repo as r
 import sdrl.subcmd.student
 
@@ -115,7 +116,7 @@ def run_inside_repo(preparations, assertions, coursemodifications=None):
         os.system(f"git config user.signingkey {fingerprint}")
         preparations(fingerprint)
         # ----- initialize application environment:
-        course = sdrl.course.CourseSI(configdict=b.slurp_json(c.METADATA_FILE), context=c.METADATA_FILE)
+        course = sdrl.course_si.CourseSI(configdict=b.slurp_json(c.METADATA_FILE), context=c.METADATA_FILE)
         commits = sgit.commits_of_local_repo(chronological=True)
         r._accumulate_student_workhours_per_task(commits, course)
         hashes = r.submission_checked_commits(course.instructors, commits)

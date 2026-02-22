@@ -15,6 +15,7 @@ import base as b
 import cache
 import sdrl.constants as c
 import sdrl.course
+import sdrl.coursebuilder
 import sdrl.directory as dir
 import sdrl.elements
 
@@ -63,12 +64,11 @@ def execute(pargs: argparse.Namespace):
 def _build_metadata_only(directory: dir.Directory):
     """Build only the elements needed for metadata and stage evaluation."""
     import sdrl.elements as el
-    import sdrl.course
     # Build in dependency order (same as directory.managed_types)
     build_types = [
         el.Sourcefile,      # Register source files
         el.Topmatter,       # Parse YAML topmatter
-        sdrl.course.MetadataDerivation,  # Process metadata and evaluate stages
+        sdrl.coursebuilder.MetadataDerivation,  # Process metadata and evaluate stages
     ]
     for element_type in build_types:
         b.debug(f"Building all Elements of type {element_type.__name__}")
@@ -89,7 +89,7 @@ def check_links_command(pargs: argparse.Namespace):
             the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=False)
             b.set_register_files_callback(the_cache.set_file_dirty)
             directory = dir.Directory(the_cache)
-            the_course = sdrl.course.Coursebuilder(
+            the_course = sdrl.coursebuilder.Coursebuilder(
                 configfile=pargs.config, 
                 context=pargs.config, 
                 include_stage=pargs.include_stage,
@@ -154,7 +154,7 @@ def check_links_command(pargs: argparse.Namespace):
                 sys.exit(1)
 
 
-def extract_markdown_files_from_course(course: sdrl.course.Coursebuilder) -> list[str]:
+def extract_markdown_files_from_course(course: sdrl.coursebuilder.Coursebuilder) -> list[str]:
     """
     Extract markdown file paths from course structure.
     Respects stages filtering and only includes configured taskgroups.
@@ -177,7 +177,7 @@ def extract_markdown_files_from_course(course: sdrl.course.Coursebuilder) -> lis
     return files
 
 
-def find_markdown_files(course: sdrl.course.Coursebuilder) -> list[str]:
+def find_markdown_files(course: sdrl.coursebuilder.Coursebuilder) -> list[str]:
     """Return markdown files from both chapter and alternative directories."""
     files = extract_markdown_files_from_course(course)
     if course.altdir and os.path.isdir(course.altdir):
@@ -214,7 +214,7 @@ def check_programs_command(pargs: argparse.Namespace):
         the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=False)
         b.set_register_files_callback(the_cache.set_file_dirty)
         directory = dir.Directory(the_cache)
-        the_course = sdrl.course.Coursebuilder(
+        the_course = sdrl.coursebuilder.Coursebuilder(
             configfile=pargs.config,
             context=pargs.config,
             include_stage=pargs.include_stage,
@@ -273,7 +273,7 @@ def collect_command(pargs: argparse.Namespace):
         the_cache = cache.SedrilaCache(os.path.join(temp_cache_dir, c.CACHE_FILENAME), start_clean=False)
         b.set_register_files_callback(the_cache.set_file_dirty)
         directory = dir.Directory(the_cache)
-        the_course = sdrl.course.Coursebuilder(
+        the_course = sdrl.coursebuilder.Coursebuilder(
             configfile=pargs.config,
             context=pargs.config,
             include_stage=pargs.include_stage,
