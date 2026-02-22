@@ -8,7 +8,7 @@ build-backend = "poetry.core.masonry.api"
 # https://python-poetry.org/docs/pyproject/
 [tool.poetry]
 name = "sedrila"
-version = "2.11.1"
+version = "3.0.0"
 description = "Tool infrastructure for building and running \"self-driven lab\" courses"
 license = "MIT"
 authors = ["Lutz Prechelt <prechelt@inf.fu-berlin.de>"]
@@ -37,6 +37,8 @@ packages = [
     { include = "sdrl/*.py", from = "py" },
     { include = "sdrl/subcmd/*.py", from = "py" },
     { include = "sdrl/schema", from = "py" },
+    { include = "sdrl/webapp/*.py", from = "py" },
+    { include = "sdrl/webapp/files/*", from = "py" },
 ]
 include = [
     "README.md", 
