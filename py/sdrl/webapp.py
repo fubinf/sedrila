@@ -1351,7 +1351,7 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
     totals_markup = []
     for s in ctx.studentlist:
         students_markup.append(f"""
-        <th colspan="2">{s.student_gituser}</th>
+        <th colspan="3">{s.student_gituser}</th>
         """)
         totals_markup.append(f"""
         <td>{round(total_work[s.student_gituser], 2)}</td>
