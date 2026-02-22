@@ -309,11 +309,16 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
     glossary: glossary.Glossary
 
     def __init__(self, *, configfile: str, **kwargs):
+        import datetime as dt
         self.configfile = self.context = configfile
         self.configdict = b.slurp_yaml(configfile)
         self._expandvars(self.configdict,
                   ['title', 'name', 'baseresourcedir', 'templatedir', 'allowed_attempts'],
                          self.configfile)
+        # YAML may auto-parse date strings as datetime.date; normalize to ISO strings for schema validation
+        for key in ('startdate', 'enddate'):
+            if isinstance(self.configdict.get(key), dt.date):
+                self.configdict[key] = self.configdict[key].isoformat()
         super().__init__(**kwargs)
         self.parttype = dict(Chapter=Chapterbuilder, Taskgroup=Taskgroupbuilder, Task=Taskbuilder)
         self._read_config(self.configdict)
@@ -364,10 +369,14 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
                       instructors=self.instructors, former_instructors=self.former_instructors,
                       student_yaml_attribute_prompts=getattr(self, 'student_yaml_attribute_prompts', dict()),
                       allowed_attempts=self.allowed_attempts,
+                      startdate=str(self.startdate),
+                      enddate=str(self.enddate),
                       chapters=[chapter.as_json() for chapter in self.chapters])
         if self.has_participantslist:
             # hand through only the relevant part:
             result['participants'] = dict(student_attribute=self.configdict['participants']['student_attribute'])
+        if self.bonusrules is not None:
+            result['bonusrules'] = self.bonusrules
         return result
 
     def check_links(self):

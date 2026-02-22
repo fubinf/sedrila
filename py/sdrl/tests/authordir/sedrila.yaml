@@ -27,6 +27,8 @@ instructors:
       Response time may be 2-3 days.
 htaccess_template: |
     Require ldap-user {userlist_quotes_spaces}
+startdate: 2025-01-01
+enddate: 2025-12-31
 allowed_attempts: "2 + 0.5/h"
 chapters:
   - name: ch1

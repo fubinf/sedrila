@@ -183,6 +183,7 @@ class Student:
             b.critical(f"'{self.participantfile_path}' is missing. Have you called sedrila student --init?")
         data = b.slurp_yaml(self.participantfile_path)
         b.validate_dict_unsurprisingness(self.participantfile_path, data)
+        self.participant_data = data  # store for later use (e.g. bonusrules)
         # ----- interpret contents:
         try:
             self.course_url = str(data['course_url'])  # noqa

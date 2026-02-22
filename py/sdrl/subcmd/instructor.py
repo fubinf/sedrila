@@ -52,7 +52,7 @@ def execute(pargs: argparse.Namespace):
     else:
         for name, stud in context.students.items():
             b.info(f"'{name}' work report (in hours):")
-            sdrl.report.print_volume_report(stud.course, author_mode=False)
+            sdrl.report.print_si_volume_report(stud)
         run_command_loop(context, MENU, MENU_HELP, MENU_CMDS)
 
 

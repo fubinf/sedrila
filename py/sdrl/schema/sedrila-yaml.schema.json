@@ -4,7 +4,7 @@
   "title": "sedrila.yaml",
   "description": "Global configuration file for a sedrila course (see docs/authors.md §1.1)",
   "type": "object",
-  "required": ["title", "name", "chapterdir", "altdir", "stages", "instructors", "allowed_attempts", "chapters"],
+  "required": ["title", "name", "chapterdir", "altdir", "stages", "instructors", "allowed_attempts", "chapters", "startdate", "enddate"],
   "additionalProperties": false,
   "properties": {
     "title": {
@@ -78,6 +78,50 @@
     "former_instructors": {
       "description": "List of former instructors (same structure as instructors, but not shown to students).",
       "$ref": "#/$defs/instructorList"
+    },
+    "startdate": {
+      "description": "First day of the course (ISO date format YYYY-MM-DD).",
+      "type": "string",
+      "format": "date"
+    },
+    "enddate": {
+      "description": "Last day of the course (ISO date format YYYY-MM-DD).",
+      "type": "string",
+      "format": "date"
+    },
+    "bonusrules": {
+      "description": "Optional bonus rules for rewarding steady course progress.",
+      "type": "object",
+      "required": ["student_yaml_attribute", "bonusperiod_type", "bonusperiods", "bonus_threshold_percent", "bonus_size_percent"],
+      "additionalProperties": false,
+      "properties": {
+        "student_yaml_attribute": {
+          "description": "Name of the student.yaml attribute holding the student's course size in hours.",
+          "type": "string"
+        },
+        "bonusperiod_type": {
+          "description": "Calendar period type: 'week' for ISO calendar week, 'month' for calendar month.",
+          "type": "string",
+          "enum": ["week", "month"]
+        },
+        "bonusperiods": {
+          "description": "Number of eligible periods (counting from the first) that can produce a bonus.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "bonus_threshold_percent": {
+          "description": "Fraction of course_size_hours that must be done to get the bonus for a period.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "bonus_size_percent": {
+          "description": "Fraction of course_size_hours deducted as bonus for each qualifying period.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
     }
   },
   "$defs": {

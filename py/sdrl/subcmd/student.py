@@ -12,6 +12,7 @@ import sdrl.constants as c
 import sdrl.course
 import sdrl.participant
 import sdrl.repo as r
+import sdrl.report
 import sdrl.webapp
 
 
@@ -62,7 +63,7 @@ def execute(pargs: argparse.Namespace):
     if pargs.op:
         OP_CMDS[pargs.op](context)  # execute one command via lookup table, with duck-typed arg
     else:
-        sdrl.report.print_volume_report(context.course, author_mode=False)
+        sdrl.report.print_si_volume_report(context.studentlist[0])
         run_command_loop(context, menu=MENU, helptext=MENU_HELP, cmds=MENU_CMDS)
 
 

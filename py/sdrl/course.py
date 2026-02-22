@@ -4,6 +4,7 @@ There are two ways how these objects can be instantiated:
 In 'author' mode, metadata comes from sedrila.yaml and the partfiles.
 Otherwise, metadata comes from METADATA_FILE.
 """
+import datetime as dt
 import functools
 import os
 import re
@@ -25,8 +26,12 @@ class Task(el.Part):
     assumes: list[str] = []  # tasknames: This knowledge is assumed to be present
     requires: list[str] = []  # tasknames: These specific results will be reused here
     workhours: float = 0.0  # time student has worked on this according to commit msgs
-    is_accepted: bool = False  # whether instructor has ever marked it 'accept', set in repo.py
+    accept_date: dt.datetime | None = None  # date of last accept event, set in repo.py
     rejections: int = 0  # how often instructor has marked it 'reject'
+
+    @property
+    def is_accepted(self) -> bool:
+        return self.accept_date is not None
 
     taskgroup: 'Taskgroup'  # where the task belongs
 
@@ -105,6 +110,9 @@ class Course(el.Part):
     allowed_attempts: str  # "2 + 0.5/h" or so, int+decimal, h is the task timevalue multiplier
     allowed_attempts_base: int  # the int part of allowed_attempts
     allowed_attempts_hourly: float  # the decimal part of allowed_attempts
+    startdate: dt.date | None = None  # first day of the course
+    enddate: dt.date | None = None  # last day of the course
+    bonusrules: b.StrAnyDict | None = None  # bonus configuration dict, or None if no bonus
 
     def __init__(self, **kwargs):
         super().__init__("...", **kwargs)  # preliminary name!
@@ -179,12 +187,50 @@ class Course(el.Part):
                     configdict, self,
                     mustcopy_attrs=('title, name, instructors, allowed_attempts' +
                                     self.MUSTCOPY_ADDITIONAL),
-                    cancopy_attrs=('participants, former_instructors, student_yaml_attribute_prompts' +
+                    cancopy_attrs=('participants, former_instructors, student_yaml_attribute_prompts,'
+                                   'startdate, enddate, bonusrules' +
                                    self.CANCOPY_ADDITIONAL),
                     mustexist_attrs='chapters',
                     report_extra=bool(self.MUSTCOPY_ADDITIONAL))
         if self.former_instructors is None:
             self.former_instructors = []
+        # Parse startdate/enddate strings into dt.date objects
+        if isinstance(self.startdate, str):
+            self.startdate = dt.date.fromisoformat(self.startdate)
+        if isinstance(self.enddate, str):
+            self.enddate = dt.date.fromisoformat(self.enddate)
+        if self.bonusrules is not None:
+            self._validate_bonusrules()
+
+
+    def _validate_bonusrules(self):
+        """Validate bonusrules config. Called only if bonusrules is not None."""
+        br = self.bonusrules
+        # Check startdate < enddate
+        if self.startdate and self.enddate and self.startdate >= self.enddate:
+            b.critical(f"bonusrules: 'startdate' ({self.startdate}) must be before 'enddate' ({self.enddate})")
+        # Check bonusperiods * bonus_threshold_percent <= 100
+        n = br.get('bonusperiods', 0)
+        t = br.get('bonus_threshold_percent', 0)
+        if n * t > 100:
+            b.critical(f"bonusrules: bonusperiods ({n}) * bonus_threshold_percent ({t}) = {n*t} > 100")
+        # Check enough periods in date range
+        if self.startdate and self.enddate:
+            period_type = br.get('bonusperiod_type', 'month')
+            if period_type == 'month':
+                total_periods = (self.enddate.year - self.startdate.year) * 12 + \
+                                (self.enddate.month - self.startdate.month) + 1
+            else:  # week
+                start_monday = self.startdate - dt.timedelta(days=self.startdate.weekday())
+                end_monday = self.enddate - dt.timedelta(days=self.enddate.weekday())
+                total_periods = (end_monday - start_monday).days // 7 + 1
+            if total_periods < n:
+                b.critical(f"bonusrules: course has only {total_periods} {period_type}(s) "
+                           f"but bonusperiods is {n}")
+        # Check student_yaml_attribute is defined (only if prompts are set, i.e. in author mode)
+        attr = br.get('student_yaml_attribute', '')
+        if self.student_yaml_attribute_prompts and attr not in self.student_yaml_attribute_prompts:
+            b.critical(f"bonusrules: student_yaml_attribute '{attr}' not in student_yaml_attribute_prompts")
 
 
 class Chapter(el.Part):

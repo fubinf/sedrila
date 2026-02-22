@@ -268,6 +268,8 @@ def create_test_course_structure(base_dir):
         'instructors': [dict(nameish="-", email="a@b", gitaccount="a", webaccount="a",
                              keyfingerprint="1a", pubkey="dummy")],
         'allowed_attempts': '2',
+        'startdate': '2025-01-01',
+        'enddate': '2025-12-31',
         'chapters': [
             {
                 'name': TEST_CHAPTER_NAME,

@@ -249,12 +249,12 @@ def _accumulate_timevalues_and_attempts(checked_entries: tg.Sequence[TaskCheckEn
             else:
                 if overridden and task.rejections:
                     task.rejections -= 1
-                task.is_accepted = True
+                task.accept_date = check.commit.author_date
                 b.debug(f"{check.taskname} accepted, {'' if overridden else 'not '} overridden")
         elif tasknote.startswith(c.SUBMISSION_REJECT_MARK):
             if not task.is_accepted or overridden:
                 if overridden:
-                    task.is_accepted = False
+                    task.accept_date = None
                 task.rejections += 1
                 b.debug(f"{check.taskname} rejected, {'' if overridden else 'not '} overridden")
         else:

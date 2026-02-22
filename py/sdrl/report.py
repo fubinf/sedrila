@@ -8,6 +8,7 @@ import sdrl.html as h
 
 if tg.TYPE_CHECKING:
     import sdrl.course
+    import sdrl.participant
 
 
 @dataclasses.dataclass
@@ -82,15 +83,7 @@ def _si_volume_report(course: 'sdrl.course.Course', rowitems: tg.Iterable, colum
 
 # ----- printing:
 
-def print_volume_report(course: 'sdrl.course.Course', author_mode: bool):
-    """Show volume reports: author mode shows all tasks, student/instructor mode shows worked-on tasks only."""
-    if author_mode:
-        _print_author_volume_report(course)
-    else:
-        _print_si_volume_report(course)
-
-
-def _print_author_volume_report(course: 'sdrl.course.Course'):
+def print_author_volume_report(course: 'sdrl.course.Course'):
     """Show total timevalues per stage, difficulty, and chapter."""
     # ----- print cumulative timevalues per stage as comma-separated values (CSV):
     report_per_stage = volume_report_per_stage(course)
@@ -122,8 +115,10 @@ def _print_author_volume_report(course: 'sdrl.course.Course'):
         b.rich_print(table)  # noqa
 
 
-def _print_si_volume_report(course: 'sdrl.course.Course'):
+def print_si_volume_report(student: 'sdrl.participant.Student'):
     """Show worktime, accepted, and rejected timevalues per difficulty and chapter."""
+    import sdrl.course_si
+    course = student.course_with_work
     for report in (si_volume_report_per_difficulty(course),
                    si_volume_report_per_chapter(course)):
         table = b.Table()
@@ -139,8 +134,19 @@ def _print_si_volume_report(course: 'sdrl.course.Course'):
             total_worktime += worktime
             total_accept += accept
             total_reject += reject
+        # Add bonus row if bonusrules are configured
+        total_bonus = 0.0
+        if course.bonusrules is not None:
+            attr = course.bonusrules['student_yaml_attribute']
+            raw = student.participant_data.get(attr)
+            if raw is not None:
+                course_size_hours = float(raw)
+                results = course.compute_bonus(course_size_hours)
+                total_bonus = sdrl.course_si.CourseSI.total_bonus(results)
+                if total_bonus:
+                    table.add_row("[i]Bonus", "", "[i]%5.1f" % total_bonus, "")
         table.add_row("[b]=TOTAL",
                       "[b]%5.1f" % total_worktime,
-                      "[b]%5.1f" % total_accept,
+                      "[b]%5.1f" % (total_accept + total_bonus),
                       "[b]%5.1f" % total_reject)
         b.rich_print(table)  # noqa

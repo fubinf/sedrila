@@ -32,6 +32,7 @@ WEBAPP_JS_URL = "/script.js"
 SEDRILA_REPLACE_URL = "/sedrila-replace.action"
 SEDRILA_UPDATE_URL = "/sedrila-update.action"
 WORK_REPORT_URL = "/work.report"
+BONUS_REPORT_URL = "/bonus.report"
 
 favicon32x32_png_base64 = """iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAE0ElEQVRYR8VXR0hdWxTdzxI1OrAG
 K1ZQbDGoOFBEUOyiYsUKtmAdOPslIPzPR2fB2CAqqFgRLAiCJEKcKIgogi3YosFGdKCiEcvLXSf/
@@ -600,6 +601,8 @@ document.querySelectorAll('.sedrila-replace').forEach(t => {
 @bottle.route("/")
 def serve_index():
     ctx = sdrl.participant.get_context()
+    bonus_link = (f"<p><a href='{BONUS_REPORT_URL}'>Bonus Report</a></p>"
+                  if ctx.course.bonusrules is not None else "")
     body = f"""
         <main id="index-layout">
             <section class="scroll" id="work-report">
@@ -629,10 +632,11 @@ def serve_index():
                     <span>Accepted (Past)</span>
                   </div>
                 </div>
-                <p>Select a task on the left, switch between its files at the top, select choice at bottom right.</p>  
+                <p>Select a task on the left, switch between its files at the top, select choice at bottom right.</p>
                 <h2>Work Report</h2>
                 {html_for_work_progress(ctx)}
-                <p><b>w</b>: work time (from commit msgs), <b>v</b>: task time value, <b>e</b>: estimated time (if task is accepted)</p>  
+                {bonus_link}
+                <p><b>w</b>: work time (from commit msgs), <b>v</b>: task time value, <b>e</b>: estimated time (if task is accepted)</p>
                 {html_for_work_report_section(ctx)}
             </section>
             <section class="scroll" id="students-table">
@@ -642,6 +646,12 @@ def serve_index():
         </main>
     """
     return html_for_layout("sedrila", body)
+
+
+@bottle.route(BONUS_REPORT_URL)
+def serve_bonus_report():
+    ctx = sdrl.participant.get_context()
+    return html_for_layout("Bonus Report", html_for_bonus_report(ctx))
 
 
 @bottle.route(SEDRILA_UPDATE_URL, method="POST")
@@ -1359,6 +1369,29 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
         <td>{round(est_work[s.student_gituser], 2)}</td>
         """)
 
+    # Bonus row (only if bonusrules are configured)
+    bonus_row = ""
+    if ctx.course.bonusrules is not None:
+        import sdrl.course_si
+        br = ctx.course.bonusrules
+        attr = br['student_yaml_attribute']
+        bonus_cells = []
+        for s in ctx.studentlist:
+            raw = s.participant_data.get(attr)
+            if raw is not None:
+                course_size_hours = float(raw)
+                results = s.course_with_work.compute_bonus(course_size_hours)
+                tb = sdrl.course_si.CourseSI.total_bonus(results)
+                bonus_cells.append(f"<td></td><td>{round(tb, 2) if tb else ''}</td><td></td>")
+            else:
+                bonus_cells.append("<td></td><td></td><td></td>")
+        bonus_row = f"""
+            <tr>
+                <td><i>Bonus</i></td>
+                {''.join(bonus_cells)}
+            </tr>
+        """
+
     return f"""
         <table id="work-table">
             <tr>
@@ -1370,12 +1403,139 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
                 {f"<th>w</th><th>v</th><th>e</th>" * len(ctx.studentlist)}
             </tr>
             {''.join(tasks_markup)}
+            {bonus_row}
             <tr>
             <td>totals (worked, earned, estimated)</td>
             {''.join(totals_markup)}
             </tr>
         </table>
     """
+
+
+def html_for_bonus_report(ctx: sdrl.participant.Context) -> str:
+    """HTML body for the bonus detail page."""
+    import sdrl.course_si
+    course = ctx.course
+    br = course.bonusrules
+    if br is None:
+        return "<p>No bonus rules configured for this course.</p>"
+    period_type = br['bonusperiod_type']
+    threshold = br['bonus_threshold_percent']
+    bonus_size = br['bonus_size_percent']
+    n = br['bonusperiods']
+    attr = br['student_yaml_attribute']
+
+    # Per-student results
+    student_results: list[tuple[sdrl.participant.Student, list[sdrl.course_si.BonusPeriodResult]]] = []
+    for s in ctx.studentlist:
+        raw = s.participant_data.get(attr)
+        if raw is not None:
+            csz = float(raw)
+            results = s.course_with_work.compute_bonus(csz)
+        else:
+            results = []
+        student_results.append((s, results))
+
+    # Rules explanation
+    rules_html = f"""
+        <section>
+            <h2>Bonus Rules</h2>
+            <p>Each of the first <b>{n} {period_type}s</b> of the course can produce a bonus.
+            A period earns a bonus ({bonus_size}% of your course size in hours) if:</p>
+            <ul>
+                <li>You earned at least <b>{threshold}%</b> of your course size in that period, OR</li>
+                <li>Your cumulative total up to the end of that period is at least
+                    <b>{threshold}% &times; period&nbsp;number</b> of your course size.</li>
+            </ul>
+        </section>
+    """
+
+    # Column legend
+    legend_html = """
+        <section>
+            <h2>Column Legend</h2>
+            <p>
+                <b>p#</b>: period number &nbsp;
+                <b>period</b>: period name or end date &nbsp;
+                <b>ph</b>: hours accepted in this period &nbsp;
+                <b>p%</b>: period hours as % of course size &nbsp;
+                <b>ch</b>: cumulative hours accepted up to end of period &nbsp;
+                <b>c%</b>: cumulative hours as % of course size &nbsp;
+                <b>bh</b>: bonus hours for this period
+            </p>
+        </section>
+    """
+
+    # Collect all period labels from first student's results (same for all)
+    all_labels = []
+    if student_results and student_results[0][1]:
+        course_obj = student_results[0][0].course_with_work
+        ranges = course_obj.bonus_period_ranges()
+        for p_idx, (pstart, pend) in enumerate(ranges):
+            all_labels.append((p_idx + 1, course_obj.bonus_period_label(pstart, pend)))
+
+    def fmt(val: float) -> str:
+        return ("%.1f" % val) if val else ""
+
+    # Header row
+    student_headers = "".join(
+        f"<th colspan='5'>{html.escape(s.student_gituser)}</th>"
+        for s, _ in student_results
+    )
+    sub_headers = "<th>ph</th><th>p%</th><th>ch</th><th>c%</th><th>bh</th>" * len(student_results)
+
+    # Data rows
+    rows_html_parts = []
+    for p_num, label in all_labels:
+        cells = []
+        for s, results in student_results:
+            if p_num - 1 < len(results):
+                r = results[p_num - 1]
+                cells.append(
+                    f"<td>{fmt(r.period_hours)}</td>"
+                    f"<td>{fmt(r.period_percent)}</td>"
+                    f"<td>{fmt(r.cumulative_hours)}</td>"
+                    f"<td>{fmt(r.cumulative_percent)}</td>"
+                    f"<td>{fmt(r.bonus_hours)}</td>"
+                )
+            else:
+                cells.append("<td></td><td></td><td></td><td></td><td></td>")
+        rows_html_parts.append(f"""
+            <tr>
+                <td>{p_num}</td>
+                <td>{html.escape(label)}</td>
+                {''.join(cells)}
+            </tr>
+        """)
+
+    # Total row
+    total_cells = []
+    for s, results in student_results:
+        tb = sdrl.course_si.CourseSI.total_bonus(results)
+        total_cells.append(f"<td></td><td></td><td></td><td></td><td>{fmt(tb)}</td>")
+
+    table_html = f"""
+        <section>
+            <h2>Bonus Details</h2>
+            <table id="work-table">
+                <tr>
+                    <th colspan="2"></th>
+                    {student_headers}
+                </tr>
+                <tr>
+                    <th>p#</th><th>period</th>
+                    {sub_headers}
+                </tr>
+                {''.join(rows_html_parts)}
+                <tr>
+                    <td colspan="2"><b>Total bonus</b></td>
+                    {''.join(total_cells)}
+                </tr>
+            </table>
+        </section>
+    """
+
+    return rules_html + legend_html + table_html
 
 
 def diff_files(path1: str, path2: str) -> str:
