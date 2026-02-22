@@ -36,6 +36,7 @@ packages = [
     { include = "*.py", from = "py" },
     { include = "sdrl/*.py", from = "py" },
     { include = "sdrl/subcmd/*.py", from = "py" },
+    { include = "sdrl/schema", from = "py" },
 ]
 include = [
     "README.md", 
@@ -48,14 +49,14 @@ include = [
 # https://python-poetry.org/docs/pyproject/#dependencies-and-dependency-groups
 # https://python-poetry.org/docs/master/managing-dependencies/
 # https://python-poetry.org/docs/dependency-specification/
-[tool.poetry.dependencies]
+[tool.poetry.dependencies]  # entries 2..n ordered alphabetically
 python = "^3.11"
 argparse_subcommand = "^1.2"
 blessed = "^1.20"
 bottle = "^0.13"
-waitress = "^3.0"
 GitPython = "^3.1"
 Jinja2 = "^3.1"
+jsonschema = "^4.26"
 Markdown = "^3.7"
 matplotlib = "^3.9"
 mdx_linkify = "^2.1"
@@ -66,8 +67,9 @@ python-gnupg = "^0.5.5"
 PyYAML = "^6.0"
 requests = "^2.32"
 rich = "^13.7"
+waitress = "^3.0"
 
-[tool.poetry.group.dev.dependencies]
+[tool.poetry.group.dev.dependencies]  # ordered alphabetically
 beautifulsoup4 = "^4.12"
 html5lib = "^1.1"
 mkdocs = "^1.6"

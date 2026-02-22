@@ -6,6 +6,7 @@
 - `author`: rename the `PARTREFTITLE` macro to `PARTREF2`
 - `author`: introduce `<!-- sedrila: macros off -->` markup to suppress false "undefined macro" 
   error messages in code blocks containing bracketed ALLCAPS as in `myarray[MYCONSTANT]`
+- `author`: errors in `sedrila.yaml` now result in proper error messages
 - `student`, `instructor`: Webapp server is now properly multithreaded, no more meaningless `TimeoutError` stacktraces
 - `student`, `instructor`: Display a student work summary report before entering command loop
 - `student`, `instructor`: webapp: make buttons in the lower right slightly transparent, 

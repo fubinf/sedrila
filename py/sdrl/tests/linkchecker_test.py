@@ -264,7 +264,8 @@ def create_test_course_structure(base_dir):
         'chapterdir': TEST_CHDIR_NAME,
         'altdir': TEST_ALTDIR_NAME,
         'stages': TEST_STAGES,
-        'instructors': [],
+        'instructors': [dict(nameish="-", email="a@b", gitaccount="a", webaccount="a",
+                             keyfingerprint="1a", pubkey="dummy")],
         'allowed_attempts': '2',
         'chapters': [
             {

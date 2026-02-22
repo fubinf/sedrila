@@ -5,19 +5,20 @@ In 'author' mode, metadata comes from sedrila.yaml and the partfiles.
 Otherwise, metadata comes from METADATA_FILE. 
 """
 import csv
-import dataclasses
 import functools
 import glob
 import graphlib
+import importlib.resources
 import itertools
+import json
 import numbers
 import os
 import re
 import typing as tg
-from pathlib import Path
+
+import jsonschema
 
 import base as b
-import cache
 import mycrypt
 import sdrl.constants as c
 import sdrl.elements as el
@@ -363,7 +364,6 @@ class CourseSI(Course):
                          for ch in configdict['chapters']]
 
 
-
 class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
     """Course with the additions required for author mode. (Chapter, Taskgroup, Task have both in one.)"""
     MUSTCOPY_ADDITIONAL = ', chapterdir, altdir, stages'
@@ -552,6 +552,19 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
                             self._register_encrypted_prot_directly(resolved_path, keyfingerprints)
                 except Exception:
                     pass
+
+    def _read_config(self, configdict: b.StrAnyDict):
+        schema_text = importlib.resources.files("sdrl.schema").joinpath("sedrila-yaml.schema.json").read_text()
+        schema = json.loads(schema_text)
+        validator = jsonschema.Draft202012Validator(schema)
+        errors = sorted(validator.iter_errors(configdict), key=lambda e: e.json_path)
+        if errors:
+            b.error(f"Configuration file '{self.configfile}' is invalid. It has the following errors:")
+            for err in errors:
+                location = err.json_path if err.json_path != '$' else '(top level)'
+                b.error(f"{location}: {err.message}")
+            b.critical(f"{len(errors)} schema error(s).")
+        super()._read_config(configdict)
 
     def _resolve_prot_path(self, context_file: str, prot_arg: str) -> str | None:
         """Resolve a [PROT::...] argument to an actual file path."""
@@ -863,5 +876,5 @@ class MetadataDerivation(el.Step):
         self.course.add_inverse_links()
         self.course.compute_taskorder()
         self.course.check_links()
-
-
+        import sdrl.programchecker as programchecker
+        programchecker.check_test_spec_dependency_gaps(self.course)

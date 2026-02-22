@@ -102,7 +102,7 @@ https://github.com/fubinf/propra-inf/blob/main/sedrila.yaml (content in German, 
   The text is HTML text. If the macro has parameters, they can be used by including
   `{arg1}` or `{arg2}` in the string.
   The generated HTML will also use corresponding CSS classes for each of those entire blocks.
-  The best way to understand this is to just look at the generated HTML files.
+  The best way to understand this is to just look at the generated HTML files. <!-- TODO 3: add example to 2.1 -->
   Special generation logic for SECTION and HINT is hardwired into sedrila,
   but WARNING, NOTICE, and INSTRUCTOR all follow the same logic and you can introduce further
   such macros if you want -- this is the reason why those three are all uppercase in sedrila.yaml.
@@ -138,7 +138,8 @@ https://github.com/fubinf/propra-inf/blob/main/sedrila.yaml (content in German, 
   Three keys need to be present:  
   `file`: name of the participants list input file, which must be a TAB-separated values text file
   with column headers.
-  If this value is empty, the entire `participants` entry will be ignored.  
+  If this file does not exist, a warning will be issued and the entire `participants` entry will be ignored,
+  so that authors who do not have the file can still build the course using the same overall config file.
   Supports the expansion of environment variables.  
   `file_column`: name of the column in which the attribute is found by which a participant is identied.  
   `student_attribute`: name of the entry in the student's `student.yaml` file that identifies the student

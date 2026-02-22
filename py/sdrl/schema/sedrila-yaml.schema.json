@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sedrila-yaml.schema.json",
+  "title": "sedrila.yaml",
+  "description": "Global configuration file for a sedrila course (see docs/authors.md §1.1)",
+  "type": "object",
+  "required": ["title", "name", "chapterdir", "altdir", "stages", "instructors", "allowed_attempts", "chapters"],
+  "additionalProperties": false,
+  "properties": {
+    "title": {
+      "description": "Course title. Supports $VAR / ${VAR} environment variable expansion.",
+      "type": "string"
+    },
+    "name": {
+      "description": "Short title used in breadcrumb navigation. Supports env-var expansion.",
+      "type": "string"
+    },
+    "chapterdir": {
+      "description": "Relative path of directory containing course content (chapters/taskgroups).",
+      "type": "string"
+    },
+    "altdir": {
+      "description": "Relative path of alternate chapterdir for non-public instructor content.",
+      "type": "string"
+    },
+    "stages": {
+      "description": "Ordered list of allowed 'stage:' values for tasks/taskgroups/chapters.",
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "instructors": {
+      "description": "List of active instructors who can give students credit.",
+      "$ref": "#/$defs/instructorList"
+    },
+    "allowed_attempts": {
+      "description": "Max submission attempts per task. Format: 'n' or 'n + x/h'. Supports env-var expansion.",
+      "type": "string"
+    },
+    "chapters": {
+      "description": "Course structure: list of chapters, each with a list of taskgroups.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/chapter" },
+      "minItems": 1
+    },
+    "baseresourcedir": {
+      "description": "Optional path to CSS/JS base resources. Defaults to built-in files. Supports env-var expansion.",
+      "type": "string"
+    },
+    "itreedir": {
+      "description": "Relative path of instructor tree ZIP directory. Must end in '.zip'.",
+      "type": "string",
+      "pattern": "\\.zip$"
+    },
+    "templatedir": {
+      "description": "Optional path to Jinja2 templates. Defaults to built-in templates. Supports env-var expansion.",
+      "type": "string"
+    },
+    "blockmacro_topmatter": {
+      "description": "HTML text inserted before block content of SECTION/HINT/NOTICE/WARNING/INSTRUCTOR macros.",
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "htaccess_template": {
+      "description": "Apache .htaccess template for restricting instructor website. Use {userlist_commas}, {userlist_spaces}, or {userlist_quotes_spaces} as placeholders.",
+      "type": "string"
+    },
+    "student_yaml_attribute_prompts": {
+      "description": "Dictionary of attribute-name → prompt for populating student.yaml during 'sedrila student --init'.",
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "participants": {
+      "description": "Configuration for generating an encrypted participants list (optional).",
+      "$ref": "#/$defs/participants"
+    },
+    "former_instructors": {
+      "description": "List of former instructors (same structure as instructors, but not shown to students).",
+      "$ref": "#/$defs/instructorList"
+    }
+  },
+  "$defs": {
+    "instructor": {
+      "type": "object",
+      "required": ["nameish", "email", "gitaccount", "webaccount", "keyfingerprint", "pubkey"],
+      "additionalProperties": false,
+      "properties": {
+        "nameish": {
+          "description": "Personal name or nickname of the instructor.",
+          "type": "string"
+        },
+        "email": {
+          "description": "Email address to which students send submission requests.",
+          "type": "string",
+          "format": "email"
+        },
+        "gitaccount": {
+          "description": "Git server username used by the instructor for signing submission commits.",
+          "type": "string"
+        },
+        "webaccount": {
+          "description": "Webserver username granted access to the instructor part of the website.",
+          "type": "string"
+        },
+        "keyfingerprint": {
+          "description": "Fingerprint of the GPG key used by the instructor to sign commits.",
+          "type": "string"
+        },
+        "pubkey": {
+          "description": "GPG public key block (PGP PUBLIC KEY BLOCK) used to validate instructor signatures.",
+          "type": "string"
+        },
+        "status": {
+          "description": "Optional message about the instructor's current availability (supports YAML multiline).",
+          "type": "string"
+        }
+      }
+    },
+    "instructorList": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/instructor" },
+      "minItems": 1
+    },
+    "participants": {
+      "type": "object",
+      "required": ["file", "file_column", "student_attribute"],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "description": "Path to TAB-separated participants list file with column headers. Supports env-var expansion.",
+          "type": "string"
+        },
+        "file_column": {
+          "description": "Column name in the participants file used to identify a participant.",
+          "type": "string"
+        },
+        "student_attribute": {
+          "description": "Attribute name in student.yaml that corresponds to file_column.",
+          "type": "string"
+        }
+      }
+    },
+    "chapter": {
+      "type": "object",
+      "required": ["name", "taskgroups"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Chapter directory name (also used as slug and heading).",
+          "type": "string"
+        },
+        "taskgroups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/taskgroup" },
+          "minItems": 1
+        }
+      }
+    },
+    "taskgroup": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Taskgroup directory name (also used as slug and heading).",
+          "type": "string"
+        }
+      }
+    }
+  }
+}
