@@ -234,6 +234,8 @@ class Student:
 
     @property
     def is_participant(self) -> bool:
+        if not getattr(self, 'participant_attrname', None):
+            return True  # there is no participantslist, so everybody is accepted   
         pid = getattr(self, self.participant_attrname)
         return pid in self.participantslist if pid else True  # an absent participantslist contains everybody
 
