@@ -601,8 +601,6 @@ document.querySelectorAll('.sedrila-replace').forEach(t => {
 @bottle.route("/")
 def serve_index():
     ctx = sdrl.participant.get_context()
-    bonus_link = (f"<p><a href='{BONUS_REPORT_URL}'>Bonus Report</a></p>"
-                  if ctx.course.bonusrules is not None else "")
     body = f"""
         <main id="index-layout">
             <section class="scroll" id="work-report">
@@ -635,7 +633,6 @@ def serve_index():
                 <p>Select a task on the left, switch between its files at the top, select choice at bottom right.</p>
                 <h2>Work Report</h2>
                 {html_for_work_progress(ctx)}
-                {bonus_link}
                 <p><b>w</b>: work time (from commit msgs), <b>v</b>: task time value, <b>e</b>: estimated time (if task is accepted)</p>
                 {html_for_work_report_section(ctx)}
             </section>
@@ -651,7 +648,7 @@ def serve_index():
 @bottle.route(BONUS_REPORT_URL)
 def serve_bonus_report():
     ctx = sdrl.participant.get_context()
-    return html_for_layout("Bonus Report", html_for_bonus_report(ctx))
+    return html_for_layout("Bonus Report", f"<main><section>{html_for_bonus_report(ctx)}</section></main>")
 
 
 @bottle.route(SEDRILA_UPDATE_URL, method="POST")
@@ -1332,7 +1329,7 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
 
     def html_for_students(task: str) -> str:
         markup = []
-        for s in ctx.studentlist:
+        for i, s in enumerate(ctx.studentlist):
             ct = s.course.task(task) # course_task
             if ct:
                 total_earned[s.student_gituser] += ct.time_earned
@@ -1344,6 +1341,8 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
                 <td>{round(ct.time_earned, 2) if ct and ct.time_earned else ""}</td>
                 <td>{round(ct.timevalue, 2) if ct and ct.timevalue else ""}</td>
             """)
+            if i < len(ctx.studentlist) - 1:
+                markup.append("<td></td>")
 
         return "".join(markup)
 
@@ -1359,7 +1358,7 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
 
     students_markup = []
     totals_markup = []
-    for s in ctx.studentlist:
+    for i, s in enumerate(ctx.studentlist):
         students_markup.append(f"""
         <th colspan="3">{s.student_gituser}</th>
         """)
@@ -1368,6 +1367,9 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
         <td>{round(total_earned[s.student_gituser], 2)}</td>
         <td>{round(est_work[s.student_gituser], 2)}</td>
         """)
+        if i < len(ctx.studentlist) - 1:
+            students_markup.append("<th>&nbsp;</th>")
+            totals_markup.append("<td></td>")
 
     # Bonus row (only if bonusrules are configured)
     bonus_row = ""
@@ -1376,7 +1378,7 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
         br = ctx.course.bonusrules
         attr = br['student_yaml_attribute']
         bonus_cells = []
-        for s in ctx.studentlist:
+        for i, s in enumerate(ctx.studentlist):
             raw = s.participant_data.get(attr)
             if raw is not None:
                 course_size_hours = float(raw)
@@ -1385,9 +1387,11 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
                 bonus_cells.append(f"<td></td><td>{round(tb, 2) if tb else ''}</td><td></td>")
             else:
                 bonus_cells.append("<td></td><td></td><td></td>")
+            if i < len(ctx.studentlist) - 1:
+                bonus_cells.append("<td></td>")
         bonus_row = f"""
             <tr>
-                <td><i>Bonus</i></td>
+                <td><i><a href='{BONUS_REPORT_URL}'>Bonus</a></i></td>
                 {''.join(bonus_cells)}
             </tr>
         """
@@ -1400,7 +1404,7 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
             </tr>
             <tr>
                 <th>task</th>
-                {f"<th>w</th><th>v</th><th>e</th>" * len(ctx.studentlist)}
+                {"<th></th>".join(["<th>w</th><th>v</th><th>e</th>"] * len(ctx.studentlist))}
             </tr>
             {''.join(tasks_markup)}
             {bonus_row}
@@ -1438,7 +1442,7 @@ def html_for_bonus_report(ctx: sdrl.participant.Context) -> str:
 
     # Rules explanation
     rules_html = f"""
-        <section>
+        <div>
             <h2>Bonus Rules</h2>
             <p>Each of the first <b>{n} {period_type}s</b> of the course can produce a bonus.
             A period earns a bonus ({bonus_size}% of your course size in hours) if:</p>
@@ -1447,14 +1451,14 @@ def html_for_bonus_report(ctx: sdrl.participant.Context) -> str:
                 <li>Your cumulative total up to the end of that period is at least
                     <b>{threshold}% &times; period&nbsp;number</b> of your course size.</li>
             </ul>
-        </section>
+        </div>
     """
 
     # Column legend
     legend_html = """
-        <section>
-            <h2>Column Legend</h2>
-            <p>
+        <div>
+            <h2>Bonus Details</h2>
+            <p> Columns:
                 <b>p#</b>: period number &nbsp;
                 <b>period</b>: period name or end date &nbsp;
                 <b>ph</b>: hours accepted in this period &nbsp;
@@ -1463,33 +1467,35 @@ def html_for_bonus_report(ctx: sdrl.participant.Context) -> str:
                 <b>c%</b>: cumulative hours as % of course size &nbsp;
                 <b>bh</b>: bonus hours for this period
             </p>
-        </section>
+        </div>
     """
 
-    # Collect all period labels from first student's results (same for all)
+    # Collect all period labels from first student that has results (same for all who do)
     all_labels = []
-    if student_results and student_results[0][1]:
-        course_obj = student_results[0][0].course_with_work
-        ranges = course_obj.bonus_period_ranges()
-        for p_idx, (pstart, pend) in enumerate(ranges):
-            all_labels.append((p_idx + 1, course_obj.bonus_period_label(pstart, pend)))
+    for s, results in student_results:
+        if results:
+            course_obj = s.course_with_work
+            ranges = course_obj.bonus_period_ranges()
+            for p_idx, (pstart, pend) in enumerate(ranges):
+                all_labels.append((p_idx + 1, course_obj.bonus_period_label(pstart, pend)))
+            break
 
     def fmt(val: float) -> str:
         return ("%.1f" % val) if val else ""
 
     # Header row
-    student_headers = "".join(
+    student_headers = "<th>&nbsp;</th>".join(
         f"<th colspan='5'>{html.escape(s.student_gituser)}</th>"
         for s, _ in student_results
     )
-    sub_headers = "<th>ph</th><th>p%</th><th>ch</th><th>c%</th><th>bh</th>" * len(student_results)
+    sub_headers = "<th></th>".join(["<th>ph</th><th>p%</th><th>ch</th><th>c%</th><th>bh</th>"] * len(student_results))
 
     # Data rows
     rows_html_parts = []
-    for p_num, label in all_labels:
+    for i, (p_num, label) in enumerate(all_labels):
         cells = []
-        for s, results in student_results:
-            if p_num - 1 < len(results):
+        for j, (s, results) in enumerate(student_results):
+            if p_num - 1 < len(results) and results[p_num - 1].period_hours:
                 r = results[p_num - 1]
                 cells.append(
                     f"<td>{fmt(r.period_hours)}</td>"
@@ -1500,8 +1506,10 @@ def html_for_bonus_report(ctx: sdrl.participant.Context) -> str:
                 )
             else:
                 cells.append("<td></td><td></td><td></td><td></td><td></td>")
+            if j < len(student_results) - 1:
+                cells.append("<td></td>")
         rows_html_parts.append(f"""
-            <tr>
+            <tr class="{'even' if i % 2 == 0 else 'odd'}">
                 <td>{p_num}</td>
                 <td>{html.escape(label)}</td>
                 {''.join(cells)}
@@ -1510,13 +1518,14 @@ def html_for_bonus_report(ctx: sdrl.participant.Context) -> str:
 
     # Total row
     total_cells = []
-    for s, results in student_results:
+    for j, (s, results) in enumerate(student_results):
         tb = sdrl.course_si.CourseSI.total_bonus(results)
         total_cells.append(f"<td></td><td></td><td></td><td></td><td>{fmt(tb)}</td>")
+        if j < len(student_results) - 1:
+            total_cells.append("<td></td>")
 
     table_html = f"""
-        <section>
-            <h2>Bonus Details</h2>
+        <div>
             <table id="work-table">
                 <tr>
                     <th colspan="2"></th>
@@ -1532,7 +1541,7 @@ def html_for_bonus_report(ctx: sdrl.participant.Context) -> str:
                     {''.join(total_cells)}
                 </tr>
             </table>
-        </section>
+        </div>
     """
 
     return rules_html + legend_html + table_html
