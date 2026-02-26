@@ -1,7 +1,7 @@
 # sedrila CHANGELOG
 
 
-## Version 3.0 (upcoming)
+## Version 3.0.0 (upcoming)
 - `author`: remove the `PARTREFTITLE` macro, nobody ever uses it
 - `author`: rename the `PARTREFTITLE` macro to `PARTREF2`
 - `author`: introduce `<!-- sedrila: macros off -->` markup to suppress false "undefined macro" 
@@ -11,6 +11,7 @@
 - `student`, `instructor`: Display a student work summary report before entering command loop
 - `student`, `instructor`: webapp: make buttons in the lower right slightly transparent, 
   so that the text behind it stays legible.
+- `student`, `instructor`: use `allow_unicode=True` when writing YAML files to make them look more natural.
 - ...
 
 

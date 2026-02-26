@@ -159,7 +159,7 @@ def spit_json(filename: str, content: StrAnyDict):
 
 
 def spit_yaml(filename: str, content: StrAnyDict):
-    spit(filename, yaml.safe_dump(content))
+    spit(filename, yaml.safe_dump(content, allow_unicode=True))
 
 
 def slugify(value: str) -> str:
