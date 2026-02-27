@@ -619,7 +619,7 @@ class ProgramChecker:
                     if rule is None or (not rule.output_re and rule.exitcode is None):
                         # Manual or skip block
                         manual_reason = rule.manual_text if rule and rule.manual_text else "No automated checks specified"
-                        status = "manual" if rule else "skip"
+                        status = "skip" if (rule is None or rule.skip) else "manual"
                         block_results.append(ProtSpecBlockResult(
                             block_index=block_idx,
                             command=command_test.command,
