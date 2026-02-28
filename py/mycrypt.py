@@ -47,7 +47,7 @@ def decrypt_gpg(ciphertext: bytes, passphrase: str | None = None) -> bytes:
     any of the pubkeys used in encryption.
     If passphrase is provided, uses it to unlock password-protected private keys.
     """
-    # Set GPG_TTY to allow pinentry to prompt for passphrase in terminal
+    # Set GPG_TTY so GPG can prompt for passphrase in terminal if needed
     env = os.environ.copy()
     if 'GPG_TTY' not in env:
         try:

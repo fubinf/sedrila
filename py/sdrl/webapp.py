@@ -125,7 +125,7 @@ def _find_encrypted_prot_file(ctx: sdrl.participant.Context) -> str | None:
 
 def _prime_gpg_agent(test_file: str) -> bool:
     """Prime gpg-agent by attempting to decrypt a test protocol file.
-    This triggers GPG to request passphrase via pinentry if needed,
+    This triggers GPG to request the passphrase if needed,
     and gpg-agent caches it for the session.
     """
     import sdrl.protocolchecker as protocolchecker
