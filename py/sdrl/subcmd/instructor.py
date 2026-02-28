@@ -96,7 +96,8 @@ def prepare_workdir(workdir: str):
             b.critical(f"'{workdir}': '{c.PARTICIPANT_FILE}' is missing.")
         stud = sdrl.participant.Student('.', is_instructor=True)
         if not stud.is_participant:
-            b.warning(f"{stud.participant_attrname} {stud.participant_id} is not in participants list", 
+            participant_id = getattr(stud, stud.participant_attrname, None)
+            b.warning(f"{stud.participant_attrname} {participant_id} is not in participants list",
                       file=c.PARTICIPANT_FILE)
         key_fingerprints = {i.get('keyfingerprint', '') 
                             for i in itertools.chain(stud.course.configdict.get('instructors', []),

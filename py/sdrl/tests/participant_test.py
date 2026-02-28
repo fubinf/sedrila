@@ -1,5 +1,6 @@
 import argparse
 import contextlib
+import json
 import os
 import shutil
 import unittest.mock
@@ -98,3 +99,27 @@ def test_participant(capfd):
         assert task1.is_accepted 
         assert not task2.is_accepted
         assert (task1.rejections, task2.rejections) == (0, 1)
+
+
+def test_participantslist_checking():
+    with tb.TempDirEnvironContextMgr():
+        os.mkdir("studentdir")
+        os.mkdir("coursedir")
+        course_url = f"file://{os.path.abspath('coursedir')}"
+        metadata = json.loads(b.slurp(METADATA_FILE))
+        metadata['participants'] = dict(student_attribute='student_id')
+        b.spit("coursedir/course.json", json.dumps(metadata))
+        b.spit_bytes(f"coursedir/{c.PARTICIPANTSLIST_FILE}", b"dummy encrypted")
+        b.spit("studentdir/student.yaml", student_yaml.replace("file://../coursedir", course_url))
+        with unittest.mock.patch('sdrl.participant.mycrypt.decrypt_gpg',
+                                 return_value=b"123\n124"):
+            student = sdrl.participant.Student("studentdir", is_instructor=True, filter_submission=False)
+            assert student.participant_attrname == "student_id"
+            assert student.participantslist == ["123", "124"]
+            assert not student.is_participant
+
+        del metadata['participants']
+        b.spit("coursedir/course.json", json.dumps(metadata))
+        student = sdrl.participant.Student("studentdir", is_instructor=True, filter_submission=False)
+        assert student.participantslist is None
+        assert student.is_participant
