@@ -169,8 +169,8 @@ Record enough about the process so that you can document and analyze it in your 
   `instructors.md` Section 2.3, and
   `internal_notes.md` Section 4.
 - Implemented in 
-    - `Protocolchecker.py`
-    - `course.py`: class `ProtocolValidation` (incremental build) and 
+    - `protocolchecker.py`
+    - `course.py`: incremental build integration and
                 functions for [PROT::] `_prescan_prot_files`, `_resolve_prot_path`, `_register_encrypted_prot_directly`
     - `elements.py`: `EncryptedProtFile`
     - `marcoexpanders.py`: function `prompt_color`, `_register_encrypted_prot` and
@@ -221,7 +221,7 @@ extracting from another file snippets to be shown on a task webpage.
   `internal_notes.md` Section 4.
 - Implemented in 
     - `snippetchecker.py`
-    - `course.py`: `class SnippetValidation` (incremental build)
+    - `course.py`: incremental build integration
     - `elements.py`: comments of inheritance hierarchy
     - `directory.py`: incremental build registration
     - `macroexpanders.py`: SNIPPET macro registration

@@ -165,6 +165,7 @@ Placement and syntax:
 - Inside block: one `key=value` per line, no spaces around `=`
 - `lang` and `deps` can span multiple lines (subsequent lines without `=` are appended as separate commands)
 - No comments allowed inside @TEST_SPEC block
+- Unknown keys produce a warning but do not prevent the file from being included as a test target
 
 Supported fields (all optional):
 
