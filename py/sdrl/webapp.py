@@ -76,7 +76,7 @@ def _get_builddir_from_context(course) -> tuple[str, str] | None:
     return None
 
 
-def _find_encrypted_prot_file(ctx: sdrl.participant.Context) -> str | None:
+def _find_encrypted_prot_file(ctx: sdrl.participant.Context) -> tuple[str, bool] | None:
     """Find first encrypted protocol file in student work directories or download from HTTP(S)."""
     if hasattr(ctx, 'course') and ctx.course:
         location_type, builddir = _get_builddir_from_context(ctx.course) or (None, None)
@@ -85,7 +85,7 @@ def _find_encrypted_prot_file(ctx: sdrl.participant.Context) -> str | None:
             if os.path.isdir(builddir):
                 for filename in os.listdir(builddir):
                     if filename.endswith('.crypt'):
-                        return os.path.join(builddir, filename)
+                        return os.path.join(builddir, filename), False
         elif location_type == 'remote':
             # HTTP(S) URL handling, download first available encrypted file to temp
             builddir_url = os.path.dirname(builddir)
@@ -113,9 +113,11 @@ def _find_encrypted_prot_file(ctx: sdrl.participant.Context) -> str | None:
                     try:
                         crypt_response = requests.get(crypt_url, timeout=5)
                         if crypt_response.status_code == 200:
+                            tmp_path = None
                             with tempfile.NamedTemporaryFile(suffix='.prot.crypt', delete=False) as tmp:
                                 tmp.write(crypt_response.content)
-                                return tmp.name
+                                tmp_path = tmp.name
+                            return tmp_path, True
                     except requests.RequestException:
                         continue
             except (requests.RequestException, json.JSONDecodeError, KeyError, IndexError):
@@ -154,8 +156,9 @@ def run(ctx: sdrl.participant.Context):
     global _gpg_available
     if ctx.is_instructor:
         # Find an encrypted protocol file to prime gpg-agent with
-        test_file = _find_encrypted_prot_file(ctx)
-        if test_file:
+        result = _find_encrypted_prot_file(ctx)
+        if result:
+            test_file, is_temp = result
             try:
                 # Prime gpg-agent by attempting to decrypt (triggers passphrase prompt in shell)
                 if _prime_gpg_agent(test_file):
@@ -164,11 +167,11 @@ def run(ctx: sdrl.participant.Context):
                     b.warning("GPG decryption failed. Protocol comparisons will not be available. "
                               "Check that gpg-agent is running and your private key is available.")
             finally:
-                # Clean up temporary files from HTTP downloads
-                try:
-                    os.unlink(test_file)
-                except FileNotFoundError:
-                    pass
+                if is_temp:
+                    try:
+                        os.unlink(test_file)
+                    except FileNotFoundError:
+                        pass
         else:
             b.warning("No encrypted protocol files found. Protocol comparisons will not be available.")
 
