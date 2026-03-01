@@ -20,6 +20,7 @@ def test_extracts_spec_and_rules():
         manual=Please check the file count
             There should be at least 3 files
         extra=Additional notes
+            Second line of extra
         user@host /home/user 10:00:00 1
         $ ls -la
         total 16
@@ -43,7 +44,9 @@ def test_extracts_spec_and_rules():
     assert first.check_rule.manual_text == "Please check the file count\nThere should be at least 3 files", (
         f"Unexpected manual text {first.check_rule.manual_text}"
     )
-    assert first.check_rule.extra_text == "Additional notes", f"Unexpected extra text {first.check_rule.extra_text}"
+    assert first.check_rule.extra_text == "Additional notes\nSecond line of extra", (
+        f"Unexpected extra text {first.check_rule.extra_text}"
+    )
 
 
 def test_validate_rejects_invalid_spec():

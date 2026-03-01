@@ -103,7 +103,7 @@ def test_program_execution_with_regex_validation():
         altdir = tmpdir_path / "altdir" / "ch" / "Python" / "basics"
         altdir.mkdir(parents=True)
         prog_file = altdir / "hello.py"
-        prog_file.write_text("print('Hello World 123')")
+        prog_file.write_text("import sys; n = sys.argv[1] if len(sys.argv) > 1 else '123'; print(f'Hello World {n}')")
         prot_file = altdir / "hello.prot"
         prot_file.write_text(_dedent("""
             @TEST_SPEC
@@ -116,6 +116,15 @@ def test_program_execution_with_regex_validation():
             user@host /tmp 10:00:00 1
             $ python hello.py
             Hello World 123
+
+            @PROT_SPEC
+            command_re=^python hello\\.py 456$
+            output_re=Hello World 456
+            exitcode=0
+
+            user@host /tmp 10:01:00 2
+            $ python hello.py 456
+            Hello World 456
         """))
         header = programchecker.ProgramCheckHeaderExtractor.extract_from_file(str(prot_file))
         checker = programchecker.ProgramChecker(
