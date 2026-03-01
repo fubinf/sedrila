@@ -224,6 +224,7 @@ def check_programs_command(pargs: argparse.Namespace):
         )
         _build_metadata_only(directory)
         targets = programchecker.extract_program_test_targets(the_course)
+        programchecker.check_test_spec_dependency_gaps(the_course, targets=targets)
         checker = programchecker.ProgramChecker(
             report_dir=temp_report_dir,
             course=the_course

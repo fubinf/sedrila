@@ -259,14 +259,15 @@ def extract_program_test_targets(course: sdrl.course.Coursebuilder) -> List[Prog
     return targets
 
 
-def check_test_spec_dependency_gaps(course) -> None:
-    """Check for missing @TEST_SPEC in dependency chains between marked tasks.
-    Standalone function suitable for calling during author build."""
+def check_test_spec_dependency_gaps(course, targets=None) -> None:
+    """Check for missing @TEST_SPEC in dependency chains between marked tasks."""
     if not hasattr(course, 'altdir') or not hasattr(course, 'taskdict'):
         return
     if not hasattr(course, 'get_all_assumed_tasks'):
         return
-    targets = extract_program_test_targets(course)
+    # Callers may pass pre-extracted targets to avoid calling extract_program_test_targets twice.
+    if targets is None:
+        targets = extract_program_test_targets(course)
     if not targets:
         return
     marked_set: set[str] = set()
