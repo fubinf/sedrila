@@ -124,6 +124,8 @@ class LinkExtractor:
                         rule.timeout = int(value)
                     except ValueError:
                         base.warning(f"Invalid timeout in @LINK_SPEC: {value}")
+                else:
+                    base.warning(f"Unknown @LINK_SPEC key: {key}")
         return rule
 
 
