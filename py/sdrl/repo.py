@@ -118,8 +118,11 @@ def submission_checked_commits(instructors: tg.Sequence[tg.Mapping[str, str]],
     for commit in commits:
         b.debug(f"commit.subject, fpr: {commit.subject}, {commit.key_fingerprint}")
         right_subject = re.match(c.SUBMISSION_CHECKED_COMMIT_MSG, commit.subject) is not None
-        if right_subject and is_allowed_signer(commit, allowed_signers):
-            result.append(commit)
+        if right_subject:
+            if is_allowed_signer(commit, allowed_signers):
+                result.append(commit)
+            else:
+                b.warning(f"Commit {commit.hash[:9]} '{commit.subject}' was not signed by an instructor")
     return result
 
 

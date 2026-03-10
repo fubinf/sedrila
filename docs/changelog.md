@@ -9,6 +9,7 @@
 - `author`: errors in `sedrila.yaml` now result in proper error messages
 - `student`, `instructor`: Webapp server is now properly multithreaded, no more meaningless `TimeoutError` stacktraces
 - `student`, `instructor`: Display a student work summary report before entering command loop
+- `student`, `instructor`: Unsigned 'submission.yaml checked' commits now emit a warning
 - `student`, `instructor`: webapp: make buttons in the lower right slightly transparent, 
   so that the text behind it stays legible.
 - `student`, `instructor`: use `allow_unicode=True` when writing YAML files to make them look more natural.
