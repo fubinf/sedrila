@@ -166,10 +166,10 @@ class Student:
     student_gituser: str
     partner_gituser: str
 
-    def __init__(self, rootdir: str, is_instructor: bool, filter_submission=True):
+    def __init__(self, rootdir: str, is_instructor: bool):
         self.topdir = rootdir = rootdir.rstrip('/')
         self.is_instructor = is_instructor
-        if is_instructor:
+        if is_instructor and sgit.is_modified(f"{self.topdir}/{c.SUBMISSION_FILE}"):
             self.possible_submission_states = [c.SUBMISSION_CHECK_MARK, 
                                                c.SUBMISSION_ACCEPT_MARK, c.SUBMISSION_REJECT_MARK]
         else:
@@ -208,10 +208,8 @@ class Student:
                 b.validate_dict_unsurprisingness(self.submissionfile_path, self.submission)
             except yaml.scanner.ScannerError:
                 self.submission = dict()  # ignore broken YAML file (e.g. from a merge conflict)
-        if filter_submission:
-            self.filter_submission()
+        self.filter_submission()
         
-
     @functools.cached_property
     def course(self) -> sdrl.course_si.CourseSI:
         return sdrl.course_si.CourseSI(configdict=self.course_metadata, context=self.course_metadata_url)
@@ -404,7 +402,7 @@ class Student:
         b.info("Then commit the file and push the commit.")
 
     def filter_submission(self):
-        """Kick out non-existing and rejected-for-good tasks and emit warnings."""
+        """Kick out 'wrong' tasks (non-existing, rejected-for-good, illegal state) and emit warnings."""
         submission1 = dict(**self.submission)  # constant copy (we will delete entries)
         file = self.submissionfile_path  # abbrev
         dummy = self.course_with_work  # make sure we read the worktimes from repo. TODO 2: ugly!
@@ -412,10 +410,13 @@ class Student:
             task = self.course_with_work.task(taskname)
             if not task:
                 b.warning(f"{file}: '{taskname}' is not a taskname. Ignored.")
-                del self.submission[taskname]
             elif task.remaining_attempts < 0:
                 b.warning(f"{file}: '{taskname}' has remaining_attempts = {task.remaining_attempts}. Ignored.")
-                del self.submission[taskname]
+            elif status not in self.possible_submission_states:
+                pass  # b.warning(f"{file}: '{taskname}' has impossible state {status}. Ignored.")  TODO 3: validate
+            else:
+                continue  # skip deletion
+            del self.submission[taskname]
 
     @classmethod
     def get_course_metadata(cls, course_url: str) -> b.StrAnyDict:

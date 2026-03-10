@@ -311,7 +311,7 @@ def task_data_from_repos(repodirs: list[str]) -> dict[str, dict[str, tg.Any]]:
     if not repodirs:
         return {}
     with contextlib.chdir(repodirs[0]):
-        student = sdrl.participant.Student('.', is_instructor=False, filter_submission=False)
+        student = sdrl.participant.Student('.', is_instructor=False)
         course_json = student.get_course_metadata(student.course_url)
         course = sdrl.course_si.CourseSI(course_json, os.path.basename(repodirs[0]))
     return {
