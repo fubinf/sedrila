@@ -2,6 +2,7 @@
 Simple technical base operations for handling git repos.
 Some of it built scruffily by calling git directly, other parts using the GitPython library.
 """
+import contextlib
 import datetime as dt
 import getpass
 import os
@@ -83,13 +84,16 @@ def find_most_recent_commit(regexp: str) -> tg.Optional[Commit]:
     return None
 
 
-def is_modified(file: str) -> bool:
-    """git status: Whether file's content differs from that in the index."""
-    repo = git.Repo(odbt=git.GitCmdObjectDB)
-    diff = repo.head.commit.diff(other=None, paths=[file])  # diff HEAD vs. working copy
-    for _ in diff:  # diff has length 0 or 1
-        return True  # if length 1
-    return False
+def is_modified(path: str) -> bool:
+    """git status: Whether file's content differs from that in HEAD. Current dir may be outside the workdir."""
+    the_dir = os.path.dirname(path) or '.'
+    the_file = os.path.basename(path)
+    with contextlib.chdir(the_dir):
+        repo = git.Repo(odbt=git.GitCmdObjectDB)
+        diff = repo.head.commit.diff(other=None, paths=[the_file])  # diff HEAD vs. working copy
+        for _ in diff:  # diff has length 0 or 1
+            return True  # if length 1
+        return False
     
 
 def origin_remote_of_local_repo() -> str:
