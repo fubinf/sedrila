@@ -71,11 +71,18 @@ def status_command():
     ctx = make_context(["."])
     sdrl.report.print_si_volume_report(ctx.studentlist[0])
 
+# info: sedrila student menu
+@student_command.command
+def menu_command():
+    """Show a summary of current Submissions"""
+    ctx = make_context(["."])
+    run_command_loop(ctx, menu=MENU, helptext=MENU_HELP, cmds=MENU_CMDS)
+
 # info: sedrila student finish
 @student_command.command
 def finish_command():
     """Show steps on how to indicate finished course participation""" # wording?
-    print("todo: finish")
+    b.critical("not yet implemented")
 
 # sedrila student explain?
 
