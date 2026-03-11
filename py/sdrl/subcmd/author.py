@@ -8,6 +8,8 @@ import os
 import os.path
 import typing as tg
 
+import click
+
 import base as b
 import cache
 import sdrl.constants as c
@@ -19,7 +21,99 @@ import sdrl.macroexpanders as macroexpanders
 import sdrl.rename
 import sdrl.report
 
+# new command ui
+@click.group
+def author_command():
+    """
+    Creates and renders an instance of a SeDriLa course with incremental build.
+    Checks consistency of the course description.
+    """
+    b.suppress_msg_duplicates(True)
 
+
+@author_command.command
+@click.argument("targetdir", type=click.Path())
+@click.option("--clean", default=False, type=bool, help="purge cache and perform a complete build")
+@click.option("--print-status", default=False, type=bool, help="print task volume reports")
+@click.option(
+    "--include-stage", type=str, default="",
+    help="include parts with this and higher 'stage:'"
+)
+@click.option(
+    "--config", type=str, default=c.AUTHOR_CONFIG_FILENAME,
+    help="SeDriLa configuration description YAML file"
+)
+def build_command(
+    targetdir: str, clean: bool, print_status: bool,
+    include_stage: str, config: str,
+):
+    """Build the SeDriLa course"""
+    targetdir_s = targetdir
+    targetdir_i = _targetdir_i(targetdir)
+    prepare_directories(targetdir_s, targetdir_i)
+    create_and_build_course2(dict(
+        config = config,
+        include_stage = include_stage,
+        clean = clean,
+        sums = print_status,
+    ), targetdir_i, targetdir_s)
+    b.finalmessage()
+
+@author_command.command
+@click.option(
+    "--config", type=str, default=c.AUTHOR_CONFIG_FILENAME,
+    help="SeDriLa configuration description YAML file"
+)
+@click.argument("old", type=str)
+@click.argument("new", type=str)
+def rename_command(config, old, new):
+    """Rename files of part, macro calls in *.md and part mentions in *.prot"""
+    b.suppress_msg_duplicates(False)
+    do_rename(config, old, new)
+
+@author_command.command
+@click.argument("targetdir", type=click.Path())
+def clear_cache_command(targetdir: str):
+    """Purge the cache"""
+    targetdir_i = _targetdir_i(targetdir)
+    delete_cache(targetdir_i)
+
+@author_command.command
+def status_command():
+    """[NOT IMPLEMENTED] use sedrila author build --print-status"""
+    """Print task volume reports"""
+    b.critical("not yet implemented, use `sedrila author build --print-status` instead")
+
+
+def delete_cache(targetdir_i: str):
+    p = os.path.join(targetdir_i, c.CACHE_FILENAME)
+    if os.path.exists(p): os.remove(p)
+
+def create_and_build_course2(args, targetdir_i, targetdir_s) -> sdrl.coursebuilder.Coursebuilder:
+    # ----- prepare build:
+    the_cache = cache.SedrilaCache(
+        os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=args["clean"]
+    )
+    b.set_register_files_callback(the_cache.set_file_dirty)
+    directory = dir.Directory(the_cache)
+    the_course = sdrl.coursebuilder.Coursebuilder(
+        configfile=args["config"], context=args["config"], include_stage=args["include_stage"],
+        targetdir_s=targetdir_s, targetdir_i=targetdir_i, directory=directory)
+    # ----- perform main part of build:
+    prepare_itree_zip(the_course)
+    macroexpanders.register_macros(the_course)
+    directory.build()
+    # ----- build special files:
+    b.spit(os.path.join(targetdir_s, c.METADATA_FILE), json.dumps(the_course.as_json(), indent=2))
+    generate_htaccess(the_course)
+    # ----- clean up and report:
+    purge_leftover_outputfiles(directory, targetdir_s, targetdir_i)
+    if args["sums"]:
+        sdrl.report.print_author_volume_report(the_course)
+    the_cache.close()  # write back changes
+    return the_course
+
+# legacy ui
 meaning = """Creates and renders an instance of a SeDriLa course with incremental build.
 Checks consistency of the course description.
 """
