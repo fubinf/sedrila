@@ -3,6 +3,7 @@ from collections.abc import Sequence
 import contextlib
 import itertools
 import os
+from types import SimpleNamespace
 import typing as tg
 
 import click
@@ -38,7 +39,7 @@ def instructor_command():
 def menu_command(workdir: Sequence[str], port: int):
     """Run the evaluation TUI"""
     workdir = init_workdirs(workdir)
-    context = make_context(workdir)
+    context = make_context(workdir, port=port)
     run_command_loop(context, MENU, MENU_HELP, MENU_CMDS)
 
 
@@ -67,8 +68,11 @@ def init_workdirs(workdirs: Sequence[str]) -> list[str]:
 
     return workdirs
 
-def make_context(wd: Sequence[str]) -> sdrl.participant.Context:
-    return sdrl.participant.make_context(None, [*wd], is_instructor=True, show_size=True)
+def make_context(wd: Sequence[str], **kwargs) -> sdrl.participant.Context:
+    return sdrl.participant.make_context(
+        SimpleNamespace(**kwargs), [*wd],
+        is_instructor=True, show_size=True
+    )
 
 # legacy ui
 meaning = """Help instructors evaluate students' submissions of several finished tasks.
