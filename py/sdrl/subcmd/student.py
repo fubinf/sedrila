@@ -3,6 +3,7 @@ from collections.abc import Sequence
 import contextlib
 import os
 import readline  # noqa, is active automatically for input()
+import types
 import typing as tg
 
 import blessed
@@ -50,7 +51,12 @@ def webapp_command(workdir: Sequence[str], port: int):
     workdir = check_workdirs(workdir)
     try:
         context = sdrl.participant.make_context(
-            None, workdir, is_instructor=False,
+            # simple hack to be compatible with old api
+            # this could be removed if the old api is
+            # no longer needed
+            types.SimpleNamespace(
+                port=port,
+            ), workdir, is_instructor=False,
             show_size=True,
         )
     except KeyboardInterrupt:
@@ -73,9 +79,15 @@ def status_command():
 
 # info: sedrila student menu
 @student_command.command
-def menu_command():
+@click.option(
+    "--port", "-p", type=int,
+    envvar="SEDRILA_WEBAPP_PORT",
+    default=sdrl.webapp.DEFAULT_PORT,
+    help="webapp will listen on this port",
+)
+def menu_command(port: int):
     """Show a summary of current Submissions"""
-    ctx = make_context(["."])
+    ctx = make_context(["."], port=port)
     run_command_loop(ctx, menu=MENU, helptext=MENU_HELP, cmds=MENU_CMDS)
 
 # info: sedrila student finish
@@ -96,10 +108,14 @@ def check_workdirs(workdirs: Sequence[str]) -> list[str]:
             b.critical(f"directory '{gitdir}' not found. This is not a proper working directory.")
     return workdirs
 
-def make_context(wd: Sequence[str]) -> sdrl.participant.Context:
+def make_context(wd: Sequence[str], **kwargs) -> sdrl.participant.Context:
     # we are not using any pargs in the context
     # should they be removed?
-    return sdrl.participant.make_context(None, [*wd], is_instructor=False, show_size=True)
+    return sdrl.participant.make_context(
+        types.SimpleNamespace(
+            **kwargs,
+        ), [*wd], is_instructor=False, show_size=True
+    )
 
 # legacy ui
 meaning = """Reports on course execution so far or prepares submission to instructor."""
