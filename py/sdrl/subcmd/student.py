@@ -86,7 +86,7 @@ def status_command():
     help="webapp will listen on this port",
 )
 def menu_command(port: int):
-    """Show a summary of current Submissions"""
+    """Show the interactive TUI for creating submissions"""
     ctx = make_context(["."], port=port)
     run_command_loop(ctx, menu=MENU, helptext=MENU_HELP, cmds=MENU_CMDS)
 
