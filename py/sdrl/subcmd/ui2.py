@@ -8,6 +8,7 @@ from .instructor import instructor_command
 from .author import author_command
 from .maintainer import maintainer_command
 from .evaluator import evaluator_command
+from .server import server_command
 import base as b
 
 # for command to show up in old system
@@ -31,5 +32,6 @@ ui2.add_command(instructor_command)
 ui2.add_command(author_command)
 ui2.add_command(maintainer_command)
 ui2.add_command(evaluator_command)
+ui2.add_command(server_command)
 
 
