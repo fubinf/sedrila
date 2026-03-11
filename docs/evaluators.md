@@ -16,7 +16,7 @@ Do not rely on anything here yet.
 
 - Go to an instructor directory under which the individual student course directories (with repos)
   reside.
-- Call `sedrila evaluator YYYY-MM-DD outputdir` where the date is the first course day.
+- Call `sedrila evaluator --start YYYY-MM-DD -o outputdir` where the date is the first course day.
 - Open `outputdir/index.html` in your browser.
 - The generated page starts with an overview list and then shows all evaluations as one long report.
 - Each evaluation section contains the chart(s), one short interpretation paragraph, and a second
@@ -26,7 +26,5 @@ Do not rely on anything here yet.
 
 - `--nopull`:
   skip pulling repositories before analysis (faster when repos are already up to date).
-- `--log LEVEL`:
-  set logging verbosity (`DEBUG`, `INFO`, ...).
 
 That's all.
