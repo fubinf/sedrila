@@ -54,93 +54,93 @@ import sdrl.repo as repo
 
 # new command ui
 @click.command
-@click.option("--nopull", type=bool, default=False, help="Skip the 'git pull' in each repo subdir")
-@click.argument("startdate", help="day 1 on the course as yyyy-mm-dd")
-@click.argument(
-    "outputdir", type=click.Path(),
+@click.option("--nopull", is_flag=True, default=False, help="Skip the 'git pull' in each repo subdir")
+@click.option("--start", type=str, help="day 1 on the course as yyyy-mm-dd")
+@click.option(
+    "--output", "-o", type=click.Path(),
     help="where to put the results; open index.html from there"
 )
-def evaluator_command(nopull: bool, startdate: str, outputdir: str):
+def evaluator_command(nopull: bool, start: str, output: str):
     """Statistical evaluation of the progress of an entire course cohort."""
     pd.options.display.max_rows = 250
-    os.makedirs(outputdir, exist_ok=True)
-    startdate_dt = dt.datetime.fromisoformat(startdate).replace(tzinfo=dt.timezone.utc)
+    os.makedirs(output, exist_ok=True)
+    startdate_dt = dt.datetime.fromisoformat(start).replace(tzinfo=dt.timezone.utc)
     repodirs = pull_all_repos(not nopull)
     task_data = task_data_from_repos(repodirs)
     events = collect_events(repodirs)
     if not events:
-        write_report_page(outputdir, [], startdate, 0, 0)
+        write_report_page(output, [], start, 0, 0)
         b.warning("No events found. Wrote empty evaluator report.")
         return
-    b.info(f"Creating evaluator report in '{outputdir}/index.html'")
+    b.info(f"Creating evaluator report in '{output}/index.html'")
     events_df = as_events_df(events, startdate_dt)
     weeks_df = weekly_studentsum(events_df)
     weekly_df = pd.DataFrame(fill_all_weeks(weeks_df))
     sections = []
     sections.append(plot_weekly_student_quantiles(
         weekly_df, 'accept', 'cumtimevalue', 'timevalue hours accepted',
-        outputdir, "Accepted timevalue progression",
+        output, "Accepted timevalue progression",
         "Shows how accepted timevalue accumulates by student over course weeks.",
         "Design idea: quartile stack plot highlights spread, not only central tendency. "
         "A tradeoff is visual density; a line-only variant can be cleaner but hides range."
     ))
     sections.append(plot_weekly_student_quantiles(
         weekly_df, 'reject', 'cumtimevalue', 'timevalue hours rejected',
-        outputdir, "Rejected timevalue progression",
+        output, "Rejected timevalue progression",
         "Shows how much timevalue was spent on rejected submissions over time.",
         "Design idea: keeping this structurally identical to the accepted plot allows "
         "direct comparison. Variant: normalized percentages instead of absolute hours."
     ))
     sections.append(plot_weekly_student_quantiles(
         weekly_df, 'work', 'cumtimevalue', 'hours worked',
-        outputdir, "Worktime progression",
+        output, "Worktime progression",
         "Shows cumulative worked hours per student and week from worktime commits.",
         "Design idea: the same quartile format supports quick cross-reading of all three "
         "time-series dimensions. Variant: split by chapter stage if stage metadata is available."
     ))
     sections.append(plot_weekly_event_counts(
-        events_df, outputdir,
+        events_df, output,
         "Weekly submission/check activity",
         "Shows total count of work/accept/reject events per week across the cohort.",
         "Design idea: absolute weekly intensity exposes pressure peaks around deadlines. "
         "Variant: smooth trend lines can reduce noise but can hide short spikes."
     ))
     sections.append(plot_top_tasks(
-        events_df, outputdir,
+        events_df, output,
         "Most worked-on tasks",
         "Shows tasks with the highest number of work commits and checked submissions.",
         "Design idea: side-by-side bar variants reveal popularity from two angles. "
         "Tradeoff: counts ignore time spent; add weighted bars when needed."
     ))
     sections.append(plot_task_effort_ratio(
-        events_df, task_data, outputdir,
+        events_df, task_data, output,
         "Task effort ratio (worked vs. nominal timevalue)",
         "Shows which tasks consume much more or less work than their nominal timevalue.",
         "Design idea: ratio bars quickly flag candidates for recalibration. Variant: per-student "
         "boxplots better show spread but are heavier to read for many tasks."
     ))
     sections.append(plot_rejection_patterns(
-        events_df, outputdir,
+        events_df, output,
         "Rejection patterns by task and student",
         "Shows where rejections cluster in tasks and among students.",
         "Design idea: two compact top-N views separate task quality signals from "
         "individual support signals. Variant: heatmaps provide full detail with higher visual load."
     ))
     sections.append(plot_instructor_load(
-        events_df, outputdir,
+        events_df, output,
         "Instructor checking load",
         "Shows how accept/reject checks are distributed among instructor committers.",
         "Design idea: stacked bars reveal both total load and rejection share per instructor. "
         "Variant: percentages-only bars improve comparability but hide absolute workload."
     ))
     sections.append(plot_taskgroup_start_order(
-        events_df, task_data, outputdir,
+        events_df, task_data, output,
         "Typical taskgroup start order",
         "Shows taskgroups ordered by the median week when students first touched them.",
         "Design idea: first-touch medians approximate navigation order through the course. "
         "Tradeoff: ignores revisits; a transition graph variant captures path dynamics."
     ))
-    write_report_page(outputdir, sections, startdate,
+    write_report_page(output, sections, start,
                       len(events_df.student.unique()), len(events_df))
 
 

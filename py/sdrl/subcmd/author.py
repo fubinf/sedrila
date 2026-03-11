@@ -33,8 +33,8 @@ def author_command():
 
 @author_command.command
 @click.argument("targetdir", type=click.Path())
-@click.option("--clean", default=False, type=bool, help="purge cache and perform a complete build")
-@click.option("--print-status", default=False, type=bool, help="print task volume reports")
+@click.option("--clean", default=False, is_flag=True, help="purge cache and perform a complete build")
+@click.option("--print-status", default=False, is_flag=True, help="print task volume reports")
 @click.option(
     "--include-stage", type=str, default="",
     help="include parts with this and higher 'stage:'"
