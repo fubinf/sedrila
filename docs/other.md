@@ -17,9 +17,9 @@ is simplistic and is neither fast enough nor (in particular) secure enough nor f
 to be used as a public production webserver.
 
 Call it as follows:  
-`sedrila server [--quiet|-q] port mydir`,  
+`sedrila server [--quiet|-q] --port port mydir`,  
 for example  
-`sedrila server -q 8099 build &`.
+`sedrila server -q --port 8099 build &`.
 
 This will serve all files in subdirectory `build` (into which presumably a prior
 `sedrila author build` has put the generated files).

@@ -32,19 +32,18 @@ Function-specific requirements:
 ## 3. Basic command structure
 
 ```bash
-sedrila maintainer [options] targetdir
+sedrila maintainer [command] [options] targetdir
 ```
 
-Function options:
+Commands:
 
-- `--check-links [markdown_file]`: Check URLs for availability
-- `--check-programs [program_file]`: Test programs
+- `check-links --check [markdown_file]`: Check URLs for availability
+- `check-programs [program_file]`: Test programs
 
 Common options:
 
 - `--config <configfile>`: Specify configuration file (default: `sedrila.yaml`)
 - `--include-stage <stage>`: Include parts with this and higher stage entries (default: `draft` which includes all stages)
-- `--log <level>`: Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - `--batch`: Use batch/CI-friendly output
 
 Positional arguments:
@@ -66,9 +65,9 @@ at 03:30 UTC.
 Both Actions workflows use the `--batch` flag for CI-friendly output.
 
 
-## 4. Link Checking: `--check-links`
+## 4. Link Checking: `check-links`
 
-Option `--check-links [markdown_file]` validates external HTTP/HTTPS links found in markdown files.
+The Command `check-links` validates external HTTP/HTTPS links found in markdown files.
 
 Link checking is implemented as a `maintainer` subcommand but leverages 
 the `author` build system infrastructure for file identification. 
@@ -87,7 +86,7 @@ Extracts the list of markdown files that need checking (respecting configuration
 
 Checks links and generates reports as build products 
 
-- Without a file argument, it checks all course files using the build system to identify files. 
+- Without a `--check` argument, it checks all course files using the build system to identify files. 
 (respects `sedrila.yaml` configuration, only checks configured taskgroups). 
 - With a file argument, it checks only that specific file.
 - Uses the `--include-stage` option to control which development stages are checked (default: `draft`, which includes all stages).
@@ -96,7 +95,6 @@ Checks links and generates reports as build products
 - Generates a fixed-name markdown report: `link_check_report.md` in `targetdir_i`.
 - Supports custom link validation rules via HTML comments in markdown files.
 - Avoids checking duplicate URLs and includes comprehensive statistics in reports.
-- When checking all files, use `--` to separate options from the positional `targetdir` argument.
 - Link checking automatically sends HTTP requests in parallel when `--batch` is used. You can change the worker count via the `SDRL_LINKCHECK_MAX_WORKERS` environment variable (default: `230`). 
 - In a local environment (like WSL), adjust the concurrency by running `export SDRL_LINKCHECK_MAX_WORKERS=Number` (For a PC, setting this value to the current number of CPU threads would be appropriate.) and then executing `sedrila maintainer --check-links`. 
   use `echo "$SDRL_LINKCHECK_MAX_WORKERS"` to check current value of this variable.
@@ -104,9 +102,9 @@ Checks links and generates reports as build products
 
 Examples:
 
-- `sedrila maintainer --check-links -- /tmp/linkcheck` (check all course files, all stages)
-- `sedrila maintainer --include-stage beta --check-links -- /tmp/linkcheck` (check only beta stage)
-- `sedrila maintainer --check-links ch/Chapter1/Task1.md /tmp/linkcheck` (check one specific file by using its absolute or relative path)
+- `sedrila maintainer check-links /tmp/linkcheck` (check all course files, all stages)
+- `sedrila maintainer check-links --include-stage beta /tmp/linkcheck` (check only beta stage)
+- `sedrila maintainer check-links --check ch/Chapter1/Task1.md /tmp/linkcheck` (check one specific file by using its absolute or relative path)
 
 By default, links are considered successful if they return 2xx or 3xx status codes.
 You can specify custom validation rules using HTML comments before links:
@@ -131,9 +129,9 @@ Available rule parameters:
 
 The validation rule applies (only) to the next link found.
 
-## 5. Program Testing: `--check-programs`
+## 5. Program Testing: `check-programs`
 
-Option `--check-programs -- <report_dir>` tests exemplary programs against protocol files.
+Option `check-programs <report_dir>` tests exemplary programs against protocol files.
 
 Program testing executes stored commands from `.prot` files and verifies output matches expected results.
 
@@ -149,8 +147,8 @@ How it works:
 
 Examples:
 
-- `sedrila maintainer --check-programs -- /tmp/progtest`
-- `sedrila maintainer --batch --check-programs -- /tmp/progtest` (batch mode)
+- `sedrila maintainer check-programs /tmp/progtest`
+- `sedrila maintainer check-programs --batch /tmp/progtest` (batch mode)
 
 When using `--batch`, test progress is suppressed and failures are summarized at the end for quick CI error identification.
 

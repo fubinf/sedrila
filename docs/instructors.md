@@ -70,7 +70,7 @@ Under Windows, use WSL. `sedrila` does not work natively in Windows.
   you will receive notification emails containing a string of the form
   `studentname / reponame`.
   Cloning becomes easy by copy/pasting this string onto your commandline as
-  `clonesedrilarepo studentname / reponame`
+  `cloneedrilarepo studentname / reponame`
   after you taught your shell this procedure:
   ```
   clonesedrilarepo() {
@@ -92,7 +92,7 @@ instructors' public keys into your `gpg` so that sedrila can identify the
 
 To do so, go to a student directory that contains a proper `student.yaml` file
 and call  
-`sedrila student --import-keys .`  
+`sedrila student import-keys`  
 This is the only time you will need to call `sedrila student` (as opposed to `sedrila instructor`).
 
 If you do not have a student directory, create one yourself by `git init mytmp; cd mytmp`
@@ -105,7 +105,7 @@ and then following the steps described in
 
 ### 2.2 Regular use
 
-Call `sedrila instructor student1` or  `sedrila instructor student1 student2`,
+Call `sedrila instructor menu student1` or  `sedrila instructor menu student1 student2`,
 where `student1` and `student2` are two students' git usernames
 and therefore also the names of directories in the course-level top directory
 in which the call needs to be made.  

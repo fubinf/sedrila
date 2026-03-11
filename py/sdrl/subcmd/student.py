@@ -1,10 +1,13 @@
 import argparse
+from collections.abc import Sequence
 import contextlib
 import os
 import readline  # noqa, is active automatically for input()
+import types
 import typing as tg
 
 import blessed
+import click
 
 import base as b
 import sgit
@@ -15,7 +18,115 @@ import sdrl.repo as r
 import sdrl.report
 import sdrl.webapp
 
+# new command ui
+@click.group
+def student_command():
+    """Report on course execution so far or prepares submission to instructor."""
+    pass
 
+
+# info: sedrila student init
+@student_command.command
+# add argument for workdir here when supported
+# @click.argument("workdir", type=click.Path(), envvar="SEDRILA_STUDENT_WORKDIR", default=".")
+def init_command():
+    """Start initialization for student repo directory"""
+    init(["."])
+
+# info: sedrila student webapp
+@student_command.command
+@click.argument(
+    "workdir", nargs=-1, type=click.Path(),
+    envvar="SEDRILA_STUDENT_WORKDIR",
+    default=(".",),
+)
+@click.option(
+    "--port", "-p", type=int,
+    envvar="SEDRILA_WEBAPP_PORT",
+    default=sdrl.webapp.DEFAULT_PORT,
+    help="webapp will listen on this port",
+)
+def webapp_command(workdir: Sequence[str], port: int):
+    """Run the webapp"""
+    workdir = check_workdirs(workdir)
+    try:
+        context = sdrl.participant.make_context(
+            # simple hack to be compatible with old api
+            # this could be removed if the old api is
+            # no longer needed
+            types.SimpleNamespace(
+                port=port,
+            ), workdir, is_instructor=False,
+            show_size=True,
+        )
+    except KeyboardInterrupt:
+        print("  Bye.")
+        return
+    cmd_webapp(context)
+
+# info: sedrila student import-keys
+@student_command.command
+def import_keys_command():
+    """Import instructors' public keys into GPG"""
+    import_keys(["."])
+
+# info: sedrila student status
+@student_command.command
+def status_command():
+    """Show a summary of current Submissions"""
+    ctx = make_context(["."])
+    sdrl.report.print_si_volume_report(ctx.studentlist[0])
+
+# info: sedrila student menu
+@student_command.command
+@click.option(
+    "--port", "-p", type=int,
+    envvar="SEDRILA_WEBAPP_PORT",
+    default=sdrl.webapp.DEFAULT_PORT,
+    help="webapp will listen on this port",
+)
+def menu_command(port: int):
+    """Show the interactive TUI for creating submissions"""
+    ctx = make_context(["."], port=port)
+    run_command_loop(ctx, menu=MENU, helptext=MENU_HELP, cmds=MENU_CMDS)
+
+# info: sedrila student finish
+@student_command.command
+def finish_command():
+    """Show steps on how to indicate finished course participation""" # wording?
+    ctx = make_context(["."])
+
+    # message could look something like this (partially copied from push)
+    b.info(f"Now send the following to your professor by email:")
+    b.info(f"  Subject: Course completion")
+    b.info(f"  course_url: {ctx.course_url}")
+    b.info(f"  student_id: {ctx.studentlist[0].student_id}")
+    b.info(f"  student_gituser: {ctx.studentlist[0].student_gituser}")
+    b.info(f"  student_id: {ctx.studentlist[0].student_id}")
+    b.info(f"  student_name: {ctx.studentlist[0].student_name}")
+
+# sedrila student explain?
+
+def check_workdirs(workdirs: Sequence[str]) -> list[str]:
+    workdirs = [wd.rstrip("/") for wd in workdirs] # make names canonical
+    for workdir in workdirs:
+        if not os.path.isdir(workdir):
+            b.critical(f"directory '{workdir}' does not exist.")
+        gitdir = os.path.join(workdir, '.git')
+        if not os.path.isdir(gitdir):
+            b.critical(f"directory '{gitdir}' not found. This is not a proper working directory.")
+    return workdirs
+
+def make_context(wd: Sequence[str], **kwargs) -> sdrl.participant.Context:
+    # we are not using any pargs in the context
+    # should they be removed?
+    return sdrl.participant.make_context(
+        types.SimpleNamespace(
+            **kwargs,
+        ), [*wd], is_instructor=False, show_size=True
+    )
+
+# legacy ui
 meaning = """Reports on course execution so far or prepares submission to instructor."""
 
 
