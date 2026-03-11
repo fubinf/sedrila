@@ -1,8 +1,11 @@
 import argparse
+from collections.abc import Sequence
 import contextlib
 import itertools
 import os
 import typing as tg
+
+import click
 
 import base as b
 import sgit
@@ -13,6 +16,61 @@ import sdrl.repo as r
 import sdrl.report
 import sdrl.webapp
 
+# new command ui
+@click.group
+def instructor_command():
+    """Help instructors evaluate students' submissions of several finished tasks."""
+    pass
+
+# info: sedrila instructor menu
+@instructor_command.command
+@click.argument(
+    "workdir", nargs=-1, type=click.Path(),
+    envvar="SEDRILA_STUDENT_WORKDIR",
+    default=(".",),
+)
+@click.option(
+    "--port", "-p", type=int,
+    envvar="SEDRILA_WEBAPP_PORT",
+    default=sdrl.webapp.DEFAULT_PORT,
+    help="webapp will listen on this port",
+)
+def menu_command(workdir: Sequence[str], port: int):
+    """Run the evaluation TUI"""
+    workdir = init_workdirs(workdir)
+    context = make_context(workdir)
+    run_command_loop(context, MENU, MENU_HELP, MENU_CMDS)
+
+
+# info: sedrila instructor status
+@instructor_command.command
+@click.argument(
+    "workdir", nargs=-1, type=click.Path(),
+    envvar="SEDRILA_STUDENT_WORKDIR",
+    default=(".",),
+)
+def status_command(workdir: Sequence[str]):
+    """Show a summary of current submissions"""
+    workdir = init_workdirs(workdir)
+    context = make_context(workdir)
+    for name, stud in context.students.items():
+        b.info(f"'{name}' work report (in hours):")
+        sdrl.report.print_si_volume_report(stud)
+
+
+def init_workdirs(workdirs: Sequence[str]) -> list[str]:
+    workdirs = [wd.rstrip("/") for wd in workdirs] # make names canonical
+    for workdir in workdirs:
+        if not os.path.isdir(workdir):
+            b.critical(f"directory '{workdir}' does not exist.")
+        prepare_workdir(workdir)
+
+    return workdirs
+
+def make_context(wd: Sequence[str]) -> sdrl.participant.Context:
+    return sdrl.participant.make_context(None, [*wd], is_instructor=True, show_size=True)
+
+# legacy ui
 meaning = """Help instructors evaluate students' submissions of several finished tasks.
 """
 
