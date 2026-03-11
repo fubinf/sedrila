@@ -55,9 +55,9 @@ import sdrl.repo as repo
 # new command ui
 @click.command
 @click.option("--nopull", is_flag=True, default=False, help="Skip the 'git pull' in each repo subdir")
-@click.option("--start", type=str, help="day 1 on the course as yyyy-mm-dd")
+@click.option("--start", type=str, required=True, help="day 1 on the course as yyyy-mm-dd")
 @click.option(
-    "--output", "-o", type=click.Path(),
+    "--output", "-o", type=click.Path(), required=True,
     help="where to put the results; open index.html from there"
 )
 def evaluator_command(nopull: bool, start: str, output: str):

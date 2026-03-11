@@ -14,7 +14,7 @@ import argparse_subcommand as ap_sub
 # new command ui
 @click.command
 @click.option("--quiet", "-q", is_flag=True, help="suppress the request logging output")
-@click.option("--port", type=int, help="port on which to serve the files")
+@click.option("--port", required=True, type=int, help="port on which to serve the files")
 @click.argument("sourcedir", type=click.Path())
 def server_command(sourcedir: str, port: int, quiet: bool):
     """Development-only single-user webserver for serving a file tree created by 'sedrila author'."""
