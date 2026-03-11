@@ -122,7 +122,7 @@ at any spot anywhere in the file. These replacements are performed before the YA
 
 - `student_yaml_attribute_prompts`: Optional dictionary of pairs of attribute name and prompt to be used
   for interactively populating the `student.yaml` student identification file 
-  during the `sedrila student --init` command.
+  during the `sedrila student init` command.
   The required attributes `course_url, student_name, student_id, student_gituser, partner_gituser`
   have default prompts, which you can overwrite here.
   (Exception: `course_url` cannot be overwritten, because the value is needed to make the customized prompts
