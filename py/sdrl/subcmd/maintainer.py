@@ -38,7 +38,7 @@ def maintainer_command():
     help="SeDriLa configuration description YAML file"
 )
 @click.option(
-    "--batch", type=bool, default=False,
+    "--batch", is_flag=True, default=False,
     help="Use batch/CI-friendly output: concise output, only show failures, complete error list at end",
 )
 @click.option(
@@ -135,7 +135,7 @@ def check_links_command2(targetdir: str, config: str, include_stage: str, batch:
     help="SeDriLa configuration description YAML file"
 )
 @click.option(
-    "--batch", type=bool, default=False,
+    "--batch", is_flag=True, default=False,
     help="Use batch/CI-friendly output: concise output, only show failures, complete error list at end",
 )
 @click.option(
