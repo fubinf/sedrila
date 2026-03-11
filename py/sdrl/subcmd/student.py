@@ -94,6 +94,16 @@ def menu_command(port: int):
 @student_command.command
 def finish_command():
     """Show steps on how to indicate finished course participation""" # wording?
+
+    # message could look something like this (partially copied from push)
+    # b.info(f"Now send the following to your professor by email:")
+    # b.info(f"  Subject: Course completion")
+    # b.info(f"  course_url: {ctx.course_url}")
+    # b.info(f"  student_id: {ctx.studentlist[0].student_id}")
+    # b.info(f"  student_gituser: {ctx.studentlist[0].student_gituser}")
+    # b.info(f"  student_id: {ctx.studentlist[0].student_id}")
+    # b.info(f"  student_name: {ctx.studentlist[0].student_name}")
+
     b.critical("not yet implemented")
 
 # sedrila student explain?
