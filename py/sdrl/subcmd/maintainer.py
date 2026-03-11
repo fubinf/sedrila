@@ -11,6 +11,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+import click
+
 import base as b
 import cache
 import sdrl.constants as c
@@ -19,7 +21,273 @@ import sdrl.coursebuilder
 import sdrl.directory as dir
 import sdrl.elements
 
+# new command ui
+@click.group
+def maintainer_command():
+    """
+    Maintain course quality with checks that are not suitable at build time.
+    Checks links, tests programs.
+    """
+    pass
 
+
+@maintainer_command.command(name="check-links")
+@click.argument("targetdir", type=click.Path())
+@click.option(
+    "--config", default=c.AUTHOR_CONFIG_FILENAME, type=click.Path(),
+    help="SeDriLa configuration description YAML file"
+)
+@click.option(
+    "--batch", type=bool, default=False,
+    help="Use batch/CI-friendly output: concise output, only show failures, complete error list at end",
+)
+@click.option(
+    "--check", type=str, default="all",
+    help="Check accessibility of external links. specify a Markdown file to check or 'all' to check all",
+)
+@click.option(
+    "--include-stage", default="draft",
+    help="include parts with this and higher 'stage:' entries",
+)
+def check_links_command2(targetdir: str, config: str, include_stage: str, batch: bool, check: str):
+# info: sedrila maintainer check-links
+    """Check accessibility of external links."""
+    import sdrl.linkchecker as linkchecker
+    if check == 'all':
+        b.info("Checking links in all course files...")
+        targetdir_s = targetdir
+        targetdir_i = targetdir_s + "_i"
+        os.makedirs(targetdir_s, exist_ok=True)
+        os.makedirs(targetdir_i, exist_ok=True)
+        try:
+            the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=False)
+            b.set_register_files_callback(the_cache.set_file_dirty)
+            directory = dir.Directory(the_cache)
+            the_course = sdrl.coursebuilder.Coursebuilder(
+                configfile=config, 
+                context=config, 
+                include_stage=include_stage,
+                targetdir_s=targetdir_s,
+                targetdir_i=targetdir_i,
+                directory=directory
+            )
+            # This builds: Sourcefile, Topmatter, and MetadataDerivation
+            # MetadataDerivation.do_build() handles topmatter processing and stage evaluation
+            _build_metadata_only(directory)
+            markdown_files = find_markdown_files(the_course)
+            b.info(f"Found {len(markdown_files)} markdown files to check")
+            extractor = linkchecker.LinkExtractor()
+            all_links = []
+            for filepath in markdown_files:
+                links = extractor.extract_links_from_file(filepath)
+                all_links.extend(links)
+            if not all_links:
+                b.info("No external links found to check.")
+                the_cache.close()
+                b.info("=" * 60)
+                return
+            # Check all links
+            checker = linkchecker.LinkChecker()
+            batch_mode = batch
+            results = checker.check_links(all_links, show_progress=True, batch_mode=batch_mode)
+            reporter = linkchecker.LinkCheckReporter()
+            if results:
+                try:
+                    md_content = reporter.render_markdown_report(results, max_workers=checker.max_workers)
+                    md_report = directory.make_the(
+                        sdrl.elements.ReportFile,
+                        "link_check_report.md",
+                        content=md_content,
+                        markdown_files=markdown_files,
+                        targetdir_s=targetdir_s,
+                        targetdir_i=targetdir_i
+                    )
+                    md_report.do_build()
+                    b.info("Report generated as build product:")
+                    b.info(f"  Markdown: {md_report.outputfile_i}")
+                except (OSError, RuntimeError, ValueError) as e:
+                    b.error(f"Failed to generate report files: {e}")
+                    import traceback
+                    traceback.print_exc()
+            # Close cache and clean up
+            the_cache.close()
+        except (FileNotFoundError, OSError, ValueError, RuntimeError) as e:
+            b.error(f"Failed to initialize course structure: {e}")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
+        failed_count = sum(1 for r in results if not r.success)
+        if failed_count > 0:
+            sys.exit(1)
+    else:
+        # Check specific file
+        results = linkchecker.check_single_file(check)
+        if results:
+            failed_count = sum(1 for r in results if not r.success)
+            if failed_count > 0:
+                sys.exit(1)
+
+
+# info: sedrila maintainer check-programs
+@maintainer_command.command(name="check-programs")
+@click.option(
+    "--config", default=c.AUTHOR_CONFIG_FILENAME, type=click.Path(),
+    help="SeDriLa configuration description YAML file"
+)
+@click.option(
+    "--batch", type=bool, default=False,
+    help="Use batch/CI-friendly output: concise output, only show failures, complete error list at end",
+)
+@click.option(
+    "--include-stage", default="draft",
+    help="include parts with this and higher 'stage:' entries",
+)
+@click.argument("targetdir", type=click.Path())
+def check_programs_command2(targetdir: str, config: str, batch: bool, include_stage: str):
+    """Test exemplary programs against protocol files"""
+    import sdrl.programchecker as programchecker
+    b.info("Testing exemplary programs...")
+    targetdir_s = targetdir
+    targetdir_i = targetdir_s + "_i"
+    batch_mode = batch
+    os.makedirs(targetdir_s, exist_ok=True)
+    os.makedirs(targetdir_i, exist_ok=True)
+    temp_report_dir = tempfile.mkdtemp(prefix='sedrila_progtest_')
+    try:
+        the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=False)
+        b.set_register_files_callback(the_cache.set_file_dirty)
+        directory = dir.Directory(the_cache)
+        the_course = sdrl.coursebuilder.Coursebuilder(
+            configfile=config,
+            context=config,
+            include_stage=include_stage,
+            targetdir_s=targetdir_s,
+            targetdir_i=targetdir_i,
+            directory=directory
+        )
+        _build_metadata_only(directory)
+        targets = programchecker.extract_program_test_targets(the_course)
+        programchecker.check_test_spec_dependency_gaps(the_course, targets=targets)
+        checker = programchecker.ProgramChecker(
+            report_dir=temp_report_dir,
+            course=the_course
+        )
+        show_progress = not batch_mode
+        results = checker.test_all_programs(
+            targets=targets,
+            show_progress=show_progress,
+            batch_mode=batch_mode
+        )
+        try:
+            checker.generate_reports(results, batch_mode=batch_mode)
+            md_temp_path = os.path.join(temp_report_dir, "program_test_report.md")
+            with open(md_temp_path, 'r', encoding='utf-8') as f:
+                md_content = f.read()
+            md_report = directory.make_the(
+                sdrl.elements.ReportFile,
+                "program_test_report.md",
+                content=md_content,
+                markdown_files=None,
+                targetdir_s=targetdir_s,
+                targetdir_i=targetdir_i
+            )
+            md_report.do_build()
+            b.info("Report generated as build product:")
+            b.info(f"  Markdown: {md_report.outputfile_i}")
+        except (OSError, RuntimeError, ValueError) as e:
+            b.error(f"Failed to generate report files: {e}")
+            import traceback
+            traceback.print_exc()
+        the_cache.close()
+    finally:
+        if os.path.exists(temp_report_dir):
+            shutil.rmtree(temp_report_dir)
+    failed_count = sum(1 for r in results if not r.success and not r.skipped)
+    if failed_count > 0:
+        sys.exit(1)
+
+
+# info: sedrila maintainer collect
+@maintainer_command.command(name="collect")
+@click.option(
+    "--config", default=c.AUTHOR_CONFIG_FILENAME, type=click.Path(),
+    help="SeDriLa configuration description YAML file"
+)
+@click.option(
+    "--output", "-o", type=click.Path(), default="-",
+    help="output file path (use '-' to write to stdout)"
+)
+@click.option(
+    "--include-stage", default="draft",
+    help="Include parts with this and higher 'stage:'"
+)
+def collect_command2(config: str, output: str, include_stage: str):
+    """Collect languages and dependencies from @TEST_SPEC blocks"""
+    import sdrl.programchecker as programchecker
+    # Use temporary directory for cache
+    temp_cache_dir = tempfile.mkdtemp(prefix='sedrila_collect_')
+    try:
+        the_cache = cache.SedrilaCache(os.path.join(temp_cache_dir, c.CACHE_FILENAME), start_clean=False)
+        b.set_register_files_callback(the_cache.set_file_dirty)
+        directory = dir.Directory(the_cache)
+        the_course = sdrl.coursebuilder.Coursebuilder(
+            configfile=config,
+            context=config,
+            include_stage=include_stage,
+            targetdir_s=temp_cache_dir,
+            targetdir_i=temp_cache_dir,
+            directory=directory
+        )
+        _build_metadata_only(directory)
+        targets = programchecker.extract_program_test_targets(the_course)
+        checker = programchecker.ProgramChecker(course=the_course)
+        deps_by_task = checker.collect_deps_by_task(targets)
+        # Collect all unique lang and deps commands
+        all_lang_commands = set()
+        all_deps_commands = set()
+        for target in targets:
+            header = target.program_check_header
+            all_lang_commands.update(header.get_lang_install_commands())
+            all_deps_commands.update(header.get_install_commands())
+        # Build simple task list
+        tasks = {}
+        for target in targets:
+            task_name = target.protocol_file.stem
+            task_obj = the_course.task(task_name)
+            assumes = task_obj.assumes if task_obj else []
+            requires = task_obj.requires if task_obj else []
+            tasks[task_name] = {
+                "deps": deps_by_task.get(task_name, []),
+                "assumes": assumes,
+                "requires": requires,
+                "protocol": str(target.protocol_file)
+            }
+        result = {
+            "lang": sorted(list(all_lang_commands)),
+            "deps": sorted(list(all_deps_commands)),
+            "tasks": tasks
+        }
+        # Output to file or stdout
+        output_json = json.dumps(result, indent=2, sort_keys=True)
+        if output != "-":
+            with open(output, 'w') as f:
+                f.write(output_json)
+            b.info(f"Metadata collected and written to {output}")
+        else:
+            print(output_json)
+        the_cache.close()
+    except (FileNotFoundError, OSError, ValueError, RuntimeError) as e:
+        b.error(f"Failed to collect metadata: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+    finally:
+        # Clean up temporary directory
+        if os.path.exists(temp_cache_dir):
+            shutil.rmtree(temp_cache_dir)
+
+
+# legacy ui
 meaning = """Maintain course quality with checks that are not suitable at build time.
 Checks links, tests programs.
 """
@@ -34,7 +302,7 @@ def add_arguments(subparser: argparse.ArgumentParser):
                            help="include parts with this and higher 'stage:' entries in the checking "
                                 "(default: 'draft' which includes all stages)")
     subparser.add_argument('--check-links', nargs='?', const='all', metavar="markdown_file",
-                           help="Check accessibility of external links. Use without argument to check all course files, or specify a single markdown file to check")
+       help="Check accessibility of external links. Use without argument to check all course files, or specify a single markdown file to check")
     subparser.add_argument('--check-programs', action='store_true',
                            help="Test exemplary programs against protocol files")
     subparser.add_argument('--collect', action='store_true',

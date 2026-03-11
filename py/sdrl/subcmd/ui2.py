@@ -6,6 +6,7 @@ import click
 from .student import student_command
 from .instructor import instructor_command
 from .author import author_command
+from .maintainer import maintainer_command
 import base as b
 
 # for command to show up in old system
@@ -23,10 +24,10 @@ def execute(_: argparse.Namespace): assert False, "this is only intended as a du
 )
 def ui2(log):
     b.set_loglevel(log)
-    print("hi from ui2")
 
 ui2.add_command(student_command)
 ui2.add_command(instructor_command)
 ui2.add_command(author_command)
+ui2.add_command(maintainer_command)
 
 
