@@ -67,7 +67,7 @@ def import_keys_command():
 # info: sedrila student status
 @student_command.command
 def status_command():
-    """Shows a summary of current Submissions"""
+    """Show a summary of current Submissions"""
     ctx = make_context(["."])
     sdrl.report.print_si_volume_report(ctx.studentlist[0])
 
