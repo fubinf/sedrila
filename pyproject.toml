@@ -88,3 +88,4 @@ sedrila = "sedrila:main"
 # https://docs.pytest.org/en/latest/reference/customize.html
 [tool.pytest.ini_options]
 pythonpath = "py"
+testpaths = ["py"]
