@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to coding agents when working with code in this repository.
 
 ## Project Overview
 
@@ -108,36 +108,38 @@ Builder classes (e.g., `Coursebuilder`, `Taskbuilder`) are used in author mode a
 
 ### Module Layering
 
-The codebase follows strict layering (enforced by convention):
+The codebase follows strict layering (enforced by convention):  TODO 2: add new parts
 
 - **Layer 0**: `base` - Basic utilities
 - **Layer 1**: `cache`, `sgit` - Domain-independent modules
-- **Layer 2**: Domain model
+- **Layer 2**: Domain model building blocks
   - 2.1: `sdrl.constants`, `sdrl.html`
   - 2.2: `sdrl.repo`, `sdrl.macros`, `sdrl.markdown`, `sdrl.argparser`
   - 2.3: `sdrl.macroexpanders`, `sdrl.replacements`, `sdrl.glossary`
   - 2.4: `sdrl.elements`, `sdrl.directory`, `sdrl.partbuilder`
-- **Layer 3**: `sdrl.course`, `sdrl.participant`
+- **Layer 3**: `sdrl.course`, `sdrl.course_si`, `sdrl.coursebuilder`, `sdrl.participant` - Domain model top-level parts
 - **Layer 4**: `sdrl.subcmd.*` (author, student, instructor, maintainer, evaluator)
 
 ### Markdown Extensions ("Macros")
 
-Custom macros provide enhanced functionality:
+Custom macros provide enhanced functionality, e.g.:
 - `[PARTREF::taskname]` - Links to tasks/chapters/taskgroups
 - `[TERMREF::term]` - Glossary term references
-- `[TOC]` - Table of contents
 - `[INSTRUCTOR]...[ENDINSTRUCTOR]` - Instructor-only content
 - `[HINT::...]...[ENDHINT]` - Collapsible hints
 - `[SECTION::...]` - Structured task sections (background, goal, instructions, submission)
 
 ### Student Workflow
 
-Students commit work with prescribed commit message format (e.g., `"%TaskName 1:10h"` for time tracking). They create `submission.yaml` listing completed tasks with `CHECK` marks. The `sedrila student` command provides a webapp showing progress and timevalue earned.
+Students commit work with prescribed commit message format (e.g., `"%TaskName 1:10h"` for time tracking). 
+They create `submission.yaml` listing completed tasks with `CHECK` marks. 
+The `sedrila student` command provides a webapp showing progress and timevalue earned.
 
 ### Instructor Workflow
 
-Instructors pull student repos and run `sedrila instructor studentrepo/`. The tool:
-1. Validates `submission.yaml` entries against `course.json`
+Instructors run `sedrila instructor studentrepo/`. The tool:
+1. Pulls the repo.
+2. Validates `submission.yaml` entries against `course.json` and history
 2. Presents tasks in a webapp for review
 3. Updates `submission.yaml` with `ACCEPT`/`REJECT` marks
 4. Creates cryptographically signed commits
