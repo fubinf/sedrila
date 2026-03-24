@@ -8,6 +8,7 @@ EDITOR_CMD_DEFAULT = "/usr/bin/nano"
 EVENTCACHE_FILENAME = ".sedrila_events"  # evaluator: in respos_dir
 HTML_DIFFICULTY_SIGN = "&#x26ab;&#xfe0e;"  # &#x26ab; is an icon and always black, &#xfe0e; is the text-variant selector
   # https://commons.wikimedia.org/wiki/Unicode_circle_shaped_symbols
+HTML_PAIRWORK_SIGN = "&#x1f465;&#xfe0e;"  # &#x1f465; = 👥 BUSTS IN SILHOUETTE (two people), &#xfe0e; forces text rendering
 HTACCESS_FILE = ".htaccess"  # in instructor part of build directory
 METADATA_FILE = "course.json"  # at top-level of build directory
 PARTICIPANT_FILE = "student.yaml"

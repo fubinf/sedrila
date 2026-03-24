@@ -22,6 +22,10 @@ def difficulty_symbol(level: int) -> str:
     return circle
 
 
+def pairwork_symbol() -> str:
+    return f"<span class='pairwork' title='Pairwork: must be done in pairs or groups'>{c.HTML_PAIRWORK_SIGN}</span>"
+
+
 def indented_block(text: str, level: int, classes: str) -> str:
     return "".join([(level+1) * "  ", f"<div class='indent{level} {classes}'>", text, "</div>"])
 

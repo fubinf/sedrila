@@ -25,6 +25,7 @@ class Task(el.Part):
     difficulty: int  # difficulty: int from DIFFICULTY_RANGE
     assumes: list[str] = []  # tasknames: This knowledge is assumed to be present
     requires: list[str] = []  # tasknames: These specific results will be reused here
+    pairwork: bool = False  # True: task must be done in pairs or groups (not solo)
     workhours: float = 0.0  # time student has worked on this according to commit msgs
     accept_date: dt.datetime | None = None  # date of last accept event, set in repo.py
     rejections: int = 0  # how often instructor has marked it 'reject'

@@ -87,9 +87,10 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
         diffsymbol = h.difficulty_symbol(self.difficulty)
         timevalue = ("<span class='timevalue-decoration' title='Timevalue: %s hours'>%s</span>" %
                      (self.timevalue, self.timevalue))
+        pairwork = f" {h.pairwork_symbol()}" if self.pairwork else ""
         refs = (self._taskrefs('assumed_by') + self._taskrefs('required_by') +
                 self._taskrefs('assumes') + self._taskrefs('requires'))
-        return f"<a {href} {titleattr}>{self.name}</a> {diffsymbol} {timevalue}{refs}"
+        return f"<a {href} {titleattr}>{self.name}</a> {diffsymbol} {timevalue}{pairwork}{refs}"
 
     @property
     def toc(self) -> str:
@@ -104,9 +105,9 @@ class Taskbuilder(sdrl.partbuilder.PartbuilderMixin, Task):
         b.copyattrs(sourcefile,
                     topmatter, self,
                     mustcopy_attrs='title, timevalue, difficulty',
-                    cancopy_attrs='stage, explains, assumes, requires',
+                    cancopy_attrs='stage, explains, assumes, requires, pairwork',
                     mustexist_attrs='',
-                    typecheck=dict(timevalue=numbers.Number, difficulty=int))
+                    typecheck=dict(timevalue=numbers.Number, difficulty=int, pairwork=bool))
         self.evaluate_stage(sourcefile, course)
 
         # ----- ensure explains/assumes/requires are lists:
