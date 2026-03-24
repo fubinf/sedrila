@@ -85,7 +85,8 @@ class ProtocolExtractor:
     PROMPT_PATTERN = (
         r'(?P<front>^.*?)'
         r'(?P<userhost>[-\+\w]+@[-\+\w]+)'
-        r'\s+(?P<dir>[/~]\S*)'
+        r'\s+(?P<dir>[/~].*?)'
+        r'(?=\s+\d\d:\d\d:\d\d)'
         r'\s+(?P<time>\d\d:\d\d:\d\d)'
         r'\s+(?P<num>\d+)'
         r'(?P<back>.*$)'
