@@ -111,7 +111,7 @@ is based on the following ideas:
   and show them side-by-side with the timevalues (_expected_ work times).
   The information is also useful for evidence-based improvement of the course contents.
 - When students want to show a set of solutions for tasks to an instructor,
-  they write the task names to a file `submission.yaml`
+  they write the task names to a file `submission.yaml`.
 - The instructor checks those tasks, adds checking results into that file,
   and commits it. This commmit is cryptographcally signed.
 - `course.json` is published along with the webpages.
@@ -128,39 +128,80 @@ is based on the following ideas:
   a rule that says a task will only count if it gets accepted no later than upon second (or third?) try.
 
 
-## 3. Instructors student work acceptance process architecture
+## 3. Task solution state lifecycle
 
-This process occurs between a student having submitted work and the
-instructor pushing the results of their work checking.
-The context is the instructor's copy of a student repo.
-For the constants, see `sdrl.constants`.
-There are four process states:
+The basic idea of sedrila is: a student works on a task, submits it.
+An instructor accepts it. Or an instructor rejects it and the student resubmits later.
+The process must be immune against whatever the student writes into `submission.yaml`
+and must process only the sensible entries.
 
-- SUBMISSION_STATE_FRESH 
-  is when SUBMISSION_FILE stems from a commit using SUBMISSION_COMMIT_MSG.
-  Its entries are untrusted and need to be checked/filtered before use.
-- SUBMISSION_STATE_CHECKING
-  is when entries have been filtered.
-  SUBMISSION_FILE is guaranteed to have git 'modified' state.
-  Its entries are now trusted.
-  Initially, only valid SUBMISSION_CHECK_MARK entries are left;
-  later, these are turned into SUBMISSION_ACCEPT_MARK/SUBMISSION_REJECT_MARK.
-  In extraordinary cases, the instructor may add additional entries manually.
-- SUBMISSION_STATE_CHECKED
-  is when SUBMISSION_FILE has been deposited in an instructor-signed SUBMISSION_CHECKED_COMMIT_MSG commit.
-  Once that commit has been pushed, the instructor's work is complete.
-  A git pull is then needed for starting the next round.
-- SUBMISSION_STATE_OTHER is when none of the above match.
-  SUBMISSION_FILE is missing or does not come from a SUBMISSION_COMMIT_MSG commit.
-  sedrila will print appropriate warnings.
+A task is **submittable** if it exists AND is not in state `ACCEPT` AND has `remaining_attempts > 0`.
 
-The `instructor` command will ensure an orderly progression through these states.
-A possible complication is when students send their work to multiple instructors
-and two or more check it.
-Then the later one may either find the repo in state SUBMISSION_STATE_CHECKED after pull
-(just as if the student had not performed any new work at all)
-or may run into conflict when attempting to push.
-The simplest approach for handling that conflict is to discard the second instructor commit.
+
+### LC1: `sedrila student` prepares list of submittable tasks
+
+The `sedrila student` submission command (see `subcmd/student.py:cmd_prepare`):
+- determines each task's state from the commit history,
+- finds all worktime entries in the commit history,
+- reads the existing `submission.yaml`, ignoring entries for non-submittable tasks
+  and entries whose mark is not `CHECK` or `NOCHECK`,
+- adds `NOCHECK` for all further submittable tasks that have a worktime entry,
+- persists `submission.yaml`.
+
+Implementation: existing `CHECK` entries for submittable tasks are kept; all others are deleted
+and re-added as `NOCHECK` if eligible. Non-submittable tasks are also removed by
+`filter_submission()` (called from `Student.__init__`).
+
+
+### LC2: student selects tasks for submission
+
+sedrila then starts the webapp in which the student can toggle submittable tasks between
+`CHECK` and `NONCHECK` (see `subcmd/student.py:cmd_webapp`), each time persisting `submission.yaml`.
+The student commits the resulting `submission.yaml`.
+Note that sedrila cannot keep the student from modifying `submission.yaml` arbitrarily before the commit.
+
+
+### LC3: `sedrila instructor` cleans up `submission.yaml`
+
+`sedrila instructor` (see `subcmd/instructor.py:prepare_workdir`) treats `submission.yaml`
+as untrusted when in state `SUBMISSION_STATE_FRESH` (i.e. the most recent commit that touches
+`submission.yaml` used the message `"submission.yaml"`, meaning it is a student submission commit).
+In this state, sedrila removes all entries with a mark other than `CHECK` and persists the result,
+transitioning to `SUBMISSION_STATE_CHECKING`.
+
+In addition, `filter_submission()` (called from `Student.__init__`) removes entries for
+non-submittable tasks regardless of state, ensuring rejected-for-good tasks never appear.
+
+The four repo-level process states (see `sdrl.constants`) are:
+- **SUBMISSION_STATE_FRESH**: untrusted student submission commit — filter before use.
+- **SUBMISSION_STATE_CHECKING**: `submission.yaml` is git-modified (filtered but not yet committed).
+  Entries are trusted. Initially only `CHECK` entries; later turned into `ACCEPT`/`REJECT`/`REJECTOID`.
+- **SUBMISSION_STATE_CHECKED**: deposited in an instructor-signed commit. Push completes the round.
+- **SUBMISSION_STATE_OTHER**: none of the above; `sedrila instructor` prints a warning.
+
+
+### LC4: instructor checks submission
+
+sedrila starts the webapp, allowing the instructor to toggle tasks between
+`ACCEPT`, `REJECT`/`REJECTOID`, and `CHECK` (see `participant.py:set_state`),
+each time persisting `submission.yaml`.
+
+A `REJECT` action writes `REJECTOID` to `submission.yaml` if the task has `remaining_attempts > 0`
+after the action (i.e. the student can resubmit), and `REJECT` if it has not (final rejection).
+`REJECTOID` is stored in `submission.yaml`; it is not merely a display state.
+Both `REJECT` and `REJECTOID` increment `task.rejections` when the commit is processed by `repo.py`
+(both strings start with `"REJECT"`, which is how `_accumulate_timevalues_and_attempts()` detects them).
+
+
+### LC5: instructor commits
+
+When the instructor commits the prepared `submission.yaml` as an instructor-signed commit
+(message `"submission.yaml checked"`), the acceptances and rejections become part of the
+validated repo version history and show up in timevalue reports.
+
+A possible complication: if students send their work to multiple instructors and two or more check it,
+the later instructor may find the repo in state `SUBMISSION_STATE_CHECKED` after pull,
+or may run into a conflict when pushing. The simplest approach is to discard the second instructor commit.
 
 
 ## 4. Incremental build architecture
