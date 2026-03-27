@@ -23,7 +23,6 @@ SUBMISSION_NONCHECK_MARK = "NONCHECK"  # do not check / -- / never checked
 SUBMISSION_ACCEPT_MARK = "ACCEPT"  # -- / accepted / accepted
 SUBMISSION_REJECT_MARK = "REJECT"  # -- / rejected / rejected forever
 SUBMISSION_REJECTOID_MARK = "REJECTOID"  # -- / -- / rejected but can be submitted again
-SUBMISSION_OVERRIDE_PREFIX = "OVERRIDE_"
 SUBMISSION_NONTASK_MARK = "NO_SUCH_TASKNAME"
 SUBMISSION_STATE_FRESH = "FRESH"  # last commit indicates new submission
 SUBMISSION_STATE_CHECKING = "CHECKING"  # SUBMISSION_FILE modified, but not commited

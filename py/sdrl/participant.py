@@ -31,10 +31,9 @@ class PathsAndRemaining(tg.NamedTuple):
 
 class SubmissionTaskState(enum.StrEnum):
     """
-    used by SubmissionTask
-    the extended state of a submitted task
-    also taskes into account things like final rejects
-    and distinguishes between current and past rejects
+    Used by SubmissionTask: The extended state of a submitted task.
+    Also taskes into account things like final rejects
+    and distinguishes between current and past rejects.
     """
     # the task name is invalid
     INVALID = "INVALID"
@@ -138,11 +137,15 @@ class Submission:
         return filter(lambda t: t[1].state == SubmissionTaskState.REJECT, self._task_items)
 
     @property
+    def rejectoid(self) -> tg.Iterable[tuple[str, SubmissionTask]]:
+        return filter(lambda t: t[1].state == SubmissionTaskState.REJECTOID, self._task_items)
+
+    @property
     def submission_yaml(self) -> tg.Iterable[tuple[str, str]]:
         return (
             (name, str(t.state) if t.state else c.SUBMISSION_NONCHECK_MARK)
             for name, t
-            in itertools.chain(self.to_check, self.accepted, self.rejected)
+            in itertools.chain(self.to_check, self.accepted, self.rejected, self.rejectoid)
         )
 
 

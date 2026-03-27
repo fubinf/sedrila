@@ -205,35 +205,11 @@ def student_work_so_far(course) -> tg.Tuple[list[ReportEntry], float, float]:
 
 
 def is_accepted(tasknote: str):
-    overridden = tasknote.startswith(c.SUBMISSION_OVERRIDE_PREFIX)
-    if overridden:
-        tasknote = tasknote[len(c.SUBMISSION_OVERRIDE_PREFIX):]
     return tasknote.startswith(c.SUBMISSION_ACCEPT_MARK)
 
 
 def is_rejected(tasknote: str):
-    overridden = tasknote.startswith(c.SUBMISSION_OVERRIDE_PREFIX)
-    if overridden:
-        tasknote = tasknote[len(c.SUBMISSION_OVERRIDE_PREFIX):]
     return tasknote.startswith(c.SUBMISSION_REJECT_MARK)
-
-
-def submission_file_entries(entries: tg.Iterable[ReportEntry], rejected: list[str] = None, 
-                            override: bool = False) -> dict[str, str]:
-    """taskname -> CHECK_MARK  for each yet-to-be-accepted task with effort in any commit."""
-    candidates = dict()
-    for e in entries:
-        if rejected is None:
-            if not e.accepted:
-                candidates[e.taskname] = c.SUBMISSION_CHECK_MARK
-        else:
-            if e.taskname in rejected:
-                candidates[e.taskname] = (c.SUBMISSION_OVERRIDE_PREFIX if override else "") + c.SUBMISSION_REJECT_MARK
-            elif e.accepted:
-                candidates[e.taskname] = (c.SUBMISSION_OVERRIDE_PREFIX if override else "") + c.SUBMISSION_ACCEPT_MARK
-            else:
-                candidates[e.taskname] = c.SUBMISSION_CHECK_MARK
-    return candidates
 
 
 def _accumulate_timevalues_and_attempts(checked_entries: tg.Sequence[TaskCheckEntry],
@@ -244,22 +220,14 @@ def _accumulate_timevalues_and_attempts(checked_entries: tg.Sequence[TaskCheckEn
         task = course.task(check.taskname)
         if not task:
             continue
-        overridden = check.tasknote.startswith(c.SUBMISSION_OVERRIDE_PREFIX)
-        tasknote = check.tasknote[len(c.SUBMISSION_OVERRIDE_PREFIX):] if overridden else check.tasknote
+        tasknote = check.tasknote
         if tasknote.startswith(c.SUBMISSION_ACCEPT_MARK):
-            if not task.remaining_attempts and not overridden:
-                b.warning(f"Cannot accept task that has consumed its allowed attempts: {check.taskname}")
-            else:
-                if overridden and task.rejections:
-                    task.rejections -= 1
-                task.accept_date = check.commit.author_date
-                b.debug(f"{check.taskname} accepted, {'' if overridden else 'not '} overridden")
-        elif tasknote.startswith(c.SUBMISSION_REJECT_MARK):
-            if not task.is_accepted or overridden:
-                if overridden:
-                    task.accept_date = None
+            task.accept_date = check.commit.author_date
+            b.debug(f"{check.taskname} accepted")
+        elif tasknote.startswith(c.SUBMISSION_REJECT_MARK):  # catches both REJECT and REJECTOID
+            if not task.is_accepted:
                 task.rejections += 1
-                b.debug(f"{check.taskname} rejected, {'' if overridden else 'not '} overridden")
+                b.debug(f"{check.taskname} rejected")
         else:
             pass  # unmodified entry: instructor has not checked it
 
