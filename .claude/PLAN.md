@@ -92,102 +92,56 @@ that would become trusted upon unstash.
 
 ## Implementation plan
 
-### Findings: Current code vs. lifecycle description
+2026-03-27: Remove OVERRIDE_PREFIX, fix REJECTOID serialization bug, remove dead code.
 
-**LC1 — `sedrila student` startup (`subcmd/student.py:cmd_prepare`)**
+### Diagnosis
 
-Mostly matches. One dead-branch bug: `filter_submission()` (`participant.py:413`) checks
-`task.remaining_attempts < 0`, but the property is `max(0, ...)` so this can never be true.
-Result: "rejected-for-good" tasks (`remaining_attempts == 0`) are not removed by `filter_submission()`.
-They are only correctly removed in `cmd_prepare()`. Fix: `< 0` → `<= 0`.
+The test `participant_test.py` fails at line 101: `task2.rejections` is 0 instead of 1.
+Root cause: `Submissions.submission_yaml` (participant.py:141-146) chains `to_check`,
+`accepted`, and `rejected` but **omits rejectoid entries**, so REJECTOID tasks vanish when
+`save_submission()` writes the file. The committed submission.yaml has no REJECTOID entry,
+so `_accumulate_timevalues_and_attempts()` has nothing to count.
 
-The functional outcome of cmd_prepare matches LC1 (all submittable tasks end up with CHECK or NOCHECK,
-non-submittable tasks are removed). The code deletes-then-re-adds NOCHECK entries rather than
-preserving them, which is behaviourally equivalent but the comment should reflect reality.
+`_accumulate_timevalues_and_attempts()` itself would handle REJECTOID correctly already
+(`"REJECTOID".startswith("REJECT")` is True), but it never sees the entry.
 
-**LC2 — `sedrila student` webapp**
+Separately, `SUBMISSION_OVERRIDE_PREFIX` ("OVERRIDE_") is dead code:
+- The only function that wrote it (`submission_file_entries()`) has had zero callers since 2025-02-07.
+- The read-side logic in `_accumulate_timevalues_and_attempts()` handles it but nothing produces it.
+- The LC1-LC5 lifecycle replaces it with a simpler model: the webapp enforces `remaining_attempts`;
+  instructors can manually write ACCEPT/REJECT/REJECTOID if they need to override.
 
-Matches. No fixes needed; add docstring reference.
+### Step 1 — Fix `Submissions.submission_yaml` (the actual bug)
+**File:** `py/sdrl/participant.py:125-146`
 
-**LC3 — `sedrila instructor` startup (`subcmd/instructor.py:prepare_workdir`)**
-
-Mostly matches. The FRESH-state filter keeps only CHECK entries (correct). The same `< 0` bug
-means a student-crafted CHECK entry for a task with `remaining_attempts == 0` would survive
-`prepare_workdir()`'s filter and `filter_submission()` and appear in the instructor webapp.
-Fixing the bug closes this gap.
-
-The `possible_submission_states` for instructor in CHECKING state is currently `[CHECK, ACCEPT, REJECT]`.
-After adding REJECTOID storage (see LC4) it must include REJECTOID too.
-
-**LC4 — `sedrila instructor` webapp**
-
-REJECTOID is not currently written to `submission.yaml` — only REJECT is ever stored; REJECTOID
-is a computed display state from commit history. Per the lifecycle description REJECTOID should be
-written to `submission.yaml` when remaining_attempts > 0 after the action.
-
-Impact:
-- `participant.py:set_state()`: when instructor sets REJECT, compute remaining_attempts after
-  this rejection (current `remaining_attempts - 1`). If > 0 → write REJECTOID; else write REJECT.
-- `repo.py:_accumulate_timevalues_and_attempts()`: treat REJECTOID the same as REJECT (increment rejections).
-- `participant.py:Student.__init__()`: add REJECTOID to instructor `possible_submission_states`.
-- `filter_submission()`: must not reject REJECTOID entries in instructor CHECKING mode (covered by above).
-
-### Changes to make
-
-**Step 1 — Bug fix: `filter_submission()` (`py/sdrl/participant.py:413`)**
-
+Add a `rejectoid` property and include it in `submission_yaml`:
 ```python
-# before:
-elif task.remaining_attempts < 0:
-# after:
-elif task.remaining_attempts <= 0:
+@property
+def rejectoid(self) -> ...:
+    return filter(lambda t: t[1].state == SubmissionTaskState.REJECTOID, self._task_items)
+```
+Then in `submission_yaml`, change the chain to:
+```python
+itertools.chain(self.to_check, self.accepted, self.rejected, self.rejectoid)
 ```
 
-Update warning text: `"has no remaining_attempts (rejected for good)"`.
+### Step 2 — Remove SUBMISSION_OVERRIDE_PREFIX and dead code
+**File:** `py/sdrl/constants.py:26` — delete `SUBMISSION_OVERRIDE_PREFIX = "OVERRIDE_"`.
 
-**Step 2 — Write REJECTOID to submission.yaml on REJECT action**
+**File:** `py/sdrl/repo.py`:
+- `is_accepted()` (lines 207-211): remove override-stripping, simplify to
+  `return tasknote.startswith(c.SUBMISSION_ACCEPT_MARK)`.
+- `is_rejected()` (lines 214-218): same simplification.
+- `submission_file_entries()` (lines 221-236): delete entirely (dead code, zero callers).
+- `_accumulate_timevalues_and_attempts()` (lines 239-264): remove all override logic.
+  Simplified:
+  ```python
+  if tasknote.startswith(c.SUBMISSION_ACCEPT_MARK):
+      task.accept_date = check.commit.author_date
+  elif tasknote.startswith(c.SUBMISSION_REJECT_MARK):  # catches REJECT and REJECTOID
+      if not task.is_accepted:
+          task.rejections += 1
+  ```
 
-`py/sdrl/participant.py` — `possible_submission_states` for instructor (`__init__`, lines 173–174):
-add `c.SUBMISSION_REJECTOID_MARK` to the list.
-
-`py/sdrl/participant.py` — `set_state()` (lines 449–455): when instructor sets REJECT,
-compute `remaining_attempts - 1`; if > 0 use REJECTOID instead of REJECT.
-
-`py/sdrl/repo.py` — `_accumulate_timevalues_and_attempts()` (lines ~249–262):
-extend the `elif tasknote.startswith(c.SUBMISSION_REJECT_MARK)` branch to also match REJECTOID.
-
-**Step 3 — Docstrings/comments referencing LC1–LC4**
-
-- `py/sdrl/subcmd/student.py:cmd_prepare()` → LC1
-- `py/sdrl/subcmd/student.py:cmd_webapp()` → LC2
-- `py/sdrl/participant.py:filter_submission()` → note role in LC1/LC3 paths
-- `py/sdrl/subcmd/instructor.py:prepare_workdir()` → LC3
-- `py/sdrl/participant.py:set_state()` → LC4, note REJECT vs REJECTOID logic
-- `py/sdrl/participant.py:Student.__init__()` → note `possible_submission_states` and LC context
-
-A single sentence "# LC1: …" or docstring reference is sufficient.
-
-**Step 4 — Update `docs/internal_notes.md`**
-
-- Add a section with the Target task solution state life cycle (LC1–LC5) from this PLAN.md.
-  This is the authoritative description that code comments will reference.
-- Integrate existing section 3 (SUBMISSION_STATE_* process states) as implementation detail of LC3.
-- Clarify that REJECTOID is stored in `submission.yaml` (not just a display concept).
-- Trim redundant material.
-
-**Step 5 — Update tests**
-
-- `py/sdrl/tests/participant_test.py`: verify `filter_submission()` removes entries for tasks
-  with `remaining_attempts == 0`.
-- `py/sdrl/tests/repo_test.py`: verify REJECTOID is written to submission.yaml when
-  remaining_attempts > 0 after REJECT, and REJECT when remaining_attempts == 0;
-  verify `_accumulate_timevalues_and_attempts()` treats REJECTOID as a rejection.
-
-Run: `python -m pytest py/` from repo root.
-
-
-## What not to do
-
-Do not modify any other files just yet.
-Exception: If you need to experiment by changing some tests, do that but restore the originals
-when the plan is complete unless a modified test is a test of future functionality in the TDD sense.
+### Step 3 — Verify
+Run `python -m pytest py/` — the assertion `(task1.rejections, task2.rejections) == (0, 1)` should pass.
