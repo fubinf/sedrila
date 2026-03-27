@@ -115,6 +115,11 @@ def run_command_loop(context, menu: str, helptext: str, cmds: dict[str, tg.Calla
 
 
 def cmd_prepare(ctx: sdrl.participant.Context):
+    """
+    LC1: determine submittable tasks, filter submission.yaml to keep only eligible CHECK entries,
+    add NONCHECK for all other submittable tasks (workhours>0, remaining_attempts>0, not accepted).
+    See docs/internal_notes.md for the full lifecycle description.
+    """
     for student in ctx.studentlist:
         b.info(f"----- Collect tasks for '{student.submissionfile_path}'")
         current_submissions = list(student.submission.keys())
@@ -149,6 +154,10 @@ def cmd_prepare(ctx: sdrl.participant.Context):
 
 
 def cmd_webapp(ctx: sdrl.participant.Context):
+    """
+    LC2: student toggles submittable tasks between CHECK and NONCHECK in the webapp,
+    persisting submission.yaml on each change. See docs/internal_notes.md.
+    """
     b.info("----- Start webapp to accept/reject submissions")
     sdrl.webapp.run(ctx)
 

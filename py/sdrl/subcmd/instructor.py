@@ -85,6 +85,12 @@ def cmd_commit_and_push(ctx: sdrl.participant.Context):
 
 
 def prepare_workdir(workdir: str):
+    """
+    LC3: treat submission.yaml as untrusted when in FRESH state (last commit is 'submission.yaml').
+    Pull if not in CHECKING state, then filter submission.yaml to keep only CHECK entries.
+    Filtering also removes non-submittable tasks (via filter_submission() in Student.__init__).
+    See docs/internal_notes.md for the full lifecycle description.
+    """
     b.info(f"----- Prepare '{workdir}'")
     with contextlib.chdir(workdir):
         # ----- obtain c.PARTICIPANT_FILE if possible:

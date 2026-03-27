@@ -28,6 +28,7 @@ class PathsAndRemaining(tg.NamedTuple):
     paths_matched: set[str]
     remaining_tasks: set[str]
 
+
 class SubmissionTaskState(enum.StrEnum):
     """
     used by SubmissionTask
@@ -42,13 +43,16 @@ class SubmissionTaskState(enum.StrEnum):
     CHECK = "CHECK"
     # task marked as accept
     ACCEPT = "ACCEPT"
-    # task marked as reject
+    # task marked as reject (rejected with no remaining_attempts)
     REJECT = "REJECT"
+    # task marked as rejectoid (rejected but has remaining_attempts, can be resubmitted)
+    REJECTOID = "REJECTOID"
 
     # the task was accepted by the instructor in the past
     ACCEPT_PAST = "ACCEPT_PAST"
     # the task was rejected the maximum amount of times permitted
     REJECT_FINAL = "REJECT_FINAL"
+
 
 class SubmissionTask:
     """
@@ -75,13 +79,15 @@ class SubmissionTask:
     @property
     def is_checkable(self) -> bool:
         """returns wether the task can be marked for submission or checked"""
-        valid = [None, SubmissionTaskState.CHECK, SubmissionTaskState.ACCEPT, SubmissionTaskState.REJECT]
+        valid = [None, SubmissionTaskState.CHECK, SubmissionTaskState.ACCEPT,
+                 SubmissionTaskState.REJECT, SubmissionTaskState.REJECTOID]
         return self.state in valid
 
     @property
     def is_student_checkable(self) -> bool:
         valid = [None, SubmissionTaskState.CHECK, SubmissionTaskState.REJECT]
         return self.state in valid
+
 
 class Submission:
     """
@@ -140,7 +146,6 @@ class Submission:
         )
 
 
-
 class Student:
     """
     Represents the content of c.PARTICIPANT_FILE. Can initialize that file.
@@ -169,9 +174,12 @@ class Student:
     def __init__(self, rootdir: str, is_instructor: bool):
         self.topdir = rootdir = rootdir.rstrip('/')
         self.is_instructor = is_instructor
+        # LC3: if instructor has already filtered (CHECKING state), REJECTOID/ACCEPT/REJECT are also valid.
+        # LC1: in student mode, only NONCHECK/CHECK are valid (prevents student from faking other marks).
         if is_instructor and sgit.is_modified(f"{self.topdir}/{c.SUBMISSION_FILE}"):
-            self.possible_submission_states = [c.SUBMISSION_CHECK_MARK, 
-                                               c.SUBMISSION_ACCEPT_MARK, c.SUBMISSION_REJECT_MARK]
+            self.possible_submission_states = [c.SUBMISSION_CHECK_MARK,
+                                               c.SUBMISSION_ACCEPT_MARK, c.SUBMISSION_REJECT_MARK,
+                                               c.SUBMISSION_REJECTOID_MARK]
         else:
             self.possible_submission_states = [c.SUBMISSION_NONCHECK_MARK, c.SUBMISSION_CHECK_MARK]
         if not os.path.exists(rootdir):
@@ -297,6 +305,7 @@ class Student:
             task = sub._get_or_add_empty(name)
             if state == c.SUBMISSION_ACCEPT_MARK: task.state = SubmissionTaskState.ACCEPT
             elif state == c.SUBMISSION_REJECT_MARK: task.state = SubmissionTaskState.REJECT
+            elif state == c.SUBMISSION_REJECTOID_MARK: task.state = SubmissionTaskState.REJECTOID
             elif state == c.SUBMISSION_CHECK_MARK: task.state = SubmissionTaskState.CHECK
             # noncheck is the default state
             # all tasks are implicitly noncheck
@@ -307,7 +316,7 @@ class Student:
         for name, task in sub._tasks.items():
             cw_task = cw.task(name)
             if not cw_task: task.state = SubmissionTaskState.INVALID
-            elif cw_task.remaining_attempts < 0: task.state = SubmissionTaskState.REJECT_FINAL
+            elif cw_task.remaining_attempts <= 0: task.state = SubmissionTaskState.REJECT_FINAL
             elif cw_task.is_accepted: task.state = SubmissionTaskState.ACCEPT_PAST
 
         return sub
@@ -402,7 +411,11 @@ class Student:
         b.info("Then commit the file and push the commit.")
 
     def filter_submission(self):
-        """Kick out 'wrong' tasks (non-existing, rejected-for-good, illegal state) and emit warnings."""
+        """Kick out 'wrong' tasks (non-existing, rejected-for-good, illegal state) and emit warnings.
+        Called from __init__ as part of LC1 (student) and LC3 (instructor) startup filtering.
+        For students, possible_submission_states = [NONCHECK, CHECK] so instructor marks are removed.
+        For instructors in CHECKING state, ACCEPT/REJECT/REJECTOID are also valid.
+        """
         submission1 = dict(**self.submission)  # constant copy (we will delete entries)
         file = self.submissionfile_path  # abbrev
         dummy = self.course_with_work  # make sure we read the worktimes from repo. TODO 2: ugly!
@@ -410,8 +423,8 @@ class Student:
             task = self.course_with_work.task(taskname)
             if not task:
                 b.warning(f"{file}: '{taskname}' is not a taskname. Ignored.")
-            elif task.remaining_attempts < 0:
-                b.warning(f"{file}: '{taskname}' has remaining_attempts = {task.remaining_attempts}. Ignored.")
+            elif task.remaining_attempts <= 0:
+                b.warning(f"{file}: '{taskname}' has no remaining_attempts (rejected for good). Ignored.")
             elif status not in self.possible_submission_states:
                 pass  # b.warning(f"{file}: '{taskname}' has impossible state {status}. Ignored.")  TODO 3: validate
             else:
@@ -447,8 +460,16 @@ class Student:
         return student_metadata['course_url']
 
     def set_state(self, taskname: str, new_state: SubmissionTaskState) -> bool:
+        """
+        LC4: toggle task state in webapp. For instructor REJECT actions, writes REJECTOID to
+        submission.yaml if remaining_attempts > 0 after the action, REJECT if not (see docs/internal_notes.md).
+        """
         task = self.submissions.task(taskname)
         if not task: return False
+        if new_state == SubmissionTaskState.REJECT and self.is_instructor:
+            cw_task = self.course_with_work.task(taskname)
+            if cw_task and cw_task.remaining_attempts - 1 > 0:
+                new_state = SubmissionTaskState.REJECTOID  # has attempts left after this rejection
         task.state = new_state if new_state != c.SUBMISSION_NONCHECK_MARK else None
         if taskname in self.submission: self.submission[taskname] = new_state
         self.save_submission()

@@ -79,8 +79,9 @@ def test_participant(capfd):
 
         student.set_state("Task2", sdrl.participant.SubmissionTaskState.REJECT)
         print("#3:", student.submission)
-        assert student.submissions.task("Task2").state == sdrl.participant.SubmissionTaskState.REJECT
-        assert student.submission["Task2"] == c.SUBMISSION_REJECT_MARK 
+        # Task2 has timevalue=2.0 → allowed_attempts=3, rejections=0 → remaining_attempts-1=2>0 → REJECTOID
+        assert student.submissions.task("Task2").state == sdrl.participant.SubmissionTaskState.REJECTOID
+        assert student.submission["Task2"] == c.SUBMISSION_REJECTOID_MARK
 
         with contextlib.chdir(student.topdir):  # make unsigned commit, we will mock the signature check
             sgit.make_commit(*[c.SUBMISSION_FILE], msg=c.SUBMISSION_CHECKED_COMMIT_MSG, signed=False)
