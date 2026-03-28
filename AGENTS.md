@@ -179,3 +179,7 @@ There is a documented need to restructure directories (see README.md):
 - `baseresources` → `sedrila/baseresources`
 
 This refactoring will affect import statements throughout the codebase.
+
+## Status / Next step
+
+- Integrating PR #54: new CLI
