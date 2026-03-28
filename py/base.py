@@ -1,9 +1,9 @@
 """Shortcut typenames, global constants, basic helpers."""
+import collections
 import enum
 import json
 import logging
 import re
-import sys
 import time
 import os
 import typing as tg
@@ -26,8 +26,8 @@ loglevels = dict(DEBUG=logging.DEBUG, INFO=logging.INFO, WARNING=logging.WARNING
 register_files_callback: tg.Callable[[str], None]
 
 OStr = tg.Optional[str]
-StrAnyDict = dict[str, tg.Any]  # JSON or YAML structure
-StrStrDict = dict[str, str]  # flat, string-only JSON or YAML structure
+StrAnyDict = collections.abc.Mapping[str, tg.Any]  # JSON or YAML structure
+StrStrDict = collections.abc.Mapping[str, str]  # flat, string-only JSON or YAML structure
 T = tg.TypeVar('T')
 
 
@@ -52,6 +52,12 @@ class Mode(enum.Enum):
 
 class CritialError(Exception):
     pass
+
+
+class ExpansionException(Exception):
+    def __init__(self, missing: list[str]):
+        self.missing = missing
+        super().__init__(f"Undefined variables: {', '.join(missing)}")
 
 
 def as_fingerprint(raw: str) -> str:
@@ -110,11 +116,25 @@ def copyattrs(context: str, source: StrAnyDict, target: tg.Any,
             error(f"'{context}': attribute '{attrname}' should be {str(its_type)} (is '{value}')")
 
 
-def expandvars(msg: str, context: str) -> str:
-    result = os.path.expandvars(msg)
-    mm = re.search(r'\$\{|\$\w', result)  # leftover unexpanded variables
-    if mm:
-        warning(f"env variable undefined in '{result}'", context)
+def expandvars(data: str, myvars: StrStrDict) -> str:
+    """
+    Replace variables mentions in data. Mentions have form $VAR or ${VAR}, the replacement result will be
+    str(vars.get('VAR', "")).
+    If the sorted list 'missing' of variables not found in vars is non-empty, it will be returned
+    as an attribute of the ExpansionException that will be raised.
+    """
+    missing = set()
+    
+    def replacer(m: re.Match) -> str:
+        name = m.group(1) or m.group(2)
+        if name in myvars:
+            return str(myvars[name])
+        missing.add(name)
+        return ""
+    
+    result = re.sub(r'\$\{(\w+)\}|\$(\w+)', replacer, data)
+    if missing:
+        raise ExpansionException(sorted(missing))
     return result
 
 
@@ -146,8 +166,11 @@ def slurp_json(resource: str) -> StrAnyDict:
     return json.loads(slurp(resource))
 
 
-def slurp_yaml(resource: str) -> StrAnyDict:
-    return yaml.safe_load(slurp(resource))
+def slurp_yaml(resource: str, myvars: StrAnyDict = None) -> StrAnyDict:
+    contents = slurp(resource)
+    if myvars:
+        contents = expandvars(contents, myvars) 
+    return yaml.safe_load(contents)
 
 
 def spit(filename: str, content: str):
@@ -175,7 +198,7 @@ def slugify(value: str) -> str:
     return re.sub(r'[{}\s]+'.format(separator), separator, value)
 
 
-def suppress_msg_duplicates(suppression = True):
+def suppress_msg_duplicates(suppression=True):
     global _suppress_msg_duplicates
     _suppress_msg_duplicates = suppression
 
@@ -202,7 +225,8 @@ def error(msg: str, file: str = None, file2: str = None):
         rich_print(msg, "red", count=1)
 
 
-def critical(msg: str):
+def critical(msg: str, file: str = None, file2: str = None):
+    msg = _process_params(msg, file, file2)
     rich_print(msg, "bold red", count=1)
     raise CritialError(msg)
 

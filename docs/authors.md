@@ -52,17 +52,18 @@ This is best explained by example. Have a look at:
 
 https://github.com/fubinf/propra-inf/blob/main/sedrila.yaml (content in German, but that should hardly matter)
 
+The file supports the expansion of environment variables using the `$MYVAR` or `${MYVAR}` syntax
+at any spot anywhere in the file. These replacements are performed before the YAML parsing sets in.
+
+
 
 #### 1.1.1 Entries for `sedrila author`
 
 - `title`: Course title, can be chosen freely.
-  This setting supports the expansion of environment variables using the `$MYVAR` or `${MYVAR}` syntax.
   A title exists at all levels (course, chapter, taskgroup, task).
   Titles are used for headings and for tooltips of links.
 - `name`: Short title of the course to be used in the breadcrumb navigation.
-  Supports the expansion of environment variables.
 - `baseresourcedir` is optional and states where the few CSS and JavaScript files live. 
-  Supports the expansion of environment variables.
   Not defining a `baseresourcedir` means to use the built-in default files.  
 - `chapterdir`: Relative path of directory in which the course content lives.
   The names of directories below `chapterdir` are the names of chapters (level 1)
@@ -86,7 +87,6 @@ https://github.com/fubinf/propra-inf/blob/main/sedrila.yaml (content in German, 
   instructor subdirectory of the generated website.
   See section "Confidential contents" below for details.
 - `templatedir` is also optional and states where the Jinja2 templates for the overall page structures live. 
-  Supports the expansion of environment variables.
   Not defining a `templatedir` means to use the built-in default files,  
   which is probably sufficient for most cases.
 - `stages`: ordered list of allowed values for the 'stage:' metadata entry for tasks, taskgroups, and chapters.
@@ -136,11 +136,10 @@ https://github.com/fubinf/propra-inf/blob/main/sedrila.yaml (content in German, 
   which is then used by the `instructor` command to emit a warning when examining a submission of 
   a student not on the participants list.
   Three keys need to be present:  
-  `file`: name of the participants list input file, which must be a TAB-separated values text file
-  with column headers.
-  If this file does not exist, a warning will be issued and the entire `participants` entry will be ignored,
-  so that authors who do not have the file can still build the course using the same overall config file.
-  Supports the expansion of environment variables.  
+  `file`: name of the participants list input file, which must either be a 
+  UTF-8-encoded, TAB-separated values text file with column headers
+  or be empty, in which case the entire `participants` entry will be ignored.
+  If the file does not exist, a warning will be issued and the entire `participants` entry will be ignored, too.  
   `file_column`: name of the column in which the attribute is found by which a participant is identied.  
   `student_attribute`: name of the entry in the student's `student.yaml` file that identifies the student
   in the participants list file.
@@ -176,7 +175,6 @@ https://github.com/fubinf/propra-inf/blob/main/sedrila.yaml (content in German, 
   then tasks with a timevalue of 0.5, 1.0, 1.5, 2.0, 3.0, 4.0 hours will have  
   theoretical allowed attempts of 2.25, 2.5, 2.75, 3.0, 3.5, 4.0,
   and actual allowed attempts of 2, 2, 2, 3, 3, 4, respectively.
-  Supports the expansion of environment variables.
 
 
 #### 1.1.5 Entries for all sub-commands

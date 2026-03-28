@@ -8,11 +8,11 @@
   "additionalProperties": false,
   "properties": {
     "title": {
-      "description": "Course title. Supports $VAR / ${VAR} environment variable expansion.",
+      "description": "Course title.",
       "type": "string"
     },
     "name": {
-      "description": "Short title used in breadcrumb navigation. Supports env-var expansion.",
+      "description": "Short title used in breadcrumb navigation.",
       "type": "string"
     },
     "chapterdir": {
@@ -35,7 +35,7 @@
       "$ref": "#/$defs/instructorList"
     },
     "allowed_attempts": {
-      "description": "Max submission attempts per task. Format: 'n' or 'n + x/h'. Supports env-var expansion.",
+      "description": "Max submission attempts per task. Format: 'n' or 'n + x/h'.",
       "type": "string"
     },
     "chapters": {
@@ -45,7 +45,7 @@
       "minItems": 1
     },
     "baseresourcedir": {
-      "description": "Optional path to CSS/JS base resources. Defaults to built-in files. Supports env-var expansion.",
+      "description": "Optional path to CSS/JS base resources. Defaults to built-in files.",
       "type": "string"
     },
     "itreedir": {
@@ -54,7 +54,7 @@
       "pattern": "\\.zip$"
     },
     "templatedir": {
-      "description": "Optional path to Jinja2 templates. Defaults to built-in templates. Supports env-var expansion.",
+      "description": "Optional path to Jinja2 templates. Defaults to built-in templates.",
       "type": "string"
     },
     "blockmacro_topmatter": {
@@ -172,7 +172,7 @@
       "additionalProperties": false,
       "properties": {
         "file": {
-          "description": "Path to TAB-separated participants list file with column headers. Supports env-var expansion.",
+          "description": "Path to TAB-separated participants list file with column headers.",
           "type": "string"
         },
         "file_column": {

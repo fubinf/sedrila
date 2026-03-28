@@ -311,11 +311,12 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
     def __init__(self, *, configfile: str, **kwargs):
         import datetime as dt
         self.configfile = self.context = configfile
-        self.configdict = b.slurp_yaml(configfile)
-        self._expandvars(self.configdict,
-                  ['title', 'name', 'baseresourcedir', 'templatedir', 'allowed_attempts'],
-                         self.configfile)
-        # YAML may auto-parse date strings as datetime.date; normalize to ISO strings for schema validation
+        try:
+            self.configdict = b.slurp_yaml(configfile, os.environ)
+        except b.ExpansionException as exc:
+            msg = f"undefined environment variables: {str(exc.missing)}"
+            b.critical(msg, configfile)
+        # YAML may auto-parse date strings as datetime.date; normalize to ISO strings for schema validation:
         for key in ('startdate', 'enddate'):
             if isinstance(self.configdict.get(key), dt.date):
                 self.configdict[key] = self.configdict[key].isoformat()
@@ -440,14 +441,6 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
             self.namespace_add(zf)
 
     @staticmethod
-    def _expandvars(configdict: dict, attrlist: tg.Iterable[str], context: str):
-        """In configdict, modify entries named in attrlist by calling b.expandvars() on them."""
-        for attr in attrlist:
-            if attr not in configdict:
-                continue  # we can expand only where an entry exists
-            configdict[attr] = b.expandvars(configdict[attr], f"{context}::{attr}")
-
-    @staticmethod
     def _transform_participantslist(elem: el.TransformedFile):
         with open(elem.sourcefile, newline='') as tsvfile:
             tsvreader = csv.DictReader(tsvfile, delimiter='\t')  # read tab-separated values
@@ -458,7 +451,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         b.spit_bytes(elem.outputfile_i, encryptedlist)
 
     def _prescan_prot_files(self):
-        """Scan all markdown files for [PROT::...] macros and pre-register ProtFiles."""
+        """Scan all Markdown files for [PROT::...] macros and pre-register ProtFiles."""
         import re
         prot_pattern = re.compile(r'\[PROT::([^\]]+)\]')
         keyfingerprints = [instructor['keyfingerprint']

@@ -58,7 +58,7 @@ def execute(pargs: argparse.Namespace):
 
 
 def do_rename(configfile: str, old_partname: str, new_partname: str):
-    config = b.slurp_yaml(configfile)
+    config = b.slurp_yaml(configfile, os.environ)
     chapterdir, altdir, itreedir = config['chapterdir'], config['altdir'], config['itreedir']
     sdrl.rename.rename_part(chapterdir, altdir, itreedir, old_partname, new_partname)
     

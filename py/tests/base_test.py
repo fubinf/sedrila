@@ -50,8 +50,8 @@ def test_problem_with_path():
 def test_validate_dict_unsurprisingness(capsys):
     b.loglevel = logging.WARNING
     illegal_data = {
-        "key\nname": "value",      # control char in key
-        "valid": "bad\x08value"    # control char in value
+        "key\nname": "value",  # control char in key
+        "valid": "bad\x08value"  # control char in value
     }
     valid_data = {"valid_key": "valid_value"}
     b.validate_dict_unsurprisingness("mysource.file", illegal_data)
@@ -61,6 +61,43 @@ def test_validate_dict_unsurprisingness(capsys):
     b.validate_dict_unsurprisingness("mysource.file", valid_data)
     out, err = capsys.readouterr()
     assert out == ""  # no warnings for valid data
+
+
+def test_expandvars():
+    vars = {"HOME": "/home/user", "NAME": "Alice", "COUNT": "3"}
+    # ----- basic substitution: $VAR and ${VAR} forms
+    assert b.expandvars("hello $NAME", vars) == "hello Alice"
+    assert b.expandvars("hello ${NAME}", vars) == "hello Alice"
+    # ----- multiple variables in one string
+    assert b.expandvars("$NAME lives in $HOME", vars) == "Alice lives in /home/user"
+    # ----- mixed forms
+    assert b.expandvars("${NAME} has $COUNT items in $HOME", vars) == "Alice has 3 items in /home/user"
+    # ----- no variables at all
+    assert b.expandvars("plain text", vars) == "plain text"
+    # ----- empty string
+    assert b.expandvars("", vars) == ""
+    # ----- adjacent variables
+    assert b.expandvars("$NAME$COUNT", vars) == "Alice3"
+    assert b.expandvars("${NAME}${COUNT}", vars) == "Alice3"
+    # ----- variable at start and end
+    assert b.expandvars("$NAME!", vars) == "Alice!"
+    # ----- dollar sign not followed by word char is left alone
+    assert b.expandvars("price is $", vars) == "price is $"
+    assert b.expandvars("a $ b", vars) == "a $ b"
+    # ----- empty vars dict: no variables defined, none referenced
+    assert b.expandvars("no vars here", {}) == "no vars here"
+    # ----- missing variables raise ExpansionException with sorted list
+    with pytest.raises(b.ExpansionException) as exc_info:
+        b.expandvars("$MISSING and ${ALSO_MISSING}", vars)
+    assert exc_info.value.missing == ["ALSO_MISSING", "MISSING"]
+    # ----- mix of found and missing
+    with pytest.raises(b.ExpansionException) as exc_info:
+        b.expandvars("$NAME and $UNKNOWN", vars)
+    assert exc_info.value.missing == ["UNKNOWN"]
+    # ----- single missing variable
+    with pytest.raises(b.ExpansionException) as exc_info:
+        b.expandvars("${NOPE}", vars)
+    assert exc_info.value.missing == ["NOPE"]
 
 
 # ── as_fingerprint ────────────────────────────────────────────────────────────
