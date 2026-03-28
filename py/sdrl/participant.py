@@ -1,3 +1,4 @@
+import codecs
 import collections
 import contextlib
 import enum
@@ -10,10 +11,10 @@ import re
 import typing as tg
 
 import argparse_subcommand as ap_sub
-import requests
 import yaml
 
 import base as b
+import mycrypt
 import sgit
 import sdrl.constants as c
 import sdrl.course
@@ -233,6 +234,10 @@ class Student:
     def course_metadata_url(self) -> str:
         return self.get_course_metadata_url(self.course_url)
 
+    @property
+    def course_participantslist_url(self) -> str:
+        return f"{self.course_url}/{c.PARTICIPANTSLIST_FILE}"
+
     @functools.cached_property
     def course_with_work(self) -> sdrl.course_si.CourseSI:
         """Set task.is_accepted and task.rejections values in course."""
@@ -244,20 +249,32 @@ class Student:
 
     @property
     def is_participant(self) -> bool:
-        if not getattr(self, 'participant_attrname', None):
-            return True  # there is no participantslist, so everybody is accepted   
-        pid = getattr(self, self.participant_attrname)
-        return pid in self.participantslist if pid else True  # an absent participantslist contains everybody
+        if self.course.has_participantslist:
+            pid = getattr(self, self.participant_attrname)
+            return pid in self.participantslist
+        else:
+            return True
 
     @property
     def participant_attrname(self) -> str | None:
-        p = self.course.configdict.get('participant', None)
+        p = self.course.configdict.get('participants', None)
         return p['student_attribute'] if p else None
 
     @property
+    def participant_id(self) -> str | None:
+        return getattr(self, self.participant_attrname, None)
+
+    @property
     def participantslist(self) -> list[str] | None:
-        """retrieve, decrypt, extract column. Or return None if no list exists."""
-        return ...
+        """Retrieve and decrypt, or return None if no list exists."""
+        if self.course.has_participantslist:
+            encrypted = b.slurp(self.course_participantslist_url)
+            listbytes = mycrypt.decrypt_gpg(encrypted)
+            list_str = codecs.decode(listbytes, 'utf-8', 'replace')
+            thelist = list_str.split('\n')
+            return thelist
+        else:
+            return None
 
     @property
     def participantslist_url(self) -> set[str]:
@@ -436,16 +453,8 @@ class Student:
 
     @classmethod
     def get_course_metadata(cls, course_url: str) -> b.StrAnyDict:
-        FILE_URL_PREFIX = 'file://'
         url = cls.get_course_metadata_url(course_url)
-        try:
-            if url.startswith(FILE_URL_PREFIX):
-                jsontext = b.slurp(url[len(FILE_URL_PREFIX):])
-            else:
-                jsontext = requests.get(url=url).text
-        except Exception as exc:  # noqa
-            jsontext = ""
-            b.critical(f"Error fetching URL '{url}'.")
+        jsontext = b.slurp(url)
         try:
             metadata = json.loads(jsontext)
         except:  # noqa

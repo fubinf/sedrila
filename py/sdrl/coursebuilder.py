@@ -372,6 +372,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
                       allowed_attempts=self.allowed_attempts,
                       startdate=str(self.startdate),
                       enddate=str(self.enddate),
+                      participants=self.configdict.get('participants', None),
                       chapters=[chapter.as_json() for chapter in self.chapters])
         if self.has_participantslist:
             # hand through only the relevant part:
@@ -426,6 +427,8 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         keyfingerprints = [instructor['keyfingerprint']
                            for instructor in self.configdict['instructors']
                            if instructor.get('keyfingerprint', None)]
+        if not inputfile:  # empty filename deactivates the participants functionality
+            return
         if not os.path.exists(inputfile):
             b.critical(f"participants.file '{inputfile}' does not exist.", file=self.configfile)
         self.directory.make_the(el.Sourcefile, inputfile)

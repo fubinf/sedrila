@@ -123,7 +123,7 @@ class Course(el.Part):
 
     @property
     def has_participantslist(self) -> bool:
-        False
+        return 'participants' in self.configdict
 
     @functools.cached_property  # beware: call this only once initialization is complete!
     def taskdict(self) -> dict[str, 'Task']:

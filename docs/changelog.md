@@ -3,17 +3,19 @@
 
 ## Version 3.0.0 (upcoming)
 - `author`: remove the `PARTREFTITLE` macro, nobody ever uses it
-- `author`: rename the `PARTREFTITLE` macro to `PARTREF2`
+- `author`: rename the `PARTREFMANUAL` macro to `PARTREF2`
 - `author`: introduce `<!-- sedrila: macros off -->` markup to suppress false "undefined macro" 
   error messages in code blocks containing bracketed ALLCAPS as in `myarray[MYCONSTANT]`
 - `author`: errors in `sedrila.yaml` now result in proper error messages
 - `instructor`: ignore student-created `ACCEPT` entries in `submission.yaml`
+- `instructor`: apply `participants` config setting: issue a warning for non-participants
 - `student`, `instructor`: Webapp server is now properly multithreaded, no more meaningless `TimeoutError` stacktraces
 - `student`, `instructor`: Display a student work summary report before entering command loop
 - `student`, `instructor`: Unsigned 'submission.yaml checked' commits now emit a warning
 - `student`, `instructor`: webapp: make buttons in the lower right slightly transparent, 
   so that the text behind them stays legible.
-- `student`, `instructor`: use `allow_unicode=True` when writing YAML files to make them look more natural.
+- `student`, `instructor`: use `allow_unicode=True` when writing YAML files to make them look more natural
+  (their meaning is not changed by this).
 - ...
 
 

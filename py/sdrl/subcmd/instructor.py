@@ -30,11 +30,9 @@ def add_arguments(subparser):
 
 def execute(pargs: argparse.Namespace):
     b.set_loglevel(pargs.log)
-
-    # Check if workdir is provided
+    b.set_register_files_callback(lambda s: None)
     if not pargs.workdir:
         b.critical("workdir is required")
-    
     pargs.workdir = [wd.rstrip("/") for wd in pargs.workdir]  # make names canonical
     # ----- prepare:
     try:
