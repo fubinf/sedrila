@@ -119,16 +119,22 @@ def expandvars(msg: str, context: str) -> str:
 
 
 def slurp(resource: str) -> str:
-    """Reads local file (via filename) or http resource (via URL)."""
+    """Reads local file (via plain filename or 'file:' URL) or http resource (via URL)."""
     try:
-        if resource.startswith('http:') or resource.startswith('https://'):
+        if resource.startswith('file:'):
+            import urllib.parse, urllib.request
+            path = urllib.request.url2pathname(urllib.parse.urlparse(resource).path)
+            with open(path, 'rt', encoding='utf8', errors='replace') as f:
+                return f.read()
+        elif resource.startswith('http:') or resource.startswith('https://'):
             response = requests.get(resource)
             return response.text
         else:
             with open(resource, 'rt', encoding='utf8', errors='replace') as f:
                 return f.read()
     except:  # noqa
-        critical(f"'{resource}' does not exist or is not a plain file")
+        critical(f"'{resource}' does not exist (or is not of a type we can handle)")
+        return ""
 
 
 def slurp_bytes(resource: str) -> bytes:
