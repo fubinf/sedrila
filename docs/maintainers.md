@@ -34,14 +34,14 @@ Function-specific requirements:
 ```bash
 sedrila maintainer check-links [options] targetdir
 sedrila maintainer check-programs [options] targetdir
-sedrila maintainer collect [options]
+sedrila maintainer collect-dependencies [options]
 ```
 
 Commands:
 
 - `check-links TARGETDIR [--check markdown_file]`: Check URLs for availability
 - `check-programs TARGETDIR`: Test programs
-- `collect [-o output_file]`: Collect languages and dependencies from `@TEST_SPEC` blocks as JSON
+- `collect-dependencies [-o output_file]`: Collect languages and dependencies from `@TEST_SPEC` blocks as JSON
 
 Common options (for `check-links` and `check-programs`):
 
@@ -252,7 +252,8 @@ The `deps=` field also supports multi-line commands (subsequent lines without `=
 
 **Note**: If `.prot` file already contains dependency installation commands in the `@PROT_SPEC` blocks (e.g., `pip install`, `npm install`), these commands will be executed automatically during CI runs. In such cases, you don't need to redundantly declare them in `lang=` or `deps=` fields in `@TEST_SPEC`.
 
-For local testing, need to manually install declared dependencies. For CI, use `sedrila maintainer collect` to get the full list as JSON (stdout or `-o file`).
+For local testing, you need to manually install declared dependencies. 
+For CI, use `sedrila maintainer collect-dependencies` to get the full list as JSON (stdout or `-o file`).
 
 Installation and execution in CI:
 

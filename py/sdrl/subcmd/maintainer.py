@@ -201,8 +201,8 @@ def check_programs_command2(targetdir: str, config: str, batch: bool, include_st
         sys.exit(1)
 
 
-# CLI: sedrila maintainer collect
-@maintainer_command.command(name="collect")
+# CLI: sedrila maintainer collect-dependencies
+@maintainer_command.command(name="collect-dependencies")
 @click.option(
     "--config", default=c.AUTHOR_CONFIG_FILENAME, type=click.Path(),
     help="SeDriLa configuration description YAML file"
@@ -215,7 +215,7 @@ def check_programs_command2(targetdir: str, config: str, batch: bool, include_st
     "--include-stage", default="draft",
     help="Include parts with this and higher 'stage:'"
 )
-def collect_command2(config: str, output: str, include_stage: str):
+def collect_dependencies_command2(config: str, output: str, include_stage: str):
     """Collect languages and dependencies from @TEST_SPEC blocks"""
     import sdrl.programchecker as programchecker
     # Use temporary directory for cache
@@ -320,7 +320,7 @@ def execute(pargs: argparse.Namespace):
     if hasattr(pargs, 'check_programs') and pargs.check_programs:
         check_programs_command(pargs)
         return
-    b.error("No maintenance command specified. Use --check-links, --check-programs, or --collect, or see --help for options.")
+    b.error("No maintenance command specified. Use --check-links, --check-programs, or --collect.")
 
 
 def _build_metadata_only(directory: dir.Directory):
