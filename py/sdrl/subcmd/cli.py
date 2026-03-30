@@ -18,13 +18,13 @@ import base as b
     help="Log level for logging to stdout",
     type=click.Choice([*b.loglevels.keys()])
 )
-def ui2(log):
+def cli(log):
     b.set_loglevel(log)
 
 
-ui2.add_command(student_command)
-ui2.add_command(instructor_command)
-ui2.add_command(author_command)
-ui2.add_command(maintainer_command)
-ui2.add_command(evaluator_command)
-ui2.add_command(server_command)
+cli.add_command(student_command)
+cli.add_command(instructor_command)
+cli.add_command(author_command)
+cli.add_command(maintainer_command)
+cli.add_command(evaluator_command)
+cli.add_command(server_command)

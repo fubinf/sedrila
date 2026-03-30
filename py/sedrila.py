@@ -5,7 +5,7 @@ import click
 import base as b
 import sdrl.argparser
 import sdrl.subcmd  # this is where the subcommands will be found
-from sdrl.subcmd.ui2 import ui2
+import sdrl.subcmd.cli
 
 
 def main():  # uses sys.argv
@@ -25,7 +25,7 @@ def main():  # uses sys.argv
             pass  # b.critical has already printed a message
     else:
         # new cli
-        ui2()
+        sdrl.subcmd.cli.cli()
 
 
 if __name__ == "__main__":
