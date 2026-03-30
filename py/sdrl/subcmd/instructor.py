@@ -37,6 +37,7 @@ def instructor_command():
 )
 def menu_command(workdir: Sequence[str], port: int):
     """Run the evaluation TUI"""
+    b.set_register_files_callback(lambda s: None)
     if not workdir:
         workdir = (os.environ.get("SEDRILA_STUDENT_WORKDIR", "."),)
     workdir = init_workdirs(workdir)
@@ -49,6 +50,7 @@ def menu_command(workdir: Sequence[str], port: int):
 @click.argument("workdir", nargs=-1, type=click.Path())
 def status_command(workdir: Sequence[str]):
     """Show a summary of previously accepted/rejected submissions"""
+    b.set_register_files_callback(lambda s: None)
     if not workdir:
         workdir = (os.environ.get("SEDRILA_STUDENT_WORKDIR", "."),)
     workdir = init_workdirs(workdir)
