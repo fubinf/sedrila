@@ -1,5 +1,5 @@
 """
-A trivial, development-only, non-robust, barely protected webserver for 
+server pseudo-role: development-only, non-robust, barely protected webserver for
 serving a file tree created by 'sedrila author'.
 """
 
@@ -11,7 +11,8 @@ import click
 
 import argparse_subcommand as ap_sub
 
-# new command ui
+
+# CLI: sedrila server
 @click.command(name="server")
 @click.option("--quiet", "-q", is_flag=True, help="suppress the request logging output")
 @click.option("--port", required=True, type=int, help="port on which to serve the files")
@@ -24,8 +25,7 @@ def server_command(sourcedir: str, port: int, quiet: bool):
     server.serve_forever()  # serve until stopped with Ctrl-C
 
 
-
-# legacy ui
+# 'old' CLI:
 meaning = """Development-only single-user webserver for serving a file tree created by 'sedrila author'."""
 
 LOCALHOST_ONLY = '127.0.0.1'  # do not respond to requests directed to globally-visible addresses 
@@ -46,7 +46,7 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
         try:
             super().do_GET()
         except (BrokenPipeError, ConnectionResetError):
-            pass  # Ignore client disconnects
+            pass  # Ignore client disconnects, they indicate nothing of interest
 
 
 def execute(pargs: ap_sub.Namespace):

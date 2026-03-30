@@ -1,3 +1,4 @@
+"""student role: submit tasks to instructor or view status"""
 import argparse
 from collections.abc import Sequence
 import contextlib
@@ -18,20 +19,22 @@ import sdrl.repo as r
 import sdrl.report
 import sdrl.webapp
 
-# new command ui
+
+# CLI: sedrila student ...
 @click.group(name="student")
 def student_command():
     """Report on course execution so far or prepares submission to instructor."""
     pass
 
 
-# info: sedrila student init
+# CLI: sedrila student init
 @student_command.command(name="init")
 def init_command():
     """Start initialization for student repo directory"""
     init(["."])
 
-# info: sedrila student webapp
+
+# CLI: sedrila student webapp
 @student_command.command(name="webapp")
 @click.argument("workdir", nargs=-1, type=click.Path())
 @click.option(
@@ -47,9 +50,7 @@ def webapp_command(workdir: Sequence[str], port: int):
     workdir = check_workdirs(workdir)
     try:
         context = sdrl.participant.make_context(
-            # simple hack to be compatible with old api
-            # this could be removed if the old api is
-            # no longer needed
+            # TODO 2: simple hack to be compatible with old api, can be removed with the old CLI
             types.SimpleNamespace(
                 port=port,
             ), workdir, is_instructor=False,
@@ -60,20 +61,23 @@ def webapp_command(workdir: Sequence[str], port: int):
         return
     cmd_webapp(context)
 
-# info: sedrila student import-keys
+
+# CLI: sedrila student import-keys
 @student_command.command(name="import-keys")
-def import_keys_command():
+def import_keys_command():  # TODO 2: allow workdir arg
     """Import instructors' public keys into GPG"""
     import_keys(["."])
 
-# info: sedrila student status
+
+# CLI: sedrila student status
 @student_command.command(name="status")
-def status_command():
+def status_command():  # TODO 2: allow workdir arg
     """Show a summary of current Submissions"""
     ctx = make_context(["."])
     sdrl.report.print_si_volume_report(ctx.studentlist[0])
 
-# info: sedrila student menu
+
+# CLI: sedrila student menu
 @student_command.command(name="menu")
 @click.option(
     "--port", "-p", type=int,
@@ -81,27 +85,23 @@ def status_command():
     default=sdrl.webapp.DEFAULT_PORT,
     help="webapp will listen on this port",
 )
-def menu_command(port: int):
-    """Show the interactive TUI for creating submissions"""
+def menu_command(port: int):  # TODO 2: allow workdir arg
+    """Interactive TUI for creating submissions"""
     ctx = make_context(["."], port=port)
     run_command_loop(ctx, menu=MENU, helptext=MENU_HELP, cmds=MENU_CMDS)
 
-# info: sedrila student finish
+
+# CLI: sedrila student finish
 @student_command.command(name="finish")
-def finish_command():
+def finish_command():  # TODO 2: allow workdir arg
     """Show steps on how to indicate finished course participation""" # wording?
     ctx = make_context(["."])
 
     # message could look something like this (partially copied from push)
-    b.info(f"Now send the following to your professor by email:")
-    b.info(f"  Subject: Course completion")
-    b.info(f"  course_url: {ctx.course_url}")
-    b.info(f"  student_id: {ctx.studentlist[0].student_id}")
-    b.info(f"  student_gituser: {ctx.studentlist[0].student_gituser}")
-    b.info(f"  student_id: {ctx.studentlist[0].student_id}")
-    b.info(f"  student_name: {ctx.studentlist[0].student_name}")
+    b.info(f"Now send the following by email to the instructor leading the course:\n")
+    b.warning(f"Subject: <yourfirstname> <yourlastname>: Completion of course starting {ctx.course.startdate}\n")
+    print(b.slurp(c.PARTICIPANT_FILE))
 
-# sedrila student explain?
 
 def check_workdirs(workdirs: Sequence[str]) -> list[str]:
     workdirs = [wd.rstrip("/") for wd in workdirs] # make names canonical
@@ -113,6 +113,7 @@ def check_workdirs(workdirs: Sequence[str]) -> list[str]:
             b.critical(f"directory '{gitdir}' not found. This is not a proper working directory.")
     return workdirs
 
+
 def make_context(wd: Sequence[str], **kwargs) -> sdrl.participant.Context:
     # we are not using any pargs in the context
     # should they be removed?
@@ -122,7 +123,8 @@ def make_context(wd: Sequence[str], **kwargs) -> sdrl.participant.Context:
         ), [*wd], is_instructor=False, show_size=True
     )
 
-# legacy ui
+
+# old CLI:
 meaning = """Reports on course execution so far or prepares submission to instructor."""
 
 
@@ -194,7 +196,7 @@ def init(workdirs: list[str]):
 
 def import_keys(workdirs: list[str]):
     if workdirs != ['.']:
-        b.critical("'--import-keys' can only be called without an explicit argument from within a working directory")
+        b.critical("'import-keys' can only be called without an explicit argument from within a working directory")
     student = sdrl.participant.Student('.', is_instructor=False)
     instructors = student.course_metadata.get('instructors')
     if not instructors:

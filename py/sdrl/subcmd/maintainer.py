@@ -1,8 +1,4 @@
-"""
-Maintainer subcommand for SeDriLa courses.
-
-The maintainer role is for people who maintain course quality.
-"""
+"""maintainer role: check technical aspects of course quality"""
 import argparse
 import json
 import os
@@ -21,16 +17,15 @@ import sdrl.coursebuilder
 import sdrl.directory as dir
 import sdrl.elements
 
-# new command ui
+
+# CLI: sedrila maintainer
 @click.group(name="maintainer")
 def maintainer_command():
-    """
-    Maintain course quality with checks that are not suitable at build time.
-    Checks links, tests programs.
-    """
+    """Check links, test programs"""
     pass
 
 
+# CLI: sedrila maintainer check-links
 @maintainer_command.command(name="check-links")
 @click.argument("targetdir", type=click.Path())
 @click.option(
@@ -50,7 +45,6 @@ def maintainer_command():
     help="include parts with this and higher 'stage:' entries",
 )
 def check_links_command2(targetdir: str, config: str, include_stage: str, batch: bool, check: str):
-# info: sedrila maintainer check-links
     """Check accessibility of external links."""
     import sdrl.linkchecker as linkchecker
     if check == 'all':
@@ -128,7 +122,7 @@ def check_links_command2(targetdir: str, config: str, include_stage: str, batch:
                 sys.exit(1)
 
 
-# info: sedrila maintainer check-programs
+# CLI: sedrila maintainer check-programs
 @maintainer_command.command(name="check-programs")
 @click.option(
     "--config", default=c.AUTHOR_CONFIG_FILENAME, type=click.Path(),
@@ -207,7 +201,7 @@ def check_programs_command2(targetdir: str, config: str, batch: bool, include_st
         sys.exit(1)
 
 
-# info: sedrila maintainer collect
+# CLI: sedrila maintainer collect
 @maintainer_command.command(name="collect")
 @click.option(
     "--config", default=c.AUTHOR_CONFIG_FILENAME, type=click.Path(),
@@ -287,7 +281,7 @@ def collect_command2(config: str, output: str, include_stage: str):
             shutil.rmtree(temp_cache_dir)
 
 
-# legacy ui
+# 'old' CLI
 meaning = """Maintain course quality with checks that are not suitable at build time.
 Checks links, tests programs.
 """

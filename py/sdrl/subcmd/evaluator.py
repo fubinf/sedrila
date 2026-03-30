@@ -1,6 +1,8 @@
 """
-Statistical evaluation (by a course organizer/course developer) of the progress of 
+evaluator role: Statistical evaluation (by a course organizer/course developer) of the progress of 
 an entire course cohort.
+
+Work in progress.
 
 Goals:
 - Understand difficulty level distribution across the students.
@@ -19,7 +21,7 @@ it is OK to cut those off),
 resubmission of tasks allowed once per task, rejection rates of 0-20%.
 
 Eventually, this should have the following properties:
-- runs a webserver (as webapp.py does) to display all evaluations as a single, long webpage
+- runs a webserver (as webapp.py does) to display all evaluations as a single, long webpage??
 - the page starts with an overview (link list) of the evaluations
 - uses mostly plots (with good titles above and concise explanatory text below), but also some textual presentations
 - plots often use the quartile format like plot_weekly_student_quantiles() does
@@ -30,6 +32,7 @@ Eventually, this should have the following properties:
 - plots can use absolute numbers or percentages
 - color palettes are configurable
 """
+
 import contextlib
 import datetime as dt
 import glob
@@ -52,7 +55,8 @@ import sdrl.course_si
 import sdrl.participant
 import sdrl.repo as repo
 
-# new command ui
+
+# CLI: sedrila evaluator
 @click.command(name="evaluator")
 @click.option("--nopull", is_flag=True, default=False, help="Skip the 'git pull' in each repo subdir")
 @click.option("--start", type=str, required=True, help="day 1 on the course as yyyy-mm-dd")

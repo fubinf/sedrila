@@ -1,5 +1,5 @@
 """
-Generate the website with incremental build.
+author role: Generate the website with incremental build.
 See the architecture sketch in docs/internal_notes.md.
 """
 import argparse
@@ -33,7 +33,6 @@ def author_command():
 
 @author_command.command(name="build")
 @click.argument("targetdir", type=click.Path())
-@click.option("--clean", default=False, is_flag=True, help="purge cache and perform a complete build")
 @click.option("--print-status", default=False, is_flag=True, help="print task volume reports")
 @click.option(
     "--include-stage", type=str, default="",
@@ -51,12 +50,8 @@ def build_command(
     targetdir_s = targetdir
     targetdir_i = _targetdir_i(targetdir)
     prepare_directories(targetdir_s, targetdir_i)
-    create_and_build_course2(dict(
-        config = config,
-        include_stage = include_stage,
-        clean = clean,
-        sums = print_status,
-    ), targetdir_i, targetdir_s)
+    create_and_build_course2(dict(config=config, include_stage=include_stage, sums=print_status), 
+                             targetdir_i, targetdir_s)
     b.finalmessage()
 
 @author_command.command(name="rename")
@@ -91,9 +86,7 @@ def delete_cache(targetdir_i: str):
 
 def create_and_build_course2(args, targetdir_i, targetdir_s) -> sdrl.coursebuilder.Coursebuilder:
     # ----- prepare build:
-    the_cache = cache.SedrilaCache(
-        os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=args["clean"]
-    )
+    the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=False)
     b.set_register_files_callback(the_cache.set_file_dirty)
     directory = dir.Directory(the_cache)
     the_course = sdrl.coursebuilder.Coursebuilder(

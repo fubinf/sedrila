@@ -1,3 +1,4 @@
+"""instructor role: accept/reject student submissions or view student status"""
 import argparse
 from collections.abc import Sequence
 import contextlib
@@ -17,13 +18,15 @@ import sdrl.repo as r
 import sdrl.report
 import sdrl.webapp
 
-# new command ui
+
+# CLI: sedrila instructor ...
 @click.group(name="instructor")
 def instructor_command():
     """Help instructors evaluate students' submissions of several finished tasks."""
     pass
 
-# info: sedrila instructor menu
+
+# CLI: sedrila instructor menu
 @instructor_command.command(name="menu")
 @click.argument("workdir", nargs=-1, type=click.Path())
 @click.option(
@@ -41,11 +44,11 @@ def menu_command(workdir: Sequence[str], port: int):
     run_command_loop(context, MENU, MENU_HELP, MENU_CMDS)
 
 
-# info: sedrila instructor status
+# CLI: sedrila instructor status
 @instructor_command.command(name="status")
 @click.argument("workdir", nargs=-1, type=click.Path())
 def status_command(workdir: Sequence[str]):
-    """Show a summary of current submissions"""
+    """Show a summary of previously accepted/rejected submissions"""
     if not workdir:
         workdir = (os.environ.get("SEDRILA_STUDENT_WORKDIR", "."),)
     workdir = init_workdirs(workdir)
@@ -64,13 +67,15 @@ def init_workdirs(workdirs: Sequence[str]) -> list[str]:
 
     return workdirs
 
+
 def make_context(wd: Sequence[str], **kwargs) -> sdrl.participant.Context:
     return sdrl.participant.make_context(
         SimpleNamespace(**kwargs), [*wd],
         is_instructor=True, show_size=True
     )
 
-# legacy ui
+
+# 'old' CLI:
 meaning = """Help instructors evaluate students' submissions of several finished tasks.
 """
 
