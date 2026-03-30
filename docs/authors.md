@@ -92,7 +92,7 @@ at any spot anywhere in the file. These replacements are performed before the YA
 - `stages`: ordered list of allowed values for the 'stage:' metadata entry for tasks, taskgroups, and chapters.
   Meant to represent the development stage of a part, from a draft entry to a finished one.
   For instance, if stages are `['draft', 'alpha', 'beta']` (the recommended set) and sedrila is called with
-  option `--include_stage alpha`, then parts with stage `alpha` or `beta` are used,
+  option `--include-stage alpha`, then parts with stage `alpha` or `beta` are used,
   as are those with no `stage:` entry, but parts with stage `draft` will be suppressed.
   No stage is the default and represents finished entries.
 - `blockmacro_topmatter`: specifies fixed text that is inserted in the generated HTML files
@@ -346,7 +346,7 @@ The YAML attributes have the following meaning:
   This can be any length, but only the first word is used semantically as the stage, 
   everything else is just comment.
   Tasks, task groups, or chapters marked with too-low a stage (according to the value
-  supplied with the `--include_stage` options of the commandline sedrila call)
+  supplied with the `--include-stage` option of the commandline sedrila call)
   will be left out of the generated web pages.
 - `explains`: string, optional. Comma-separated list of terms defined in the glossary,
   meaning that the present task description offers relevant information about these terms.
@@ -1060,7 +1060,7 @@ Notes:
 - Rejects mixing `skip=1` with others (`command_re`, `output_re`, `manual`, or `exitcode`)
 - Warns if `manual=` lacks inline text
 - Reports errors when specs lack all of `command_re`, `output_re`, `manual`, and `skip` (requires at least one)
-- Validates all tasks but respects `--include_stage` for error reporting:
+- Validates all tasks but respects `--include-stage` for error reporting:
 
     - Tasks matching the stage filter: **errors**
     - Tasks excluded by the stage filter: **warnings**
@@ -1115,7 +1115,7 @@ see Section 1.1 in the [instructors documentation](instructors.md).
 ### 3.1 Default behavior
 
 The standard call for generating the HTML website from a sedrila course is
-`sedrila author outputdir`.
+`sedrila author build outputdir`.
 This will create the student version of the website at location `outputdir`
 and the instructor version at `outputdir/instructor`.
 Both versions will by default exclude all tasks, taskgroups, and chapters that have a
@@ -1123,20 +1123,21 @@ Both versions will by default exclude all tasks, taskgroups, and chapters that h
 
 ### 3.2 Options
 
-- To include parts with `stage:` entry, add option `--include_stage minstage` where `minstage`
-  is the lowest stage that should be included; all higher ones will be included as well.  
-- To obtain less detailed console output during the generation, use `--log WARNING`.  
-- The first run creates and fills the cache (which is stored in the instructor directory) 
+- To include parts with `stage:` entry, add option `--include-stage minstage` where `minstage`
+  is the lowest stage that should be included; all higher ones will be included as well.
+- To obtain less detailed console output during the generation, use the global option
+  `sedrila --log WARNING author build ...`.
+- The first run creates and fills the cache (which is stored in the instructor directory)
   and subsequent runs will usually run _much_ faster.
-  If you want another full build for some reason, use `--clean`.
-- To use an alternative configuration file, use something like `--config myconfig.yaml`.  
-- Option `--sums` generates reports about the volume of tasks per chapter,
+  To purge the cache and force a full build, use `sedrila author clear-cache outputdir`
+  before the build.
+- To use an alternative configuration file, use something like `--config myconfig.yaml`.
+- Option `--print-status` generates reports about the volume of tasks per chapter,
   per difficulty, and per stage.
-- Option `--rename old_partname new_partname` shortcuts normal operation and only performs a
-  rename refactoring of the course content.
-  It requires passing a dummy `targetdir` commandline argument which is not actually used.
+- The subcommand `sedrila author rename old_partname new_partname` performs a
+  rename refactoring of the course content without doing a full build.
   It will rename files or directories as appropriate (and occasionally beyond).
-  It will replace references in markdown files: 
+  It will replace references in markdown files:
   `assumes:` and `requires:` headers as well as `PARTREF`, `INCLUDE`, `PROT`, and `TREEREF`
   macro calls.
   It will heuristically replace occurrences of `old_partname` in `new_partname.prot` files.
@@ -1153,8 +1154,8 @@ Both versions will by default exclude all tasks, taskgroups, and chapters that h
 
 ### 3.3 Automatic validation during builds
 
-The `sedrila author` command validates course content incrementally during each build.
-Validation runs only when relevant files change and respects the `--include_stage` setting.
+The `sedrila author build` command validates course content incrementally during each build.
+Validation runs only when relevant files change and respects the `--include-stage` setting.
 There are three types of validation:
 
 - Validation of implicit constraints, e.g., that `[INCLUDE::myfile]` requires `myfile` to exist,
@@ -1175,7 +1176,7 @@ has turned this function off, which would be unusual).
 
 In a more refined approach, you should exclude the cache file or files from copying:
 `instructor/.sedrila-cache.*`.
-These one or two files are used by `sedrila author` only, they are not part of the generated website.
+These one or two files are used by `sedrila author build` only, they are not part of the generated website.
 
 If have no Apache webserver, you would exclude the `instructor` subdirectory when copying
 the student website (i.e., copy `*.*`: `instructor` is the only entry that has no dot in its name)

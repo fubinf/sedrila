@@ -105,6 +105,9 @@ and then following the steps described in
 
 ### 2.2 Regular use
 
+To get a quick overview of a student's submission status without entering the interactive menu,
+use `sedrila instructor status student1` (or with multiple directories).
+
 Call `sedrila instructor menu student1` or  `sedrila instructor menu student1 student2`,
 where `student1` and `student2` are two students' git usernames
 and therefore also the names of directories in the course-level top directory

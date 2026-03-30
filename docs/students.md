@@ -133,9 +133,15 @@ Follow the instructions shown by `push`.
 
 ## 6. The work report
 
-`sedrila student status` can also show the "work report", 
+`sedrila student status` can also show the "work report",
 a list of the tasks you have submitted so far,
 the associated timevalues, and possibly the sum of the associated actual work times.
 The work times are available only insofar as you have used the commit message format
 described in 3.2 above.
 The work report is also visible via the webapp (`sedrila student webapp`).
+
+## 7. Completing the course
+
+When you have finished your participation in the course, call `sedrila student finish`.
+It will show you the steps required to indicate course completion:
+the subject line and body text for the email you need to send to your instructor.

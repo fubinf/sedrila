@@ -32,23 +32,26 @@ Function-specific requirements:
 ## 3. Basic command structure
 
 ```bash
-sedrila maintainer [command] [options] targetdir
+sedrila maintainer check-links [options] targetdir
+sedrila maintainer check-programs [options] targetdir
+sedrila maintainer collect [options]
 ```
 
 Commands:
 
-- `check-links --check [markdown_file]`: Check URLs for availability
-- `check-programs [program_file]`: Test programs
+- `check-links TARGETDIR [--check markdown_file]`: Check URLs for availability
+- `check-programs TARGETDIR`: Test programs
+- `collect [-o output_file]`: Collect languages and dependencies from `@TEST_SPEC` blocks as JSON
 
-Common options:
+Common options (for `check-links` and `check-programs`):
 
 - `--config <configfile>`: Specify configuration file (default: `sedrila.yaml`)
 - `--include-stage <stage>`: Include parts with this and higher stage entries (default: `draft` which includes all stages)
 - `--batch`: Use batch/CI-friendly output
 
-Positional arguments:
+Positional argument for `check-links` and `check-programs`:
 
-- `targetdir`: Base directory for reports (required). Reports are written to `targetdir_i` (targetdir + "_i" suffix), 
+- `targetdir`: Base directory for reports. Reports are written to `targetdir_i` (targetdir + "_i" suffix),
   following sedrila's convention of separating instructor content from student content.
 
 ### 3.1 CI/Batch mode
@@ -96,7 +99,7 @@ Checks links and generates reports as build products
 - Supports custom link validation rules via HTML comments in markdown files.
 - Avoids checking duplicate URLs and includes comprehensive statistics in reports.
 - Link checking automatically sends HTTP requests in parallel when `--batch` is used. You can change the worker count via the `SDRL_LINKCHECK_MAX_WORKERS` environment variable (default: `230`). 
-- In a local environment (like WSL), adjust the concurrency by running `export SDRL_LINKCHECK_MAX_WORKERS=Number` (For a PC, setting this value to the current number of CPU threads would be appropriate.) and then executing `sedrila maintainer --check-links`. 
+- In a local environment (like WSL), adjust the concurrency by running `export SDRL_LINKCHECK_MAX_WORKERS=Number` (For a PC, setting this value to the current number of CPU threads would be appropriate.) and then executing `sedrila maintainer check-links TARGETDIR`.
   use `echo "$SDRL_LINKCHECK_MAX_WORKERS"` to check current value of this variable.
 - For CI runs triggered through GitHub Actions, the `maintainer-linkchecker` workflow exposes a `max_workers` input when using the “Run workflow” button, which internally sets this environment variable before executing the command. Empirical runs show that setting `max_workers` to roughly `230` already reaches the practical performance limit; higher numbers rarely improve performance. 
 
@@ -131,7 +134,7 @@ The validation rule applies (only) to the next link found.
 
 ## 5. Program Testing: `check-programs`
 
-Option `check-programs <report_dir>` tests exemplary programs against protocol files.
+Subcommand `sedrila maintainer check-programs TARGETDIR` tests exemplary programs against protocol files.
 
 Program testing executes stored commands from `.prot` files and verifies output matches expected results.
 
@@ -209,7 +212,7 @@ Before testing, generated files are cleaned up to ensure a fresh environment (da
 The temporary directory is removed after testing completes, preventing test failures from residual files.
 
 Dependency chain warnings: If a task appears in a dependency chain between two tasks with `@TEST_SPEC`
-but lacks `@TEST_SPEC` itself, a warning is issued during `sedrila author` build and `sedrila maintainer --check-programs`.
+but lacks `@TEST_SPEC` itself, a warning is issued during `sedrila author build` and `sedrila maintainer check-programs`.
 Example: `Task 'go-pointers' is missing @TEST_SPEC but appears in dependency chain: go-functions -> go-pointers -> go-http-server`.
 These warnings don't interrupt the build or testing; they just indicate potential gaps in test coverage.
 
@@ -249,7 +252,7 @@ The `deps=` field also supports multi-line commands (subsequent lines without `=
 
 **Note**: If `.prot` file already contains dependency installation commands in the `@PROT_SPEC` blocks (e.g., `pip install`, `npm install`), these commands will be executed automatically during CI runs. In such cases, you don't need to redundantly declare them in `lang=` or `deps=` fields in `@TEST_SPEC`.
 
-For local testing, need to manually install declared dependencies. For CI, use `--collect` to get the full list.
+For local testing, need to manually install declared dependencies. For CI, use `sedrila maintainer collect` to get the full list as JSON (stdout or `-o file`).
 
 Installation and execution in CI:
 
