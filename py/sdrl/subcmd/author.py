@@ -22,7 +22,7 @@ import sdrl.rename
 import sdrl.report
 
 # new command ui
-@click.group
+@click.group(name="author")
 def author_command():
     """
     Creates and renders an instance of a SeDriLa course with incremental build.
@@ -31,7 +31,7 @@ def author_command():
     b.suppress_msg_duplicates(True)
 
 
-@author_command.command
+@author_command.command(name="build")
 @click.argument("targetdir", type=click.Path())
 @click.option("--clean", default=False, is_flag=True, help="purge cache and perform a complete build")
 @click.option("--print-status", default=False, is_flag=True, help="print task volume reports")
@@ -59,7 +59,7 @@ def build_command(
     ), targetdir_i, targetdir_s)
     b.finalmessage()
 
-@author_command.command
+@author_command.command(name="rename")
 @click.option(
     "--config", type=str, default=c.AUTHOR_CONFIG_FILENAME,
     help="SeDriLa configuration description YAML file"
@@ -71,14 +71,14 @@ def rename_command(config, old, new):
     b.suppress_msg_duplicates(False)
     do_rename(config, old, new)
 
-@author_command.command
+@author_command.command(name="clear-cache")
 @click.argument("targetdir", type=click.Path())
 def clear_cache_command(targetdir: str):
     """Purge the cache"""
     targetdir_i = _targetdir_i(targetdir)
     delete_cache(targetdir_i)
 
-@author_command.command
+@author_command.command(name="status")
 def status_command():
     """[NOT IMPLEMENTED] use sedrila author build --print-status"""
     """Print task volume reports"""

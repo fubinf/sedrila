@@ -12,7 +12,7 @@ import click
 import argparse_subcommand as ap_sub
 
 # new command ui
-@click.command
+@click.command(name="server")
 @click.option("--quiet", "-q", is_flag=True, help="suppress the request logging output")
 @click.option("--port", required=True, type=int, help="port on which to serve the files")
 @click.argument("sourcedir", type=click.Path())

@@ -18,18 +18,14 @@ import sdrl.report
 import sdrl.webapp
 
 # new command ui
-@click.group
+@click.group(name="instructor")
 def instructor_command():
     """Help instructors evaluate students' submissions of several finished tasks."""
     pass
 
 # info: sedrila instructor menu
-@instructor_command.command
-@click.argument(
-    "workdir", nargs=-1, type=click.Path(),
-    envvar="SEDRILA_STUDENT_WORKDIR",
-    default=(".",),
-)
+@instructor_command.command(name="menu")
+@click.argument("workdir", nargs=-1, type=click.Path())
 @click.option(
     "--port", "-p", type=int,
     envvar="SEDRILA_WEBAPP_PORT",
@@ -38,20 +34,20 @@ def instructor_command():
 )
 def menu_command(workdir: Sequence[str], port: int):
     """Run the evaluation TUI"""
+    if not workdir:
+        workdir = (os.environ.get("SEDRILA_STUDENT_WORKDIR", "."),)
     workdir = init_workdirs(workdir)
     context = make_context(workdir, port=port)
     run_command_loop(context, MENU, MENU_HELP, MENU_CMDS)
 
 
 # info: sedrila instructor status
-@instructor_command.command
-@click.argument(
-    "workdir", nargs=-1, type=click.Path(),
-    envvar="SEDRILA_STUDENT_WORKDIR",
-    default=(".",),
-)
+@instructor_command.command(name="status")
+@click.argument("workdir", nargs=-1, type=click.Path())
 def status_command(workdir: Sequence[str]):
     """Show a summary of current submissions"""
+    if not workdir:
+        workdir = (os.environ.get("SEDRILA_STUDENT_WORKDIR", "."),)
     workdir = init_workdirs(workdir)
     context = make_context(workdir)
     for name, stud in context.students.items():

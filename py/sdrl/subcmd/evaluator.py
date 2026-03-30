@@ -53,7 +53,7 @@ import sdrl.participant
 import sdrl.repo as repo
 
 # new command ui
-@click.command
+@click.command(name="evaluator")
 @click.option("--nopull", is_flag=True, default=False, help="Skip the 'git pull' in each repo subdir")
 @click.option("--start", type=str, required=True, help="day 1 on the course as yyyy-mm-dd")
 @click.option(

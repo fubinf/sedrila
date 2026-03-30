@@ -22,7 +22,7 @@ import sdrl.directory as dir
 import sdrl.elements
 
 # new command ui
-@click.group
+@click.group(name="maintainer")
 def maintainer_command():
     """
     Maintain course quality with checks that are not suitable at build time.

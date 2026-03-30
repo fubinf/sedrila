@@ -19,27 +19,21 @@ import sdrl.report
 import sdrl.webapp
 
 # new command ui
-@click.group
+@click.group(name="student")
 def student_command():
     """Report on course execution so far or prepares submission to instructor."""
     pass
 
 
 # info: sedrila student init
-@student_command.command
-# add argument for workdir here when supported
-# @click.argument("workdir", type=click.Path(), envvar="SEDRILA_STUDENT_WORKDIR", default=".")
+@student_command.command(name="init")
 def init_command():
     """Start initialization for student repo directory"""
     init(["."])
 
 # info: sedrila student webapp
-@student_command.command
-@click.argument(
-    "workdir", nargs=-1, type=click.Path(),
-    envvar="SEDRILA_STUDENT_WORKDIR",
-    default=(".",),
-)
+@student_command.command(name="webapp")
+@click.argument("workdir", nargs=-1, type=click.Path())
 @click.option(
     "--port", "-p", type=int,
     envvar="SEDRILA_WEBAPP_PORT",
@@ -48,6 +42,8 @@ def init_command():
 )
 def webapp_command(workdir: Sequence[str], port: int):
     """Run the webapp"""
+    if not workdir:
+        workdir = (os.environ.get("SEDRILA_STUDENT_WORKDIR", "."),)
     workdir = check_workdirs(workdir)
     try:
         context = sdrl.participant.make_context(
@@ -65,20 +61,20 @@ def webapp_command(workdir: Sequence[str], port: int):
     cmd_webapp(context)
 
 # info: sedrila student import-keys
-@student_command.command
+@student_command.command(name="import-keys")
 def import_keys_command():
     """Import instructors' public keys into GPG"""
     import_keys(["."])
 
 # info: sedrila student status
-@student_command.command
+@student_command.command(name="status")
 def status_command():
     """Show a summary of current Submissions"""
     ctx = make_context(["."])
     sdrl.report.print_si_volume_report(ctx.studentlist[0])
 
 # info: sedrila student menu
-@student_command.command
+@student_command.command(name="menu")
 @click.option(
     "--port", "-p", type=int,
     envvar="SEDRILA_WEBAPP_PORT",
@@ -91,7 +87,7 @@ def menu_command(port: int):
     run_command_loop(ctx, menu=MENU, helptext=MENU_HELP, cmds=MENU_CMDS)
 
 # info: sedrila student finish
-@student_command.command
+@student_command.command(name="finish")
 def finish_command():
     """Show steps on how to indicate finished course participation""" # wording?
     ctx = make_context(["."])
