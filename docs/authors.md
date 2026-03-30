@@ -1129,17 +1129,17 @@ Both versions will by default exclude all tasks, taskgroups, and chapters that h
   `sedrila --log WARNING author build ...`.
 - The first run creates and fills the cache (which is stored in the instructor directory)
   and subsequent runs will usually run _much_ faster.
-  To purge the cache and force a full build, use `sedrila author clear-cache outputdir`
+  To purge the cache (and hence force a full build), use `sedrila author clear-cache outputdir`
   before the build.
 - To use an alternative configuration file, use something like `--config myconfig.yaml`.
 - Option `--print-status` generates reports about the volume of tasks per chapter,
   per difficulty, and per stage.
 - The subcommand `sedrila author rename old_partname new_partname` performs a
-  rename refactoring of the course content without doing a full build.
-  It will rename files or directories as appropriate (and occasionally beyond).
-  It will replace references in markdown files:
+  rename refactoring of the course content.  
+  It will rename files or directories as appropriate (and occasionally beyond).  
+  It will replace references in Markdown files:
   `assumes:` and `requires:` headers as well as `PARTREF`, `INCLUDE`, `PROT`, and `TREEREF`
-  macro calls.
+  macro calls.  
   It will heuristically replace occurrences of `old_partname` in `new_partname.prot` files.
   Practical tips:
 
@@ -1178,7 +1178,7 @@ In a more refined approach, you should exclude the cache file or files from copy
 `instructor/.sedrila-cache.*`.
 These one or two files are used by `sedrila author build` only, they are not part of the generated website.
 
-If have no Apache webserver, you would exclude the `instructor` subdirectory when copying
+If you have no Apache webserver, you would exclude the `instructor` subdirectory when copying
 the student website (i.e., copy `*.*`: `instructor` is the only entry that has no dot in its name)
 to a public place and then copy the visible contents of `instructor` to an access-protected place
 (the cache files are the only ones whose names start with a dot).
