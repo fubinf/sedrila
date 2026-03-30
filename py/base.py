@@ -143,17 +143,19 @@ def slurp(resource: str) -> str:
     try:
         if resource.startswith('file:'):
             import urllib.parse, urllib.request
-            path = urllib.request.url2pathname(urllib.parse.urlparse(resource).path)
+            path = urllib.request.url2pathname(resource.removeprefix('file://'))
             with open(path, 'rt', encoding='utf8', errors='replace') as f:
                 return f.read()
-        elif resource.startswith('http:') or resource.startswith('https://'):
+        elif resource.startswith('http://') or resource.startswith('https://'):
             response = requests.get(resource)
+            if not response.ok:
+                raise ValueError(f"GET status is {response.status_code}")
             return response.text
         else:
             with open(resource, 'rt', encoding='utf8', errors='replace') as f:
                 return f.read()
-    except:  # noqa
-        critical(f"'{resource}' does not exist (or is not of a type we can handle)")
+    except (ValueError, OSError) as exc:  # noqa
+        critical(f"Could not read '{resource}': {str(exc)}")
         return ""
 
 

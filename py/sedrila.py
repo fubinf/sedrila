@@ -13,15 +13,9 @@ def main():  # uses sys.argv
     if sys.platform == 'win32':
         b.critical("sedrila does not run directly on Windows. Please use WSL.")
 
-    # simple check if we use the new command UI
-    if len(sys.argv) >= 2 and sys.argv[1] == "ui2":
-        # new cli
-        @click.group
-        def dummy(): pass # dummy to consume 1 layer of subcommands
-        dummy.add_command(ui2)
-        dummy() # replace this with real call to ui2 in the future
-    else:
-        # old cli (will be removed)
+    if len(sys.argv) >= 2 and sys.argv[1] == "old":
+        # legacy cli (will be removed)
+        sys.argv.pop(1)  # consume 'old' prefix
         parser = sdrl.argparser.SedrilaArgParser(description="-")  # description is set lazily
         parser.scan("sdrl.subcmd.*")
         args = parser.parse_args()
@@ -29,6 +23,9 @@ def main():  # uses sys.argv
             parser.execute_subcommand(args)
         except b.CritialError:
             pass  # b.critical has already printed a message
+    else:
+        # new cli
+        ui2()
 
 
 if __name__ == "__main__":

@@ -2,6 +2,8 @@
 
 
 ## Version 3.0.0 (upcoming)
+- CLI: new argument structure using role+verb (e.g. 'author build') instead only role ('author').
+  The previous CLI will continue to be available via 'old'+role for a while ('old author').
 - `author`: remove the `PARTREFTITLE` macro, nobody ever uses it
 - `author`: rename the `PARTREFMANUAL` macro to `PARTREF2`
 - `author`: introduce `<!-- sedrila: macros off -->` markup to suppress false "undefined macro" 
