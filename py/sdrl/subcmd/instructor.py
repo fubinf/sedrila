@@ -4,6 +4,7 @@ from collections.abc import Sequence
 import contextlib
 import itertools
 import os
+import tempfile
 from types import SimpleNamespace
 import typing as tg
 
@@ -58,6 +59,36 @@ def status_command(workdir: Sequence[str]):
     for name, stud in context.students.items():
         b.info(f"'{name}' work report (in hours):")
         sdrl.report.print_si_volume_report(stud)
+
+
+BOOK_MSG_TEMPLATE="""((put type of reason for manual booking here))
+
+((Put details here if needed.
+Standard cases from the circumstances list do not need details; their type above suffices.
+Special cases should be described with commit IDs and a justification of the chosen timevalue
+according to the principles laid down in the circumstances list.
+Remove this explanation paragraph.))
+"""
+
+
+# CLI: sedrila instructor book
+@instructor_command.command(name="book")
+@click.option("--timevalue", type=float, required=True,
+              help="Time value to book manually (can be negative)")
+def book_command(timevalue: float):
+    """Create a signed empty commit to manually add to or substract from student's timevalue sum."""
+    b.set_register_files_callback(lambda s: None)
+    editor = os.environ.get("EDITOR", "vi")
+    prefix = f"MANUAL {timevalue}  "
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+        tmpfile = f.name
+        f.write(prefix + BOOK_MSG_TEMPLATE)
+    try:
+        os.system(f"{editor} {tmpfile}")
+        sgit.make_empty_commit(tmpfile, signed=True)
+        b.info("Commit created. Manual push is required. Or remove it again with  git reset HEAD~1")
+    finally:
+        os.unlink(tmpfile)
 
 
 def init_workdirs(workdirs: Sequence[str]) -> list[str]:

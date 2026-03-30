@@ -40,9 +40,19 @@ def make_commit(*filenames, msg, **kwargs):
     for filename in filenames:
         git_add(filename)
     signed = kwargs.pop('signed', False)
-    cmd = f"git commit {'-S' if signed else ''} -m '{msg}'"
+    allow_empty = kwargs.pop('allow_empty', False)
+    cmd = f"git commit {'-S' if signed else ''} {'--allow-empty' if allow_empty else ''} -m '{msg}'"
     b.info(cmd)
     os.system(cmd)
+
+
+def make_empty_commit(msgfile: str, signed: bool = False):
+    """Create an empty commit using message from a file."""
+    cmd = ["git", "commit", "--allow-empty", "-F", msgfile]
+    if signed:
+        cmd.insert(2, "-S")
+    b.info(" ".join(cmd))
+    sp.run(cmd)
 
 
 def commits_of_local_repo(*, chronological: bool) -> tg.Sequence[Commit]:
