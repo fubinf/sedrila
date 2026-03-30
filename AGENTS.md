@@ -47,31 +47,29 @@ poetry install
 
 ```bash
 # Author mode: Build a course website
-sedrila author --config sedrila.yaml --log DEBUG targetdir
+sedrila author build --config sedrila.yaml --log DEBUG targetdir
 
 # Author mode with incremental build (default)
-sedrila author sedrila.yaml outputdir
+sedrila author build sedrila.yaml outputdir
 
-# Clean build (purge cache)
-sedrila author --clean sedrila.yaml outputdir
-
-# Include stages in build
-sedrila author --include_stage alpha sedrila.yaml outputdir
+# Include immature-stage tasks in build
+sedrila author build --include_stage alpha outputdir
 
 # Student mode: View progress and prepare submissions
-sedrila student [workdir]
-sedrila student --init  # Initialize student.yaml
+sedrila student init  # Initialize student.yaml
+sedrila student import-keys  # teach GPG about the instructors
+sedrila student menu  # Select tasks for submission and submit them
 
 # Instructor mode: Evaluate student submissions
-sedrila instructor studentrepo/
-sedrila instructor --check-protocols student.prot author.prot
+sedrila instructor status studentrepo/  # Show summary of previously accepted/rejected submissions
+sedrila instructor menu  # TUI for calling webapp for accepting/rejecting and for commit+push 
 ```
 
 ### Renaming Parts
 
 ```bash
 # Rename a task/taskgroup/chapter across all files
-sedrila author --rename OldTaskName NewTaskName sedrila.yaml outputdir
+sedrila author rename OldTaskName NewTaskName
 ```
 
 ## Architecture
@@ -131,20 +129,20 @@ Custom macros provide enhanced functionality, e.g.:
 
 ### Student Workflow
 
-Students commit work with prescribed commit message format (e.g., `"%TaskName 1:10h"` for time tracking). 
-They create `submission.yaml` listing completed tasks with `CHECK` marks. 
-The `sedrila student` command provides a webapp showing progress and timevalue earned.
+Students commit work with prescribed commit message format `"%TaskName 1:10h"` for time tracking. 
+Student webapp creates `submission.yaml` listing completed tasks with `CHECK` marks.
+It also shows their progress (accepted/rejected tasks and their timevalue sum).
 
 ### Instructor Workflow
 
-Instructors run `sedrila instructor studentrepo/`. The tool:
+`sedrila instructor menu studentrepo/` does this:
 1. Pulls the repo.
 2. Validates `submission.yaml` entries against `course.json` and history
 2. Presents tasks in a webapp for review
 3. Updates `submission.yaml` with `ACCEPT`/`REJECT` marks
-4. Creates cryptographically signed commits
+4. Creates cryptographically signed commit
 
-The workflow progresses through states: FRESH → CHECKING → CHECKED (defined in `sdrl/constants.py`).
+Progresses through states: FRESH → CHECKING → CHECKED (defined in `sdrl/constants.py`).
 
 ## Code Style
 
@@ -182,4 +180,4 @@ This refactoring will affect import statements throughout the codebase.
 
 ## Status / Next step
 
-- Integrating PR #54: new CLI
+...
