@@ -57,6 +57,7 @@ class ReportEntry(tg.NamedTuple):
 
 
 def import_gpg_keys(instructors: tg.Sequence[b.StrAnyDict]):
+    """Teach GPG to recognize the course instructors' public keys."""
     for instructor in instructors:
         if not(instructor.get('pubkey')):
             b.warning("No key present for " + instructor.get('nameish') + ", skipping")
@@ -72,6 +73,7 @@ def import_gpg_keys(instructors: tg.Sequence[b.StrAnyDict]):
 
 
 def event_list(course: sdrl.course.Course, student_username: str, commits: tg.Sequence[sgit.Commit]) -> list[Event]:
+    """All events that may be of interest to the evaluator role."""
     result = []
     instructor_commits = submission_checked_commits(course.instructors, commits)
     for tc_entry in taskcheck_entries_from_commits(instructor_commits):

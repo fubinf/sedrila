@@ -28,49 +28,24 @@ manual bookings report page in `reports.py`.
 If there are multiple sensible ways of solving each of these, explain them and let me decide between them.
 
 
-## 3. Design proposals
+## 3. Design stage
 
-### 3.1 repo.py cleanup
+### 3.1 Extending manual_command()
 
-#### Functions that should be private (add underscore, move to back of module)
+Add an option `--task` with a string parameter that must be a taskname.
+Validate it against the `CourseSI` object.
+If it is no task, produce an error message and fail.
+Otherwise, use the task name as the manual booking reason type in line 1 of the commit message.
 
-These are only called from within repo.py (test calls don't count as "external"):
-- `is_allowed_signer` (line 157) — only called at line 123
-- `is_accepted` (line 208) — only called at lines 83, 225
-- `is_rejected` (line 212) — only called at line 228
-
-Already properly prefixed: `_accumulate_timevalues_and_attempts`, `_accumulate_student_workhours_per_task`, `_parse_taskname_workhours`.
-
-#### Main entry points (should be first in module, after classes)
-
-These are the public API, called from outside repo.py:
-1. `compute_student_work_so_far(course, commits)` — from participant.py:247
-2. `student_work_so_far(course)` — report data extraction
-3. `event_list(course, student_username, commits)` — from evaluator.py:304
-4. `submission_state(workdir, instructor_fingerprints)` — from instructor.py:206,213
-5. `import_gpg_keys(instructors)` — from student.py:194,205
-
-Secondary public functions (used externally but more specialized):
-6. `submission_checked_commits(instructors, commits)` — from evaluator and internally
-7. `taskcheck_entries_from_commits(instructor_commits)` — from tests and internally
-8. `work_entries_from_commits(commits)` — used in event_list
-
-#### Missing docstrings
-
-These public/secondary functions lack docstrings:
-- `import_gpg_keys` — what it does with GPG keys and why
-- `event_list` — what the event list represents and what it's used for
-
-The private helpers `is_allowed_signer`, `is_accepted`, `is_rejected` are self-explanatory 
-and don't need docstrings.
+We call entries with a valid taskname "task-specific", the others "global".
 
 
 ### 3.2 Extending data classes and entry points for manual booking data
 
-The `book_command()` creates signed empty commits with message format:
-`MANUAL <timevalue>  <reason text across multiple lines>`
+The `book_command()` creates signed empty commits with line-1 message format:
+`MANUAL <timevalue>  <reason type>`
 
-These are NOT task-specific — they adjust the student's overall timevalue sum.
+These may or may not be task-specific and adjust the student's overall timevalue sum.
 
 #### New data class: `ManualEntry`
 
@@ -78,7 +53,7 @@ These are NOT task-specific — they adjust the student's overall timevalue sum.
 class ManualEntry(tg.NamedTuple):
     commit: sgit.Commit
     timevalue: float
-    reason: str  # rest of commit message after "MANUAL <timevalue>"
+    reason: str  # taskname or other rest of line 1 of commit message after "MANUAL <timevalue>  "
 ```
 
 #### New parsing function: `_parse_manual_booking`
@@ -91,20 +66,10 @@ Returns `ManualEntry` or `None`.
 Analogous to `work_entries_from_commits` — iterates signed instructor commits, 
 filters for MANUAL prefix, returns `list[ManualEntry]`.
 
-Note: Manual booking commits must be **instructor-signed** (they are created with `signed=True` 
-in `book_command`), so they should be filtered through `submission_checked_commits` or 
-equivalent signature verification. However, unlike "submission.yaml checked" commits, 
-their subject does NOT match `SUBMISSION_CHECKED_COMMIT_MSG`. 
+Manual booking commits must be **instructor-signed** (they are created with `signed=True` 
+in `book_command`), so they should be filtered to have `MANUAL_BOOKING_MARKER` prefix AND 
+valid instructor signature.
 
-**Alternative A**: Add a second filter path in the commit-scanning that checks for 
-`MANUAL_BOOKING_MARKER` prefix AND valid instructor signature independently.
-
-**Alternative B**: Generalize `submission_checked_commits` to also return MANUAL commits 
-(rename to `instructor_signed_commits` or similar, return all properly-signed instructor commits, 
-then let callers filter by subject).
-
-I recommend **Alternative A** because the two commit types serve different purposes 
-and have different message formats. Keeping them separate is cleaner.
 
 #### Extending `compute_student_work_so_far`
 
@@ -121,95 +86,63 @@ Manual bookings should be added to `timevalue_total`.
 **Alternative A**: Add manual_timevalue to the existing timevalue_total. Simple, 
 but callers can't distinguish task-earned from manually-booked timevalue.
 
-**Alternative B**: Return a 4-tuple: `(entries, workhours_total, timevalue_total, manual_timevalue)`. 
-Callers get both components and can show them separately.
-
-**Alternative C**: Return manual entries as a separate list in the tuple.
-
-I recommend **Alternative B** — it's minimal change, keeps backward compatibility easy, 
-and callers can display manual_timevalue separately.
-
 #### Extending `event_list`
 
-Add ET.manual events from manual booking commits. The `taskname` field would be empty or 
-a marker like `"MANUAL"`, and `timevalue` is the booking amount.
+Add ET.manual events from manual booking commits. 
+The `taskname` field should be empty and `timevalue` is the booking amount.
+Add a comment to the taskname field "empty for ET.manual".
 
 
 ### 3.3 Where to store manual booking data: Course or CourseSI?
 
-**Option A: Course** (recommended)
-- Add `manual_bookings: list = []` and `manual_timevalue: float = 0.0` as attributes
-- Pro: Follows existing pattern — `compute_student_work_so_far` already modifies Course 
-  in-place to set `task.workhours`, `task.accept_date`, `task.rejections`
-- Pro: `student_work_so_far` already reads from Course, so it naturally picks up manual data
-- Pro: `event_list` also operates on Course
-- Con: Adds attributes irrelevant to author mode (but `workhours`, `accept_date`, `rejections` 
-  are already like that)
+`Course` is the common superclass of `Coursebuilder` (author context) and
+`CourseSI` (student and instructor contexts, also evaluator context).
+`repo.py` currently talks about `Course`, but should talk about `CourseSI`.
+Some current attributes of `Course` hence belong into `CourseSI`.
 
-**Option B: CourseSI**
-- Pro: Manual bookings only exist in student/instructor context
-- Con: `compute_student_work_so_far` and `student_work_so_far` take `Course`, not `CourseSI` — 
-  would need type changes or casting
-- Con: Breaks the current clean pattern where repo.py only knows about Course
-
-I recommend **Option A (Course)** because the existing `workhours`/`accept_date`/`rejections` 
-attributes already live on Course (specifically on Task, but Course is the container). 
-Manual bookings are course-level rather than task-level, but the principle is the same: 
-data computed from git commits and stored for reporting.
-
-Concretely, add to `Course`:
-```python
-manual_bookings: list = []    # list of ManualEntry, set by compute_student_work_so_far
-manual_timevalue: float = 0.0  # sum of manual booking timevalues
-```
+Refactor `repo.py`, `Course`, and `CourseSI` accordingly.
+Add attribute `manual_bookings: list[ManualEntry]`.
 
 
 ### 3.4 Report formats
 
 #### 3.4.1 Webapp work report (html_for_work_report_section in webapp/reports.py)
 
+The following is described for a single student, but must work accordingly when the
+webapp is started for multiple students.
+
 Currently shows per-task rows with w/v/e columns, then optional bonus row, then totals.
+Add a fourth value column `m` ("MANUAL entries") that is empty unless one or more 
+manual entries exist for the respective task (and then show their timevalues sum).
 
-Proposal: Add a "Manual bookings" summary row (like the bonus row), between bonus and totals:
-```
-Manual bookings    |  | <total_manual> |
-```
-And include `manual_timevalue` in the earned total.
+For the global (non-task-specific) manual entries, add a
+"other manual bookings" summary row (like the bonus row), between bonus and totals
+that has a value only in column `m`.
 
-Additionally, make "Manual bookings" a link to a separate detail page (like bonus has its 
-own page), showing individual bookings.
+In the totals row, leave column `m` empty and add what would be its value to column `v`.
+
+Additionally, make the words "manual bookings" in the "other manual bookings" summary row
+a link to a separate detail page (`/manual.bookings`, aking to `/bonus.report`), showing individual bookings,
+both task-specific and global, in chronological order with the following columns:
+Reason, Date (ISO datestamp of commit), commit (length-10 hash), timevalue (in decimal hours).
+If Reason is a taskname, prefix it with "T::".
 
 #### 3.4.2 CLI status report (print_si_volume_report in report.py)
 
 Currently shows per-chapter and per-difficulty tables with Worktime/Accept/Reject columns.
+Add another column "Manual" with the sum of the task-specific manual entries that pertain
+to the tasks represented by this line.
+Add another line "other manual bookings" just before the "=TOTAL" row,
+with an entry only in the "Manual" column
+that is the sum of the global manual bookings (or 0 if there are none).
 
-Proposal: After the existing tables, if manual_timevalue != 0, print a line:
-```
-Manual bookings: +2.5h (or -1.0h)
-```
-And include it in the TOTAL row's Accept column.
+Extend the "=TOTAL" row by that "Manual" column as well.
 
-**Alternative**: Add a "Manual" row to the table itself. But since manual bookings aren't 
-chapter- or difficulty-specific, a separate line after the table is cleaner.
-
-#### 3.4.3 Separate manual bookings detail page (new in webapp/reports.py)
-
-A new route (e.g., `/manual-bookings`) showing a table of individual manual bookings:
-
-| Date | Timevalue | Reason |
-|------|-----------|--------|
-| 2026-03-15 | +2.5 | Late submission exception |
-| 2026-03-20 | -1.0 | Penalty for academic dishonesty |
-| **Total** | **+1.5** | |
-
-Per student (same multi-student layout as other reports).
+Print a new, separate line after the last of the tables stating
+"Grand total course work timevalue: <sum>h"
+where the sum is the sum of the "Accept" and "Manual" totals.
 
 
-## 4. Implementation planning
+## 4. Implementation plan
 
-Make a detailed implementation plan and put it Section 5.
-
-
-## 5. Implementation plan
-
-((here))
+Make a detailed implementation plan and put it HERE.
