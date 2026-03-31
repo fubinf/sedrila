@@ -79,7 +79,7 @@ def book_command(timevalue: float):
     """Create a signed empty commit to manually add to or substract from student's timevalue sum."""
     b.set_register_files_callback(lambda s: None)
     editor = os.environ.get("EDITOR", "vi")
-    prefix = f"MANUAL {timevalue}  "
+    prefix = f"{c.MANUAL_BOOKING_MARKER} {timevalue}  "
     with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
         tmpfile = f.name
         f.write(prefix + BOOK_MSG_TEMPLATE)
