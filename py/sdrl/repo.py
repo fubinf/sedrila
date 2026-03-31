@@ -20,9 +20,10 @@ import sdrl.course
 
 
 class ET(enum.StrEnum):  # EventType
-    work = 'work'
-    accept = 'accept'
-    reject = 'reject'
+    work = 'work'  # student worktime entry (via commit msg format)
+    accept = 'accept'  # instructor accept (via signed submission.yaml commit)
+    reject = 'reject'  # instructor accept (via signed submission.yaml commit)
+    manual = 'manual'  # instructor manual timevalue booking (via signed "MANUAL" commit)
 
 
 class Event(tg.NamedTuple):
