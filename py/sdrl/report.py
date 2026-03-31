@@ -8,6 +8,7 @@ import sdrl.html as h
 
 if tg.TYPE_CHECKING:
     import sdrl.course
+    import sdrl.course_si
     import sdrl.participant
 
 
@@ -55,22 +56,23 @@ def _has_been_worked_on(task: 'sdrl.course.Task') -> bool:
     return task.workhours > 0 or task.is_accepted or task.rejections > 0
 
 
-def si_volume_report_per_chapter(course: 'sdrl.course.Course') -> Volumereport:
+def _has_manual_bookings(task: 'sdrl.course.Task') -> bool:
+    # Zeros despite multiple bookings will be very rare; task bookings are usually negative:
+    return task.manual_timevalue != 0.0
+
+
+def si_volume_report_per_chapter(course: 'sdrl.course_si.CourseSI') -> Volumereport:
     return _si_volume_report(course, course.chapters, "Chapter",
                              lambda t, c: t.taskgroup.chapter == c, lambda c: c.name)
 
 
-def si_volume_report_per_difficulty(course: 'sdrl.course.Course') -> Volumereport:
+def si_volume_report_per_difficulty(course: 'sdrl.course_si.CourseSI') -> Volumereport:
     from sdrl.course import Task
     return _si_volume_report(course, Task.DIFFICULTY_RANGE, "Difficulty",
                              lambda t, d: t.difficulty == d, lambda d: h.difficulty_levels[d-1])
 
 
-def _has_manual_bookings(task: 'sdrl.course.Task') -> bool:
-    return task.manual_timevalue != 0.0
-
-
-def _si_volume_report(course: 'sdrl.course.Course', rowitems: tg.Iterable, column1head: str,
+def _si_volume_report(course: 'sdrl.course_si.CourseSI', rowitems: tg.Iterable, column1head: str,
                       select: tg.Callable, render: tg.Callable) -> Volumereport:
     """Tuples of (category, worktime_sum, accept_sum, reject_sum, manual_sum)."""
     result = []
@@ -126,10 +128,8 @@ def print_si_volume_report(student: 'sdrl.participant.Student'):
     import sdrl.course_si
     course = student.course_with_work
     # Compute global manual bookings (those not task-specific)
-    global_manual = 0.0
-    if hasattr(course, 'manual_timevalue'):
-        task_manual_sum = sum(t.manual_timevalue for t in course.taskdict.values())
-        global_manual = course.manual_timevalue - task_manual_sum
+    task_manual_sum = sum(t.manual_timevalue for t in course.taskdict.values())
+    global_manual = course.manual_timevalue - task_manual_sum
     for report in (si_volume_report_per_difficulty(course),
                    si_volume_report_per_chapter(course)):
         table = b.Table()
@@ -169,6 +169,5 @@ def print_si_volume_report(student: 'sdrl.participant.Student'):
                       "[b]%5.1f" % total_manual)
         b.rich_print(table)  # noqa
     # Grand total line after the last table
-    all_manual = course.manual_timevalue if hasattr(course, 'manual_timevalue') else 0.0
-    grand_total = total_accept + total_bonus + all_manual
+    grand_total = total_accept + total_bonus + course.manual_timevalue
     print(f"Grand total course work timevalue: {grand_total:.1f}h")

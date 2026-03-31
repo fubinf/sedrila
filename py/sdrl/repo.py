@@ -32,7 +32,7 @@ class Event(tg.NamedTuple):
     student: str  # username
     committer: str  # email
     when: dt.datetime
-    taskname: str
+    content: str  # taskname or manual booking reason
     timevalue: float
 
 
@@ -104,7 +104,7 @@ def event_list(course: sdrl.course.Course, student_username: str, commits: tg.Se
         commit = entry.commit
         event = Event(ET.manual,
                       student_username, commit.author_email, commit.author_date,
-                      event.taskname, entry.timevalue)
+                      entry.reason, entry.timevalue)
         result.append(event)
     return result
 
@@ -118,26 +118,25 @@ def compute_student_work_so_far(course: sdrl.course_si.CourseSI, commits: tg.Seq
     _accumulate_student_workhours_per_task(commits, course)
     all_instructors = course.instructors + course.former_instructors  # treated equally for now
     instructor_commits = submission_checked_commits(all_instructors, commits)
+    course.manual_bookings = manual_entries_from_commits(all_instructors, commits)
     taskcheck_entries = taskcheck_entries_from_commits(instructor_commits)
     _accumulate_timevalues_and_attempts(taskcheck_entries, course)
-    # ----- manual bookings:
-    manual_entries = manual_entries_from_commits(all_instructors, commits)
-    course.manual_bookings = manual_entries
-    course.manual_timevalue = sum(e.timevalue for e in manual_entries)
-    for entry in manual_entries:
-        if entry.reason in course.taskdict:
-            course.taskdict[entry.reason].manual_timevalue += entry.timevalue
+
+
+def _allowed_signers(instructors: tg.Sequence[tg.Mapping[str, str]]) -> set[str]:
+    """Compute the set of allowed GPG fingerprints from instructor configs."""
+    try:
+        return {b.as_fingerprint(instructor['keyfingerprint'])
+                for instructor in instructors if 'keyfingerprint' in instructor}
+    except KeyError:
+        b.critical("missing 'keyfingerprint' in configuration")
+        return set()  # unreachable, but satisfies linter
 
 
 def submission_checked_commits(instructors: tg.Sequence[tg.Mapping[str, str]],
                                commits: tg.Sequence[sgit.Commit]) -> list[sgit.Commit]:
     """The properly instructor-signed Commits of finished submission checks."""
-    try:
-        allowed_signers = {b.as_fingerprint(instructor['keyfingerprint'])
-                           for instructor in instructors if 'keyfingerprint' in instructor}
-    except KeyError:
-        allowed_signers = set()  # silence linter warning
-        b.critical("missing 'keyfingerprint' in configuration")
+    allowed_signers = _allowed_signers(instructors)
     result = []
     for commit in commits:
         b.debug(f"commit.subject, fpr: {commit.subject}, {commit.key_fingerprint}")
@@ -211,12 +210,7 @@ def work_entries_from_commits(commits: tg.Iterable[sgit.Commit]) -> tg.Sequence[
 def manual_entries_from_commits(instructors: tg.Sequence[tg.Mapping[str, str]],
                                 commits: tg.Sequence[sgit.Commit]) -> list[ManualEntry]:
     """Collect ManualEntry objects from instructor-signed MANUAL booking commits."""
-    try:
-        allowed_signers = {b.as_fingerprint(instructor['keyfingerprint'])
-                           for instructor in instructors if 'keyfingerprint' in instructor}
-    except KeyError:
-        allowed_signers = set()  # for clarity: we get all instructors or none
-        b.critical("missing 'keyfingerprint' in configuration")
+    allowed_signers = _allowed_signers(instructors)
     result = []
     for commit in commits:
         if not commit.subject.startswith(c.MANUAL_BOOKING_MARKER):
@@ -233,7 +227,7 @@ def manual_entries_from_commits(instructors: tg.Sequence[tg.Mapping[str, str]],
     return result
 
 
-def student_work_so_far(course) -> tg.Tuple[list[ReportEntry], float, float]:
+def student_work_so_far(course: sdrl.course_si.CourseSI) -> tg.Tuple[list[ReportEntry], float, float]:
     """
     Data for work report: 
     retrieve pre-computed per-task entries (worktime, attempts) and totals (workhours, timevalue)

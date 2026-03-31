@@ -29,18 +29,19 @@ class CourseSI(Course):
 
     chapters: list['Chapter']
     manual_bookings: list  # list[repo.ManualEntry], populated by compute_student_work_so_far
-    manual_timevalue: float  # sum of all manual bookings
 
     def __init__(self, configdict: b.StrAnyDict, context: str):
         super().__init__(configdict=configdict, context=context)
         self.manual_bookings = []
-        self.manual_timevalue = 0.0
         self.parttype = dict(Chapter=Chapter, Taskgroup=Taskgroup, Task=Task)
-        self._init_parts(self.configdict)
-
-    def _init_parts(self, configdict: dict):
+        # now init parts:
         self.chapters = [Chapter(ch['name'], parent=self, chapterdict=ch)  # noqa
                          for ch in configdict['chapters']]
+
+    @property
+    def manual_timevalue(self) -> float:
+        """Sum of all manual bookings."""
+        return sum(e.timevalue for e in self.manual_bookings)
 
     def bonus_period_ranges(self) -> list[tuple[dt.date, dt.date]]:
         """Return (start, end) date pairs for each eligible bonus period."""

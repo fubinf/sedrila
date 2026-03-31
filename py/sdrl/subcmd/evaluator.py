@@ -441,9 +441,9 @@ def plot_weekly_event_counts(events_df: pd.DataFrame, outputdir: str, title: str
 
 def plot_top_tasks(events_df: pd.DataFrame, outputdir: str, title: str, explanation: str,
                    design_notes: str) -> dict[str, tg.Any]:
-    top_work = (events_df[events_df.evtype == 'work'].groupby('taskname').size()
+    top_work = (events_df[events_df.evtype == 'work'].groupby('content').size()
                 .sort_values(ascending=False).head(15))
-    top_checks = (events_df[events_df.evtype != 'work'].groupby('taskname').size()
+    top_checks = (events_df[events_df.evtype != 'work'].groupby('content').size()
                   .sort_values(ascending=False).head(15))
     filenames = []
     if len(top_work):
@@ -478,7 +478,7 @@ def plot_task_effort_ratio(events_df: pd.DataFrame, task_data: dict[str, dict[st
     if not task_data:
         return dict(slug='task-effort-ratio', title=title, images=[],
                     explanation=explanation, design_notes=design_notes)
-    worktime = (events_df[events_df.evtype == 'work'].groupby('taskname')['timevalue']
+    worktime = (events_df[events_df.evtype == 'work'].groupby('content')['timevalue']
                 .sum().rename('worked_hours'))
     nominal = pd.Series({k: v['timevalue'] for k, v in task_data.items()}, name='nominal_hours')
     ratio = (pd.concat([worktime, nominal], axis=1)
@@ -506,7 +506,7 @@ def plot_rejection_patterns(events_df: pd.DataFrame, outputdir: str, title: str,
                             explanation: str, design_notes: str) -> dict[str, tg.Any]:
     rejects = events_df[events_df.evtype == 'reject']
     filenames = []
-    by_task = rejects.groupby('taskname').size().sort_values(ascending=False).head(15)
+    by_task = rejects.groupby('content').size().sort_values(ascending=False).head(15)
     if len(by_task):
         plt.figure(figsize=(8.0, 3.8))
         by_task.sort_values().plot(kind='barh', color='tab:red')
@@ -567,7 +567,7 @@ def plot_taskgroup_start_order(events_df: pd.DataFrame, task_data: dict[str, dic
         return '/'.join(parts[:2]) if len(parts) >= 2 else "unknown"
 
     first_touch = (events_df[events_df.evtype == 'work']
-                   .assign(taskgroup=lambda df: df.taskname.apply(taskgroup_of))
+                   .assign(taskgroup=lambda df: df.content.apply(taskgroup_of))
                    .groupby(['student', 'taskgroup'], as_index=False)
                    .agg(first_week=('week', 'min')))
     if not len(first_touch):

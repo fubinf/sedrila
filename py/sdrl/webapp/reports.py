@@ -172,7 +172,7 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
         <th colspan="4">{s.student_gituser}</th>
         """)
         # In totals row, leave m empty; add manual total to v (earned)
-        course_manual = s.course_with_work.manual_timevalue if hasattr(s.course_with_work, 'manual_timevalue') else 0.0
+        course_manual = s.course_with_work.manual_timevalue
         totals_markup.append(f"""
         <td>{round(total_work[s.student_gituser], 2)}</td>
         <td>{round(total_earned[s.student_gituser] + course_manual, 2)}</td>
@@ -214,11 +214,8 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
     has_any_global_manual = False
     for i, s in enumerate(ctx.studentlist):
         cw = s.course_with_work
-        if hasattr(cw, 'manual_timevalue'):
-            task_manual_sum = sum(t.manual_timevalue for t in cw.taskdict.values())
-            global_manual = cw.manual_timevalue - task_manual_sum
-        else:
-            global_manual = 0.0
+        task_manual_sum = sum(t.manual_timevalue for t in cw.taskdict.values())
+        global_manual = cw.manual_timevalue - task_manual_sum
         if global_manual:
             has_any_global_manual = True
         manual_cells.append(f"<td></td><td></td><td></td><td>{round(global_manual, 2) if global_manual else ''}</td>")

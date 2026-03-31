@@ -28,12 +28,6 @@ class Task(el.Part):
     workhours: float = 0.0  # time student has worked on this according to commit msgs
     accept_date: dt.datetime | None = None  # date of last accept event, set in repo.py
     rejections: int = 0  # how often instructor has marked it 'reject'
-    manual_timevalue: float = 0.0  # sum of task-specific manual bookings for this task
-
-    @property
-    def is_accepted(self) -> bool:
-        return self.accept_date is not None
-
     taskgroup: 'Taskgroup'  # where the task belongs
 
     def __init__(self, name: str, **kwargs):
@@ -58,6 +52,16 @@ class Task(el.Part):
     def allowed_attempts(self) -> int:
         course = self.taskgroup.chapter.course
         return int(course.allowed_attempts_base + course.allowed_attempts_hourly*self.timevalue)
+
+    @property
+    def is_accepted(self) -> bool:
+        return self.accept_date is not None
+
+    @property
+    def manual_timevalue(self) -> float:
+        """Sum of task-specific manual bookings for this task."""
+        bookings = getattr(self.course, 'manual_bookings', [])
+        return sum(e.timevalue for e in bookings if e.reason == self.name)
 
     @property
     def path(self) -> str:
