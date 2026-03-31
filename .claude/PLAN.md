@@ -145,4 +145,106 @@ where the sum is the sum of the "Accept" and "Manual" totals.
 
 ## 4. Implementation plan
 
-Make a detailed implementation plan and put it HERE.
+### Step 1: Add `--task` option to `book_command()` in `subcmd/instructor.py`
+
+- Add `@click.option("--task", ...)` to `book_command()`.
+- After option parsing, if `--task` is given:
+  - Instantiate a `CourseSI` from `c.METADATA_FILE` to validate the taskname.
+  - If `course.task(taskname)` returns `None`, print error and `return`.
+  - Otherwise, use the taskname as the reason type in the commit message prefix.
+- Requires reading `c.METADATA_FILE` in the cwd; 
+  use `sdrl.participant.Student('.', is_instructor=True).course` for validation,
+  same pattern as `prepare_workdir()`.
+
+### Step 2: Add `ManualEntry` class and parsing in `repo.py`
+
+- Add `ManualEntry(tg.NamedTuple)` with fields: `commit`, `timevalue`, `reason`.
+- Add `_parse_manual_booking(commit_msg: str) -> tg.Optional[tg.Tuple[float, str]]`:
+  - Match against `^MANUAL\s+(-?\d+(\.\d+)?)\s\s(.+)` (the MANUAL prefix, timevalue, double-space, reason).
+  - Return `(timevalue, reason)` or `None`.
+- Add `manual_entries_from_commits(instructors, commits) -> list[ManualEntry]`:
+  - Filter commits to those that are instructor-signed (reuse fingerprint logic from
+    `submission_checked_commits`) AND whose subject starts with `MANUAL_BOOKING_MARKER`.
+  - Parse each with `_parse_manual_booking`, collect `ManualEntry` objects.
+
+### Step 3: Add `manual_bookings` attribute to `CourseSI`
+
+- Add `manual_bookings: list[ManualEntry] = []` in `CourseSI.__init__` 
+  (not in `Course`, since only student/instructor contexts need it).
+- Add `manual_timevalue: float = 0.0` likewise.
+- These are populated by `compute_student_work_so_far`.
+
+### Step 4: Extend `compute_student_work_so_far` in `repo.py`
+
+- Change parameter type from `Course` to `CourseSI` (import `sdrl.course_si`).
+- After the existing worktime and taskcheck accumulation, add:
+  - Call `manual_entries_from_commits(all_instructors, commits)`.
+  - Store result in `course.manual_bookings`.
+  - Compute `course.manual_timevalue = sum(e.timevalue for e in course.manual_bookings)`.
+- Also compute per-task manual sums: for each `ManualEntry` whose `reason` is a valid
+  taskname (`reason in course.taskdict`), accumulate into a new `Task` attribute 
+  `manual_timevalue: float = 0.0` (added to `Task` in `course.py`).
+
+### Step 5: Add `Task.manual_timevalue` attribute in `course.py`
+
+- Add `manual_timevalue: float = 0.0` to `Task`.
+- This accumulates the sum of task-specific manual bookings for this task.
+
+### Step 6: Extend `student_work_so_far` in `repo.py`
+
+- Add `course.manual_timevalue` to `timevalue_total` before returning.
+- This ensures manual bookings (both task-specific and global) count toward the overall total.
+
+### Step 7: Extend `event_list` in `repo.py`
+
+- After the existing work-entry loop, add a loop over manual entries 
+  (using `manual_entries_from_commits`):
+  - Create `Event(ET.manual, student_username, commit.author_email, commit.author_date, "", entry.timevalue)`.
+  - The `taskname` field is empty string (as per design: "empty for ET.manual").
+
+### Step 8: Extend CLI report (`print_si_volume_report` in `report.py`)
+
+- Extend `_si_volume_report` to return a 5th column "Manual":
+  - For each row (chapter or difficulty group), sum `task.manual_timevalue` for matching tasks.
+  - Change `Volumereport.columnheads` to include "Manual".
+- In `print_si_volume_report`:
+  - Add an "other manual bookings" row before "=TOTAL":
+    compute global manual sum = `course.manual_timevalue - sum(t.manual_timevalue for all tasks)`.
+  - Extend "=TOTAL" row with the Manual column total.
+  - After the last table, print `"Grand total course work timevalue: <sum>h"` where sum = 
+    Accept total + Manual total (+ Bonus if applicable).
+
+### Step 9: Extend webapp work report (`html_for_work_report_section` in `webapp/reports.py`)
+
+- Add a 4th value column `m` in the header row per student: `<th>w</th><th>v</th><th>e</th><th>m</th>`.
+- In `html_for_students(task)`: for each student, show `task.manual_timevalue` in column `m`
+  (empty if zero).
+- Add an "other manual bookings" summary row between bonus and totals:
+  - Compute global manual = `course.manual_timevalue - sum(t.manual_timevalue for tasks)`.
+  - Show this value only in column `m`.
+  - Make "manual bookings" a link to `/manual.bookings`.
+- In the totals row, leave `m` empty; add the manual total to column `v` (earned).
+
+### Step 10: Add manual bookings detail page in `webapp/reports.py`
+
+- Add `MANUAL_BOOKINGS_URL = "/manual.bookings"` to `webapp/resources.py`.
+- Add a new `@bottle.route(MANUAL_BOOKINGS_URL)` handler `serve_manual_bookings()`.
+- Add `html_for_manual_bookings(ctx)`:
+  - For each student, collect `course.manual_bookings` sorted by commit date.
+  - Render a table with columns: Reason (prefix tasknames with "T::"), Date (ISO), 
+    Commit (10-char hash), Timevalue (decimal hours).
+  - Pattern after `html_for_bonus_report`.
+
+### Step 11: Refactor `repo.py` type annotations
+
+- Where `repo.py` functions receive `course: sdrl.course.Course` but actually need 
+  `CourseSI`-specific attributes (like `manual_bookings`), change the type to `CourseSI`.
+- Specifically: `compute_student_work_so_far` should take `CourseSI`.
+- Functions that genuinely work with any `Course` (like `event_list`, `student_work_so_far`) 
+  can keep `Course` as their type. If they access `manual_bookings`, change to `CourseSI`.
+
+### Implementation order
+
+Execute steps 2, 5 first (new data structures), then 3, 4, 6, 7 (core logic), 
+then 1 (CLI extension), then 8, 9, 10 (reports), then 11 (cleanup).
+Run `python -m pytest py/` after each major step.
