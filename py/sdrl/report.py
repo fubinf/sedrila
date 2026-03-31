@@ -66,19 +66,25 @@ def si_volume_report_per_difficulty(course: 'sdrl.course.Course') -> Volumerepor
                              lambda t, d: t.difficulty == d, lambda d: h.difficulty_levels[d-1])
 
 
+def _has_manual_bookings(task: 'sdrl.course.Task') -> bool:
+    return task.manual_timevalue != 0.0
+
+
 def _si_volume_report(course: 'sdrl.course.Course', rowitems: tg.Iterable, column1head: str,
                       select: tg.Callable, render: tg.Callable) -> Volumereport:
-    """Tuples of (category, worktime_sum, accept_sum, reject_sum)."""
+    """Tuples of (category, worktime_sum, accept_sum, reject_sum, manual_sum)."""
     result = []
     for row in rowitems:
-        tasks = [t for t in course.taskdict.values() if select(t, row) and _has_been_worked_on(t)]
+        tasks = [t for t in course.taskdict.values()
+                 if select(t, row) and (_has_been_worked_on(t) or _has_manual_bookings(t))]
         if not tasks:
             continue
         worktime = sum(t.workhours for t in tasks)
         accept = sum(t.timevalue for t in tasks if t.is_accepted)
         reject = sum(t.timevalue for t in tasks if t.rejections > 0 and not t.is_accepted)
-        result.append((render(row), worktime, accept, reject))
-    return Volumereport(result, (column1head, "Worktime", "Accept", "Reject"))
+        manual = sum(t.manual_timevalue for t in tasks)
+        result.append((render(row), worktime, accept, reject, manual))
+    return Volumereport(result, (column1head, "Worktime", "Accept", "Reject", "Manual"))
 
 
 # ----- printing:
@@ -119,21 +125,28 @@ def print_si_volume_report(student: 'sdrl.participant.Student'):
     """Show worktime, accepted, and rejected timevalues per difficulty and chapter."""
     import sdrl.course_si
     course = student.course_with_work
+    # Compute global manual bookings (those not task-specific)
+    global_manual = 0.0
+    if hasattr(course, 'manual_timevalue'):
+        task_manual_sum = sum(t.manual_timevalue for t in course.taskdict.values())
+        global_manual = course.manual_timevalue - task_manual_sum
     for report in (si_volume_report_per_difficulty(course),
                    si_volume_report_per_chapter(course)):
         table = b.Table()
         for head in report.columnheads:
             justify = "left" if head == report.columnheads[0] else "right"
             table.add_column(head, justify=justify)
-        total_worktime = total_accept = total_reject = 0.0
-        for name, worktime, accept, reject in report.rows:
+        total_worktime = total_accept = total_reject = total_manual = 0.0
+        for name, worktime, accept, reject, manual in report.rows:
             table.add_row(name,
                           "%5.1f" % worktime,
                           "%5.1f" % accept,
-                          "%5.1f" % reject)
+                          "%5.1f" % reject,
+                          "%5.1f" % manual if manual else "")
             total_worktime += worktime
             total_accept += accept
             total_reject += reject
+            total_manual += manual
         # Add bonus row if bonusrules are configured
         total_bonus = 0.0
         if course.bonusrules is not None:
@@ -144,9 +157,18 @@ def print_si_volume_report(student: 'sdrl.participant.Student'):
                 results = course.compute_bonus(course_size_hours)
                 total_bonus = sdrl.course_si.CourseSI.total_bonus(results)
                 if total_bonus:
-                    table.add_row("[i]Bonus", "", "[i]%5.1f" % total_bonus, "")
+                    table.add_row("[i]Bonus", "", "[i]%5.1f" % total_bonus, "", "")
+        # Add "other manual bookings" row
+        if global_manual:
+            table.add_row("[i]other manual bookings", "", "", "", "[i]%5.1f" % global_manual)
+            total_manual += global_manual
         table.add_row("[b]=TOTAL",
                       "[b]%5.1f" % total_worktime,
                       "[b]%5.1f" % (total_accept + total_bonus),
-                      "[b]%5.1f" % total_reject)
+                      "[b]%5.1f" % total_reject,
+                      "[b]%5.1f" % total_manual)
         b.rich_print(table)  # noqa
+    # Grand total line after the last table
+    all_manual = course.manual_timevalue if hasattr(course, 'manual_timevalue') else 0.0
+    grand_total = total_accept + total_bonus + all_manual
+    print(f"Grand total course work timevalue: {grand_total:.1f}h")

@@ -6,7 +6,7 @@ import bottle  # https://bottlepy.org/docs/dev/
 import base as b
 import sdrl.participant
 
-from sdrl.webapp.resources import BONUS_REPORT_URL
+from sdrl.webapp.resources import BONUS_REPORT_URL, MANUAL_BOOKINGS_URL
 from sdrl.webapp.app import html_for_layout
 
 
@@ -45,7 +45,7 @@ def serve_index():
                 <p>Select a task on the left, switch between its files at the top, select choice at bottom right.</p>
                 <h2>Work Report</h2>
                 {html_for_work_progress(ctx)}
-                <p><b>w</b>: work time (from commit msgs), <b>v</b>: task time value, <b>e</b>: estimated time (if task is accepted)</p>
+                <p><b>w</b>: work time (from commit msgs), <b>v</b>: task time value, <b>e</b>: estimated time (if task is accepted), <b>m</b>: manual bookings</p>
                 {html_for_work_report_section(ctx)}
             </section>
             <section class="scroll" id="students-table">
@@ -61,6 +61,12 @@ def serve_index():
 def serve_bonus_report():
     ctx = sdrl.participant.get_context()
     return html_for_layout("Bonus Report", f"<main><section>{html_for_bonus_report(ctx)}</section></main>")
+
+
+@bottle.route(MANUAL_BOOKINGS_URL)
+def serve_manual_bookings():
+    ctx = sdrl.participant.get_context()
+    return html_for_layout("Manual Bookings", f"<main><section>{html_for_manual_bookings(ctx)}</section></main>")
 
 
 def html_for_student_table(studentlist: list[sdrl.participant.Student]) -> str:
@@ -125,6 +131,7 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
     total_earned = { s.student_gituser: .0 for s in ctx.studentlist}
     total_work = { s.student_gituser: .0 for s in ctx.studentlist }
     est_work = {s.student_gituser: .0 for s in ctx.studentlist}
+    total_manual = {s.student_gituser: .0 for s in ctx.studentlist}
 
     def html_for_students(task: str) -> str:
         markup = []
@@ -134,11 +141,14 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
                 total_earned[s.student_gituser] += ct.time_earned
                 total_work[s.student_gituser] += ct.workhours
                 est_work[s.student_gituser] += ct.timevalue
+                total_manual[s.student_gituser] += ct.manual_timevalue
 
+            manual_val = round(ct.manual_timevalue, 2) if ct and ct.manual_timevalue else ""
             markup.append(f"""
                 <td>{round(ct.workhours, 2) if ct and ct.workhours else ""}</td>
                 <td>{round(ct.time_earned, 2) if ct and ct.time_earned else ""}</td>
                 <td>{round(ct.timevalue, 2) if ct and ct.timevalue else ""}</td>
+                <td>{manual_val}</td>
             """)
             if i < len(ctx.studentlist) - 1:
                 markup.append("<td></td>")
@@ -159,12 +169,15 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
     totals_markup = []
     for i, s in enumerate(ctx.studentlist):
         students_markup.append(f"""
-        <th colspan="3">{s.student_gituser}</th>
+        <th colspan="4">{s.student_gituser}</th>
         """)
+        # In totals row, leave m empty; add manual total to v (earned)
+        course_manual = s.course_with_work.manual_timevalue if hasattr(s.course_with_work, 'manual_timevalue') else 0.0
         totals_markup.append(f"""
         <td>{round(total_work[s.student_gituser], 2)}</td>
-        <td>{round(total_earned[s.student_gituser], 2)}</td>
+        <td>{round(total_earned[s.student_gituser] + course_manual, 2)}</td>
         <td>{round(est_work[s.student_gituser], 2)}</td>
+        <td></td>
         """)
         if i < len(ctx.studentlist) - 1:
             students_markup.append("<th>&nbsp;</th>")
@@ -183,15 +196,39 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
                 course_size_hours = float(raw)
                 results = s.course_with_work.compute_bonus(course_size_hours)
                 tb = sdrl.course_si.CourseSI.total_bonus(results)
-                bonus_cells.append(f"<td></td><td>{round(tb, 2) if tb else ''}</td><td></td>")
+                bonus_cells.append(f"<td></td><td>{round(tb, 2) if tb else ''}</td><td></td><td></td>")
             else:
-                bonus_cells.append("<td></td><td></td><td></td>")
+                bonus_cells.append("<td></td><td></td><td></td><td></td>")
             if i < len(ctx.studentlist) - 1:
                 bonus_cells.append("<td></td>")
         bonus_row = f"""
             <tr>
                 <td><i><a href='{BONUS_REPORT_URL}'>Bonus</a></i></td>
                 {''.join(bonus_cells)}
+            </tr>
+        """
+
+    # "Other manual bookings" row
+    manual_row = ""
+    manual_cells = []
+    has_any_global_manual = False
+    for i, s in enumerate(ctx.studentlist):
+        cw = s.course_with_work
+        if hasattr(cw, 'manual_timevalue'):
+            task_manual_sum = sum(t.manual_timevalue for t in cw.taskdict.values())
+            global_manual = cw.manual_timevalue - task_manual_sum
+        else:
+            global_manual = 0.0
+        if global_manual:
+            has_any_global_manual = True
+        manual_cells.append(f"<td></td><td></td><td></td><td>{round(global_manual, 2) if global_manual else ''}</td>")
+        if i < len(ctx.studentlist) - 1:
+            manual_cells.append("<td></td>")
+    if has_any_global_manual:
+        manual_row = f"""
+            <tr>
+                <td><i>other <a href='{MANUAL_BOOKINGS_URL}'>manual bookings</a></i></td>
+                {''.join(manual_cells)}
             </tr>
         """
 
@@ -203,10 +240,11 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
             </tr>
             <tr>
                 <th>task</th>
-                {"<th></th>".join(["<th>w</th><th>v</th><th>e</th>"] * len(ctx.studentlist))}
+                {"<th></th>".join(["<th>w</th><th>v</th><th>e</th><th>m</th>"] * len(ctx.studentlist))}
             </tr>
             {''.join(tasks_markup)}
             {bonus_row}
+            {manual_row}
             <tr>
             <td>totals (worked, earned, estimated)</td>
             {''.join(totals_markup)}
@@ -344,3 +382,38 @@ def html_for_bonus_report(ctx: sdrl.participant.Context) -> str:
     """
 
     return rules_html + legend_html + table_html
+
+
+def html_for_manual_bookings(ctx: sdrl.participant.Context) -> str:
+    """HTML body for the manual bookings detail page."""
+    sections = []
+    for s in ctx.studentlist:
+        cw = s.course_with_work
+        bookings = getattr(cw, 'manual_bookings', [])
+        if not bookings:
+            sections.append(f"<h3>{html.escape(s.student_gituser)}</h3><p>No manual bookings.</p>")
+            continue
+        sorted_bookings = sorted(bookings, key=lambda e: e.commit.author_date)
+        rows = []
+        for i, entry in enumerate(sorted_bookings):
+            reason = html.escape(entry.reason)
+            if entry.reason in cw.taskdict:
+                reason = f"T::{reason}"
+            date = entry.commit.author_date.strftime("%Y-%m-%d")
+            commit_hash = entry.commit.hash[:10]
+            rows.append(f"""
+                <tr class="{'even' if i % 2 == 0 else 'odd'}">
+                    <td>{reason}</td>
+                    <td>{date}</td>
+                    <td>{commit_hash}</td>
+                    <td>{entry.timevalue}</td>
+                </tr>
+            """)
+        sections.append(f"""
+            <h3>{html.escape(s.student_gituser)}</h3>
+            <table id="work-table">
+                <tr><th>Reason</th><th>Date</th><th>Commit</th><th>Timevalue</th></tr>
+                {''.join(rows)}
+            </table>
+        """)
+    return "<h2>Manual Bookings</h2>" + "".join(sections)

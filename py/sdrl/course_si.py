@@ -7,6 +7,7 @@ import datetime as dt
 import typing as tg
 
 import base as b
+import sdrl.course
 from sdrl.course import Course, Chapter, Taskgroup, Task
 
 
@@ -27,9 +28,13 @@ class CourseSI(Course):
     CANCOPY_ADDITIONAL = ''
 
     chapters: list['Chapter']
+    manual_bookings: list  # list[repo.ManualEntry], populated by compute_student_work_so_far
+    manual_timevalue: float  # sum of all manual bookings
 
     def __init__(self, configdict: b.StrAnyDict, context: str):
         super().__init__(configdict=configdict, context=context)
+        self.manual_bookings = []
+        self.manual_timevalue = 0.0
         self.parttype = dict(Chapter=Chapter, Taskgroup=Taskgroup, Task=Task)
         self._init_parts(self.configdict)
 

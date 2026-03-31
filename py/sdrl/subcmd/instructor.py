@@ -75,16 +75,30 @@ Remove this explanation paragraph.))
 @instructor_command.command(name="book")
 @click.option("--timevalue", type=float, required=True,
               help="Time value to book manually (can be negative)")
-def book_command(timevalue: float):
+@click.option("--task", "taskname", default=None,
+              help="Task name to associate this booking with (must be a valid task)")
+def book_command(timevalue: float, taskname: str):
     """Create a signed empty commit to manually add to or substract from student's timevalue sum."""
     b.set_register_files_callback(lambda s: None)
+    if taskname:
+        stud = sdrl.participant.Student('.', is_instructor=True)
+        if stud.course.task(taskname) is None:
+            b.error(f"'{taskname}' is not a valid task name.")
+            return
+        reason = taskname
+    else:
+        reason = ""
     editor = os.environ.get("EDITOR", "vi")
     prefix = f"{c.MANUAL_BOOKING_MARKER} {timevalue}  "
     with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
         tmpfile = f.name
-        f.write(prefix + BOOK_MSG_TEMPLATE)
+        if reason:
+            f.write(prefix + reason + "\n")
+        else:
+            f.write(prefix + BOOK_MSG_TEMPLATE)
     try:
-        os.system(f"{editor} {tmpfile}")
+        if not reason:
+            os.system(f"{editor} {tmpfile}")
         sgit.make_empty_commit(tmpfile, signed=True)
         b.info("Commit created. Manual push is required. Or remove it again with  git reset HEAD~1")
     finally:

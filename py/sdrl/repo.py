@@ -17,6 +17,7 @@ import base as b
 import sgit
 import sdrl.constants as c
 import sdrl.course
+import sdrl.course_si
 
 
 class ET(enum.StrEnum):  # EventType
@@ -39,6 +40,12 @@ class TaskCheckEntry(tg.NamedTuple):
     commit: sgit.Commit
     taskname: str
     tasknote: str
+
+
+class ManualEntry(tg.NamedTuple):
+    commit: sgit.Commit
+    timevalue: float
+    reason: str  # taskname or other description from commit message
 
 
 class WorkEntry(tg.NamedTuple):
@@ -88,16 +95,23 @@ def event_list(course: sdrl.course.Course, student_username: str, commits: tg.Se
         result.append(event)
     for work_entry in work_entries_from_commits(commits):
         commit = work_entry.commit
-        event = Event(ET.work, 
-                      student_username, commit.author_email, commit.author_date, 
+        event = Event(ET.work,
+                      student_username, commit.author_email, commit.author_date,
                       work_entry.taskname, work_entry.timevalue)
+        result.append(event)
+    all_instructors = course.instructors + course.former_instructors
+    for entry in manual_entries_from_commits(all_instructors, commits):
+        commit = entry.commit
+        event = Event(ET.manual,
+                      student_username, commit.author_email, commit.author_date,
+                      event.taskname, entry.timevalue)
         result.append(event)
     return result
 
 
-def compute_student_work_so_far(course: sdrl.course.Course, commits: tg.Sequence[sgit.Commit]):
+def compute_student_work_so_far(course: sdrl.course_si.CourseSI, commits: tg.Sequence[sgit.Commit]):
     """
-    Obtain per-task worktimes from student commits and 
+    Obtain per-task worktimes from student commits and
     per-task timevalues from submission checked commits.
     Store them in course.
     """
@@ -106,6 +120,13 @@ def compute_student_work_so_far(course: sdrl.course.Course, commits: tg.Sequence
     instructor_commits = submission_checked_commits(all_instructors, commits)
     taskcheck_entries = taskcheck_entries_from_commits(instructor_commits)
     _accumulate_timevalues_and_attempts(taskcheck_entries, course)
+    # ----- manual bookings:
+    manual_entries = manual_entries_from_commits(all_instructors, commits)
+    course.manual_bookings = manual_entries
+    course.manual_timevalue = sum(e.timevalue for e in manual_entries)
+    for entry in manual_entries:
+        if entry.reason in course.taskdict:
+            course.taskdict[entry.reason].manual_timevalue += entry.timevalue
 
 
 def submission_checked_commits(instructors: tg.Sequence[tg.Mapping[str, str]],
@@ -187,6 +208,31 @@ def work_entries_from_commits(commits: tg.Iterable[sgit.Commit]) -> tg.Sequence[
     return result
 
 
+def manual_entries_from_commits(instructors: tg.Sequence[tg.Mapping[str, str]],
+                                commits: tg.Sequence[sgit.Commit]) -> list[ManualEntry]:
+    """Collect ManualEntry objects from instructor-signed MANUAL booking commits."""
+    try:
+        allowed_signers = {b.as_fingerprint(instructor['keyfingerprint'])
+                           for instructor in instructors if 'keyfingerprint' in instructor}
+    except KeyError:
+        allowed_signers = set()  # for clarity: we get all instructors or none
+        b.critical("missing 'keyfingerprint' in configuration")
+    result = []
+    for commit in commits:
+        if not commit.subject.startswith(c.MANUAL_BOOKING_MARKER):
+            continue
+        if not is_allowed_signer(commit, allowed_signers):
+            b.warning(f"Commit {commit.hash[:9]} '{commit.subject}' was not signed by an instructor")
+            continue
+        parsed = _parse_manual_booking(commit.subject)
+        if parsed is None:
+            continue
+        timevalue, reason = parsed
+        result.append(ManualEntry(commit, timevalue, reason))
+    b.info(f"{len(result)} manual booking commits")
+    return result
+
+
 def student_work_so_far(course) -> tg.Tuple[list[ReportEntry], float, float]:
     """
     Data for work report: 
@@ -204,6 +250,7 @@ def student_work_so_far(course) -> tg.Tuple[list[ReportEntry], float, float]:
                 timevalue_total += task.timevalue
             result.append(ReportEntry(taskname, task.path, task.workhours, task.timevalue,
                                       task.rejections, task.is_accepted))
+    timevalue_total += course.manual_timevalue
     return result, workhours_total, timevalue_total
 
 
@@ -251,6 +298,16 @@ def _accumulate_student_workhours_per_task(commits: tg.Iterable[sgit.Commit], co
         else:
             b.warning(f"Commit '{commit.subject}': Task '{taskname}' does not exist. Entry ignored.")
     b.info(f"read {num_commits} commit messages, found {num_timeentries} work time entries")
+
+
+def _parse_manual_booking(commit_msg: str) -> tg.Optional[tg.Tuple[float, str]]:
+    """Return (timevalue, reason) from a MANUAL booking commit message, or None."""
+    mm = re.match(r"^MANUAL\s+(-?\d+(\.\d+)?)\s\s(.+)", commit_msg)
+    if not mm:
+        return None
+    timevalue = float(mm.group(1))
+    reason = mm.group(3)
+    return timevalue, reason
 
 
 def _parse_taskname_workhours(commit_msg: str) -> tg.Optional[tg.Tuple[str, float]]:  # taskname, workhours

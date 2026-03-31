@@ -12,6 +12,7 @@ SEDRILA_REPLACE_URL = "/sedrila-replace.action"
 SEDRILA_UPDATE_URL = "/sedrila-update.action"
 WORK_REPORT_URL = "/work.report"
 BONUS_REPORT_URL = "/bonus.report"
+MANUAL_BOOKINGS_URL = "/manual.bookings"
 
 _files = importlib.resources.files("sdrl.webapp.files")
 favicon32x32_png = (_files / "favicon-32x32.png").read_bytes()

@@ -28,6 +28,7 @@ class Task(el.Part):
     workhours: float = 0.0  # time student has worked on this according to commit msgs
     accept_date: dt.datetime | None = None  # date of last accept event, set in repo.py
     rejections: int = 0  # how often instructor has marked it 'reject'
+    manual_timevalue: float = 0.0  # sum of task-specific manual bookings for this task
 
     @property
     def is_accepted(self) -> bool:
