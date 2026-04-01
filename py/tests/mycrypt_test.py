@@ -1,16 +1,47 @@
 import os
 import tempfile
 
+import gnupg
 import pytest
 
 import mycrypt
 
 
-def test_asymmetric():
+@pytest.fixture(scope="module")
+def gpg_test_key():
     """
-    Requires local GPG setup for the fingerprints listed in $SEDRILA_MYCRYPTTEST_FINGERPRINTS and
-    at least one of them must have a secret key.
-    If that env variable is not set, the test is skipped.
+    Creates a temporary GPG key without passphrase in the system keyring.
+    Yields the fingerprint for use in tests, then deletes the key on teardown.
+    No external setup required.
+    """
+    gpg = gnupg.GPG()
+    input_data = gpg.gen_key_input(
+        key_type='RSA',
+        key_length=2048,
+        name_real='Sedrila Autotest',
+        name_email='sedrila-autotest@localhost',
+        expire_date='1d',
+        no_protection=True,
+    )
+    key = gpg.gen_key(input_data)
+    fingerprint = str(key)
+    yield fingerprint
+    gpg.delete_keys(fingerprint, True, expect_passphrase=False)  # secret key
+    gpg.delete_keys(fingerprint)                                  # public key
+
+
+def test_asymmetric(gpg_test_key):
+    """Encrypt and decrypt roundtrip using a temporary key without passphrase."""
+    plaintext = b"abcdefgh"
+    ciphertext = mycrypt.encrypt_gpg(plaintext, [gpg_test_key])
+    decrypted = mycrypt.decrypt_gpg(ciphertext)
+    assert plaintext == decrypted
+
+
+def test_asymmetric_with_system_key():
+    """
+    Optional: tests with the real passphrase-protected system key.
+    Requires $SEDRILA_MYCRYPTTEST_FINGERPRINTS to be set and pinentry-mac installed.
     """
     fingerprintlist = os.environ.get("SEDRILA_MYCRYPTTEST_FINGERPRINTS", "")
     if not fingerprintlist:
@@ -42,9 +73,7 @@ def test_encrypt_with_pubkey_data_unmatched_fingerprint_raises_error():
 
 
 def test_encrypt_with_pubkey_data_temp_dir_is_cleaned_up():
-    """
-    encrypt_gpg cleans up the temporary GPG directory even when encryption fails.
-    """
+    """encrypt_gpg cleans up the temporary GPG directory even when encryption fails."""
     created_dirs = []
     original_mkdtemp = tempfile.mkdtemp
 
@@ -66,26 +95,12 @@ def test_encrypt_with_pubkey_data_temp_dir_is_cleaned_up():
     assert not os.path.exists(created_dirs[0]), "temp dir was not cleaned up"
 
 
-def test_encrypt_with_pubkey_data_asymmetric():
-    """
-    Requires local GPG setup ($SEDRILA_MYCRYPTTEST_FINGERPRINTS) with at least one key
-    that has both a public and a secret key available.
-    Tests the isolated pubkey_data path end-to-end.
-    """
-    fingerprintlist = os.environ.get("SEDRILA_MYCRYPTTEST_FINGERPRINTS", "")
-    if not fingerprintlist:
-        pytest.skip("SEDRILA_MYCRYPTTEST_FINGERPRINTS not set")
-    import gnupg
-    fingerprints = fingerprintlist.split(",")
+def test_encrypt_with_pubkey_data_asymmetric(gpg_test_key):
+    """Tests the isolated pubkey_data path end-to-end using a temporary key."""
     gpg = gnupg.GPG()
-    pubkey_data = {}
-    for fp in fingerprints:
-        exported = gpg.export_keys(fp)
-        if exported:
-            pubkey_data[fp] = exported
-    if not pubkey_data:
-        pytest.skip("no exportable public keys found for given fingerprints")
+    pubkey_str = gpg.export_keys(gpg_test_key)
+    pubkey_data = {gpg_test_key: pubkey_str}
     plaintext = b"isolated path test"
-    ciphertext = mycrypt.encrypt_gpg(plaintext, fingerprints, pubkey_data=pubkey_data)
+    ciphertext = mycrypt.encrypt_gpg(plaintext, [gpg_test_key], pubkey_data=pubkey_data)
     decrypted = mycrypt.decrypt_gpg(ciphertext)
     assert plaintext == decrypted

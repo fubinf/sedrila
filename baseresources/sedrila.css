@@ -218,6 +218,10 @@ summary {}
     content: "h";
 }
 
+.pairwork {
+    color: #555;
+}
+
 .assumes-decoration,
 .assumed-by-decoration,
 .requires-decoration,

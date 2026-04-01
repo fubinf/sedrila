@@ -9,6 +9,8 @@ import pytest
 import base as b
 import sdrl.constants as c
 import sdrl.course as course
+import sdrl.coursebuilder as coursebuilder
+import sdrl.html as h
 from sdrl.course import Course, Task
 
 
@@ -215,3 +217,65 @@ def test_partpath_regular_file_returns_fullpath():
     part = types.SimpleNamespace(sourcefile="/some/path/task1.md")
     result = Course._partpath(part)
     assert result == "/some/path/task1.md"
+
+
+# ── html.pairwork_symbol ──────────────────────────────────────────────────────
+
+def test_pairwork_symbol_has_correct_css_class():
+    result = h.pairwork_symbol()
+    assert "class='pairwork'" in result
+
+
+def test_pairwork_symbol_contains_pairwork_sign():
+    result = h.pairwork_symbol()
+    assert c.HTML_PAIRWORK_SIGN in result
+
+
+def test_pairwork_symbol_has_title_attribute():
+    result = h.pairwork_symbol()
+    assert "title=" in result
+
+
+# ── Taskbuilder.toc_link_text (pairwork) ─────────────────────────────────────
+
+def _make_mock_taskbuilder(pairwork=False, assumes=None, requires=None,
+                           assumed_by=None, required_by=None):
+    """Minimal namespace that satisfies Taskbuilder.toc_link_text and _taskrefs."""
+    t = types.SimpleNamespace(
+        outputfile="task1.html",
+        title="My Task",
+        name="task1",
+        difficulty=2,
+        timevalue=1.5,
+        pairwork=pairwork,
+        assumed_by=assumed_by or [],
+        required_by=required_by or [],
+        assumes=assumes or [],
+        requires=requires or [],
+    )
+    t._taskrefs = lambda attr_name: coursebuilder.Taskbuilder._taskrefs(t, attr_name)
+    return t
+
+
+def test_toc_link_text_no_pairwork_icon_when_false():
+    t = _make_mock_taskbuilder(pairwork=False)
+    result = coursebuilder.Taskbuilder.toc_link_text.fget(t)
+    assert "pairwork" not in result
+    assert c.HTML_PAIRWORK_SIGN not in result
+
+
+def test_toc_link_text_shows_pairwork_icon_when_true():
+    t = _make_mock_taskbuilder(pairwork=True)
+    result = coursebuilder.Taskbuilder.toc_link_text.fget(t)
+    assert "pairwork" in result
+    assert c.HTML_PAIRWORK_SIGN in result
+
+
+def test_toc_link_text_pairwork_icon_between_timevalue_and_refs():
+    """Pairwork icon appears after timevalue and before task refs."""
+    t = _make_mock_taskbuilder(pairwork=True, assumes=["other"])
+    result = coursebuilder.Taskbuilder.toc_link_text.fget(t)
+    pairwork_pos = result.index("pairwork")
+    timevalue_pos = result.index("timevalue-decoration")
+    assumes_pos = result.index("assumes-decoration")
+    assert timevalue_pos < pairwork_pos < assumes_pos

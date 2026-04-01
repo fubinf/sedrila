@@ -367,6 +367,10 @@ The YAML attributes have the following meaning:
   If the list is empty, leave out the entry.  
   If you provide names of taskgroups or chapters here, they are shown but will be ignored
   by the `instructor` command when checking actual preconditions.
+- `pairwork`: boolean, optional, default `false`.
+  Set to `true` if this task must be done in pairs or groups (not alone).
+  When set, a 👥 icon is shown next to the task's entry in the sidebar menu
+  to signal to students that solo work is not sufficient for this task.
 
 
 ### 1.5 Taskgroup `index.md` files and chapter `index.md` files
