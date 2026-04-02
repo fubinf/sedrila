@@ -11,6 +11,7 @@
 - `author`: errors in `sedrila.yaml` now result in proper error messages
 - `instructor`: ignore student-created `ACCEPT` entries in `submission.yaml`
 - `instructor`: apply `participants` config setting: issue a warning for non-participants
+- `student`, `instructor`: manual instructor timevalue bookings (usually negative) for special circumstances/behaviors
 - `student`, `instructor`: Webapp server is now properly multithreaded, no more meaningless `TimeoutError` stacktraces
 - `student`, `instructor`: Display a student work summary report before entering command loop
 - `student`, `instructor`: Unsigned 'submission.yaml checked' commits now emit a warning

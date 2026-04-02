@@ -166,6 +166,12 @@ at any spot anywhere in the file. These replacements are performed before the YA
   with the same structure and meaning of entries. 
   The only difference is that the `former_instructors` will not be mentioned in the list of 
   available instructors shown to students when they prepare a submission.
+- `manual_bookings`: See `instructor book` command.
+  Optional key with two subkeys: `types` is a list of strings,
+  the permissible non-task-specific kinds of reason for the manual booking.
+  `explanation_url` is a web adress where these types (and when they will be used) are explained.
+  Each type X should have its own section with an anchor "X" at the front.
+  The webapp will link to these sections.
 - `allowed_attempts`: Students have a maximum number of times they can present a task
   until it must be accepted by the instructor, called the `allowed_attempts` of that task.
   If the task gets rejected that many times, it will never be accepted later on, i.e.,

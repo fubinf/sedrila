@@ -82,7 +82,7 @@ Under Windows, use WSL. `sedrila` does not work natively in Windows.
   ```
 
 
-## 2. Checking a submission  
+## 2. `instructor menu`: Checking a submission  
 
 ### 2.1 The very first time
 
@@ -180,24 +180,26 @@ Entries without any spec default to manual review.
 Entries with `command_re=` and/or `output_re=` perform automated checks (green/red) even if `manual=` is present.
 
 
-## 3. Checking students' overall work status
+## 3. `instructor status`: Checking students' overall work status
 
 `sedrila instructor status` in a student's workdir will show a summary table
 of worktime, accepted timevalue, and rejected timevalue.
 This is helpful for instance if students claim they have completed the course.
 
 
-## 4. Booking timevalue manually
+## 4. `instructor book`: Booking timevalue manually
 
-In exceptional cases, instructors can add to or subtract from a student's current timevalue sum.
+In exceptional cases, instructors can add to or (more commonly) subtract from a student's current timevalue sum.
 Adding might be required if a student made an exceptional extracurricular contribution to the course.
 Subtracting might be required if a student broke the course mechanics (e.g. by force-pushing into
 their repo, thus breaking the instructors' histories) or cheated.
 
-For instance, `sedrila instructor book --timevalue=-1.0` is how to start the subtraction of 1 hour;
+For instance, `sedrila instructor book --timevalue=-1.0 somereason` is how to start the subtraction of 1 hour;
 use positive values for adding.
-Sedrila will start an editor for entering a short reason (the event type)
-and a longer explanation if needed; make sure your `$EDITOR` environment variable is set to 
-the editor you'd like to use.
+`somereason` must either be the name of a task or 
+the name of a `manual_bookings.types` entry from `sedrila.yaml` (see [authors](authors) docs). 
+
+Sedrila will start an editor for entering an explanation; 
+make sure your `$EDITOR` environment variable is set to the editor you'd like to use.
 These data are then put into a signed, empty commit.
 The format of this commit will be recognized by sedrila's timevalue logic.
