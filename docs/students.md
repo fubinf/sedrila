@@ -21,7 +21,7 @@ course webpages are found.
 The instructors need your name and student id in order to do their work,
 so you need to tell them those.
 
-The command `sedrila student --init` in your project folder will create
+The command `sedrila student init` in your project folder will create
 a file called `student.yaml` with the relevant information.
 You will be prompted for a course url which you can copy/paste from your
 browser.
@@ -38,7 +38,7 @@ However, since sedrila only considers gradings as valid that come from instructo
 you need to import the keys so that sedrila can recognize which gradings commits are
 coming from instructors.
 
-You can call `sedrila student --import-keys` at any time to import all keys
+You can call `sedrila student import-keys` at any time to import all keys
 associated with your course if you skipped it or need different keys later.
 
 
@@ -89,7 +89,7 @@ When `sedrila` creates a work time report for you, it will use decimal hours.
 
 ## 4. How to view your work
 
-Call `sedrila student --op webapp` in order to browse your working directory.
+Call `sedrila student webapp` in order to browse your working directory.
 Just follow the on-screen instructions.
 The webapp shows the directory tree and individual files.
 A breadcrumb navigation is shown at the top.
@@ -116,36 +116,26 @@ This is because tasks in a self-driven lab are so small and numerous that checki
 task separately would be too inefficient.
 
 In order to describe which tasks the instructor should check, you need to prepare
-a file, called `submission.yaml` containing the list of tasks to be checked.
-In fact, if you obeyed the commit convention described above, `sedrila` can
-prepare that file for you by collecting the names of all tasks you have 
-recorded times for (and that are not yet accepted).
-To do this, either call 
-`sedrila student --op prepare` or call `sedrila student` and choose 'prepare' in the menu.
+select them in the webapp (`sedrila student webapp`) by clicking
+on a task and selecting "CHECK".
 
-All you need to do then is kick out entries that
-are not yet submission-ready.
-To do this, either edit file `submission.yaml` with any text editor 
-or call `sedrila student --op webapp` and do it in the browser.
-(The webapp is convenient for inspecting the submission-readiness of tasks where you are not
-sure whether they have been completed or not.)
-
-The instructor will use that same file to record which of your submitted tasks
+The instructor will use the generated `submission.yaml` file to record
+which of your submitted tasks
 are accepted and to record feedback explaining what's wrong with those that are rejected.
 To send your submissions to the instructor, 
 you need to commit `submission.yaml` with the appropriate commit message,
 push that commit (and those of your previous work), and send the instructor
 an email in a certain format.
 
-To do this, either first call `sedrila student --op commit`, 
-then `sedrila student --op push`, then follow the instructions shown.
-Or just call `sedrila student` and perform those two commands from the menu.
-
+To do this, call `sedrila student menu`, 
+then commit and push via the menu.
+Follow the instructions shown by `push`.
 
 ## 6. The work report
 
-`sedrila student --op webapp` can also show the "work report", 
+`sedrila student status` can also show the "work report", 
 a list of the tasks you have submitted so far,
 the associated timevalues, and possibly the sum of the associated actual work times.
 The work times are available only insofar as you have used the commit message format
 described in 3.2 above.
+The work report is also visible via the webapp (`sedrila student webapp`).
