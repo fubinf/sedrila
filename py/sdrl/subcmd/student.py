@@ -238,12 +238,12 @@ def cmd_prepare(ctx: sdrl.participant.Context):
             task = student.course.task(taskname)
             if not task:
                 b.warning(f"'{taskname}' is not a valid task name. Ignored.")
-            eligible = (task.remaining_attempts > 0 and not task.is_accepted)
+            eligible = (task and task.remaining_attempts > 0 and not task.is_accepted)
             is_a_check_entry = (student.submission[taskname] == c.SUBMISSION_CHECK_MARK)
             if not task or not eligible or not is_a_check_entry:
                 del student.submission[taskname]
                 if not task:
-                    b.warning(f"--- Not a task '{taskname}'")
+                    pass  # we have warned already, so no  b.warning(f"--- Not a task '{taskname}'")
                 elif task.is_accepted:
                     b.warning(f"--- Task already accepted: '{taskname}'")
                 elif task.remaining_attempts <= 0:
