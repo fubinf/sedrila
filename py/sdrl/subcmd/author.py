@@ -21,7 +21,7 @@ import sdrl.macroexpanders as macroexpanders
 import sdrl.rename
 import sdrl.report
 
-# new command ui
+# CLI:
 @click.group(name="author")
 def author_command():
     """
@@ -43,7 +43,7 @@ def author_command():
     help="SeDriLa configuration description YAML file"
 )
 def build_command(
-    targetdir: str, clean: bool, print_status: bool,
+    targetdir: str, print_status: bool,
     include_stage: str, config: str,
 ):
     """Build the SeDriLa course"""
@@ -53,6 +53,7 @@ def build_command(
     create_and_build_course2(dict(config=config, include_stage=include_stage, sums=print_status), 
                              targetdir_i, targetdir_s)
     b.finalmessage()
+
 
 @author_command.command(name="rename")
 @click.option(
@@ -66,12 +67,14 @@ def rename_command(config, old, new):
     b.suppress_msg_duplicates(False)
     do_rename(config, old, new)
 
+
 @author_command.command(name="clear-cache")
 @click.argument("targetdir", type=click.Path())
 def clear_cache_command(targetdir: str):
     """Purge the cache"""
     targetdir_i = _targetdir_i(targetdir)
     delete_cache(targetdir_i)
+
 
 @author_command.command(name="status")
 def status_command():
