@@ -72,7 +72,7 @@ def test_encrypt_with_pubkey_data_asymmetric():
     that has both a public and a secret key available.
     Tests the isolated pubkey_data path end-to-end.
     """
-    fingerprintlist = os.environ.get("SEDRILA_MYCRYPTTEST_FINGERPRINTS", "")
+    fingerprintlist = os.environ.get("SEDRILA_MYCRYPTTEST_FINGERPRINTS", "")  # comma-separated
     if not fingerprintlist:
         pytest.skip("SEDRILA_MYCRYPTTEST_FINGERPRINTS not set")
     import gnupg
