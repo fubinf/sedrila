@@ -12,9 +12,8 @@ def main():  # uses sys.argv
     """Calls subcommand given on command line"""
     if sys.platform == 'win32':
         b.critical("sedrila does not run directly on Windows. Please use WSL.")
-
     if len(sys.argv) >= 2 and sys.argv[1] == "old":
-        # legacy cli (will be removed)
+        # legacy cli (will be removed)  TODO 3 after 2027-04
         sys.argv.pop(1)  # consume 'old' prefix
         parser = sdrl.argparser.SedrilaArgParser(description="-")  # description is set lazily
         parser.scan("sdrl.subcmd.*")
@@ -24,8 +23,11 @@ def main():  # uses sys.argv
         except b.CritialError:
             pass  # b.critical has already printed a message
     else:
-        # new cli
-        sdrl.subcmd.cli.cli()
+        # new CLI:
+        try:
+            sdrl.subcmd.cli.cli()
+        except b.CritialError:
+            pass  # b.critical has already printed a message
 
 
 if __name__ == "__main__":
