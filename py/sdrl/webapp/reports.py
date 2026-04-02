@@ -387,7 +387,11 @@ def html_for_manual_bookings(ctx: sdrl.participant.Context) -> str:
     booking_types = ctx.course.manual_booking_types
     mb_config = ctx.course.configdict.get('manual_bookings')
     explanation_url = mb_config['explanation_url'] if mb_config else ''
-    sections = []
+    sections = ["<p>Manual bookings are made by instructors when special circumstances occur.</p>\n"]
+    if mb_config:
+        sections.append(f"<p>These are described on <a href='{explanation_url}'>{explanation_url}</a>.</p>")
+    else:
+        sections.append(f"<p>This functionality is not configured for the present course.</p>")
     for s in ctx.studentlist:
         cw = s.course_with_work
         bookings = getattr(cw, 'manual_bookings', [])
