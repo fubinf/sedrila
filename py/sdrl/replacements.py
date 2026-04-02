@@ -7,7 +7,7 @@ import re
 
 import base as b
 
-replacement_expr_re = r"<replacement +?id=[\'\"]([\w_-]+?)[\'\"]>(.+?)</replacement>"
+replacement_expr_re = r"<replacement +?id=[\'\"]([\w_-]+?)[\'\"]\s*>(.+?)</replacement>"
 replacementsdict = dict()
 replacements_loaded = False  # nothing has been loaded, so just keep the original content
 
