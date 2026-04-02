@@ -61,12 +61,8 @@ def status_command(workdir: Sequence[str]):
         sdrl.report.print_si_volume_report(stud)
 
 
-BOOK_MSG_TEMPLATE="""((put type of reason for manual booking here))
-
-((Put details here if needed.
-Standard cases from the circumstances list do not need details; their type above suffices.
-Special cases should be described with commit IDs and a justification of the chosen timevalue
-according to the principles laid down in the circumstances list.
+BOOK_MSG_BOILERPLATE = """
+((Put details here if needed for others for later understanding what happened.
 Remove this explanation paragraph.))
 """
 
@@ -75,30 +71,30 @@ Remove this explanation paragraph.))
 @instructor_command.command(name="book")
 @click.option("--timevalue", type=float, required=True,
               help="Time value to book manually (can be negative)")
-@click.option("--task", "taskname", default=None,
-              help="Task name to associate this booking with (must be a valid task)")
-def book_command(timevalue: float, taskname: str):
+@click.argument("reason")
+def book_command(timevalue: float, reason: str):
     """Create a signed empty commit to manually add to or substract from student's timevalue sum."""
     b.set_register_files_callback(lambda s: None)
-    if taskname:
-        stud = sdrl.participant.Student('.', is_instructor=True)
-        if stud.course.task(taskname) is None:
-            b.error(f"'{taskname}' is not a valid task name.")
-            return
-        reason = taskname
-    else:
-        reason = ""
+    stud = sdrl.participant.Student('.', is_instructor=True)
+    # ----- check that manual_bookings is configured:
+    booking_types = stud.course.manual_booking_types
+    if not booking_types:
+        b.error(f"manual bookings are not available for course {stud.course_url}")
+        return
+    is_task = stud.course.task(reason) is not None
+    is_type = reason in booking_types
+    if not is_task and not is_type:
+        booking_types_text = ", ".join(booking_types)
+        b.error(f"Reason must be either a task name or one of these types:\n{booking_types_text}")
+        return
+    # ----- create commit:
     editor = os.environ.get("EDITOR", "vi")
-    prefix = f"{c.MANUAL_BOOKING_MARKER} {timevalue}  "
+    commit_msg = f"{c.MANUAL_BOOKING_MARKER} {timevalue} {reason}\n{BOOK_MSG_BOILERPLATE}"
     with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
         tmpfile = f.name
-        if reason:
-            f.write(prefix + reason + "\n")
-        else:
-            f.write(prefix + BOOK_MSG_TEMPLATE)
+        f.write(commit_msg)
     try:
-        if not reason:
-            os.system(f"{editor} {tmpfile}")
+        os.system(f"{editor} {tmpfile}")
         sgit.make_empty_commit(tmpfile, signed=True)
         b.info("Commit created. Manual push is required. Or remove it again with  git reset HEAD~1")
     finally:

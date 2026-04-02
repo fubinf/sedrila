@@ -130,6 +130,12 @@ class Course(el.Part):
     def has_participantslist(self) -> bool:
         return 'participants' in self.configdict
 
+    @property
+    def manual_booking_types(self) -> list[str]:
+        """Return manual_bookings.types from config, or empty list if not configured."""
+        mb = self.configdict.get('manual_bookings')
+        return mb['types'] if mb else []
+
     @functools.cached_property  # beware: call this only once initialization is complete!
     def taskdict(self) -> dict[str, 'Task']:
         return {k:v for k,v in self.namespace.items() if isinstance(v, Task)}

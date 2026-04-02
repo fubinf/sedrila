@@ -89,6 +89,26 @@
       "type": "string",
       "format": "date"
     },
+    "manual_bookings": {
+      "description": "Configuration for manual bookings: allowed reason types and an explanation URL.",
+      "type": "object",
+      "required": ["types", "explanation_url"],
+      "additionalProperties": false,
+      "properties": {
+        "types": {
+          "description": "List of allowed manual booking reason type names.",
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "explanation_url": {
+          "description": "URL of a page explaining the manual booking types. Reason types link to #fragments on this page.",
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
     "bonusrules": {
       "description": "Optional bonus rules for rewarding steady course progress.",
       "type": "object",

@@ -25,6 +25,9 @@ instructors:
     status: |
       Currently reviewing submissions from last week.
       Response time may be 2-3 days.
+manual_bookings:
+  types: [REASON-A, REASON-B]
+  explanation_url: http://example.org/mypath/manual_booking_types_explanation.html
 htaccess_template: |
     Require ldap-user {userlist_quotes_spaces}
 startdate: 2025-01-01

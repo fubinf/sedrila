@@ -100,7 +100,9 @@ def event_list(course: sdrl.course.Course, student_username: str, commits: tg.Se
                       work_entry.taskname, work_entry.timevalue)
         result.append(event)
     all_instructors = course.instructors + course.former_instructors
-    for entry in manual_entries_from_commits(all_instructors, commits):
+    for entry in manual_entries_from_commits(all_instructors, commits,
+                                             course.manual_booking_types, course.taskdict,
+                                             warn_if_invalid=False):
         commit = entry.commit
         event = Event(ET.manual,
                       student_username, commit.author_email, commit.author_date,
@@ -118,7 +120,8 @@ def compute_student_work_so_far(course: sdrl.course_si.CourseSI, commits: tg.Seq
     _accumulate_student_workhours_per_task(commits, course)
     all_instructors = course.instructors + course.former_instructors  # treated equally for now
     instructor_commits = submission_checked_commits(all_instructors, commits)
-    course.manual_bookings = manual_entries_from_commits(all_instructors, commits)
+    course.manual_bookings = manual_entries_from_commits(
+        all_instructors, commits, course.manual_booking_types, course.taskdict, warn_if_invalid=True)
     taskcheck_entries = taskcheck_entries_from_commits(instructor_commits)
     _accumulate_timevalues_and_attempts(taskcheck_entries, course)
 
@@ -208,8 +211,14 @@ def work_entries_from_commits(commits: tg.Iterable[sgit.Commit]) -> tg.Sequence[
 
 
 def manual_entries_from_commits(instructors: tg.Sequence[tg.Mapping[str, str]],
-                                commits: tg.Sequence[sgit.Commit]) -> list[ManualEntry]:
-    """Collect ManualEntry objects from instructor-signed MANUAL booking commits."""
+                                commits: tg.Sequence[sgit.Commit],
+                                booking_types: list[str],
+                                taskdict: dict[str, 'sdrl.course.Task'],
+                                warn_if_invalid: bool) -> list[ManualEntry]:
+    """Collect valid ManualEntry objects from instructor-signed MANUAL booking commits.
+    Returns empty list if booking_types is empty (manual bookings not configured)."""
+    if not booking_types:
+        return []
     allowed_signers = _allowed_signers(instructors)
     result = []
     for commit in commits:
@@ -222,7 +231,11 @@ def manual_entries_from_commits(instructors: tg.Sequence[tg.Mapping[str, str]],
         if parsed is None:
             continue
         timevalue, reason = parsed
-        result.append(ManualEntry(commit, timevalue, reason))
+        if reason in taskdict or reason in booking_types:
+            result.append(ManualEntry(commit, timevalue, reason))
+        elif warn_if_invalid:
+            b.warning(f"Manual booking commit {commit.hash[:9]}: "
+                      f"invalid reason '{reason}'. Ignored.")
     b.info(f"{len(result)} manual booking commits")
     return result
 

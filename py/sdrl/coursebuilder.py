@@ -286,7 +286,8 @@ class Taskgroupbuilder(sdrl.partbuilder.PartbuilderMixin, Taskgroup):
 class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
     """Course with the additions required for author mode. (Chapter, Taskgroup, Task have both in one.)"""
     MUSTCOPY_ADDITIONAL = ', chapterdir, altdir, stages'
-    CANCOPY_ADDITIONAL = ', baseresourcedir, itreedir, templatedir, blockmacro_topmatter, htaccess_template'
+    CANCOPY_ADDITIONAL = (', baseresourcedir, itreedir, templatedir'
+                          ', blockmacro_topmatter, htaccess_template, manual_bookings')
     TEMPLATENAME = "homepage.html"
 
     include_stage: str  # lowest stage that parts must have to be included in output
@@ -379,6 +380,8 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
             result['participants'] = dict(student_attribute=self.configdict['participants']['student_attribute'])
         if self.bonusrules is not None:
             result['bonusrules'] = self.bonusrules
+        if self.manual_booking_types:
+            result['manual_bookings'] = self.configdict['manual_bookings']
         return result
 
     def check_links(self):

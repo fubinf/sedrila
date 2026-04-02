@@ -208,26 +208,27 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
             </tr>
         """
 
-    # "Other manual bookings" row
+    # "Other manual bookings" row (if manual_bookings is configured)
     manual_row = ""
-    manual_cells = []
-    has_any_global_manual = False
-    for i, s in enumerate(ctx.studentlist):
-        cw = s.course_with_work
-        task_manual_sum = sum(t.manual_timevalue for t in cw.taskdict.values())
-        global_manual = cw.manual_timevalue - task_manual_sum
-        if global_manual:
-            has_any_global_manual = True
-        manual_cells.append(f"<td></td><td></td><td></td><td>{round(global_manual, 2) if global_manual else ''}</td>")
-        if i < len(ctx.studentlist) - 1:
-            manual_cells.append("<td></td>")
-    if has_any_global_manual:
-        manual_row = f"""
-            <tr>
-                <td><i>other <a href='{MANUAL_BOOKINGS_URL}'>manual bookings</a></i></td>
-                {''.join(manual_cells)}
-            </tr>
-        """
+    if ctx.course.manual_booking_types:
+        manual_cells = []
+        has_any_global_manual = False
+        for i, s in enumerate(ctx.studentlist):
+            cw = s.course_with_work
+            task_manual_sum = sum(t.manual_timevalue for t in cw.taskdict.values())
+            global_manual = cw.manual_timevalue - task_manual_sum
+            if global_manual:
+                has_any_global_manual = True
+            manual_cells.append(f"<td></td><td></td><td></td><td>{round(global_manual, 2) if global_manual else ''}</td>")
+            if i < len(ctx.studentlist) - 1:
+                manual_cells.append("<td></td>")
+        if has_any_global_manual:
+            manual_row = f"""
+                <tr>
+                    <td><i>other <a href='{MANUAL_BOOKINGS_URL}'>manual bookings</a></i></td>
+                    {''.join(manual_cells)}
+                </tr>
+            """
 
     return f"""
         <table id="work-table">
@@ -383,6 +384,9 @@ def html_for_bonus_report(ctx: sdrl.participant.Context) -> str:
 
 def html_for_manual_bookings(ctx: sdrl.participant.Context) -> str:
     """HTML body for the manual bookings detail page."""
+    booking_types = ctx.course.manual_booking_types
+    mb_config = ctx.course.configdict.get('manual_bookings')
+    explanation_url = mb_config['explanation_url'] if mb_config else ''
     sections = []
     for s in ctx.studentlist:
         cw = s.course_with_work
@@ -393,14 +397,18 @@ def html_for_manual_bookings(ctx: sdrl.participant.Context) -> str:
         sorted_bookings = sorted(bookings, key=lambda e: e.commit.author_date)
         rows = []
         for i, entry in enumerate(sorted_bookings):
-            reason = html.escape(entry.reason)
+            reason_escaped = html.escape(entry.reason)
             if entry.reason in cw.taskdict:
-                reason = f"T::{reason}"
+                reason_display = f"T::{reason_escaped}"
+            elif entry.reason in booking_types:
+                reason_display = f"<a href='{html.escape(explanation_url)}#{html.escape(entry.reason)}'>{reason_escaped}</a>"
+            else:
+                reason_display = reason_escaped
             date = entry.commit.author_date.strftime("%Y-%m-%d")
             commit_hash = entry.commit.hash[:10]
             rows.append(f"""
                 <tr class="{'even' if i % 2 == 0 else 'odd'}">
-                    <td>{reason}</td>
+                    <td>{reason_display}</td>
                     <td>{date}</td>
                     <td>{commit_hash}</td>
                     <td>{entry.timevalue}</td>
