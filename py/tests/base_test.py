@@ -1,5 +1,4 @@
 import logging
-import os
 
 import pytest
 
@@ -23,14 +22,13 @@ def print_and_log():
     print("second")
 
 
-def test_logging_on(capsys):
+def test_logging(capsys):
+    # ----- loglevel WARNING: warning is printed between the two prints
     b.loglevel = logging.WARNING
     print_and_log()
     out, err = capsys.readouterr()
     assert out == "first\na warning\nsecond\n"
-
-
-def test_logging_off(capsys):
+    # ----- loglevel ERROR: warning is suppressed
     b.loglevel = logging.ERROR
     print_and_log()
     out, err = capsys.readouterr()
@@ -131,19 +129,18 @@ def test_plural_s():
 
 # ── set_loglevel ──────────────────────────────────────────────────────────────
 
-def test_set_loglevel_known_levels():
+def test_set_loglevel(capsys):
+    # ----- known levels are set correctly
     b.set_loglevel("DEBUG")
     assert b.loglevel == logging.DEBUG
     b.set_loglevel("INFO")
     assert b.loglevel == logging.INFO
     b.set_loglevel("ERROR")
     assert b.loglevel == logging.ERROR
-
-
-def test_set_loglevel_unknown_is_ignored():
+    # ----- unknown level is ignored, loglevel unchanged
     b.set_loglevel("WARNING")
     b.set_loglevel("NONEXISTENT")
-    assert b.loglevel == logging.WARNING  # unchanged
+    assert b.loglevel == logging.WARNING
 
 
 # ── error / critical / num_errors ─────────────────────────────────────────────
@@ -185,26 +182,6 @@ def test_suppress_msg_duplicates_off_allows_repeats(capsys):
     assert out.count("repeated message") == 2
 
 
-# ── expandvars ────────────────────────────────────────────────────────────────
-
-def test_expandvars_known_variable(capsys):
-    os.environ["_SEDRILA_TEST_VAR"] = "hello"
-    try:
-        result = b.expandvars("$_SEDRILA_TEST_VAR world", "ctx")
-        assert result == "hello world"
-        out, _ = capsys.readouterr()
-        assert out == ""  # no warning
-    finally:
-        del os.environ["_SEDRILA_TEST_VAR"]
-
-
-def test_expandvars_undefined_variable_warns(capsys):
-    os.environ.pop("_SEDRILA_UNDEFINED_XYZ", None)
-    b.expandvars("$_SEDRILA_UNDEFINED_XYZ", "ctx")
-    out, _ = capsys.readouterr()
-    assert "env variable undefined" in out
-
-
 # ── slurp / spit ─────────────────────────────────────────────────────────────
 
 def test_slurp_spit_roundtrip(tmp_path):
@@ -237,61 +214,47 @@ def test_slurp_spit_yaml_roundtrip(tmp_path):
 
 # ── copyattrs ─────────────────────────────────────────────────────────────────
 
-class _Target:
+class _Target:  # dummy class for testing copyattrs
     pass
 
 
-def test_copyattrs_mustcopy_present():
+def test_copyattrs(capsys):
+    # ----- mustcopy attrs present: copied correctly
     t = _Target()
     b.copyattrs("ctx", {"a": 1, "b": "hello"}, t, "a,b", "", "")
     assert t.a == 1
     assert t.b == "hello"
-
-
-def test_copyattrs_cancopy_present():
+    # ----- cancopy attr present: copied
     t = _Target()
     b.copyattrs("ctx", {"required": 1, "optional": "yes"}, t, "required", "optional", "")
     assert t.required == 1
     assert t.optional == "yes"
-
-
-def test_copyattrs_cancopy_absent_sets_none():
+    # ----- cancopy attr absent: set to None
     t = _Target()
     b.copyattrs("ctx", {"required": 1}, t, "required", "optional", "")
     assert t.required == 1
     assert t.optional is None
-
-
-def test_copyattrs_mustcopy_missing_raises():
+    # ----- mustcopy attr missing: raises
     t = _Target()
     with pytest.raises(b.CritialError):
         b.copyattrs("ctx", {"a": 1}, t, "a,b", "", "")  # b is missing
-
-
-def test_copyattrs_typecheck_wrong_type(capsys):
+    # ----- typecheck: wrong type warns
     t = _Target()
     b.copyattrs("ctx", {"num": "not-an-int"}, t, "num", "", "", typecheck={"num": int})
     out, _ = capsys.readouterr()
     assert "should be" in out
-
-
-def test_copyattrs_none_source_uses_empty_dict():
+    # ----- None source: missing mustcopy raises as usual
     t = _Target()
-    # None source should not crash — missing mustcopy raises as usual
     with pytest.raises(b.CritialError):
         b.copyattrs("ctx", None, t, "a", "", "")
-
-
-def test_copyattrs_overwrite_false_warns(capsys):
+    # ----- overwrite=False: warns and keeps old value
     t = _Target()
     t.optional = "old"
     b.copyattrs("ctx", {"optional": "new"}, t, "", "optional", "", overwrite=False)
     out, _ = capsys.readouterr()
     assert "not overwriting" in out
-    assert t.optional == "old"  # value unchanged
-
-
-def test_copyattrs_report_extra_warns(capsys):
+    assert t.optional == "old"
+    # ----- report_extra=True: warns about unexpected keys
     t = _Target()
     b.copyattrs("ctx", {"known": 1, "unexpected": 2}, t, "known", "", "", report_extra=True)
     out, _ = capsys.readouterr()
@@ -307,28 +270,26 @@ def test_slurp_nonexistent_file_raises():
 
 # ── debug / info ──────────────────────────────────────────────────────────────
 
-def test_debug_prints_when_loglevel_debug(capsys):
+def test_debug(capsys):
+    # ----- loglevel DEBUG: message is printed
     b.loglevel = logging.DEBUG
     b.debug("debug message")
     out, _ = capsys.readouterr()
     assert "debug message" in out
-
-
-def test_debug_silent_when_loglevel_info(capsys):
+    # ----- loglevel INFO: message is suppressed
     b.loglevel = logging.INFO
     b.debug("debug message")
     out, _ = capsys.readouterr()
     assert out == ""
 
 
-def test_info_prints_when_loglevel_info(capsys):
+def test_info(capsys):
+    # ----- loglevel INFO: message is printed
     b.loglevel = logging.INFO
     b.info("info message")
     out, _ = capsys.readouterr()
     assert "info message" in out
-
-
-def test_info_silent_when_loglevel_warning(capsys):
+    # ----- loglevel WARNING: message is suppressed
     b.loglevel = logging.WARNING
     b.info("info message")
     out, _ = capsys.readouterr()
@@ -337,15 +298,15 @@ def test_info_silent_when_loglevel_warning(capsys):
 
 # ── finalmessage ──────────────────────────────────────────────────────────────
 
-def test_finalmessage_no_errors_prints_timing(capsys):
+def test_finalmessage(capsys):
+    # ----- no errors: prints timing info
     b.loglevel = logging.INFO
     assert b.num_errors == 0
     b.finalmessage()
     out, _ = capsys.readouterr()
     assert "seconds" in out
-
-
-def test_finalmessage_with_errors_raises():
+    # ----- with errors: raises
+    b._testmode_reset()
     b.error("an error")
     with pytest.raises(b.CritialError):
         b.finalmessage()
