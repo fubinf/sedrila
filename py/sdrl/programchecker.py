@@ -581,7 +581,7 @@ class ProgramChecker:
     def test_program(self, config: ProgramTestConfig) -> ProgramTestResult:
         """Execute tests for a single program in an isolated context."""
         # Calculate relative paths for reporting (relative to altdir's grandparent)
-        common_parent = self._altdir_path.parent.parent
+        common_parent = self._altdir_path.parent.parent.resolve()
         prot_file_abs = Path(config.protocol_file).resolve()
         program_file_abs = Path(config.program_path).resolve()
         prot_file_display = str(prot_file_abs.relative_to(common_parent))
