@@ -17,6 +17,7 @@ def make_task(workhours=0, is_accepted=False, rejections=0, timevalue=1.0,
         is_accepted=is_accepted,
         rejections=rejections,
         timevalue=timevalue,
+        manual_timevalue=0.0,
         to_be_skipped=to_be_skipped,
         difficulty=difficulty,
         stage=stage,
@@ -154,7 +155,7 @@ def test_si_volume_report_sums_correctly():
         render=lambda c: c.name,
     )
     assert len(result.rows) == 1
-    name, worktime, accept, reject = result.rows[0]
+    name, worktime, accept, reject, manual = result.rows[0]
     assert name == "ch1"
     assert worktime == pytest.approx(3.0)   # 2.0 + 1.0 (only worked-on tasks)
     assert accept == pytest.approx(3.0)     # accepted task timevalue
@@ -180,7 +181,7 @@ def test_si_volume_report_columnheads():
         select=lambda t, d: True,
         render=lambda d: str(d),
     )
-    assert result.columnheads == ("Difficulty", "Worktime", "Accept", "Reject")
+    assert result.columnheads == ("Difficulty", "Worktime", "Accept", "Reject", "Manual")
 
 
 # ── volume_report_per_stage ───────────────────────────────────────────────────
@@ -242,7 +243,7 @@ def test_si_volume_report_per_difficulty(monkeypatch):
     course = make_course(tasks)
     result = report.si_volume_report_per_difficulty(course)
     assert result.columnheads[0] == "Difficulty"
-    assert any(name == "easy" for name, _, _, _ in result.rows)
+    assert any(name == "easy" for name, _, _, _, _ in result.rows)
 
 
 # ── print_author_volume_report ────────────────────────────────────────────────

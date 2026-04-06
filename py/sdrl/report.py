@@ -15,7 +15,7 @@ if tg.TYPE_CHECKING:
 @dataclasses.dataclass
 class Volumereport:
     """Data content of a report; column 1 is str, the others are numbers."""
-    rows: list[tuple]
+    rows: list[tuple]  # name, worktime, accept, reject, manual
     columnheads: tg.Sequence[str]
 
 
