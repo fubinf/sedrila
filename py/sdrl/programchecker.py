@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import List, Dict, Optional, Tuple, Any
 import shutil
 import re
+from graphlib import TopologicalSorter, CycleError
 
 import base as b
 import sdrl.course
@@ -366,32 +367,32 @@ class ProgramChecker:
         # Build mapping from program name to config
         all_tasks: Dict[str, ProgramTestConfig] = {}
         for config in configs:
-            task_name = config.program_name
-            all_tasks[task_name] = config
-        # Build dependencies across all tasks (assumes + requires)
-        task_deps: Dict[str, set[str]] = {}
+            all_tasks[config.program_name] = config
+        # Build graph: task_name -> set of task_name dependencies
+        graph: Dict[str, set] = {}
         for task_name in all_tasks:
             all_assumed = self.course.get_all_assumed_tasks(task_name)
-            deps_in_all = {t for t in all_assumed if t in all_tasks}
+            deps = {t for t in all_assumed if t in all_tasks}
             # Also consider requires dependencies
             task_obj = self.course.task(task_name)
             if task_obj:
                 for required in task_obj.requires:
                     if required in all_tasks:
-                        deps_in_all.add(required)
-            task_deps[task_name] = deps_in_all
-        # Topological sort
-        sorted_tasks: List[str] = []
-        remaining = set(all_tasks.keys())
-        while remaining:
-            ready_tasks = {t for t in remaining if task_deps[t].isdisjoint(remaining)}
-            if not ready_tasks:
-                b.warning(f"Circular dependency detected, executing remaining tasks in arbitrary order: {remaining}")
-                sorted_tasks.extend(sorted(remaining))
-                break
-            sorted_tasks.extend(sorted(ready_tasks))
-            remaining -= ready_tasks
-        return [all_tasks[t] for t in sorted_tasks]
+                        deps.add(required)
+            graph[task_name] = deps
+        # Use graphlib for topological sort
+        try:
+            sorter = TopologicalSorter(graph)
+            sorter.prepare()
+            sorted_names = []
+            while sorter.is_active():
+                ready = sorted(sorter.get_ready())
+                sorted_names.extend(ready)
+                sorter.done(*ready)
+        except CycleError as e:
+            b.warning(f"Circular dependency detected: {e}")
+            sorted_names = list(all_tasks.keys())
+        return [all_tasks[name] for name in sorted_names]
 
     def build_configs_from_targets(self, targets: List[ProgramTestTarget],
                                    itree_root: Path) -> List[ProgramTestConfig]:
