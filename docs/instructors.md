@@ -6,13 +6,24 @@ All commands assume a Bash shell.
 The sedrila tool assumes a Unix environment.
 Under Windows, use WSL. `sedrila` does not work natively in Windows.
 
-### 1.1 Set up `gpg`
+### 1.1 Set up `sedrila and `gpg`
 
-- Install `sedrila`
+- Install `sedrila` (on Debian/Ubuntu):
+  ```
+  sudo apt install pipx
+  pipx install sedrila
+  ```
 - Install `gpg`:  
   On Debian/Ubuntu, do `sudo apt install gnupg`.  
   For other platforms, see [GnuPG downloads](https://gnupg.org/download/index.html).
-- Add `export GPG_TTY=$(tty)` to your `.bashrc` for proper PIN-entry support.
+- Install a CLI pinentry program:  
+  On Debian/Ubuntu, do `sudo apt install pinentry-tty`.  
+  Tell GPG to use it: `echo "pinentry-program /usr/bin/pinentry-tty" >> ~/.gnupg/gpg-agent.conf`.  
+  On macOS, do `brew install pinentry-mac`.  
+  Make GPG use it: `echo "pinentry-program $(brew --prefix)/bin/pinentry-mac" >> ~/.gnupg/gpg-agent.conf`.  
+  In both cases, restart the agent so it recognizes the setting:
+  `gpgconf --kill gpg-agent`.
+- Add `export GPG_TTY=$(tty)` to your `.bashrc` (required for PIN-entry support).
 - Generate key: `gpg --full-generate-key`  
   Use the name and email that the students should get to see.
   Make sure, the key does not expire during the courses for which you intend to use it.
