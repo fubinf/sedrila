@@ -144,22 +144,27 @@ def test_record_the_different_instance_logs_debug():
 
 def test_get_all_by_type_returns_all_of_that_type():
     d = _make_directory()
-    a = d.make_the(_FakeElem, "a")
+    a_ = d.make_the(_FakeElem, "a")
     b_ = d.make_the(_FakeElem, "b")
+    c_ = d.make_the(_FakeElem2, "c")
     result = list(d.get_all(_FakeElem))
-    assert a in result
+    assert a_ in result
     assert b_ in result
+    assert c_ not in result
 
 
 def test_get_all_by_name_returns_across_types():
     d = _make_directory()
     e1 = _FakeElem("shared")
     e2 = _FakeElem2("shared")
+    e3 = _FakeElem2("other")
     d.take_the(_FakeElem, "shared", e1)
     d.take_the(_FakeElem2, "shared", e2)
+    d.take_the(_FakeElem2, "other", e3)
     result = list(d.get_all("shared"))   # string → name lookup (lines 80-85)
     assert e1 in result
     assert e2 in result
+    assert e3 not in result
 
 
 def test_get_all_by_name_not_found_returns_empty():
