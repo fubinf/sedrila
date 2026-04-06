@@ -1,9 +1,13 @@
 # sedrila CHANGELOG
 
+## Version 3.x (upcoming)
+- ...
 
-## Version 3.0.0 (upcoming)
-- CLI: new argument structure using role+verb (e.g. 'author build') instead only role ('author').
+
+## Version 3.0.0 (2026-04-06)
+- CLI: new argument structure using role+verb (e.g. 'author build') instead of only role ('author').
   The previous CLI will continue to be available via 'old'+role for a while ('old author').
+- global: introduce 'bonusrules' anti-procrastination/gamification mechanism 
 - `author`: remove the `PARTREFTITLE` macro, nobody ever uses it
 - `author`: rename the `PARTREFMANUAL` macro to `PARTREF2`
 - `author`: introduce `<!-- sedrila: macros off -->` markup to suppress false "undefined macro" 
@@ -19,7 +23,6 @@
   so that the text behind them stays legible.
 - `student`, `instructor`: use `allow_unicode=True` when writing YAML files to make them look more natural
   (their meaning is not changed by this).
-- ...
 
 
 ## Version 2.11.1 (2025-11-19)
