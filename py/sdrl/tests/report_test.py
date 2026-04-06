@@ -1,4 +1,4 @@
-"""Tests for sdrl/report.py"""
+"""Whitebox-ish tests for sdrl/report.py, based on simplistic proxies for Course/Chapter/Task."""
 import types
 
 import pytest
@@ -7,7 +7,7 @@ import sdrl.report as report
 from sdrl.report import Volumereport
 
 
-# ── test helpers ──────────────────────────────────────────────────────────────
+# ── naive test helpers ──────────────────────────────────────────────────────────────
 
 def make_task(workhours=0, is_accepted=False, rejections=0, timevalue=1.0,
               to_be_skipped=False, difficulty=1, stage=None, chapter=None):
