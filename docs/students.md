@@ -34,18 +34,17 @@ browser.
 Afterward, you will be prompted for the necessary information to allow
 instructors to grade you.
 
-Committing work for a task works without this file being present, but
+Committing work for a task is possible without this file being present, but
 making a submission only works if the file exists.
 
-After adding those information, it will import the gpg keys of the instructors.
-Technically, this step is optional. You will be prompted before it is performed.
-However, since sedrila only considers gradings as valid that come from instructors
-you need to import the keys so that sedrila can recognize which gradings commits are
-coming from instructors.
+After providing course information, you need to import the GPG keys of the instructors
+via `sedrila student import-keys`.
+If you do not, `sedrila` cannot show how many hours of work your instructors have already
+accepted, because instructor information is secured cryptographically.
 
 You can call `sedrila student import-keys` at any time to import all keys
-associated with your course if you skipped it or need different keys later.
-
+associated with your course, for instance if you need to get keys for a new instructor
+during the course of if you start to work on a different computer.
 
 
 ## 3. How to make a commit for a task
