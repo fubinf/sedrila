@@ -53,7 +53,7 @@ class LinkCheckResult:
 class LinkExtractor:
     """Extracts external links from markdown content."""
     # Regex patterns for different link formats
-    MARKDOWN_LINK_PATTERN = r'\[([^\]]*)\]\(([^)]+)\)'
+    MARKDOWN_LINK_PATTERN = r'\[([^\]]*)\]\(((?:[^)(]|\((?:[^)(])*\))*)\)'
     HREF_MACRO_PATTERN = r'\[HREF::([^\]]+)\]'
     LINK_SPEC_COMMENT_PATTERN = r'<!--\s*@LINK_SPEC:\s*([^-]+)\s*-->'
     
