@@ -267,5 +267,6 @@ Here are some design rules that should be followed in this spirit:
 - Write helpful comments; avoid comments stating only the obvious.
 - If you need a visual block structure in a long function, introduce blocks by a comment
   ending in a colon, not by an empty line.
-  Existing code often uses the forms `# ----- abc:` for level 1 and `# --- defghi:` for lower levels.
+  Existing code often uses the forms `# ----- abc:` (five dashes) for level 1 and 
+  `# --- defghi:` (three dashes) for lower levels.
 
