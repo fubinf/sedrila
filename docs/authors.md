@@ -1107,7 +1107,6 @@ See in [Maintainers documentation](maintainers.md).
 
 See in [Maintainers documentation](maintainers.md).
 
-
 ## 3. Calling `sedrila`
 
 ### 3.0 Installation
@@ -1116,9 +1115,9 @@ If you make use of `PROT_SPEC` anywhere, `sedrila` will need to encrypt the prot
 in order to include them available to instructors.
 To do that, it will make use of GNUpg much like `instructor` use of `sedrila` will.
 Therefore, you need to perform the same setup as an instructor; 
-see Section 1.1 in the [instructors documentation](instructors.md). 
+see Section 1.1 in the [instructors documentation](instructors.md).
 
-### 3.1 Default behavior
+### 3.1 `sedrila author build`
 
 The standard call for generating the HTML website from a sedrila course is
 `sedrila author build outputdir`.
@@ -1127,36 +1126,46 @@ and the instructor version at `outputdir/instructor`.
 Both versions will by default exclude all tasks, taskgroups, and chapters that have a
 `stage:` entry in their metadata.
 
-### 3.2 Options
-
 - To include parts with `stage:` entry, add option `--include-stage minstage` where `minstage`
   is the lowest stage that should be included; all higher ones will be included as well.
 - To obtain less detailed console output during the generation, use the global option
   `sedrila --log WARNING author build ...`.
-- The first run creates and fills the cache (which is stored in the instructor directory)
-  and subsequent runs will usually run _much_ faster.
-  To purge the cache (and hence force a full build), use `sedrila author clear-cache outputdir`
-  before the build.
-- To use an alternative configuration file, use something like `--config myconfig.yaml`.
+- To use an alternative configuration file (instead of the default `sedrila.yaml`), 
+  use something like `--config myconfig.yaml`.
 - Option `--print-status` generates reports about the volume of tasks per chapter,
   per difficulty, and per stage.
-- The subcommand `sedrila author rename old_partname new_partname` performs a
-  rename refactoring of the course content.  
-  It will rename files or directories as appropriate (and occasionally beyond).  
-  It will replace references in Markdown files:
-  `assumes:` and `requires:` headers as well as `PARTREF`, `INCLUDE`, `PROT`, and `TREEREF`
-  macro calls.  
-  It will heuristically replace occurrences of `old_partname` in `new_partname.prot` files.
-  Practical tips:
 
-    - False positives are possible; make sure you inspect the protocol output on the terminal.
-    - False negatives are likely, because other file types (such as program source files) are not modified.
-      Perform a full-text search in your IDE after the rename operation to find them.
-    - Start from a clean git state, so you can reset easily if things work out badly.
-    - Do not interrupt a rename operation. A wrong, but complete rename is often easy to revert;
-      a half-done one is probably not.
-    - Make sure you adjust your config file if chapter/taskgroup directories were renamed.
-    - After a rename, perform a build to check validity.
+### 3.2 Other commands of `sedrila author`
+
+#### 3.2.1 `sedrila author rename`
+
+`sedrila author rename old_partname new_partname` performs a rename refactoring of the course content.  
+
+It will rename files or directories as appropriate (and occasionally beyond).  
+It will replace references in Markdown files:
+`assumes:` and `requires:` headers as well as `PARTREF`, `INCLUDE`, `PROT`, and `TREEREF` macro calls.  
+It will heuristically replace occurrences of `old_partname` in `new_partname.prot` files.
+
+Practical tips:
+
+- False positives are possible; make sure you inspect the protocol output on the terminal.
+- False negatives are likely, because other file types (such as program source files) are not modified.
+  Perform a full-text search in your IDE after the rename operation to find them.
+- Start from a clean git state, so you can reset easily if things work out badly.
+- Do not interrupt a rename operation. A wrong, but complete rename is often easy to revert;
+  a half-done one is probably not.
+- Make sure you adjust your config file if chapter/taskgroup directories were renamed.
+- After a rename, perform a build to check validity.
+
+#### 3.2.2 `sedrila author clear-cache`
+
+The first run of `sedrila author build` for a given output directory
+creates and fills the cache.
+The cache is stored as one or two files with basename `.sedrila_cache` in the `instructor` subdirectory.
+Due to the cache, subsequent `build` runs will usually run _much_ faster.
+
+To purge the cache (and hence force a full build), use `sedrila author clear-cache outputdir`
+before the build, but this is needed very rarely.
 
 ### 3.3 Automatic validation during builds
 
