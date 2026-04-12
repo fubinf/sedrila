@@ -550,7 +550,7 @@ class LinkCheckReporter:
                          f"See the [@LINK_SPEC documentation]({linkspec_url}).\n\n")
             lines.append("| Status | URL | File | Line |\n")
             lines.append("|------------|-----|------|------|\n")
-            for result in sorted(failed_results, key=lambda r: (r.link.url, r.link.source_file, r.link.line_number)):
+            for result in sorted(failed_results, key=lambda r: (r.link.url, r.link.source_file, r.link.line_number), reverse=True):
                 link = result.link
                 error_type = self._categorize_error(result)
                 lines.append(f"| {error_type} | {link.url} | {link.source_file} | {link.line_number} |\n")
