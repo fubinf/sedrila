@@ -7,7 +7,7 @@
 Course content degrades over time: External links break, example programs fail as dependencies evolve.
 The `sedrila maintainer` subcommand provides automated quality checks for:
 
-- Link checking: Validate HTTP/HTTPS URLs in markdown files
+- Link checking: Validate HTTP/HTTPS URLs in Markdown files
 - Program testing: Run example programs and verify their output
 
 Unlike `sedrila author` (full course build generating HTML), maintainer tools perform 
@@ -26,7 +26,7 @@ Function-specific requirements:
 - Link checking: Active internet connection.
 - Program testing: Runtime environments for tested languages, details in section 5.1.
   The course configuration must provide compatible `chapterdir`, `altdir`, and `itreedir`
-  settings so that task markdowns, protocol files, and program sources can be matched.
+  settings so that task Markdowns, protocol files, and program sources can be matched.
 
 
 ## 3. Basic command structure
@@ -70,22 +70,15 @@ Both Actions workflows use the `--batch` flag for CI-friendly output.
 
 ## 4. Link Checking: `check-links`
 
-The Command `check-links` validates external HTTP/HTTPS links found in markdown files.
+The Command `check-links` validates external HTTP/HTTPS links found in Markdown files:
+`sedrila maintainer check-links TARGETDIR`
 
-Link checking is implemented as a `maintainer` subcommand but leverages 
-the `author` build system infrastructure for file identification. 
-
-When checking all files, the command:
-
-Creates a `Coursebuilder` instance to parse `sedrila.yaml`
-
-Builds only the essential elements needed for file identification:
-
-- `Sourcefile`: Registers all source files
-- `Topmatter`: Parses YAML metadata from markdown files
-- `MetadataDerivation`: Processes metadata and evaluates stage filtering
-
-Extracts the list of markdown files that need checking (respecting configuration and stages)
+Link checking leverages the `author` build system infrastructure for file identification.
+(When checking all files, the command creates a `Coursebuilder` instance to parse `sedrila.yaml`;
+builds only the essential elements needed for file identification (`Sourcefile`: Registers all source files;
+`Topmatter`: Parses YAML metadata from Markdown files; 
+`MetadataDerivation`: Processes metadata and evaluates stage filtering);
+extracts the list of Markdown files that need checking (respecting configuration and stages)
 
 Checks links and generates reports as build products 
 
@@ -95,13 +88,13 @@ Checks links and generates reports as build products
 - Uses the `--include-stage` option to control which development stages are checked (default: `draft`, which includes all stages).
 - Checks both `chapterdir` and `altdir` directories (`altdir` discovered via path replacement).
 - Uses HEAD requests by default for efficiency, falling back to GET only when content validation is needed.
-- Generates a fixed-name markdown report: `link_check_report.md` in `targetdir_i`.
-- Supports custom link validation rules via HTML comments in markdown files.
+- Generates a fixed-name Markdown report: `link_check_report.md` in `targetdir_i`.
+- Supports custom link validation rules via HTML comments in Markdown files.
 - Avoids checking duplicate URLs and includes comprehensive statistics in reports.
-- Link checking automatically sends HTTP requests in parallel when `--batch` is used. You can change the worker count via the `SDRL_LINKCHECK_MAX_WORKERS` environment variable (default: `230`). 
-- In a local environment (like WSL), adjust the concurrency by running `export SDRL_LINKCHECK_MAX_WORKERS=Number` (For a PC, setting this value to the current number of CPU threads would be appropriate.) and then executing `sedrila maintainer check-links TARGETDIR`.
-  use `echo "$SDRL_LINKCHECK_MAX_WORKERS"` to check current value of this variable.
-- For CI runs triggered through GitHub Actions, the `maintainer-linkchecker` workflow exposes a `max_workers` input when using the “Run workflow” button, which internally sets this environment variable before executing the command. Empirical runs show that setting `max_workers` to roughly `230` already reaches the practical performance limit; higher numbers rarely improve performance. 
+- Link checking automatically sends HTTP requests in parallel when `--batch` is used. 
+  You can change the worker count via the `SDRL_LINKCHECK_MAX_WORKERS` environment variable (default: `120`).
+  For CI runs triggered through GitHub Actions, the `maintainer-linkchecker` workflow exposes a 
+  `max_workers` input for setting this environment variable.
 
 Examples:
 

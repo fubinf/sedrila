@@ -16,6 +16,7 @@ from urllib.parse import urlparse
 import requests
 import base
 
+import sdrl.constants as c
 
 @dataclass
 class LinkValidationRule:
@@ -28,7 +29,7 @@ class LinkValidationRule:
 
 @dataclass
 class ExternalLink:
-    """Represents an external link found in a markdown file."""
+    """Represents an external link found in a Markdown file."""
     url: str
     text: str
     source_file: str
@@ -51,7 +52,7 @@ class LinkCheckResult:
 
 
 class LinkExtractor:
-    """Extracts external links from markdown content."""
+    """Extracts external links from Markdown content."""
     # Regex patterns for different link formats
     MARKDOWN_LINK_PATTERN = r'\[([^\]]*)\]\(((?:[^)(]|\((?:[^)(])*\))*)\)'
     HREF_MACRO_PATTERN = r'\[HREF::([^\]]+)\]'
@@ -63,7 +64,7 @@ class LinkExtractor:
         self.link_spec_regex = re.compile(self.LINK_SPEC_COMMENT_PATTERN)
     
     def extract_links_from_file(self, filepath: str) -> list[ExternalLink]:
-        """Extract all external links from a markdown file."""
+        """Extract all external links from a Markdown file."""
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -79,7 +80,7 @@ class LinkExtractor:
             if link_spec_match:
                 current_validation_rule = self._parse_validation_rule(link_spec_match.group(1))
                 continue
-            # Extract standard markdown links: [text](url)
+            # Extract standard Markdown links: [text](url)
             for match in self.markdown_regex.finditer(line):
                 text, url = match.groups()
                 if self._is_external_url(url):
@@ -95,7 +96,7 @@ class LinkExtractor:
     
     @staticmethod
     def _is_external_url(url: str) -> bool:
-        """Check if URL is external (http/https)."""
+        """Check if URL is external (http/https). We ignore all others."""
         parsed = urlparse(url)
         return parsed.scheme in ('http', 'https')
     
@@ -137,10 +138,10 @@ class LinkChecker:
     delay_per_host: float
     session: requests.Session
     host_last_request: dict[str, float]
+    max_workers: int
     
     def __init__(self, timeout: int = 20, max_retries: int = 2, 
-                 delay_between_requests: float = 1.0, delay_per_host: float = 2.0,
-                 max_workers: typing.Optional[int] = None):
+                 delay_between_requests: float = 1.0, delay_per_host: float = 2.0):
         self.timeout = timeout
         self.max_retries = max_retries
         self.delay_between_requests = delay_between_requests
@@ -148,7 +149,7 @@ class LinkChecker:
         self.session = requests.Session()
         self.host_last_request = {}  # Track last request time per host
         self._host_lock = threading.Lock()
-        self.max_workers = self._determine_max_workers(max_workers)
+        self.max_workers = int(os.getenv("SDRL_LINKCHECK_MAX_WORKERS", c.SDRL_LINKCHECK_MAX_WORKERS_DEFAULT))
         # Set browser-like headers to avoid triggering anti-crawling mechanisms
         self.session.headers.update({
             'User-Agent': ('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -160,27 +161,6 @@ class LinkChecker:
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1'
         })
-    
-    @staticmethod
-    def _determine_max_workers(override: typing.Optional[int]) -> int:
-        """Resolve worker count from constructor override or environment variable."""
-        default_workers = 230
-        if override is not None:
-            if override < 1:
-                base.warning("max_workers must be >= 1; falling back to default 230")
-                return default_workers
-            return override
-        env_value = os.getenv("SDRL_LINKCHECK_MAX_WORKERS")
-        if not env_value:
-            return default_workers
-        try:
-            parsed = int(env_value)
-            if parsed < 1:
-                raise ValueError("value must be >= 1")
-            return parsed
-        except ValueError:
-            base.warning(f"Invalid SDRL_LINKCHECK_MAX_WORKERS='{env_value}', using default {default_workers}")
-            return default_workers
     
     def check_link(self, link: ExternalLink) -> LinkCheckResult:
         """Check accessibility of a single external link using HEAD or GET request."""
@@ -503,14 +483,13 @@ class LinkCheckReporter:
             return status_match.group(1)
         return 'other'
     
-    def render_markdown_report(self, results: list[LinkCheckResult], max_workers: typing.Optional[int] = None) -> str:
+    def render_markdown_report(self, results: list[LinkCheckResult], max_workers: int) -> str:
         """Render the Markdown report content and return it as a string."""
         stats = self.generate_statistics(results)
         lines: list[str] = []
         lines.append("# External Link Check Report\n\n")
-        lines.append(f"**Generated:** {self.report_timestamp.strftime('%Y-%m-%d %H:%M:%S')}\n")
-        worker_value = max_workers if max_workers is not None else os.getenv("SDRL_LINKCHECK_MAX_WORKERS", "230")
-        lines.append(f"**Run parameters:** max_workers = {worker_value}\n\n")
+        lines.append(f"Generated: {self.report_timestamp.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        lines.append(f"Run parameters: max_workers = {max_workers}\n\n")
         # Summary
         lines.append("## Summary\n\n")
         duplicates = stats.total_links - stats.unique_urls_checked
@@ -584,7 +563,7 @@ class LinkCheckReporter:
 
 
 def check_single_file(filepath: str):
-    """Check links in a single markdown file."""
+    """Check links in a single Markdown file."""
     if not os.path.exists(filepath):
         base.error(f"File not found: {filepath}")
         return None
