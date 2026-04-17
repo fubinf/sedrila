@@ -3,6 +3,7 @@
 ## Version 3.1.0 (upcoming)
 - `student`, `instructor`: Webapp shows task list and workreport in chapter/taskgroup order
   rather than alphabetical order
+- `student`, `instructor`: better webapp darkmode CSS
 - ...
 
 

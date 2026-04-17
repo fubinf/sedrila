@@ -389,8 +389,18 @@ span.REJECTOID {
 
     /* Dark mode for work report table alternating rows */
     tr.odd {
-        background-color: #ddd;
-        color: #000;
+        background-color: #2a3a40;
+    }
+
+    /* Dark mode for work report chapter/taskgroup headers */
+    .work-report-chapter-row {
+        background-color: #1a2a30;
+        color: var(--wa-blue-50);
+    }
+
+    .work-report-taskgroup-row {
+        background-color: #223038;
+        color: var(--wa-blue-30);
     }
 
     /* Dark mode for protocol prompt counter in plain view */
