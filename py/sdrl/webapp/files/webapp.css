@@ -156,6 +156,7 @@ main section {
 
 .task-link.selected {
     background-color: var(--wa-blue-70);
+    scroll-margin-top: 4rem;
 }
 
 /* ----- Chapter/taskgroup headers in task-list sidebar: */

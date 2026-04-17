@@ -23,3 +23,9 @@ function sedrila_replace() {
 document.querySelectorAll('.sedrila-replace').forEach(t => {
   t.addEventListener('click', sedrila_replace);
 });
+
+// Scroll selected task into view in the sidebar
+(function() {
+    const sel = document.querySelector('#task-select .task-link.selected');
+    if (sel) sel.scrollIntoView({ block: 'start' });
+})();
