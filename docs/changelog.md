@@ -4,6 +4,7 @@
 - `student`, `instructor`: Webapp shows task list and workreport in chapter/taskgroup order
   rather than alphabetical order
 - `student`, `instructor`: better webapp darkmode CSS
+- `student`, `instructor`: make selected task the top entry in webapp left-hand pane
 - ...
 
 
