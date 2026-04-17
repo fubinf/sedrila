@@ -96,8 +96,11 @@ def html_for_work_progress(ctx: sdrl.participant.Context) -> str:
     check_work = {s.student_gituser: .0 for s in ctx.studentlist}
     notsubmitted_work = {s.student_gituser: .0 for s in ctx.studentlist}
 
-    sorted_tasks = sorted(ctx.tasknames)
-    for i, name in enumerate(sorted_tasks):
+    from sdrl.webapp.app import ordered_task_entries
+    entries = ordered_task_entries(ctx.course, ctx.tasknames)
+    for kind, name in entries:
+        if kind != 'task':
+            continue
         for s in ctx.studentlist:
             ct = s.submissions.task(name)
             tsk = s.course.task(name)
@@ -156,14 +159,23 @@ def html_for_work_report_section(ctx: sdrl.participant.Context) -> str:
         return "".join(markup)
 
     tasks_markup = []
-    sorted_tasks = sorted(ctx.tasknames)
-    for i, name in enumerate(sorted_tasks):
-        tasks_markup.append(f"""
-            <tr class="{'even' if i % 2 == 0 else 'odd'}">
+    from sdrl.webapp.app import ordered_task_entries
+    entries = ordered_task_entries(ctx.course, ctx.tasknames)
+    task_index = 0
+    for kind, name in entries:
+        if kind == 'chapter':
+            tasks_markup.append(f"""
+            <tr class="work-report-chapter-row"><td class="work-report-chapter-cell" colspan="100">{name}</td></tr>""")
+        elif kind == 'taskgroup':
+            tasks_markup.append(f"""
+            <tr class="work-report-taskgroup-row"><td class="work-report-taskgroup-cell" colspan="100">{name}</td></tr>""")
+        else:
+            tasks_markup.append(f"""
+            <tr class="{'even' if task_index % 2 == 0 else 'odd'}">
                 <td>{name}</td>
                 {html_for_students(name)}
-            </tr>
-        """)
+            </tr>""")
+            task_index += 1
 
     students_markup = []
     totals_markup = []

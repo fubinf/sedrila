@@ -168,22 +168,65 @@ def html_for_page(title: str, course_url: str, body: str) -> str:
     )
 
 
+def ordered_task_entries(course, tasknames: set[str],
+                        checkable_first: bool = False,
+                        studentlist: list | None = None,
+                        is_instructor: bool = False,
+                        ) -> list[tuple[str, str]]:
+    """Return a flat list of ('chapter'|'taskgroup'|'task', name) tuples
+    in course-hierarchy order, filtered to tasks present in tasknames.
+    Empty taskgroups are suppressed; empty chapters are kept.
+    If checkable_first is True, produce two hierarchy passes:
+    first checkable tasks, then the remainder."""
+    def _is_checkable(taskname: str) -> bool:
+        for s in studentlist:
+            t = s.submissions.task(taskname)
+            if not t:
+                continue
+            if is_instructor and not t.is_registered:
+                return False
+            if t.is_checkable:
+                return True
+        return False
+
+    def _build_hierarchy(names: set[str]) -> list[tuple[str, str]]:
+        entries: list[tuple[str, str]] = []
+        for chapter in course.chapters:
+            chapter_has_content = False
+            for taskgroup in chapter.taskgroups:
+                tg_tasks = [t.name for t in taskgroup.tasks if t.name in names]
+                if not tg_tasks:
+                    continue
+                if not chapter_has_content:
+                    entries.append(('chapter', chapter.name))
+                    chapter_has_content = True
+                entries.append(('taskgroup', taskgroup.name))
+                for tname in tg_tasks:
+                    entries.append(('task', tname))
+            if not chapter_has_content:
+                entries.append(('chapter', chapter.name))
+        # orphan tasks not found in course hierarchy:
+        seen = {name for kind, name in entries if kind == 'task'}
+        for t in sorted(names - seen):
+            entries.append(('task', t))
+        return entries
+
+    if checkable_first and studentlist:
+        checkable = {t for t in tasknames if _is_checkable(t)}
+        remainder = tasknames - checkable
+        return _build_hierarchy(checkable) + _build_hierarchy(remainder)
+    else:
+        return _build_hierarchy(tasknames)
+
+
 def html_for_layout(title: str, content: str, selected: str | None = None) -> str:
     ctx = sdrl.participant.get_context()
     is_instructor = ctx.is_instructor
 
-    # move relevant tasks up in list
-    def checkable_first(name):
-        for s in ctx.studentlist:
-            t = s.submissions.task(name)
-            if not t: continue
-
-            # sort entries not marked for submission last for instructors
-            if is_instructor and not t.is_registered: return (1, name)
-            # sort checkable entries first
-            if t and t.is_checkable: return (-1, name)
-        return (0, name)
-    tasks = sorted(ctx.tasknames, key=checkable_first)
+    entries = ordered_task_entries(ctx.course, ctx.tasknames,
+                                  checkable_first=is_instructor,
+                                  studentlist=ctx.studentlist,
+                                  is_instructor=is_instructor)
 
     state_classes = dict([
         (None, "task-unchecked"),
@@ -208,15 +251,27 @@ def html_for_layout(title: str, content: str, selected: str | None = None) -> st
             </div>
         """
 
-    tasks_html = "".join(f"""
+    parts = []
+    for kind, name in entries:
+        if kind == 'chapter':
+            parts.append(f"""
+        <li class="task-list-header">
+            <span class="item task-list-chapter">{name}</span>
+        </li>""")
+        elif kind == 'taskgroup':
+            parts.append(f"""
+        <li class="task-list-header">
+            <span class="item task-list-taskgroup">{name}</span>
+        </li>""")
+        else:
+            parts.append(f"""
         <li>
-            <a class="item task-link{' selected' if selected == t else ''}" href="/tasks/{t}">
-                {t}
+            <a class="item task-link{' selected' if selected == name else ''}" href="/tasks/{name}">
+                {name}
             </a>
-            {indicator_for_students(t)}
-        </li>
-
-    """ for t in tasks)
+            {indicator_for_students(name)}
+        </li>""")
+    tasks_html = "".join(parts)
 
     body = f"""
         <div id="app">

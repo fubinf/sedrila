@@ -158,6 +158,47 @@ main section {
     background-color: var(--wa-blue-70);
 }
 
+/* ----- Chapter/taskgroup headers in task-list sidebar: */
+.task-list-header {
+    display: block;
+}
+
+.task-list-chapter {
+    display: block;
+    padding: 0.4rem 0.6rem;
+    margin-top: 0.6rem;
+    font-weight: bold;
+    color: var(--wa-blue-10);
+    background-color: var(--wa-blue);
+}
+
+.task-list-taskgroup {
+    display: block;
+    padding: 0.3rem 0.6rem 0.3rem 1.2rem;
+    font-weight: bold;
+    color: var(--wa-blue-20);
+    background-color: var(--wa-blue-80);
+}
+
+/* ----- Chapter/taskgroup headers in work-report table: */
+.work-report-chapter-row {
+    background-color: var(--wa-blue-20);
+}
+
+.work-report-chapter-cell {
+    font-weight: bold;
+    padding: 0.4rem 0.6rem;
+}
+
+.work-report-taskgroup-row {
+    background-color: var(--wa-blue-10);
+}
+
+.work-report-taskgroup-cell {
+    font-weight: bold;
+    padding: 0.0rem 1.0rem 0.0rem 2.0rem;
+}
+
 a.file {
     text-decoration: none;
     color: var(--wa-blue-20);
