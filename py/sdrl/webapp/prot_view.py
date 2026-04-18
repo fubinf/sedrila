@@ -11,8 +11,6 @@ import base as b
 import sdrl.markdown as md
 import sdrl.participant
 
-from sdrl.webapp.resources import CSS
-
 
 def render_prot_compare(
     workdir_top: str,
@@ -282,14 +280,14 @@ def _load_author_prot_content(workdir: sdrl.participant.Student, prot_path: str)
                     try:
                         content = protocolchecker.load_encrypted_prot_file(tmp_path)
                         if content:
-                            return (content, f"{encrypted_url} (downloaded & decrypted)")
+                            return content, f"{encrypted_url} (downloaded & decrypted)"
                     finally:
                         try:
                             os.unlink(tmp_path)
                         except FileNotFoundError:
                             pass
                 except requests.RequestException as e:
-                    b.warning(f"Failed to download {encrypted_url}: {e}")
+                    b.warning(f"Download failure: {e}")
     except (AttributeError, TypeError, OSError):
         pass
-    return (None, None)
+    return None, None
