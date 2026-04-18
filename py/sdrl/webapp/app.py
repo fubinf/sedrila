@@ -203,8 +203,6 @@ def ordered_task_entries(course, tasknames: set[str],
                 entries.append(('taskgroup', taskgroup.name))
                 for tname in tg_tasks:
                     entries.append(('task', tname))
-            if not chapter_has_content:
-                entries.append(('chapter', chapter.name))
         return entries
 
     if checkable_first and studentlist:
