@@ -23,7 +23,8 @@ SUBMISSION_CHECKED_COMMIT_MSG = "submission.yaml checked"
 SUBMISSION_CHECK_MARK = "CHECK"  # please check / not checked / -- 
 SUBMISSION_NONCHECK_MARK = "NONCHECK"  # do not check / -- / never checked
 SUBMISSION_ACCEPT_MARK = "ACCEPT"  # -- / accepted / accepted
-SUBMISSION_REJECT_MARK = "REJECT"  # -- / rejected / rejected forever
+SUBMISSION_REJECT_MARK = "REJECT"  # -- / rejected / rejected forever.
+#   Covers both "one attempt left" and "attempts already gone"; filter_submission() may prune the latter.
 SUBMISSION_REJECTOID_MARK = "REJECTOID"  # -- / -- / rejected but can be submitted again
 SUBMISSION_NONTASK_MARK = "NO_SUCH_TASKNAME"
 SUBMISSION_STATE_FRESH = "FRESH"  # last commit indicates new submission

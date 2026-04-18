@@ -37,12 +37,16 @@ class SubmissionTaskState(enum.StrEnum):
     and distinguishes between current and past rejects.
     """
     INVALID = "INVALID"  # not a taskname present in the course
-    CHECK = "CHECK"
-    ACCEPT = "ACCEPT"
-    REJECT = "REJECT"  # rejected with no remaining_attempts
-    REJECTOID = "REJECTOID"  # rejected but has remaining_attempts, can be resubmitted
-    ACCEPT_PAST = "ACCEPT_PAST"  # accepted in a previous instructor run
-    REJECT_FINAL = "REJECT_FINAL"  # rejected the maximum number of times
+    CHECK = "CHECK"  # student submitted for checking
+    ACCEPT = "ACCEPT"  # instructor's current uncommitted accept
+    REJECT = "REJECT"  # instructor's current uncommitted rejection that exhausts attempts.
+    #   Still reversible (is_checkable); written to submission.yaml.
+    #   Triggers REJECT_FINAL once the instructor-signed commit lands and makes remaining_attempts <= 0.
+    REJECTOID = "REJECTOID"  # instructor's current uncommitted rejection, attempts remain.
+    #   Written to submission.yaml; student may resubmit.
+    ACCEPT_PAST = "ACCEPT_PAST"  # derived: a prior instructor commit already accepted this task
+    REJECT_FINAL = "REJECT_FINAL"  # derived: prior commits exhausted remaining_attempts.
+    #   Display-only; never written; immutable (not is_checkable).
 
 
 class SubmissionTask:
@@ -309,7 +313,7 @@ class Student:
             elif state == c.SUBMISSION_REJECTOID_MARK: task.state = SubmissionTaskState.REJECTOID
             elif state == c.SUBMISSION_CHECK_MARK: task.state = SubmissionTaskState.CHECK
             elif state == c.SUBMISSION_NONCHECK_MARK: task.state = None
-        # assign states to tasks based on previous instructor commits:
+        # Assign states to tasks based on previous instructor commits; overrides yaml-derived state 
         cw = self.course_with_work
         for name, task in sub._tasks.items():
             cw_task = cw.task(name)
