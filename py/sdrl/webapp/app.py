@@ -147,14 +147,15 @@ def run(ctx: sdrl.participant.Context):
     importlib.import_module('sdrl.webapp.reports')
     # Use waitress as multi-threaded WSGI server to avoid browser connection
     # stockpile deadlocks (https://issues.chromium.org/issues/40978518)
-    bottle.run(
-        server='waitress',
-        host='localhost',
-        port=ctx.pargs.port,
-        debug=DEBUG,
-        reloader=False,
-        quiet=True
-    )
+    # Use create_server+close() directly: bottle.run(server='waitress') calls waitress.serve(),
+    # which catches KeyboardInterrupt but never closes the socket, leaving it bound so that
+    # a second call gets "address already in use".
+    import waitress as _waitress
+    _srv = _waitress.create_server(bottle.default_app(), host='localhost', port=ctx.pargs.port)
+    try:
+        _srv.run()
+    finally:
+        _srv.close()
 
 
 def html_for_page(title: str, course_url: str, body: str) -> str:
