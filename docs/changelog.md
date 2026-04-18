@@ -1,13 +1,16 @@
 # sedrila CHANGELOG
 
-## Version 3.1.0 (upcoming)
-- `student`, `instructor`: Webapp shows task list and workreport in chapter/taskgroup order
-  rather than alphabetical order
-- `student`, `instructor`: better webapp darkmode CSS
-- `student`, `instructor`: make selected task the top entry in webapp left-hand pane
-- `student`, `instructor`: provide webapp in two forms: 1-tree or 2-tree task list
-- `student`, `instructor`: fix crash when starting webapp a second time
+## Version 3.x (upcoming)
 - ...
+
+
+## Version 3.1.0 (2026-04-18)
+- `student`, `instructor`: usability: Webapp shows task list and workreport in chapter/taskgroup order
+  rather than alphabetical order
+- `student`, `instructor`: visual: better webapp darkmode CSS
+- `student`, `instructor`: usability: make selected task the top entry in webapp left-hand pane
+- `student`, `instructor`: usability: provide webapp in two forms: 1-tree or 2-tree task list
+- `student`, `instructor`: fix crash when starting webapp a second time
 
 
 ## Version 3.0.0 (2026-04-06)
@@ -33,6 +36,7 @@
 
 ## Version 2.11.1 (2025-11-19)
 - `student`, `instructor`: Webapp now renders source code files properly again.
+
 
 ## Version 2.11.0 (2025-11-19)
 - `author`, `student`: add field `instructor.status` in `sedrila.yaml`. Show it when students submit.
