@@ -477,6 +477,7 @@ class Context:
     students: collections.OrderedDict[str, Student]
     studentlist: list[Student]
     is_instructor: bool
+    use_2nd_task_list: bool  # mode of webapp
 
     def __init__(self, pargs: ap_sub.Namespace, dirs: list[str], 
                  is_instructor: bool, show_size: bool):

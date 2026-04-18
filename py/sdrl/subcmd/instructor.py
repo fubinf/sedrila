@@ -165,9 +165,14 @@ def run_command_loop(context, menu: str, helptext: str, cmds: dict[str, tg.Calla
     sdrl.subcmd.student.run_command_loop(context, menu, helptext, cmds)
 
 
-def cmd_webapp(ctx: sdrl.participant.Context):
+def cmd_webapp1(ctx: sdrl.participant.Context):
     b.info("----- Start webapp to accept/reject submissions")
-    sdrl.webapp.run(ctx)
+    sdrl.webapp.run(ctx, use_2nd_task_list=False)
+
+
+def cmd_webapp2(ctx: sdrl.participant.Context):
+    b.info("----- Start webapp to accept/reject submissions (separate fresh-tasks tree)")
+    sdrl.webapp.run(ctx, use_2nd_task_list=True)
 
 
 def cmd_edit(ctx: sdrl.participant.Context):
@@ -228,7 +233,7 @@ def prepare_workdir(workdir: str):
             b.spit_yaml(c.SUBMISSION_FILE, submission)
 
 
-MENU = "\n>>> w:webapp e:edit c:commit+push q:quit   "
-MENU_CMDS = dict(w=cmd_webapp, e=cmd_edit, c=cmd_commit_and_push)
+MENU = "\n>>> v:webapp(joint tree)  w:webapp(2 trees)  e:edit  c:commit+push  q:quit   "
+MENU_CMDS = dict(v=cmd_webapp1, w=cmd_webapp2, e=cmd_edit, c=cmd_commit_and_push)
 MENU_HELP = ""
-OP_CMDS = dict(webapp=cmd_webapp, edit=cmd_edit, commit_and_push=cmd_commit_and_push)
+OP_CMDS = dict(webapp=cmd_webapp2, edit=cmd_edit, commit_and_push=cmd_commit_and_push)

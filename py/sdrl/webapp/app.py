@@ -111,8 +111,9 @@ def _verify_gpg_keys(test_file: str) -> bool:
         return False
 
 
-def run(ctx: sdrl.participant.Context):
+def run(ctx: sdrl.participant.Context, use_2nd_task_list: bool):
     # Make sure context is globally accessible for HTTP request handlers
+    ctx.use_2nd_task_list = use_2nd_task_list
     sdrl.participant._context = ctx
     # Only instructors need to decrypt protocol files
     global _gpg_available
@@ -168,9 +169,9 @@ def html_for_page(title: str, course_url: str, body: str) -> str:
 
 
 def ordered_task_entries(course, tasknames: set[str],
-                        checkable_first: bool = False,
-                        studentlist: list | None = None,
-                        is_instructor: bool = False,
+                         checkable_first: bool = False,
+                         studentlist: list | None = None,
+                         is_instructor: bool = False,
                         ) -> list[tuple[str, str]]:
     """
     Return a flat list of ('chapter'|'taskgroup'|'task', name) tuples in course-hierarchy order, 
@@ -218,7 +219,7 @@ def html_for_layout(title: str, content: str, selected: str | None = None) -> st
     ctx = sdrl.participant.get_context()
     is_instructor = ctx.is_instructor
     entries = ordered_task_entries(ctx.course, ctx.tasknames,
-                                   checkable_first=is_instructor,
+                                   checkable_first=ctx.use_2nd_task_list,
                                    studentlist=ctx.studentlist,
                                    is_instructor=is_instructor)
     state_classes = dict([
@@ -229,7 +230,7 @@ def html_for_layout(title: str, content: str, selected: str | None = None) -> st
         (sdrl.participant.SubmissionTaskState.REJECT_FINAL, "task-reject final"),
         (sdrl.participant.SubmissionTaskState.ACCEPT_PAST, "task-accept past"),
     ])
-
+    
     def indicator_for_students(taskname: str) -> str:
         indicators = []
         for s in ctx.studentlist:

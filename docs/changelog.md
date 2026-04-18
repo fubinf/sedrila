@@ -5,6 +5,8 @@
   rather than alphabetical order
 - `student`, `instructor`: better webapp darkmode CSS
 - `student`, `instructor`: make selected task the top entry in webapp left-hand pane
+- `student`, `instructor`: provide webapp in two forms: 1-tree or 2-tree task list
+- `student`, `instructor`: fix crash when starting webapp a second time
 - ...
 
 

@@ -59,7 +59,7 @@ def webapp_command(workdir: Sequence[str], port: int):
     except KeyboardInterrupt:
         print("  Bye.")
         return
-    cmd_webapp(context)
+    cmd_webapp2(context)
 
 
 # CLI: sedrila student import-keys
@@ -94,7 +94,7 @@ def menu_command(port: int):  # TODO 2: allow workdir arg
 # CLI: sedrila student finish
 @student_command.command(name="finish")
 def finish_command():  # TODO 2: allow workdir arg
-    """Show steps on how to indicate finished course participation""" # wording?
+    """Show steps for how to indicate finished course participation"""
     ctx = make_context(["."])
 
     # message could look something like this (partially copied from push)
@@ -104,7 +104,7 @@ def finish_command():  # TODO 2: allow workdir arg
 
 
 def check_workdirs(workdirs: Sequence[str]) -> list[str]:
-    workdirs = [wd.rstrip("/") for wd in workdirs] # make names canonical
+    workdirs = [wd.rstrip("/") for wd in workdirs]  # make names canonical
     for workdir in workdirs:
         if not os.path.isdir(workdir):
             b.critical(f"directory '{workdir}' does not exist.")
@@ -115,8 +115,6 @@ def check_workdirs(workdirs: Sequence[str]) -> list[str]:
 
 
 def make_context(wd: Sequence[str], **kwargs) -> sdrl.participant.Context:
-    # we are not using any pargs in the context
-    # should they be removed?
     return sdrl.participant.make_context(
         types.SimpleNamespace(
             **kwargs,
@@ -181,7 +179,7 @@ def init(workdirs: list[str]):
         b.critical("'--init' can only be called without an explicit argument from within a working directory")
     sdrl.participant.Student.build_participant_file()
     student = sdrl.participant.Student('.', is_instructor=False)
-    if not(student.course_metadata.get('instructors')):
+    if not student.course_metadata.get('instructors'):
         b.warning("No information about instructors present in course. Skipping key import.")
         return
     gpgimportwarning = """
@@ -262,13 +260,18 @@ def cmd_prepare(ctx: sdrl.participant.Context):
         student.save_submission()
 
 
-def cmd_webapp(ctx: sdrl.participant.Context):
+def cmd_webapp1(ctx: sdrl.participant.Context):
     """
     LC2: student toggles submittable tasks between CHECK and NONCHECK in the webapp,
     persisting submission.yaml on each change. See docs/internal_notes.md.
     """
-    b.info("----- Start webapp to accept/reject submissions")
-    sdrl.webapp.run(ctx)
+    b.info("----- Start webapp to view progress and select tasks for submission")
+    sdrl.webapp.run(ctx, use_2nd_task_list=False)
+
+
+def cmd_webapp2(ctx: sdrl.participant.Context):
+    b.info("----- Start webapp to view progress and select tasks for submission (separate fresh-tasks tree)")
+    sdrl.webapp.run(ctx, use_2nd_task_list=True)
 
 
 def cmd_edit(ctx: sdrl.participant.Context):
@@ -311,18 +314,17 @@ def cmd_push(ctx: sdrl.participant.Context):
     b.info(f"  sedrila instructor {' '.join([s.student_gituser for s in ctx.studentlist])}")
     _show_instructors(ctx.course)
 
-
-MENU = "\n>>> w:webapp  e:edit  c:commit  u:push  q:quit  h:help  "
+MENU = "\n>>> v:webapp(joint tree)  w:webapp(2 trees)  e:edit  c:commit  p:push  q:quit  h:help  "
 MENU_HELP = f"""
-  webapp:  view file tree(s) and course progress in browser, select tasks to be submitted
+  webapp:  view task tree(s), file tree, and course progress in browser, select tasks to be submitted
   edit:    manually edit  {c.SUBMISSION_FILE} to include tasks sedrila cannot recognize
   commit:  commit {c.SUBMISSION_FILE} with proper commit message for submission
   push:    push commits and show instructions for announcing your submission
   Can work on your work directory or on yours and your partner's if you put them side-by-side
   below the same parent directory.
 """
-MENU_CMDS = dict(w=cmd_webapp, e=cmd_edit, c=cmd_commit, u=cmd_push)
-OP_CMDS = dict(webapp=cmd_webapp, edit=cmd_edit)
+MENU_CMDS = dict(v=cmd_webapp1, w=cmd_webapp2, e=cmd_edit, c=cmd_commit, p=cmd_push)
+OP_CMDS = dict(webapp=cmd_webapp2, edit=cmd_edit)
 
 
 def _show_instructors(course, with_gitaccount=False):
