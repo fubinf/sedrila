@@ -68,6 +68,7 @@ def _find_encrypted_prot_file(ctx: sdrl.participant.Context) -> tuple[str, bool]
                         for item in data:
                             names.extend(find_names(item))
                     return names
+                
                 # Try to download first available .prot.crypt file
                 for task_name in find_names(course_data):
                     crypt_url = f"{builddir_url}/{task_name}.prot.crypt"
@@ -135,18 +136,15 @@ def run(ctx: sdrl.participant.Context):
                         pass
         else:
             b.warning("No encrypted protocol files found. Protocol comparisons will not be available.")
-
     # Do not enable macros, because that makes the second start of webapp within one session crash
     # b.set_register_files_callback(lambda s: None)  # in case student .md files contain weird macro calls
     # macroexpanders.register_macros(ctx.course)  # noqa
     b.info(f"Webserver starts. Visit 'http://localhost:{ctx.pargs.port}/'. Terminate with Ctrl-C.")
-
     # Import route modules so their @bottle.route decorators register.
     # Use importlib to avoid `import sdrl.webapp.*` shadowing the module-level `sdrl` binding.
     import importlib
     importlib.import_module('sdrl.webapp.task_view')
     importlib.import_module('sdrl.webapp.reports')
-
     # Use waitress as multi-threaded WSGI server to avoid browser connection
     # stockpile deadlocks (https://issues.chromium.org/issues/40978518)
     bottle.run(
@@ -173,11 +171,11 @@ def ordered_task_entries(course, tasknames: set[str],
                         studentlist: list | None = None,
                         is_instructor: bool = False,
                         ) -> list[tuple[str, str]]:
-    """Return a flat list of ('chapter'|'taskgroup'|'task', name) tuples
-    in course-hierarchy order, filtered to tasks present in tasknames.
+    """
+    Return a flat list of ('chapter'|'taskgroup'|'task', name) tuples in course-hierarchy order, 
+    filtered to tasks present in tasknames.
     Empty taskgroups are suppressed; empty chapters are kept.
-    If checkable_first is True, produce two hierarchy passes:
-    first checkable tasks, then the remainder."""
+    If checkable_first is True, produce two hierarchy passes: first checkable tasks, then the remainder."""
     def _is_checkable(taskname: str) -> bool:
         for s in studentlist:
             t = s.submissions.task(taskname)
@@ -205,10 +203,6 @@ def ordered_task_entries(course, tasknames: set[str],
                     entries.append(('task', tname))
             if not chapter_has_content:
                 entries.append(('chapter', chapter.name))
-        # orphan tasks not found in course hierarchy:
-        seen = {name for kind, name in entries if kind == 'task'}
-        for t in sorted(names - seen):
-            entries.append(('task', t))
         return entries
 
     if checkable_first and studentlist:
@@ -222,12 +216,10 @@ def ordered_task_entries(course, tasknames: set[str],
 def html_for_layout(title: str, content: str, selected: str | None = None) -> str:
     ctx = sdrl.participant.get_context()
     is_instructor = ctx.is_instructor
-
     entries = ordered_task_entries(ctx.course, ctx.tasknames,
-                                  checkable_first=is_instructor,
-                                  studentlist=ctx.studentlist,
-                                  is_instructor=is_instructor)
-
+                                   checkable_first=is_instructor,
+                                   studentlist=ctx.studentlist,
+                                   is_instructor=is_instructor)
     state_classes = dict([
         (None, "task-unchecked"),
         (sdrl.participant.SubmissionTaskState.CHECK, "task-check"),
@@ -244,7 +236,6 @@ def html_for_layout(title: str, content: str, selected: str | None = None) -> st
             indicators.append(f"""
             <div class="indicator-bar {state_classes[t.state] if t and t.state in state_classes else "unknown"}"></div>
             """)
-
         return f"""
             <div class="task-indicator">
                 {"".join(indicators)}
@@ -272,7 +263,6 @@ def html_for_layout(title: str, content: str, selected: str | None = None) -> st
             {indicator_for_students(name)}
         </li>""")
     tasks_html = "".join(parts)
-
     body = f"""
         <div id="app">
             <section id="task-select">
@@ -294,6 +284,7 @@ def html_for_resources(course_url: str) -> str:
     parsed = urllib.parse.urlparse(course_url)
     if parsed.scheme == "file":
         base = parsed.path.rstrip("/")
+        
         def inline_css(name: str) -> str:
             path = os.path.join(base, name)
             try:

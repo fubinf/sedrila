@@ -33,48 +33,33 @@ class PathsAndRemaining(tg.NamedTuple):
 class SubmissionTaskState(enum.StrEnum):
     """
     Used by SubmissionTask: The extended state of a submitted task.
-    Also taskes into account things like final rejects
+    Also takes into account things like final rejects
     and distinguishes between current and past rejects.
     """
-    # the task name is invalid
-    INVALID = "INVALID"
-
-    # task marked as check
+    INVALID = "INVALID"  # not a taskname present in the course
     CHECK = "CHECK"
-    # task marked as accept
     ACCEPT = "ACCEPT"
-    # task marked as reject (rejected with no remaining_attempts)
-    REJECT = "REJECT"
-    # task marked as rejectoid (rejected but has remaining_attempts, can be resubmitted)
-    REJECTOID = "REJECTOID"
-
-    # the task was accepted by the instructor in the past
-    ACCEPT_PAST = "ACCEPT_PAST"
-    # the task was rejected the maximum amount of times permitted
-    REJECT_FINAL = "REJECT_FINAL"
+    REJECT = "REJECT"  # rejected with no remaining_attempts
+    REJECTOID = "REJECTOID"  # rejected but has remaining_attempts, can be resubmitted
+    ACCEPT_PAST = "ACCEPT_PAST"  # accepted in a previous instructor run
+    REJECT_FINAL = "REJECT_FINAL"  # rejected the maximum number of times
 
 
 class SubmissionTask:
     """
-    stores the set of files submitted for a task
-    as the names do not have to match up with the task
-    anymore like in old builds of sedrila
-
-    also contains the precise state of the task for display and editing
+    Stores the set of files submitted for a task (names can differ from taskname).
+    Contains the state of the task for display and editing.
     """
-    # set of (relative) file paths that are part of the task
-    files: set[str]
-    # current state of the task, None if the 
-    # task is not considered in any way
-    # (equivalent of NONCHECK in the past)
-    state: SubmissionTaskState | None = None
+    files: set[str]  # Set of (relative) file paths that are part of the task
+    state: SubmissionTaskState | None = None  # None if the task is not to be considered
 
-    def __init__(self): self.files = set()
+    def __init__(self): 
+        self.files = set()
 
-    # true if the task was registered
-    # via a commit / submission.yaml
     @property
-    def is_registered(self) -> bool: return self.state is not None
+    def is_registered(self) -> bool:
+        """true if the task was registered via a commit / submission.yaml"""
+        return self.state is not None
 
     @property
     def is_checkable(self) -> bool:
@@ -91,13 +76,13 @@ class SubmissionTask:
 
 class Submission:
     """
-    contains data about an entire submission of a student (processed tasks)
-    and allows to query them in various ways
+    Contains data about an entire submission of a student (processed tasks)
+    and allows to query them in various ways.
     """
-    # the set of tasks that have a commit
-    _tasks: tg.Dict[str, SubmissionTask]
+    _tasks: tg.Dict[str, SubmissionTask]  # only valid tasknames that have a commit
 
-    def __init__(self): self._tasks = {}
+    def __init__(self): 
+        self._tasks = {}
 
     def _get_or_add_empty(self, name: str) -> SubmissionTask:
         self._add_empty_task(name)
@@ -268,7 +253,7 @@ class Student:
     def participantslist(self) -> list[str] | None:
         """Retrieve and decrypt, or return None if no list exists."""
         if self.course.has_participantslist:
-            encrypted = b.slurp(self.course_participantslist_url)
+            encrypted = b.slurp_bytes(self.course_participantslist_url)
             listbytes = mycrypt.decrypt_gpg(encrypted)
             list_str = codecs.decode(listbytes, 'utf-8', 'replace')
             thelist = list_str.split('\n')
@@ -277,7 +262,7 @@ class Student:
             return None
 
     @property
-    def participantslist_url(self) -> set[str]:
+    def participantslist_url(self) -> str:
         return f"{self.course_url}/{c.PARTICIPANTSLIST_FILE}"
 
     @property
@@ -304,43 +289,34 @@ class Student:
     @functools.cached_property
     def submissions(self) -> Submission:
         sub = Submission()
-
-        for taskname, task in self.course_with_work.taskdict.items():
+        for taskname, task in self.course_with_work.taskdict.items():  # for each Course Task
             sub._add_empty_task(taskname)
-            for p in filter(lambda p: taskname in p, self.pathset):
+            for p in filter(lambda p: taskname in p, self.pathset):  # for taskname-containing paths
                 if p.endswith(f".{c.PATHSET_FILE_EXT}"):
                     for sp in self._extract_meta_files(p):
                         sub._add_task_file(taskname, sp)
-                # add everything else
-                else: sub._add_task_file(taskname, p)
-                
+                else: 
+                    sub._add_task_file(taskname, p)  # false positives do very little harm
             if (task.workhours <= 0
                 and not task.is_accepted
                 and not task.allowed_attempts <= 0
                 and not taskname in self.submission):
                 sub._remove_if_empty(taskname)
-
-        # assign states to tasks from submission yaml
-        for name, state in self.submission.items():
+        for name, state in self.submission.items():  # assign states to tasks from submission yaml
             task = sub._get_or_add_empty(name)
             if state == c.SUBMISSION_ACCEPT_MARK: task.state = SubmissionTaskState.ACCEPT
             elif state == c.SUBMISSION_REJECT_MARK: task.state = SubmissionTaskState.REJECT
             elif state == c.SUBMISSION_REJECTOID_MARK: task.state = SubmissionTaskState.REJECTOID
             elif state == c.SUBMISSION_CHECK_MARK: task.state = SubmissionTaskState.CHECK
-            # noncheck is the default state
-            # all tasks are implicitly noncheck
             elif state == c.SUBMISSION_NONCHECK_MARK: task.state = None
-
-        # assign states to tasks from commits
+        # assign states to tasks based on previous instructor commits:
         cw = self.course_with_work
         for name, task in sub._tasks.items():
             cw_task = cw.task(name)
             if not cw_task: task.state = SubmissionTaskState.INVALID
             elif cw_task.remaining_attempts <= 0: task.state = SubmissionTaskState.REJECT_FINAL
             elif cw_task.is_accepted: task.state = SubmissionTaskState.ACCEPT_PAST
-
         return sub
-
 
     @functools.cached_property
     def submission_pathset(self) -> set[str]:
