@@ -4,6 +4,11 @@
 - ...
 
 
+## Version 3.1.1 (2026-04-21)
+- `instructor`: fix crash when getting participantsfile
+- `instructor`: fix incorrect display of fresh rejects
+
+
 ## Version 3.1.0 (2026-04-18)
 - `student`, `instructor`: usability: Webapp shows task list and workreport in chapter/taskgroup order
   rather than alphabetical order
