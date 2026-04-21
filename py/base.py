@@ -7,6 +7,8 @@ import re
 import time
 import os
 import typing as tg
+import urllib.parse
+import urllib.request
 
 import blessed
 import requests
@@ -139,29 +141,11 @@ def expandvars(data: str, myvars: StrStrDict) -> str:
 
 
 def slurp(resource: str) -> str:
-    """Reads local file (via plain filename or 'file:' URL) or http resource (via URL)."""
-    try:
-        if resource.startswith('file:'):
-            import urllib.parse, urllib.request
-            path = urllib.request.url2pathname(resource.removeprefix('file://'))
-            with open(path, 'rt', encoding='utf8', errors='replace') as f:
-                return f.read()
-        elif resource.startswith('http://') or resource.startswith('https://'):
-            response = requests.get(resource)
-            if not response.ok:
-                raise ValueError(f"GET status is {response.status_code}")
-            return response.text
-        else:
-            with open(resource, 'rt', encoding='utf8', errors='replace') as f:
-                return f.read()
-    except (ValueError, OSError) as exc:  # noqa
-        critical(f"Could not read '{resource}': {str(exc)}")
-        return ""
+    return _do_slurp(resource, str)
 
 
 def slurp_bytes(resource: str) -> bytes:
-    with open(resource, 'rb') as f:
-        return f.read()
+    return _do_slurp(resource, bytes)
 
 
 def slurp_json(resource: str) -> StrAnyDict:
@@ -332,6 +316,29 @@ def problem_with_path(dirtypath: str) -> str:
         else:
             return f"Error: path '{dirtypath}' contains forbidden character {repr(char)}"
     return ""
+
+
+def _do_slurp(resource: str, resulttype: type) -> str | bytes:
+    """Reads local file (via plain filename or 'file:' URL) or http resource (via URL)"""
+    assert resulttype in (str, bytes)
+    file_mode = 'rt' if resulttype is str else 'rb'
+    file_kwargs = dict(encoding='utf8', errors='replace') if resulttype is str else {}
+    try:
+        if resource.startswith('file:'):
+            path = urllib.request.url2pathname(resource.removeprefix('file://'))
+            with open(path, file_mode, **file_kwargs) as f:
+                return f.read()
+        elif resource.startswith('http://') or resource.startswith('https://'):
+            response = requests.get(resource)
+            if not response.ok:
+                raise ValueError(f"GET status is {response.status_code}")
+            return response.text if resulttype is str else response.content
+        else:
+            with open(resource, file_mode, **file_kwargs) as f:
+                return f.read()
+    except (ValueError, OSError) as exc:  # noqa
+        critical(f"Could not read '{resource}': {str(exc)}")
+        return resulttype()
 
 
 def _process_params(msg: str, file: tg.Optional[str], file2: tg.Optional[str]):
