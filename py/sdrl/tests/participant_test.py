@@ -90,12 +90,20 @@ def test_participant(capfd):
         def all_signers_allowed(commit, allowed_signers):
             print("all_signers_allowed:", commit)
             return True
-        with unittest.mock.patch('sdrl.repo.is_allowed_signer', new=all_signers_allowed):  # believe everything
+
+        def checked_state(workdir, fingerprints):
+            return c.SUBMISSION_STATE_CHECKED
+
+        with unittest.mock.patch('sdrl.repo.is_allowed_signer', new=all_signers_allowed), \
+             unittest.mock.patch('sdrl.repo.submission_state', new=checked_state):  # simulate CHECKED state
             ctx = sdrl.participant.make_context(empty, ["studentdir"], is_instructor=True)
         student = ctx.studentlist[0]  # there is only one
         print("#4:", student.submission)
         task1, task2 = student.course_with_work.task('Task1'), student.course_with_work.task('Task2')
         assert (task1.workhours, task2.workhours) == (1.0, 0.5)
-        assert task1.is_accepted 
+        assert task1.is_accepted
         assert not task2.is_accepted
         assert (task1.rejections, task2.rejections) == (0, 1)
+        # CHECKED-state round-trip must preserve instructor marks in submission.yaml:
+        assert student.submission.get("Task2") == c.SUBMISSION_REJECTOID_MARK
+        assert student.submissions.task("Task2").state == sdrl.participant.SubmissionTaskState.REJECTOID

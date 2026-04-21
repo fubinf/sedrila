@@ -167,14 +167,6 @@ class Student:
     def __init__(self, rootdir: str, is_instructor: bool):
         self.topdir = rootdir = rootdir.rstrip('/')
         self.is_instructor = is_instructor
-        # LC3: if instructor has already filtered (CHECKING state), REJECTOID/ACCEPT/REJECT are also valid.
-        # LC1: in student mode, only NONCHECK/CHECK are valid (prevents student from faking other marks).
-        if is_instructor and sgit.is_modified(f"{self.topdir}/{c.SUBMISSION_FILE}"):
-            self.possible_submission_states = [c.SUBMISSION_CHECK_MARK,
-                                               c.SUBMISSION_ACCEPT_MARK, c.SUBMISSION_REJECT_MARK,
-                                               c.SUBMISSION_REJECTOID_MARK]
-        else:
-            self.possible_submission_states = [c.SUBMISSION_NONCHECK_MARK, c.SUBMISSION_CHECK_MARK]
         if not os.path.exists(rootdir):
             b.critical(f"'{rootdir}' does not exist.")
         elif not os.path.isdir(rootdir):
@@ -209,6 +201,27 @@ class Student:
                 b.validate_dict_unsurprisingness(self.submissionfile_path, self.submission)
             except yaml.scanner.ScannerError:
                 self.submission = dict()  # ignore broken YAML file (e.g. from a merge conflict)
+        # ----- decide which marks to trust in submission.yaml:
+        # LC1: in student mode, only NONCHECK/CHECK are valid (prevents student from faking other marks).
+        # LC3/LC5: in instructor mode, trust all marks when submission.yaml was produced by the joint
+        # work of sedrila and instructor (CHECKING: uncommitted edits; CHECKED: instructor-signed commit).
+        # For FRESH (untrusted student submission) or OTHER (malformed) we restrict as a safe default.
+        if is_instructor:
+            with contextlib.chdir(self.topdir):  # course_url may be relative to the workdir
+                fingerprints = {i.get('keyfingerprint', '')
+                                for i in itertools.chain(
+                                    self.course.configdict.get('instructors', []),
+                                    self.course.configdict.get('former_instructors', []))}
+            fingerprints.discard('')
+            state = r.submission_state(self.topdir, fingerprints)
+            if state in (c.SUBMISSION_STATE_CHECKING, c.SUBMISSION_STATE_CHECKED):
+                self.possible_submission_states = [c.SUBMISSION_CHECK_MARK,
+                                                   c.SUBMISSION_ACCEPT_MARK, c.SUBMISSION_REJECT_MARK,
+                                                   c.SUBMISSION_REJECTOID_MARK]
+            else:
+                self.possible_submission_states = [c.SUBMISSION_NONCHECK_MARK, c.SUBMISSION_CHECK_MARK]
+        else:
+            self.possible_submission_states = [c.SUBMISSION_NONCHECK_MARK, c.SUBMISSION_CHECK_MARK]
         self.filter_submission()
         
     @functools.cached_property
@@ -267,7 +280,7 @@ class Student:
 
     @property
     def participantslist_url(self) -> str:
-        return f"{self.course_url}/{c.PARTICIPANTSLIST_FILE}"
+        return os.path.join(self.course_url, c.PARTICIPANTSLIST_FILE)
 
     @property
     def participantfile_path(self) -> str:
@@ -414,7 +427,7 @@ class Student:
         """Kick out 'wrong' tasks (non-existing, rejected-for-good, illegal state) and emit warnings.
         Called from __init__ as part of LC1 (student) and LC3 (instructor) startup filtering.
         For students, possible_submission_states = [NONCHECK, CHECK] so instructor marks are removed.
-        For instructors in CHECKING state, ACCEPT/REJECT/REJECTOID are also valid.
+        For instructors in CHECKING or CHECKED state, ACCEPT/REJECT/REJECTOID are also valid.
         """
         submission1 = dict(**self.submission)  # constant copy (we will delete entries)
         file = self.submissionfile_path  # abbrev
@@ -426,7 +439,7 @@ class Student:
             elif task.remaining_attempts <= 0:
                 b.warning(f"{file}: '{taskname}' has no remaining_attempts (rejected for good). Ignored.")
             elif status not in self.possible_submission_states:
-                pass  # b.warning(f"{file}: '{taskname}' has impossible state {status}. Ignored.")  TODO 3: validate
+                b.warning(f"{file}: '{taskname}' has impossible state {status}. Ignored.")
             else:
                 continue  # skip deletion
             del self.submission[taskname]
