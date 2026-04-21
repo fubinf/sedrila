@@ -139,7 +139,7 @@ It also shows their progress (accepted/rejected tasks and their timevalue sum).
 1. Pulls the repo.
 2. Validates `submission.yaml` entries against `course.json` and history
 2. Presents tasks in a webapp for review
-3. Updates `submission.yaml` with `ACCEPT`/`REJECT` marks
+3. Updates `submission.yaml` with `ACCEPT`/`REJECTOID`/`REJECT` marks
 4. Creates cryptographically signed commit
 
 Progresses through states: FRESH → CHECKING → CHECKED (defined in `sdrl/constants.py`).

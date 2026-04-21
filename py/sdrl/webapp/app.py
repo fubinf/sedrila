@@ -225,6 +225,7 @@ def html_for_layout(title: str, content: str, selected: str | None = None) -> st
         (sdrl.participant.SubmissionTaskState.CHECK, "task-check"),
         (sdrl.participant.SubmissionTaskState.ACCEPT, "task-accept"),
         (sdrl.participant.SubmissionTaskState.REJECT, "task-reject"),
+        (sdrl.participant.SubmissionTaskState.REJECTOID, "task-reject"),
         (sdrl.participant.SubmissionTaskState.REJECT_FINAL, "task-reject final"),
         (sdrl.participant.SubmissionTaskState.ACCEPT_PAST, "task-accept past"),
     ])
