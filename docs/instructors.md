@@ -16,14 +16,8 @@ Under Windows, use WSL. `sedrila` does not work natively in Windows.
 - Install `gpg`:  
   On Debian/Ubuntu, do `sudo apt install gnupg`.  
   For other platforms, see [GnuPG downloads](https://gnupg.org/download/index.html).
-- Install a CLI pinentry program:  
-  On Debian/Ubuntu, do `sudo apt install pinentry-tty`.  
-  Tell GPG to use it: `echo "pinentry-program /usr/bin/pinentry-tty" >> ~/.gnupg/gpg-agent.conf`.  
-  On macOS, do `brew install pinentry-mac`.  
-  Make GPG use it: `echo "pinentry-program $(brew --prefix)/bin/pinentry-mac" >> ~/.gnupg/gpg-agent.conf`.  
-  In both cases, restart the agent so it recognizes the setting:
-  `gpgconf --kill gpg-agent`.
-- Add `export GPG_TTY=$(tty)` to your `.bashrc` (required for PIN-entry support).
+- Add `export GPG_TTY=$(tty)` to your `.bashrc` (required for passphrase entry).
+  For details, see authors.md section 3.0.
 - Generate key: `gpg --full-generate-key`  
   Use the name and email that the students should get to see.
   Make sure, the key does not expire during the courses for which you intend to use it.
