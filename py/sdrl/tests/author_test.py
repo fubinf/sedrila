@@ -321,10 +321,11 @@ def test_sedrila_author(capfd):
         b.spit(configfilename, config)
         course10, actual_out10 = call_sedrila_author("step 10: check participantslist",
                                                      myoutputdir, catcher)
-        encrypted_participantslist = b.slurp_bytes(f"{myoutputdir}/{c.PARTICIPANTSLIST_FILE}")
+        encrypted_participantslist = b.slurp_bytes(os.path.join(myoutputdir, c.PARTICIPANTSLIST_FILE))
         participantslist = mycrypt.decrypt_gpg(encrypted_participantslist)
         assert participantslist == b"123\n124"
         # TODO 3: check bottomlinkslist
+
 
 def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -> tuple[coursebuilder.Coursebuilder, str]:
     pargs = argparse.Namespace()

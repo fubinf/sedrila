@@ -1,6 +1,7 @@
 # sedrila CHANGELOG
 
 ## Version 3.x (upcoming)
+- `instructor`: ensure proper handling when `participants.file` is empty
 - ...
 
 

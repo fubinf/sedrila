@@ -127,10 +127,6 @@ class Course(el.Part):
         self.allowed_attempts_base, self.allowed_attempts_hourly = self._parse_allowed_attempts()
 
     @property
-    def has_participantslist(self) -> bool:
-        return 'participants' in self.configdict
-
-    @property
     def manual_booking_types(self) -> list[str]:
         """Return manual_bookings.types from config, or empty list if not configured."""
         mb = self.configdict.get('manual_bookings')

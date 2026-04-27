@@ -238,7 +238,7 @@ class Student:
 
     @property
     def course_participantslist_url(self) -> str:
-        return f"{self.course_url}/{c.PARTICIPANTSLIST_FILE}"
+        return os.path.join(self.course_url, c.PARTICIPANTSLIST_FILE)
 
     @functools.cached_property
     def course_with_work(self) -> sdrl.course_si.CourseSI:
@@ -252,19 +252,19 @@ class Student:
     @property
     def is_participant(self) -> bool:
         if self.course.has_participantslist:
-            pid = getattr(self, self.participant_attrname)
-            return pid in self.participantslist
+            return self.participant_id in self.participantslist
         else:
             return True
 
     @property
-    def participant_attrname(self) -> str | None:
-        p = self.course.configdict.get('participants', None)
-        return p['student_attribute'] if p else None
+    def participant_attrname(self) -> str:
+        assert self.course.has_participantslist
+        return self.course.configdict['student_attribute']
 
     @property
-    def participant_id(self) -> str | None:
-        return getattr(self, self.participant_attrname, None)
+    def participant_id(self) -> str:
+        assert self.course.has_participantslist
+        return getattr(self, self.participant_attrname)
 
     @property
     def participantslist(self) -> list[str] | None:

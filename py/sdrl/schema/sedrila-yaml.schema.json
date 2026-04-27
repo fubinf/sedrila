@@ -197,11 +197,13 @@
         },
         "file_column": {
           "description": "Column name in the participants file used to identify a participant.",
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "student_attribute": {
           "description": "Attribute name in student.yaml that corresponds to file_column.",
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         }
       }
     },

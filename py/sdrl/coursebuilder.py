@@ -333,10 +333,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
 
     @property
     def has_participantslist(self) -> bool:
-        return ('participants' in self.configdict and
-                self.configdict['participants'].get('file', False) and
-                self.configdict['participants'].get('file_column', False) and
-                self.configdict['participants'].get('student_attribute', False))
+        return 'participants' in self.configdict and self.configdict['participants']['file']  # filename non-empty
 
     @property
     def outputfile(self) -> str:
@@ -373,11 +370,10 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
                       allowed_attempts=self.allowed_attempts,
                       startdate=str(self.startdate),
                       enddate=str(self.enddate),
-                      participants=self.configdict.get('participants', None),
                       chapters=[chapter.as_json() for chapter in self.chapters])
         if self.has_participantslist:
-            # hand through only the relevant part:
-            result['participants'] = dict(student_attribute=self.configdict['participants']['student_attribute'])
+            # wrt participantslist, hand through only the relevant attribute:
+            result['student_attribute'] = self.configdict['participants']['student_attribute']
         if self.bonusrules is not None:
             result['bonusrules'] = self.bonusrules
         if self.manual_booking_types:
@@ -430,8 +426,6 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         keyfingerprints = [instructor['keyfingerprint']
                            for instructor in self.configdict['instructors']
                            if instructor.get('keyfingerprint', None)]
-        if not inputfile:  # empty filename deactivates the participants functionality
-            return
         if not os.path.exists(inputfile):
             b.critical(f"participants.file '{inputfile}' does not exist.", file=self.configfile)
         self.directory.make_the(el.Sourcefile, inputfile)

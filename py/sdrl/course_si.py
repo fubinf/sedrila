@@ -39,6 +39,10 @@ class CourseSI(Course):
                          for ch in configdict['chapters']]
 
     @property
+    def has_participantslist(self) -> bool:
+        return self.configdict.get('student_attribute', None) is not None
+
+    @property
     def manual_timevalue(self) -> float:
         """Sum of all manual bookings."""
         return sum(e.timevalue for e in self.manual_bookings)
