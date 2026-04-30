@@ -173,7 +173,7 @@ class Student:
             b.critical(f"'{rootdir}' must be a directory.")
         # ----- read c.PARTICIPANT_FILE:
         if not os.path.isfile(self.participantfile_path):
-            b.critical(f"'{self.participantfile_path}' is missing. Have you called sedrila student --init?")
+            b.critical(f"'{self.participantfile_path}' is missing. Have you called sedrila student init?")
         data = b.slurp_yaml(self.participantfile_path)
         b.validate_dict_unsurprisingness(self.participantfile_path, data)
         self.participant_data = data  # store for later use (e.g. bonusrules)

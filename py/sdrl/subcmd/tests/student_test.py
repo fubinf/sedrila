@@ -57,30 +57,6 @@ def make_course(instructors: list):
     return types.SimpleNamespace(instructors=instructors)
 
 
-# ── add_arguments ─────────────────────────────────────────────────────────────
-
-def test_add_arguments_defaults():
-    parser = argparse.ArgumentParser()
-    sub = parser.add_subparsers()
-    sp = sub.add_parser("student")
-    student.add_arguments(sp)
-    args = sp.parse_args([])
-    assert args.workdir == []
-    assert args.init is False
-    assert args.import_keys is False
-    assert args.op == ""
-    assert args.log == "INFO"
-
-
-def test_add_arguments_init_flag():
-    parser = argparse.ArgumentParser()
-    sub = parser.add_subparsers()
-    sp = sub.add_parser("student")
-    student.add_arguments(sp)
-    args = sp.parse_args(["--init"])
-    assert args.init is True
-
-
 # ── cmd_prepare ───────────────────────────────────────────────────────────────
 
 def test_cmd_prepare_keeps_valid_check_entry():
