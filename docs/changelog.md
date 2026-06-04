@@ -1,8 +1,11 @@
 # sedrila CHANGELOG
 
 ## Version 3.x (upcoming)
+- ... 
+
+## Version 3.1.2 (2026-06-04)
 - `instructor`: ensure proper handling when `participants.file` is empty
-- ...
+- `student`, `instructor`: manual bookings are now recognized (instead of all being ignored) 
 
 
 ## Version 3.1.1 (2026-04-21)
