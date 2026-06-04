@@ -229,6 +229,7 @@ def manual_entries_from_commits(instructors: tg.Sequence[tg.Mapping[str, str]],
             continue
         parsed = _parse_manual_booking(commit.subject)
         if parsed is None:
+            b.warning(f"Commit {commit.hash[:9]} '{commit.subject}': cannot parse format")
             continue
         timevalue, reason = parsed
         if reason in taskdict or reason in booking_types:
@@ -309,7 +310,7 @@ def _accumulate_student_workhours_per_task(commits: tg.Iterable[sgit.Commit], co
 
 def _parse_manual_booking(commit_msg: str) -> tg.Optional[tg.Tuple[float, str]]:
     """Return (timevalue, reason) from a MANUAL booking commit message, or None."""
-    mm = re.match(r"^MANUAL\s+(-?\d+(\.\d+)?)\s\s(.+)", commit_msg)
+    mm = re.match(r"^MANUAL\s+(-?\d+(\.\d+)?)\s+(.+)", commit_msg)
     if not mm:
         return None
     timevalue = float(mm.group(1))
