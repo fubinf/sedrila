@@ -176,13 +176,18 @@ Manual entries display the author's instructions for what to check.
 
 Comparison uses `@PROT_SPEC` blocks from author protocols (see `authors.md` section 2.3.2):
 
-- `command_re=`: Student command must match regex (fullmatch); if omitted, command check passes automatically
-- `output_re=`: Student output must contain regex match (search); if omitted, output check passes automatically
+- `command_re=`: Student command must contain a regex match (search); if omitted, command check passes automatically
+- `output_re=`: Student output must contain a regex match (search); if omitted, output check passes automatically
 - `skip=1`: Always passes, no manual review needed
-- `manual=text`: adds manual checking information for instructor (independent of automated checks); can be combined with regex checks
+- `manual=text`: adds manual checking information for instructor; always displayed as supplementary text.
+  When no automated checks are present, the entry is marked yellow and a "Reference for manual check" block
+  (expected command and output) is shown. When `command_re`/`output_re` are also present, the entry is
+  green/red based on the automated result and the "Reference for manual check" block is suppressed
+  (the error block already shows expected values on failure).
 
-Entries without any spec default to manual review.
-Entries with `command_re=` and/or `output_re=` perform automated checks (green/red) even if `manual=` is present.
+Entries without any spec default to skip (always pass, no review needed).
+Entries with `command_re=` and/or `output_re=` perform automated checks (green/red); `manual=` text remains
+visible as supplementary information, but the reference block is not shown to avoid redundancy.
 
 
 ## 3. `instructor status`: Checking students' overall work status

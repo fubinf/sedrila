@@ -804,8 +804,10 @@ textual duplication (and hence the problems that would come with it):
 
 Mark snippets inside solution files with single-line comments whose contents are `SNIPPET::name` and `ENDSNIPPET`
 (optionally `ENDSNIPPET::name`). 
-Supported comment syntaxes include the usual one-line markers of many languages 
-(`#`, `//`, `--`, `;`, `!`, `'`, …) as well as HTML comments `<!-- -->` for Markdown files. 
+Supported comment syntaxes include the usual one-line markers of many languages
+(`#`, `//`, `--`, `;`, `!`, `'`, …) as well as block comment wrappers:
+`<!-- -->` (HTML/Markdown), `/* */` (C/Java/Go), `(* *)` (OCaml/Pascal),
+`{- -}` (Haskell), `{# #}` (Jinja/Nunjucks).
 Examples:
 
 ```python
@@ -1078,6 +1080,7 @@ Notes:
   - Use regex anchors (`^` for start, `$` for end) when you need exact matching
 - `manual=` can be used independently or together with regex checks to request instructor review
 - When `command_re=` and/or `output_re=` are present, the color is determined solely by the automated check result (green for pass, red for fail). `manual=` in this case is supplementary information for the instructor, not affecting the color.
+- In the webapp, a "Reference for manual check" block (expected command and output) is shown alongside `manual=`-only entries; see `instructors.md` section 2.3.3 for details.
 - Use `skip=1` for commands with no meaningful output (e.g., `cd`)
 - Use `manual=` for commands requiring instructor judgment (e.g., variable output, timestamps)
 - `@PROT_SPEC` blocks are filtered out when rendering protocols for students

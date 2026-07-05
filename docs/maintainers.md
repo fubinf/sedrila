@@ -41,12 +41,15 @@ Commands:
 
 - `check-links TARGETDIR [--check markdown_file]`: Check URLs for availability
 - `check-programs TARGETDIR`: Test programs
-- `collect-dependencies [-o output_file]`: Collect languages and dependencies from `@TEST_SPEC` blocks as JSON
+- `collect-dependencies [-o output_file]`: Collect languages and dependencies from `@TEST_SPEC` blocks as JSON (default: stdout)
 
-Common options (for `check-links` and `check-programs`):
+Common options (for all three subcommands):
 
 - `--config <configfile>`: Specify configuration file (default: `sedrila.yaml`)
 - `--include-stage <stage>`: Include parts with this and higher stage entries (default: `draft` which includes all stages)
+
+Option for `check-links` and `check-programs` only:
+
 - `--batch`: Use batch/CI-friendly output
 
 Positional argument for `check-links` and `check-programs`:
@@ -64,7 +67,7 @@ making it easy to spot issues in automated test runs.
 Markdown reports are always generated regardless of output mode.
 
 Scheduled execution runs link checking every Sunday at 03:00 UTC and program testing 
-at 03:30 UTC.
+at 04:00 UTC.
 Both Actions workflows use the `--batch` flag for CI-friendly output.
 
 
@@ -84,7 +87,7 @@ Checks links and generates reports as build products
 
 - Without a `--check` argument, it checks all course files using the build system to identify files. 
 (respects `sedrila.yaml` configuration, only checks configured taskgroups). 
-- With a file argument, it checks only that specific file.
+- With `--check <markdown_file>`, it checks only that specific file.
 - Uses the `--include-stage` option to control which development stages are checked (default: `draft`, which includes all stages).
 - Checks both `chapterdir` and `altdir` directories (`altdir` discovered via path replacement).
 - Uses HEAD requests by default for efficiency, falling back to GET only when content validation is needed.
@@ -255,14 +258,20 @@ Execution order respects task dependencies (`assumes` and `requires`) via topolo
 Each test runs in a temporary isolated directory with only required files; the directory is automatically cleaned up after testing (success or failure).
 
 
-### 5.3 Automated vs. Manual Testing
+### 5.3 Automated vs. Manual vs. Skip
 
-Test execution mode is determined automatically by `@PROT_SPEC` block content:
+Test execution mode is determined by `@PROT_SPEC` block content:
 
 **Automated**: When `@PROT_SPEC` includes `output_re` or `exitcode`, commands execute and output is validated against the specified rules.
 Use for deterministic programs with stable or pattern-matchable output.
 
-**Manual**: When `@PROT_SPEC` has neither `output_re` nor `exitcode`, test execution is skipped.
+**Manual**: When `@PROT_SPEC` is present but contains only `manual=<reason>` (no `output_re`, no `exitcode`, no `skip=1`), the block is marked as requiring human verification.
 Use for non-deterministic output, interactive programs, timing-dependent behavior, or environment-specific results.
-The `manual=` field documents why automated testing is not possible for that protocol block.
+The `manual=` field is required and documents why automated testing is not possible for that protocol block.
+
+**Skip**: A block is skipped in two cases:
+- No `@PROT_SPEC` block precedes the command at all (default behavior).
+- `@PROT_SPEC` explicitly declares `skip=1`.
+
+Skipped blocks are not counted as failures and do not appear in the manual review list.
 
