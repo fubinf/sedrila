@@ -12,6 +12,7 @@ import sdrl.constants as c
 import sdrl.macros as macros
 
 IDENTIFIER_RE = re.compile(r'^[A-Za-z0-9_]+$')
+_snippet_cache: dict[str, list['CodeSnippet']] = {}
 
 
 @dataclasses.dataclass
@@ -352,6 +353,14 @@ def _display_snippet_path(filespec: str | None, fullpath: str, course) -> str:
         return fullpath
 
 
+def _get_snippets_cached(filepath: str) -> list[CodeSnippet]:
+    """Return all snippets from filepath, reading and caching on first access."""
+    canonical = os.path.realpath(filepath)
+    if canonical not in _snippet_cache:
+        _snippet_cache[canonical] = SnippetExtractor().extract_snippets_from_file(filepath)
+    return _snippet_cache[canonical]
+
+
 def _load_snippet(
     snippet_id: str,
     filespec: str | None,
@@ -368,8 +377,7 @@ def _load_snippet(
     if not os.path.exists(fullpath):
         notify_error(f"File not found: {_display_snippet_path(filespec, fullpath, course)}")
         return None, None
-    extractor = SnippetExtractor()
-    snippets = extractor.extract_snippets_from_file(fullpath)
+    snippets = _get_snippets_cached(fullpath)
     for snippet in snippets:
         if snippet.snippet_id == snippet_id:
             return snippet, fullpath
