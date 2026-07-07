@@ -1,5 +1,6 @@
 """Shortcut typenames, global constants, basic helpers."""
 import collections
+import contextlib
 import enum
 import json
 import logging
@@ -9,6 +10,17 @@ import os
 import typing as tg
 import urllib.parse
 import urllib.request
+
+if not hasattr(contextlib, 'chdir'):  # Python < 3.11
+    @contextlib.contextmanager
+    def _chdir(path: str):
+        old = os.getcwd()
+        os.chdir(path)
+        try:
+            yield
+        finally:
+            os.chdir(old)
+    contextlib.chdir = _chdir  # type: ignore[attr-defined]
 
 import blessed
 import requests
@@ -231,7 +243,8 @@ def caller(how_far_up: int = 1) -> str:
     frame = sp.currentframe().f_back  # the caller's frame
     for k in range(how_far_up):
         frame = frame.f_back
-    return f"{frame.f_code.co_qualname}:{frame.f_lineno}"
+    qualname = getattr(frame.f_code, 'co_qualname', frame.f_code.co_name)  # co_qualname: Python 3.11+
+    return f"{qualname}:{frame.f_lineno}"
 
 
 def plural_s(number, value="s") -> str:
