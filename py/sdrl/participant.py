@@ -3,6 +3,11 @@ import collections
 import contextlib
 import enum
 import functools
+try:
+    from enum import StrEnum
+except ImportError:  # Python < 3.11
+    class StrEnum(str, enum.Enum):  # type: ignore[no-redef]
+        def __str__(self): return self.value
 import itertools
 import json
 import os
@@ -30,7 +35,7 @@ class PathsAndRemaining(tg.NamedTuple):
     remaining_tasks: set[str]
 
 
-class SubmissionTaskState(enum.StrEnum):
+class SubmissionTaskState(StrEnum):
     """
     Used by SubmissionTask: The extended state of a submitted task.
     Also takes into account things like final rejects

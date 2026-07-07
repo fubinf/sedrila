@@ -7,6 +7,11 @@ import contextlib
 import datetime as dt
 import enum
 import os.path
+try:
+    from enum import StrEnum
+except ImportError:  # Python < 3.11
+    class StrEnum(str, enum.Enum):  # type: ignore[no-redef]
+        def __str__(self): return self.value
 import re
 import subprocess as sp
 import typing as tg
@@ -20,7 +25,7 @@ import sdrl.course
 import sdrl.course_si
 
 
-class ET(enum.StrEnum):  # EventType
+class ET(StrEnum):  # EventType
     work = 'work'  # student worktime entry (via commit msg format)
     accept = 'accept'  # instructor accept (via signed submission.yaml commit)
     reject = 'reject'  # instructor accept (via signed submission.yaml commit)
