@@ -53,7 +53,7 @@ include = [
 # https://python-poetry.org/docs/master/managing-dependencies/
 # https://python-poetry.org/docs/dependency-specification/
 [tool.poetry.dependencies]  # entries 2..n ordered alphabetically
-python = "^3.11"
+python = ">=3.10"
 argparse_subcommand = "^1.2"
 blessed = "^1.20"
 bottle = "^0.13"
@@ -91,3 +91,23 @@ sedrila = "sedrila:main"
 [tool.pytest.ini_options]
 pythonpath = "py"
 testpaths = ["py"]
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+envlist = py311, py310, py39
+isolated_build = true
+
+[testenv]
+deps =
+    pytest>=8.3
+    beautifulsoup4>=4.12
+    html5lib>=1.1
+commands = pytest
+
+[gh-actions]
+python =
+    3.10: py310
+    3.11: py311
+    3.9: py39
+"""
