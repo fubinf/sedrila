@@ -2,6 +2,11 @@
 import dbm
 import enum
 import itertools
+try:
+    from enum import StrEnum
+except ImportError:  # Python < 3.11
+    class StrEnum(str, enum.Enum):  # type: ignore[no-redef]
+        def __str__(self): return self.value
 import json
 import os
 import time
@@ -17,7 +22,7 @@ Cacheable = str | list[str] | b.StrAnyDict  # what can be put in the cache
 CacheEntryType = None | Cacheable  # what cache queries can return
 
 
-class State(enum.StrEnum):
+class State(StrEnum):
     """
     State of an Element wrt a Product or as a cache entry.
     missing is a non-file/non-cacheentry: must build.

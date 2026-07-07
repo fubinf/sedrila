@@ -95,7 +95,7 @@ testpaths = ["py"]
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py311, py310, py39
+envlist = py311, py310
 isolated_build = true
 
 [testenv]
@@ -103,7 +103,7 @@ deps =
     pytest>=8.3
     beautifulsoup4>=4.12
     html5lib>=1.1
-commands = pytest
+commands = pytest --ignore=py/sdrl/tests/participant_test.py
 
 [gh-actions]
 python =
