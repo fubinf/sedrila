@@ -19,8 +19,6 @@ def register_macros(course: sdrl.coursebuilder.Coursebuilder):
     # ----- register EARLY-mode macros:
     macros.register_macro('INCLUDE', 1, MM.EARLY,
                           functools.partial(expand_include, course))
-    macros.register_macro('SNIPPET', 2, MM.EARLY,
-                          functools.partial(snippetchecker.expand_snippet, course))
     # ----- register INNER-mode macros:
     macros.register_macro('HREF', 1, MM.INNER,
                           functools.partial(expand_href, course))  # show and link a URL
@@ -37,6 +35,8 @@ def register_macros(course: sdrl.coursebuilder.Coursebuilder):
     macros.register_macro('EREFQ', 1, MM.INNER, expand_enumerationref)
     macros.register_macro('EREFR', 1, MM.INNER, expand_enumerationref)
     macros.register_macro('DIFF', 1, MM.INNER, sdrl.coursebuilder.Taskbuilder.expand_diff)
+    macros.register_macro('SNIPPET', 2, MM.INNER,
+                          functools.partial(snippetchecker.expand_snippet, course))
     # ----- register hard-coded block macros:
     macros.register_macro('PROT', 1, MM.BLOCK, functools.partial(expand_prot, course))
     macros.register_macro('SECTION', 2, MM.BLOCKSTART, expand_section)
