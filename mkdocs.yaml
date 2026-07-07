@@ -1,6 +1,8 @@
 site_name: "sedrila" 
 site_url: https://sedrila.readthedocs.io
 theme: readthedocs
+extra_css:
+  - css/theme_extra.css
 nav:
   - "General Ideas": general_ideas.md
   - "Installation": installation.md
