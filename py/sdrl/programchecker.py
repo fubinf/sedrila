@@ -487,7 +487,6 @@ class ProgramChecker:
             parts = result_path.split(var_pattern)
             if len(parts) != 2:
                 raise ValueError(f"Invalid path format with {var_pattern}: {path}")
-            pre_path = parts[0]   # e.g., "../../../"
             post_path = parts[1]  # e.g., "/Sprachen/Go/go-test.go"
             # Reconstruct: variable path + post_path
             abs_var_path = Path(var_value).resolve()

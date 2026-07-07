@@ -133,7 +133,7 @@ Create a corresponding `.files` file in the **altdir** directory
 The `.files` file supports three path formats per line:
 
 - Relative path (e.g., `subdir/data.json`): resolved relative to the `.files` file's directory
-- Variable path (e.g., `../../../$itreedir/Sprachen/Go/go-test.go`): `$itreedir` is substituted with the actual path from `sedrila.yaml`
+- Variable path (e.g., `$itreedir/Sprachen/Go/go-test.go`): `$itreedir` is substituted with the actual path from `sedrila.yaml`
 
 Both the `.files` file and all declared files must exist; missing entries cause errors.
 
