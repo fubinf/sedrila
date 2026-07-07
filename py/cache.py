@@ -251,7 +251,8 @@ class SedrilaCache:
 def _compress(s: str) -> bytes:
     """Encoded, gzip-compressed string; short strings stay uncompressed with a 0 indicator byte prepended."""
     if len(s) > UNCOMPRESSED_LIMIT:
-        return zlib.compress(s.encode(), level=6, wbits=ZLIB_WBITS)
+        compressor = zlib.compressobj(level=6, wbits=ZLIB_WBITS)  # wbits kwarg in compress() is Python 3.11+
+        return compressor.compress(s.encode()) + compressor.flush()
     else:
         return b"\x00" + s.encode()
 

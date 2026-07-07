@@ -18,11 +18,14 @@ def test_get_version_from_whl_path(tmp_path):
 
     fake_argparser_file = str(tmp_path / "sdrl" / "argparser.py")
 
+    try:
+        import tomllib
+    except ImportError:
+        import tomli as tomllib  # type: ignore[no-redef]
     with mock.patch.object(ap, '__file__', fake_argparser_file):
         with mock.patch('os.path.exists', return_value=True):
             with mock.patch('builtins.open', mock.mock_open(read_data=fake_toml.read_bytes())):
-                import tomllib
-                with mock.patch('tomllib.load', return_value={'tool': {'poetry': {'version': '9.8.7'}}}):
+                with mock.patch.object(tomllib, 'load', return_value={'tool': {'poetry': {'version': '9.8.7'}}}):
                     version = ap.SedrilaArgParser.get_version()
     assert version == "9.8.7"
 
