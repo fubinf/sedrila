@@ -5,6 +5,7 @@ import glob
 import os.path
 import re
 import shutil
+import time
 import zipfile
 
 import bs4
@@ -263,30 +264,35 @@ def test_sedrila_author(capfd):
         course2, actual_output2 = call_sedrila_author("step 2: identical rebuild", myoutputdir, catcher)
         check_output2(course2, actual_output2, expected_output2, errors=3)
         # --- step 3: repair errors:
-        b.spit("ch/glossary.md", 
+        time.sleep(1)  # ensure mtime of modified files is newer than previous build outputs
+        b.spit("ch/glossary.md",
                b.slurp("ch/glossary.md").replace("[TERM0::Concept 3|Concept 3b]",
                                                  "[TERM0::Concept 3b|Concept 2 undefined|Concept 4 undefined]"))
         b.spit("itree.zip/nonexisting.txt", "now it exists!")
         course3, actual_output3 = call_sedrila_author("step 3: repair errors", myoutputdir, catcher)
         check_output2(course3, actual_output3, expected_output3)
         # --- step 4: modify task121 topmatter (changes toc in entire taskgroup):
-        b.spit("ch/ch1/tg12/task121.md", 
+        time.sleep(1)
+        b.spit("ch/ch1/tg12/task121.md",
                b.slurp("ch/ch1/tg12/task121.md").replace("timevalue: 2.5",
                                                          "timevalue: 3.0"))
         course4, actual_output4 = call_sedrila_author("step 4: modify task121 topmatter", myoutputdir, catcher)
         check_output2(course4, actual_output4, expected_output4)
         # --- step 5: modify instructor includefile:
-        b.spit("ch/include.md", 
+        time.sleep(1)
+        b.spit("ch/include.md",
                b.slurp("ch/include.md") + "Some more.\n")
         course5, actual_output5 = call_sedrila_author("step 5: modify instructor includefile", 
                                                       myoutputdir, catcher)
         check_output2(course5, actual_output5, expected_output5)
         # --- step 6: modify task body_i:
-        b.spit("ch/ch1/tg12/task121.md", 
+        time.sleep(1)
+        b.spit("ch/ch1/tg12/task121.md",
                b.slurp("ch/ch1/tg12/task121.md").replace("[ENDINSTRUCTOR]", "more!\n[ENDINSTRUCTOR]"))
         course6, actual_output6 = call_sedrila_author("step 6: modify [INSTRUCTOR] section", myoutputdir, catcher)
         check_output2(course6, actual_output6, expected_output6)
         # --- step 7: rename task121:
+        time.sleep(1)
         os.rename("ch/ch1/tg12/task121.md", "ch/ch1/tg12/task121new.md")
         course7, actual_output7 = call_sedrila_author("step 7: rename task121", myoutputdir, catcher)
         expected_filelist7 = list(expected_filelist1)
@@ -294,12 +300,14 @@ def test_sedrila_author(capfd):
         expected_filelist7[pos] = "task121new.html"
         check_output2(course7, actual_output7, expected_output7, filelist=expected_filelist7)
         # --- step 8: task121new:[TERMREF::Concept 5]:
-        b.spit("ch/ch1/tg12/task121new.md", 
+        time.sleep(1)
+        b.spit("ch/ch1/tg12/task121new.md",
                b.slurp("ch/ch1/tg12/task121new.md").replace("Body of Task 1.2.1", "[TERMREF::Concept 5]"))
         course8, actual_output8 = call_sedrila_author("step 8: task121new:[TERMREF::Concept 5]", 
                                                       myoutputdir, catcher)
         check_output2(course8, actual_output8, expected_output8, filelist=expected_filelist7)
         # --- step 9: task121new: add explains: Concept 5
+        time.sleep(1)
         b.spit("ch/ch1/tg12/task121new.md",
                b.slurp("ch/ch1/tg12/task121new.md").replace("difficulty: ",
                                                             "explains: Concept 5\ndifficulty: "))
