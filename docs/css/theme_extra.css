@@ -1,12 +1,16 @@
+/* Modifications to the `readthedocs` theme default `theme.css` */
+
 /* 
-The `readthedocs` theme's `theme.css` contains broad selector rules
-that add `margin-top: 12px; margin-bottom: 12px;`
+`theme.css` contains broad selector rules that add `margin-top: 12px; margin-bottom: 12px;`.
 On Firefox (but not on Chrome), these lead to unwanted extra vertical spacing
-wherever a `<br>` occurs within an `<li>` in an `<ul>` or `<ol>`.
-The rule below sets these margins to zero explicitly, so that the unwanted spacing disappears.
+wherever a `<br>` occurs within an `<li>` in an `<ul>` or `<ol>`.  Remove that:
  */
 .rst-content .section ul li br,
 .rst-content .section ol li br {
   margin-top: 0;
   margin-bottom: 0;
+}
+
+.rst-content code {
+  color: #e74c3c;  /* livelier than the default black */
 }
