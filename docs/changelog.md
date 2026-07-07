@@ -1,7 +1,9 @@
 # sedrila CHANGELOG
 
 ## Version 3.x (upcoming)
-- `author`: support Mermaid diagrams via ```mermaid fenced code blocks
+- `author`: support Mermaid diagrams via fenced code blocks
+- `maintainers`: This command (with subcommands `check-links` and `check-programs`) is now
+  available officially (was `alpha` functionality previously)
 - ... 
 
 ## Version 3.1.2 (2026-06-04)
