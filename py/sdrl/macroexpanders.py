@@ -37,6 +37,7 @@ def register_macros(course: sdrl.coursebuilder.Coursebuilder):
     macros.register_macro('EREFQ', 1, MM.INNER, expand_enumerationref)
     macros.register_macro('EREFR', 1, MM.INNER, expand_enumerationref)
     macros.register_macro('DIFF', 1, MM.INNER, sdrl.coursebuilder.Taskbuilder.expand_diff)
+    # register snippet macro a second time as INNER to make it available in includes
     macros.register_macro('SNIPPET', 2, MM.INNER,
                           functools.partial(snippetchecker.expand_snippet, course))
     # ----- register hard-coded block macros:
