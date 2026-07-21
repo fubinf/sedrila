@@ -10,6 +10,13 @@
 </head>
 <body>
   <script src="sidebar.js" defer></script>
+  <script src="mermaid.min.js" defer></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+      mermaid.run();
+    });
+  </script>
   <div id="preheader"></div>
 {% block header %}
   <header role="banner" class="header">

@@ -1110,6 +1110,35 @@ See in [Maintainers documentation](maintainers.md).
 
 See in [Maintainers documentation](maintainers.md).
 
+
+### 2.14 Diagrams: ` ```mermaid ` fenced code blocks
+
+You can embed [Mermaid](https://mermaid.js.org/) diagrams (flowcharts, sequence diagrams,
+class diagrams, Gantt charts, etc.) by writing a fenced code block whose info string is
+`mermaid`:
+
+````
+```mermaid
+flowchart LR
+    Start --> Stop
+```
+````
+
+Sedrila turns such a block into a `<div class="mermaid">` holding the diagram source verbatim;
+the bundled `mermaid.min.js` then renders it to an SVG in the reader's browser
+(no build-time image generation, but the generated site is self-contained and works offline).
+
+Notes:
+
+- The diagram source is left untouched (it is not processed as Markdown), so arrows like `-->`
+  survive as written.
+- A `mermaid` block may also come from an `[INCLUDE]` or `[SNIPPET]`, because the conversion
+  happens after those macros have been expanded.
+- An unclosed ` ```mermaid ` block (missing the closing ` ``` `) is reported as a build error.
+- The diagram syntax itself is not validated at build time; check the diagram renders as
+  intended in the generated HTML.
+
+
 ## 3. Calling `sedrila`
 
 ### 3.0 Installation

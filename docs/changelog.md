@@ -1,6 +1,7 @@
 # sedrila CHANGELOG
 
 ## Version 3.x (upcoming)
+- `author`: support Mermaid diagrams via ```mermaid fenced code blocks
 - ... 
 
 ## Version 3.1.2 (2026-06-04)
