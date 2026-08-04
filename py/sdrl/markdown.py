@@ -14,6 +14,10 @@ import base as b
 import sdrl.macros as macros
 import sdrl.replacements as replacements
 
+# a ```mermaid ... ``` fenced block (fence lines may carry trailing whitespace):
+mermaid_fence_re = re.compile(r"^```mermaid[^\S\n]*\n(.*?)\n^```[^\S\n]*$",
+                              flags=re.DOTALL | re.MULTILINE)
+
 
 class SedrilaExtension(mde.Extension):
     def extendMarkdown(self, md):
@@ -28,6 +32,7 @@ class SedrilaPreprocessor(mdpre.Preprocessor):
         content = self.make_replacements(content)
         content = macros.expand_macros(self.md.context_sourcefile, self.md.partname, content,
                                        is_early_phase=True)
+        content = self.process_mermaid_fences(content)
         return content.split("\n")
 
     def perhaps_suppress_instructorinfo(self, content: str) -> str:
@@ -45,9 +50,22 @@ class SedrilaPreprocessor(mdpre.Preprocessor):
 
     def make_replacements(self, content: str) -> str:
         def the_repl(mm: re.Match) -> str:
-            return replacements.get_replacement(self.md.context_sourcefile, mm.group(2), mm.group(1))            
+            return replacements.get_replacement(self.md.context_sourcefile, mm.group(2), mm.group(1))
         return re.sub(replacements.replacement_expr_re, the_repl, content, flags=re.DOTALL)
-    
+
+    def process_mermaid_fences(self, content: str) -> str:
+        """Convert ```mermaid ... ``` fences into <div class="mermaid">...</div> so that the
+        client-side mermaid.js renders them (bypassing codehilite/fenced_code). The blank lines
+        around the div make python-markdown treat it as a raw HTML block and leave the diagram
+        source untouched. Runs after EARLY macro expansion so [INCLUDE]d/[SNIPPET] blocks work too.
+        """
+        def the_repl(mm: re.Match) -> str:
+            return f'\n<div class="mermaid">\n{mm.group(1)}\n</div>\n'
+        content = re.sub(mermaid_fence_re, the_repl, content)
+        if re.search(r"^```mermaid[^\S\n]*$", content, flags=re.MULTILINE):  # a fence survived
+            b.error("unclosed ```mermaid block", file=self.md.context_sourcefile)
+        return content
+
 class SedrilaPostprocessor(mdpost.Postprocessor):
     def run(self, text: str) -> str:
         text = macros.expand_macros(self.md.context_sourcefile, self.md.partname, text)

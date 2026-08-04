@@ -69,3 +69,21 @@ def test_html_charescapes_and_free_ampersands():
     markup = "&lt; Meier & Söhne , `&lt; Meier & Söhne`"
     output = "<p>&lt; Meier &amp; Söhne , <code>&amp;lt; Meier &amp; Söhne</code></p>"
     assert render(markup) == output
+
+
+def test_mermaid_fence():
+    markup = "before\n\n```mermaid\nflowchart LR\n    A --> B\n```\n\nafter"
+    rendered = render(markup)
+    assert '<div class="mermaid">' in rendered
+    assert "flowchart LR" in rendered
+    assert "A --> B" in rendered  # diagram source kept verbatim (raw HTML block, arrows intact)
+    assert "</div>" in rendered
+    assert "```mermaid" not in rendered  # the fence itself must be gone
+
+
+def test_mermaid_fence_unclosed(capsys):
+    b._testmode_reset()
+    md.md.context_sourcefile = "nofile"
+    markup = "```mermaid\nflowchart LR\n    A --> B"  # no closing fence
+    md.SedrilaPreprocessor(md.md).process_mermaid_fences(markup)
+    assert "unclosed ```mermaid block" in capsys.readouterr().out

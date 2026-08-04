@@ -93,6 +93,7 @@ expected_filelist1 = [
     'glossary.html',
     'index.html', 'instructor',
     'local.css',
+    'mermaid.min.js',
     'myarchive.zip',
     'resource.txt',
     'sedrila.css', 'sidebar.js',
