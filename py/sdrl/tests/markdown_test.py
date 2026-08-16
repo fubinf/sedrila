@@ -5,6 +5,22 @@ import base as b
 import sdrl.markdown as md
 import sdrl.macros as macros
 
+mermaid_markup_in = """before
+
+```mermaid
+flowchart LR
+    A --> B
+```
+after"""
+mermaid_markup_out = """<p>before</p>
+<div class="mermaid">
+flowchart LR
+    A --> B
+</div>
+
+<p>after</p>"""
+
+
 def render(markup: str) -> str:
     md.md.mode = b.Mode.INSTRUCTOR
     md.md.context_sourcefile = "nofile"
@@ -72,13 +88,9 @@ def test_html_charescapes_and_free_ampersands():
 
 
 def test_mermaid_fence():
-    markup = "before\n\n```mermaid\nflowchart LR\n    A --> B\n```\n\nafter"
-    rendered = render(markup)
-    assert '<div class="mermaid">' in rendered
-    assert "flowchart LR" in rendered
-    assert "A --> B" in rendered  # diagram source kept verbatim (raw HTML block, arrows intact)
-    assert "</div>" in rendered
-    assert "```mermaid" not in rendered  # the fence itself must be gone
+    rendered = render(mermaid_markup_in)
+    print(rendered); 
+    assert rendered == mermaid_markup_out+"1"
 
 
 def test_mermaid_fence_unclosed(capsys):
