@@ -26,6 +26,7 @@ Element
     Outputfile
       CopiedFile
       ReportFile
+      TaskgroupDiagram
       Part
         Course
           CourseSI
@@ -122,6 +123,8 @@ import shutil
 import typing as tg
 import zipfile
 
+import graphviz
+import graphviz.backend.execute
 import yaml
 
 import base as b
@@ -499,6 +502,136 @@ class CopiedFile(Outputfile):
         shutil.copy(self.sourcefile, self.outputfile_s)
         b.debug(f"copying '{self.sourcefile}'\t-> '{self.targetdir_i}'")
         shutil.copy(self.sourcefile, self.outputfile_i)
+
+
+class TaskgroupDiagram(Outputfile):
+    """
+    SVG overview diagram for a Taskgroup's landing page: a boxed subgraph containing all of the
+    Taskgroup's own tasks (T1), surrounded by every other task (T2) that any T1 task directly
+    assumes/requires or is assumed/required by, connected by assumes/requires edges.
+    Depends on the Topmatter of every task shown (T1 ∪ T2), so it rebuilds when a task's metadata
+    (title, difficulty, assumes, requires, ...) changes. Task removal is covered by comparing 
+    the current node-name set against the cached one.
+    """
+    part: 'sdrl.course.Taskgroup'  # noqa
+
+    def __init__(self, name: str, tasknames: list[str], **kwargs):
+        super().__init__(name, **kwargs)
+        self.tasknames = sorted(set(tasknames))
+        for taskname in self.tasknames:
+            self.make_or_get_dependency(Topmatter, name=taskname)
+
+    @property
+    def outputfile(self) -> str:
+        return f"{self.name}-overview.svg"
+
+    def check_existing_resource(self):
+        super().check_existing_resource()
+        if self.state == c.State.AS_BEFORE:
+            old_names, cache_state = self.cached_list()
+            if cache_state == c.State.MISSING or set(old_names or []) != set(self.tasknames):
+                self.state = c.State.HAS_CHANGED
+
+    def do_build(self):
+        svg = self._render_svg()
+        b.info(self.outputfile_s)
+        b.spit(self.outputfile_s, svg)
+        b.spit(self.outputfile_i, svg)
+        self.cache.write_list(self.cache_key, self.tasknames)
+
+    def _render_svg(self) -> str:
+        try:
+            return self._render_svg_via_graphviz()
+        except (graphviz.backend.execute.ExecutableNotFound, OSError):
+            return self._placeholder_svg()
+
+    def _render_svg_via_graphviz(self) -> str:
+        # attribute list see https://www.graphviz.org/doc/info/attrs.html
+        # ----- data:
+        t1names = {task.name for task in self.part.tasks}  # noqa: tasks in taskgroup
+        t2names = set(self.tasknames) - t1names  # related tasks outside taskgroup
+        # ----- global attributes:
+        graph_attrs = dict(
+            # bgcolor='gray95',
+            esep="+1",
+            fontname="sans-serif",
+            # mindist="0.01",  # circo
+            nodesep="0.1",
+            rankdir='LR',  # dot: lay out graph vertically (TB) or horizontally (LR)
+            # oneblock="true",  # circo
+            sep="+2",
+        )
+        cluster_attrs = dict(label=self.name, style='rounded')
+        # ----- create graph:
+        graph = graphviz.Digraph(name=self.name, graph_attr=graph_attrs)
+        # graph = graphviz.Digraph(engine="circo", name=self.name, graph_attr=graph_attrs)
+        # ----- add taskgroup tasks:
+        with graph.subgraph(name=f"cluster_{self.name}") as cluster:  # the taskgroup tasks
+            cluster.attr(**cluster_attrs)
+            for taskname in sorted(t1names):
+                self._add_node(cluster, taskname)
+        # ----- add external tasks:
+        for taskname in sorted(t2names):
+            self._add_node(graph, taskname)
+        # ----- add edges:
+        for taskname in self.tasknames:
+            task = self.course.taskdict.get(taskname)
+            if task is None:
+                continue  # dangling assumes/requires, already reported by check_links()
+            for assumed in task.assumes:
+                if assumed in self.tasknames:
+                    constrain = self._constraint(t1names, t2names, assumed, taskname)
+                    graph.edge(assumed, taskname, color="green", **constrain)
+            for required in task.requires:
+                if required in self.tasknames:
+                    constrain = self._constraint(t1names, t2names, required, taskname)
+                    graph.edge(required, taskname, color="red", penwidth="2", **constrain)
+        # ----- add helper edges:
+        # our graphs tend to get overly wide
+        relatedtasks = sorted(t2names)  # an arbitrary but natural-looking order
+        for i in range(1, len(relatedtasks)-1):
+            pass  # graph.edge(relatedtasks[i-1], relatedtasks[i], style="invis")  # make invisible layout-helper edge
+        # bettergraph = graph.unflatten(stagger=1, fanout=True, chain=3)  # does not help for our data
+        # ----- generate SVG:
+        return graph.pipe(format='svg').decode('utf-8')
+
+    def _add_node(self, graph: graphviz.Digraph, taskname: str):
+        topmatter = self.directory.get_the(Topmatter, taskname)
+        topmatter_value = topmatter.value if topmatter and topmatter.has_value() else dict()
+        task = self.course.taskdict.get(taskname)
+        title = topmatter_value.get('title', taskname)
+        difficulty = topmatter_value.get('difficulty')
+        difficulty_text = f" ({difficulty})" if difficulty else ""
+        label = f"{taskname}{difficulty_text}"
+        nodeattrs = dict(
+            fontname="sans-serif",
+            fontsize="10",
+            label=label, 
+            width="0", height="0", margin="0.05,0.02",
+            shape="none")
+        if task is not None and task.to_be_skipped:
+            nodeattrs.update(fontcolor='grey50')
+        graph.node(taskname, **nodeattrs)
+
+    @classmethod
+    def _constraint(cls, grouptasks: set[str], externaltasks: set[str], dependency: str, mytask: str) -> dict[str, str]:
+        if mytask in grouptasks and dependency in externaltasks:
+            return dict(constraint="false")  # provide rank freedom to avoid excessive width
+        else:
+            return dict(constraint="true")  # layout should work normally
+        
+    def _placeholder_svg(self) -> str:
+        lines = ["no taskgroup overview diagram",
+                 "can be shown:",
+                 "graphviz package was not installed",
+                 "on the build system",
+                ]
+        width, height = 340, 30 + 20*len(lines)
+        text_lines = "".join(f'<text x="10" y="{30 + i*20}" font-family="sans-serif" font-size="13">{line}</text>\n'
+                              for i, line in enumerate(lines))
+        return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">\n'
+                f'<rect x="1" y="1" width="{width - 2}" height="{height - 2}" fill="none" stroke="black"/>\n'
+                f'{text_lines}</svg>\n')
 
 
 class ReportFile(Outputfile):
