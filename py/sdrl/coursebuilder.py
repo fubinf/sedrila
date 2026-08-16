@@ -229,6 +229,12 @@ class Taskgroupbuilder(sdrl.partbuilder.PartbuilderMixin, Taskgroup):
         return f"{self.course.chapterdir}/{self.chapter.name}/{self.name}/index.md"
 
     @property
+    def diagram_embed(self) -> str:
+        diagram = self.directory.get_the(el.TaskgroupDiagram, self.name)
+        return (f'<img class="taskgroup-overview-diagram" src="{diagram.outputfile}" alt="taskgroup overview">'
+                if diagram else "")
+
+    @property
     def to_be_skipped(self) -> bool:
         return self.skipthis or self.chapter.to_be_skipped
 
@@ -633,3 +639,21 @@ class MetadataDerivation(el.Step):
         self.course.check_links()
         import sdrl.programchecker as programchecker
         programchecker.check_test_spec_dependency_gaps(self.course)
+        self._make_taskgroup_diagrams()
+
+    def _make_taskgroup_diagrams(self):
+        for taskgroup in self.directory.get_all(Taskgroup):
+            if taskgroup.to_be_skipped:
+                continue  # no landing page will be built for it, so no diagram either
+            t1names = {task.name for task in taskgroup.tasks}
+            t2names = set()
+            for taskname in t1names:
+                task = self.course.taskdict.get(taskname)
+                if task is None:
+                    continue
+                for related in (task.assumes, task.requires, task.assumed_by, task.required_by):
+                    t2names.update(name for name in related if name in self.course.taskdict)
+            t2names -= t1names
+            self.directory.make_the(el.TaskgroupDiagram, taskgroup.name, part=taskgroup,
+                                    tasknames=sorted(t1names | t2names),
+                                    targetdir_s=taskgroup.targetdir_s, targetdir_i=taskgroup.targetdir_i)

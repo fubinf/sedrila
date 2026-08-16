@@ -138,6 +138,7 @@ class PartbuilderMixin:  # to be mixed into a Part class
                                  title=part.title,
                                  linkslist_top=getattr(part, 'linkslist_top', ""),
                                  linkslist_bottom=getattr(part, 'linkslist_bottom', ""),
+                                 taskgroup_diagram=getattr(part, 'diagram_embed', ""),
                                  part=self,
                                  toc=part.toc,
                                  content=body)
