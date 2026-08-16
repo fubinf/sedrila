@@ -414,7 +414,6 @@ summary {}
   font-size: smaller;    
 }
 
-
 /********** timer: */
 
 #timer {
@@ -438,6 +437,16 @@ summary {}
 
 .breadcrumbs {
   float: left;
+}
+
+.mermaid {
+    text-align: center;
+    margin: 1em 0;
+}
+
+.mermaid svg {
+    max-width: 100%;
+    height: auto;
 }
 
 
@@ -488,14 +497,4 @@ summary {}
     .blockmacro {
         box-shadow: 6px 6px 5px #000;
     }
-}
-
-.mermaid {
-    text-align: center;
-    margin: 1em 0;
-}
-
-.mermaid svg {
-    max-width: 100%;
-    height: auto;
 }
