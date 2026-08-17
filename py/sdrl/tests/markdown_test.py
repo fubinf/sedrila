@@ -90,7 +90,7 @@ def test_html_charescapes_and_free_ampersands():
 def test_mermaid_fence():
     rendered = render(mermaid_markup_in)
     print(rendered); 
-    assert rendered == mermaid_markup_out+"1"
+    assert rendered == mermaid_markup_out
 
 
 def test_mermaid_fence_unclosed(capsys):

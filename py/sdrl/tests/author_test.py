@@ -98,7 +98,7 @@ expected_filelist1 = [
     'resource.txt',
     'sedrila.css', 'sidebar.js',
     'task111r+a.html', 'task112.html', 'task113.html', 'task121.html', 'task122.html',
-    'tg11-diagram.svg', 'tg11.html', 'tg12-diagram.svg', 'tg12.html',
+    'tg11-overview.svg', 'tg11.html', 'tg12-overview.svg', 'tg12.html',
 ]
 
 expected_sidebar_task111 = """<nav class="sidebar" id="sidebar">
