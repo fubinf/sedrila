@@ -27,6 +27,8 @@ File 'ch/ch1/tg11/task111r+a.md':
    [TREEREF::/nonexisting.txt]: itreedir file 'itree.zip/nonexisting.txt' not found
 File 'ch/glossary.md':
    [TERM::Concept 3]: Term 'Concept 3' is already defined
+../out/tg11-overview.svg
+../out/tg12-overview.svg
 ../out/index.html
 ../out/chapter-ch1.html
 ../out/tg11.html
@@ -59,7 +61,8 @@ expected_output3 = """../out/instructor/itree.zip
 ../out/glossary.html
 """
 
-expected_output4 = """../out/index.html
+expected_output4 = """../out/tg12-overview.svg
+../out/index.html
 ../out/tg12.html
 ../out/task121.html
 ../out/task122.html
@@ -71,7 +74,8 @@ expected_output5 = """../out/instructor/task121.html
 expected_output6 = """../out/instructor/task121.html
 """
 
-expected_output7 = """../out/index.html
+expected_output7 = """../out/tg12-overview.svg
+../out/index.html
 ../out/tg12.html
 ../out/task121new.html
 ../out/task122.html
@@ -83,7 +87,8 @@ expected_output8 = """../out/task121new.html
 ../out/glossary.html
 """
 
-expected_out9 = """../out/task121new.html
+expected_out9 = """../out/tg12-overview.svg
+../out/task121new.html
 ../out/glossary.html
 """
 

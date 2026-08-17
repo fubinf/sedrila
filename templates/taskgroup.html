@@ -3,11 +3,12 @@
   <div class="pagetype-taskgroup">
       {{ content }}
 
-      {% if taskgroup_diagram_file %}
       <div class="taskgroup-overview-diagram-container">
-        <img class="taskgroup-overview-diagram" src="{{ taskgroup_diagram_file }}" alt="taskgroup overview">
-        <p class="taskgroup-overview-diagram-solo"><a href="{{ taskgroup_diagram_file }}">View solo</a></p>
+        <iframe class="taskgroup-overview-diagram" src="{{ taskgroup_diagram_file }}"
+                title="taskgroup overview"
+                {% if taskgroup_diagram_style %}style="{{ taskgroup_diagram_style }}"{% endif %}>
+        </iframe>
       </div>
-      {% endif %}
+      <p class="taskgroup-overview-diagram-solo"><a href="{{ taskgroup_diagram_file }}">View solo</a></p>
   </div>
 {% endblock %}

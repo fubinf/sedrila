@@ -234,6 +234,11 @@ class Taskgroupbuilder(sdrl.partbuilder.PartbuilderMixin, Taskgroup):
         return diagram.outputfile
 
     @property
+    def diagram_style(self) -> str:
+        diagram = self.directory.get_the(el.TaskgroupDiagram, self.name)
+        return diagram.svg_style
+
+    @property
     def to_be_skipped(self) -> bool:
         return self.skipthis or self.chapter.to_be_skipped
 
@@ -268,6 +273,9 @@ class Taskgroupbuilder(sdrl.partbuilder.PartbuilderMixin, Taskgroup):
             if not filename.endswith("index.md"):
                 name = os.path.basename(filename[:-3])  # remove .md suffix
                 self._add_task(Taskbuilder(name, parent=self, taskgroup=self))
+        # the overview diagram needs self.tasks, so this is the earliest point where we can create it:
+        self.directory.make_the(el.TaskgroupDiagram, self.name, part=self,
+                                targetdir_s=self.targetdir_s, targetdir_i=self.targetdir_i)
 
     def _init_from_dict(self, context: str, taskgroupdict: b.StrAnyDict):
         super()._init_from_dict(context, taskgroupdict)
@@ -638,21 +646,3 @@ class MetadataDerivation(el.Step):
         self.course.check_links()
         import sdrl.programchecker as programchecker
         programchecker.check_test_spec_dependency_gaps(self.course)
-        self._make_taskgroup_diagrams()
-
-    def _make_taskgroup_diagrams(self):
-        for taskgroup in self.directory.get_all(Taskgroup):
-            if taskgroup.to_be_skipped:
-                continue  # no landing page will be built for it, so no diagram either
-            t1names = {task.name for task in taskgroup.tasks}
-            t2names = set()
-            for taskname in t1names:
-                task = self.course.taskdict.get(taskname)
-                if task is None:
-                    continue
-                for related in (task.assumes, task.requires, task.assumed_by, task.required_by):
-                    t2names.update(name for name in related if name in self.course.taskdict)
-            t2names -= t1names
-            self.directory.make_the(el.TaskgroupDiagram, taskgroup.name, part=taskgroup,
-                                    tasknames=sorted(t1names | t2names),
-                                    targetdir_s=taskgroup.targetdir_s, targetdir_i=taskgroup.targetdir_i)

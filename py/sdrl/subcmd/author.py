@@ -213,9 +213,9 @@ def prepare_itree_zip(the_course: sdrl.coursebuilder.Coursebuilder):
 
 def purge_leftover_outputfiles(directory: dir.Directory, targetdir_s: str, targetdir_i: str):
     def keep(outputfile: el.Outputfile) -> bool:
-        # two cases: non-Parts, Parts
-        return not isinstance(outputfile, el.Part) or not outputfile.to_be_skipped
-    
+        # Parts and TaskgroupDiagrams can be skipped, all other Outputfiles are always built:
+        return not getattr(outputfile, 'to_be_skipped', False)
+
     expected_files = set([of.outputfile for of in directory.get_all_outputfiles() if keep(of)])
     additions_s = {c.AUTHOR_OUTPUT_INSTRUCTORS_DEFAULT_SUBDIR, c.METADATA_FILE}
     additions_i = {c.HTACCESS_FILE}
