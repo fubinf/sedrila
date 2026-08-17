@@ -449,6 +449,22 @@ summary {}
     height: auto;
 }
 
+.taskgroup-overview-diagram-container {
+    max-width: 100%;
+    overflow-x: auto;
+    text-align: center;
+    margin: 1em 0;
+}
+
+.taskgroup-overview-diagram {
+    max-width: 100%;
+    height: auto;
+}
+
+.taskgroup-overview-diagram-solo {
+    font-size: 90%;
+}
+
 
 /********** Modifications for dark mode: */
 

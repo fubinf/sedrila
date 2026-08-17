@@ -229,10 +229,9 @@ class Taskgroupbuilder(sdrl.partbuilder.PartbuilderMixin, Taskgroup):
         return f"{self.course.chapterdir}/{self.chapter.name}/{self.name}/index.md"
 
     @property
-    def diagram_embed(self) -> str:
+    def diagram_filename(self) -> str:
         diagram = self.directory.get_the(el.TaskgroupDiagram, self.name)
-        return (f'<img class="taskgroup-overview-diagram" src="{diagram.outputfile}" alt="taskgroup overview">'
-                if diagram else "")
+        return diagram.outputfile
 
     @property
     def to_be_skipped(self) -> bool:
