@@ -5,3 +5,8 @@ difficulty: 3
 ---
 Body of Task 1.1.3.
 [TERMREF::Concept 3]
+
+```mermaid
+flowchart LR
+    A --> B
+```

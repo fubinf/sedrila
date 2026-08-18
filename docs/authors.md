@@ -1127,6 +1127,8 @@ flowchart LR
 Sedrila turns such a block into a `<div class="mermaid">` holding the diagram source verbatim;
 the bundled `mermaid.min.js` then renders it to an SVG in the reader's browser
 (no build-time image generation, but the generated site is self-contained and works offline).
+Only pages that actually contain a diagram load `mermaid.min.js`; all other pages
+are unaffected by it.
 
 Notes:
 

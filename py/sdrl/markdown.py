@@ -17,6 +17,12 @@ import sdrl.replacements as replacements
 # a ```mermaid ... ``` fenced block (fence lines may carry trailing whitespace):
 mermaid_fence_re = re.compile(r"^```mermaid[^\S\n]*\n(.*?)\n^```[^\S\n]*$",
                               flags=re.DOTALL | re.MULTILINE)
+MERMAID_DIV_START = '<div class="mermaid">'  # what a mermaid fence turns into
+
+
+def uses_mermaid(html: str) -> bool:
+    """Whether rendered page content contains a mermaid diagram and hence needs mermaid.js loaded."""
+    return MERMAID_DIV_START in html
 
 
 class SedrilaExtension(mde.Extension):
@@ -60,11 +66,12 @@ class SedrilaPreprocessor(mdpre.Preprocessor):
         source untouched. Runs after EARLY macro expansion so [INCLUDE]d/[SNIPPET] blocks work too.
         """
         def the_repl(mm: re.Match) -> str:
-            return f'\n<div class="mermaid">\n{mm.group(1)}\n</div>\n'
+            return f'\n{MERMAID_DIV_START}\n{mm.group(1)}\n</div>\n'
         content = re.sub(mermaid_fence_re, the_repl, content)
         if re.search(r"^```mermaid[^\S\n]*$", content, flags=re.MULTILINE):  # a fence survived
             b.error("unclosed ```mermaid block", file=self.md.context_sourcefile)
         return content
+
 
 class SedrilaPostprocessor(mdpost.Postprocessor):
     def run(self, text: str) -> str:

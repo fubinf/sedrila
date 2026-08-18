@@ -369,6 +369,7 @@ def check_output1(course: coursebuilder.Coursebuilder, actual_output1: str, expe
         assert os.path.exists(os.path.join(course.targetdir_i, c.HTACCESS_FILE))
         check_toc1()
         check_task_html1()
+        check_mermaid_usage1()
         check_zipfile1()
         _compare_line_by_line(actual_output1, expected_output1)
         assert b.num_errors == errors  # see expected_output1: 2 errors, 1 warning
@@ -419,6 +420,16 @@ def check_task_html1():
     if expected not in content:
         print(content)
         assert expected in content
+
+
+def check_mermaid_usage1():
+    """mermaid.js is loaded on the one page that has a diagram (task113) and nowhere else."""
+    for filename in sorted(glob.glob('*.html')):
+        content = b.slurp(filename)
+        has_diagram = '<div class="mermaid">' in content
+        loads_mermaid = 'mermaid.min.js' in content
+        assert has_diagram == (filename == "task113.html"), f"unexpected diagram state in {filename}"
+        assert loads_mermaid == has_diagram, f"wrong mermaid.min.js loading state in {filename}"
 
 
 def check_glossaryitem_concept3b(glossaryfilename: str, expected_item: str):

@@ -12,6 +12,7 @@ import cache
 import sdrl.directory as dir
 import sdrl.elements as el
 import sdrl.html as h
+import sdrl.markdown as md
 
 
 class PartbuilderMixin:  # to be mixed into a Part class
@@ -142,6 +143,7 @@ class PartbuilderMixin:  # to be mixed into a Part class
                                  taskgroup_diagram_style=getattr(part, 'diagram_style', ""),
                                  part=self,
                                  toc=part.toc,
+                                 uses_mermaid=md.uses_mermaid(body),
                                  content=body)
         b.spit(f"{targetdir}/{self.outputfile}", output)  # noqa
         if info:

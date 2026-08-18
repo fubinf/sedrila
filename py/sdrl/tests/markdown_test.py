@@ -99,3 +99,9 @@ def test_mermaid_fence_unclosed(capsys):
     markup = "```mermaid\nflowchart LR\n    A --> B"  # no closing fence
     md.SedrilaPreprocessor(md.md).process_mermaid_fences(markup)
     assert "unclosed ```mermaid block" in capsys.readouterr().out
+
+
+def test_uses_mermaid():
+    """mermaid.js must be pulled into a page only if that page has a diagram on it."""
+    assert md.uses_mermaid(render(mermaid_markup_in))
+    assert not md.uses_mermaid(render("before\n\n```python\nA --> B\n```\n\nafter"))
