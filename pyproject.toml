@@ -65,7 +65,6 @@ jsonschema = "^4.26"
 Markdown = "^3.7"
 matplotlib = "^3.9"
 mdx_linkify = "^2.1"
-numpy = "<2"  # why needed? only pandas (2.2) needs this and declares it correctly!
 pandas = "^2.2"
 Pygments = "^2.17"
 python-gnupg = "^0.5.5"
