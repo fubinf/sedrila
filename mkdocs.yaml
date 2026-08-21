@@ -9,7 +9,7 @@ nav:
   - "User Guide for Course Authors": authors.md
   - "User Guide for Course Instructors": instructors.md
   - "User Guide for Students": students.md
-  - "(alpha) Guide for Maintainers": maintainers.md
+  - "Guide for Maintainers": maintainers.md
   - "(alpha) Guide for Evaluators": evaluators.md
   - "Further commands": other.md
   - "Software architecture": internal_notes.md
