@@ -1,10 +1,13 @@
 # sedrila CHANGELOG
 
 ## Version 3.x (upcoming)
+- ... 
+
+## Version 3.2.0 (2026-08-21)
 - `author`: support Mermaid diagrams via fenced code blocks
+- `author`: show a taskgroup overview diagram on each taskgroup index.md page
 - `maintainers`: This command (with subcommands `check-links` and `check-programs`) is now
   available officially (was `alpha` functionality previously)
-- ... 
 
 ## Version 3.1.2 (2026-06-04)
 - `instructor`: ensure proper handling when `participants.file` is empty
