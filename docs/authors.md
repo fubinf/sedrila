@@ -1125,10 +1125,9 @@ flowchart LR
 ````
 
 Sedrila turns such a block into a `<div class="mermaid">` holding the diagram source verbatim;
-the bundled `mermaid.min.js` then renders it to an SVG in the reader's browser
-(no build-time image generation, but the generated site is self-contained and works offline).
-Only pages that actually contain a diagram load `mermaid.min.js`; all other pages
-are unaffected by it.
+Javascript code (`mermaid.min.js`) that gets bundled into the generated website 
+then renders it to an SVG in the reader's browser
+(no build-time image generation, but the generated site is still self-contained and works offline).
 
 Notes:
 
@@ -1136,9 +1135,8 @@ Notes:
   survive as written.
 - A `mermaid` block may also come from an `[INCLUDE]` or `[SNIPPET]`, because the conversion
   happens after those macros have been expanded.
-- An unclosed ` ```mermaid ` block (missing the closing ` ``` `) is reported as a build error.
-- The diagram syntax itself is not validated at build time; check the diagram renders as
-  intended in the generated HTML.
+- The diagram syntax itself is not validated at build time; 
+  make sure the diagram renders as intended on the resulting pages.
 
 
 ## 3. Calling `sedrila`
