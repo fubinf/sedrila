@@ -478,18 +478,16 @@ def plot_task_effort_ratio(events_df: pd.DataFrame, task_data: dict[str, dict[st
     if not task_data:
         return dict(slug='task-effort-ratio', title=title, images=[],
                     explanation=explanation, design_notes=design_notes)
-    worktime = (events_df[events_df.evtype == 'work'].groupby('content')['timevalue']
-                .sum().rename('worked_hours'))
-    nominal = pd.Series({k: v['timevalue'] for k, v in task_data.items()}, name='nominal_hours')
-    ratio = (pd.concat([worktime, nominal], axis=1)
-             .fillna(0.0)
-             .assign(ratio=lambda df: df['worked_hours'] / df['nominal_hours'].replace(0, pd.NA)))
-    ratio = ratio.dropna().sort_values('ratio', ascending=False).head(15).sort_values('ratio')
+    worktime = events_df[events_df.evtype == 'work'].groupby('content')['timevalue'].sum()
+    nominal = pd.Series({k: v['timevalue'] for k, v in task_data.items()})
+    nominal = nominal[nominal != 0]  # avoid division by zero
+    worked_hours = worktime.reindex(nominal.index, fill_value=0.0)
+    ratio = (worked_hours / nominal).sort_values(ascending=False).head(15).sort_values()
     if not len(ratio):
         return dict(slug='task-effort-ratio', title=title, images=[],
                     explanation=explanation, design_notes=design_notes)
     plt.figure(figsize=(8.0, 3.8))
-    plt.barh(ratio.index, ratio['ratio'], color='tab:orange')
+    plt.barh(ratio.index, ratio, color='tab:orange')
     plt.axvline(1.0, color='black', linewidth=0.8, linestyle='--')
     plt.title(title)
     plt.xlabel("worked hours / nominal timevalue")
