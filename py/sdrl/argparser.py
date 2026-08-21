@@ -12,10 +12,7 @@ class SedrilaArgParser(ap_sub.ArgumentParser):
 
     @staticmethod
     def get_version() -> str:
-        try:
-            import tomllib
-        except ImportError:
-            import tomli as tomllib  # type: ignore[no-redef]
+        import tomllib
         # the development tree (and tar version of the package) have this structure:
         #   pyproject.toml
         #   py/sdrl/argparser.py

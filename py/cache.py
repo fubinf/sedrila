@@ -2,11 +2,6 @@
 import dbm
 import enum
 import itertools
-try:
-    from enum import StrEnum
-except ImportError:  # Python < 3.11
-    class StrEnum(str, enum.Enum):  # type: ignore[no-redef]
-        def __str__(self): return self.value
 import json
 import os
 import time
@@ -22,7 +17,7 @@ Cacheable = str | list[str] | b.StrAnyDict  # what can be put in the cache
 CacheEntryType = None | Cacheable  # what cache queries can return
 
 
-class State(StrEnum):
+class State(enum.StrEnum):
     """
     State of an Element wrt a Product or as a cache entry.
     missing is a non-file/non-cacheentry: must build.
@@ -251,8 +246,7 @@ class SedrilaCache:
 def _compress(s: str) -> bytes:
     """Encoded, gzip-compressed string; short strings stay uncompressed with a 0 indicator byte prepended."""
     if len(s) > UNCOMPRESSED_LIMIT:
-        compressor = zlib.compressobj(level=6, wbits=ZLIB_WBITS)  # wbits kwarg in compress() is Python 3.11+
-        return compressor.compress(s.encode()) + compressor.flush()
+        return zlib.compress(s.encode(), level=6, wbits=ZLIB_WBITS)
     else:
         return b"\x00" + s.encode()
 
