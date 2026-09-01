@@ -378,16 +378,16 @@ def expand_include(course: sdrl.coursebuilder.Coursebuilder, macrocall: macros.M
         msgfunc = macrocall.warning if macrocall.arg1.startswith(c.AUTHOR_ALTDIR_PREFIX) else macrocall.error
         msgfunc(f"file '{fullfilename}' does not exist")  # noqa
         return ""
-    with open(fullfilename, "rt", encoding='utf8') as f:
-        rawcontent = f.read()
-    macrocall.md.includefiles.add(fullfilename)  # record that we have included this file
-    if fullfilename.endswith('.md'):
-        return macros.expand_macros(md.md.context_sourcefile, md.md.partname, rawcontent)
-    elif fullfilename.endswith('.prot'):
+    if fullfilename.endswith('.prot'):
         macrocall.error("Filename must not be *.prot. Call ignored. Use [PROT::...] for protocol files.")
         return ""  # ignore the entire macrocall
-    else:
-        return rawcontent
+
+    with open(fullfilename, "rt", encoding='utf8') as f:
+        content = f.read()
+    macrocall.md.includefiles.add(fullfilename)  # record that we have included this file
+    if fullfilename.endswith('.md'):
+        content = macros.expand_macros(md.md.context_sourcefile, md.md.partname, content)
+    return content
 
 
 def includefile_path(course: sdrl.coursebuilder.Coursebuilder, macrocall: macros.Macrocall, itree_mode=False) -> str:
