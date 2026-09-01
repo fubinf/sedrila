@@ -3,6 +3,7 @@ Markdown rendering with sedrila-specific bells and/or whistles.
 """
 import re
 import typing as tg
+from collections import deque
 from typing import TYPE_CHECKING
 
 import markdown
@@ -87,6 +88,7 @@ class SedrilaMarkdown(markdown.Markdown):
     course: tg.Optional['sdrl.coursebuilder.Coursebuilder']  # For accessing chapterdir/altdir
     includefiles: set[str]  # [INCLUDE::...], [PROT::...] will add a filename here
     termrefs: set[str]  # [TERMREF::...] will add a term alias here
+    nested_includes: deque[str]  # to detect loops in nested includes
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -105,6 +107,7 @@ def render_markdown(context_sourcefile: str, partname: str, markdown_markup: str
     md.blockmacro_topmatter = blockmacro_topmatter
     md.includefiles = set()
     md.termrefs = set()
+    md.nested_includes = deque()
     html = md.reset().convert(markdown_markup)
     return dict(html=html, includefiles=md.includefiles, termrefs=md.termrefs)
 

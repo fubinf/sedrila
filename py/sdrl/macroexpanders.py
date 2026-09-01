@@ -381,12 +381,18 @@ def expand_include(course: sdrl.coursebuilder.Coursebuilder, macrocall: macros.M
     if fullfilename.endswith('.prot'):
         macrocall.error("Filename must not be *.prot. Call ignored. Use [PROT::...] for protocol files.")
         return ""  # ignore the entire macrocall
+    if fullfilename in macrocall.md.nested_includes:
+        macrocall.error(f"Include loop detected in '{fullfilename}'")
+        return ""  # ignore include loop
 
     with open(fullfilename, "rt", encoding='utf8') as f:
         content = f.read()
     macrocall.md.includefiles.add(fullfilename)  # record that we have included this file
     if fullfilename.endswith('.md'):
+        macrocall.md.nested_includes.append(fullfilename)  # record current included file to prevent include loops
+        content = macros.expand_macros(md.md.context_sourcefile, md.md.partname, content, is_early_phase=True)
         content = macros.expand_macros(md.md.context_sourcefile, md.md.partname, content)
+        macrocall.md.nested_includes.pop()  # remove again after expanding
     return content
 
 
