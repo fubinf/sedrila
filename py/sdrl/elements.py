@@ -116,6 +116,16 @@ Instead, they _always_ retrieve the previous value, _always_ re-build themselves
 the two in order to determine whether they are `AS_BEFORE` or `HAS_CHANGED`.
 This means the build step happens in `check_existing_resource()` and `do_build()` only writes
 a changed outcome to the cache.
+
+
+## Why there is no `Snippet` Element
+
+Like the content pulled in by `[INCLUDE::...]`, the code inserted by `[SNIPPET::...]` is not
+an `Element` of its own: its source file takes part in the build as a `Sourcefile` (via
+`includefiles` and the `IncludeList` classes), while the content itself is read during
+rendering. Snippets merely add a module-level parse cache in `snippetchecker.py`; the
+reasoning and the alternative considered are documented there,
+see also https://github.com/fubinf/sedrila/issues/28
 """
 
 import os.path

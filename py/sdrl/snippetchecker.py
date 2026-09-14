@@ -1,6 +1,61 @@
 """
 Snippet extraction and inclusion functionality for sedrila.
 Allows extracting code snippets from solution files and including them in task files.
+
+
+## Why SNIPPETs are not Elements (issue #28, defect D3)
+
+Discussion and decision: https://github.com/fubinf/sedrila/issues/28
+in particular https://github.com/fubinf/sedrila/issues/28#issuecomment-5665497303
+
+### Current state
+
+Snippet content lives in `_snippet_cache` below, a module-level dict keyed by canonical
+(`os.path.realpath`) pathname, so a source file is parsed once per build rather than once per
+`[SNIPPET::...]`. It is not in the persistent cache.
+
+Dependency tracking, in contrast, is fully part of the incremental build:
+`expand_snippet()` adds the source file to `md.includefiles`, as `[INCLUDE::...]` does,
+and `Body.__init__()` turns the resulting `IncludeList_s`/`IncludeList_i` entries into
+`Sourcefile` dependencies of the including `Body`.
+A changed snippet source therefore triggers a rebuild, and a `Body` that needs no rebuild
+never opens its snippet sources at all.
+Making snippets Elements would only save some re-parsing and re-rendering, e.g. when a `Body`
+is rebuilt for other reasons or a snippet source changes outside its markers.
+
+### Why not an Element
+
+Snippet content is handled in the same way as content inserted by `[INCLUDE::...]`.
+In both cases, the source file is tracked as a `Sourcefile`, while its content is read during
+rendering and becomes part of the `Body` rather than an `Element` of its own.
+
+Snippets could be made Elements, though: a `Snippet(Piece)` per source file, named by its
+pathname and holding a dict of id-to-content, would work just like `Topmatter`, which is
+likewise a `Piece` built from a single `Sourcefile` (and unlike `Topmatter` it would need no
+`part`, which is optional). Per-file granularity would also handle the case, noted in the
+issue, that several SNIPPETs derive from the same source file.
+
+The class model is not the problem; the build time is. Only rendering a `Part` reveals exactly
+which snippets it uses, and by then the `Snippet` stage of `Directory.managed_types` is already
+over. The `IncludeList` classes have the same chicken-and-egg problem and solve it with a
+one-run delay (see `Body.do_do_build()`), which would not suffice here: an `IncludeList` entry
+need only supply a state, whereas a `Snippet` must supply a value, so the first render of a new
+`[SNIPPET::...]` would still have to read the file directly. A pre-scan like
+`Coursebuilder._prescan_prot_files()` would cover most calls, but not those inside files pulled
+in by `[INCLUDE::...]`, which resolve their paths against the including `Part`. An Element
+solution would therefore be a layer on top of the present one rather than a replacement; the
+decision was to keep the current structure.
+
+### Known limitations
+
+`_snippet_cache` is keyed by pathname only and is never cleared, so it assumes one build per
+process. That holds for `sedrila author`, but not for in-process rebuilds: `author_test.py`
+builds at least nine times in one process while modifying sources in between, and gets away
+with it only because its test course contains no `[SNIPPET::...]`. Such a caller would have to
+clear the dict as well, just as `author_test.py` already resets module state via
+`b._testmode_reset()` and `macros._testmode_reset()`.
+Also, a newly added `[SNIPPET::...]` becomes a tracked dependency only in the next build,
+inheriting the one-run delay of the `includefiles` mechanism.
 """
 import dataclasses
 import os
