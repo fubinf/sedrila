@@ -19,6 +19,7 @@ import tests.testbase as tb
 
 INSTRUCTOR_USER = "sedrila-test-instructor"
 GIT_USER = f"{INSTRUCTOR_USER}@example.org"
+GPG_HOMEDIR = ".gnupg"  # relative to the test's temporary HOME, which is the current dir
 
 
 def init_repo():
@@ -66,7 +67,9 @@ def remove_existing_keys():
 
 
 def create_gpg_key() -> str:
-    os.system("gpgconf --kill gpg-agent")
+    # --homedir is redundant with the patched $GNUPGHOME, but this is the one call whose blast
+    # radius could reach outside the test, so it states its scope at the call site:
+    os.system(with_env(f"gpgconf --homedir {GPG_HOMEDIR} --kill gpg-agent"))
     os.system(with_env("gpg-agent --daemon"))
     remove_existing_keys()
     os.system(with_env(f"gpg --quick-gen-key --batch --pinentry-mode loopback --passphrase '' "
@@ -103,7 +106,10 @@ def test_student_work_so_far():
 
 
 def run_inside_repo(preparations, assertions, coursemodifications=None):
-    with tb.TempDirEnvironContextMgr(HOME='.') as mgr:
+    # GNUPGHOME must be pinned, not merely implied by HOME: gpg resolves $GNUPGHOME first, so
+    # for a developer who has it exported these tests would otherwise create and delete keys in
+    # their real keyring — and signature checks in the code under test would consult it too.
+    with tb.TempDirEnvironContextMgr(HOME='.', GNUPGHOME=GPG_HOMEDIR) as mgr:
         # ----- initialize test environment:
         course_json = b.slurp_json(f"{mgr.origdir}/py/sdrl/tests/data/{c.METADATA_FILE}")  # config template
         fingerprint = create_gpg_key()

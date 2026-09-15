@@ -17,9 +17,11 @@ import sdrl.course as course
 import sdrl.coursebuilder as coursebuilder
 import sdrl.subcmd.author as author
 
+import tests.testbase as tb
+
 INPUTDIR = "py/sdrl/tests/authordir"  # where test data is copied from
 OUTPUTDIR = "py/sdrl/tests/author_tmp"  # where it and the test outputs go
-PROT_FINGERPRINT = "7C76880A4D2606842DAE7C79F21374C4A7C68E05"  # fixture instructor's throwaway pubkey
+PROT_FINGERPRINT = "C72724404C29E973D851563C32529CAC47C6EB6E"  # fixture instructor's throwaway pubkey
 
 expected_output1 = """../out/myarchive.zip
 ../out/instructor/itree.zip
@@ -366,23 +368,20 @@ def test_sedrila_author(capfd):
         assert os.path.getmtime(os.path.join(myoutputdir, "task112.prot.crypt")) > mtime_crypt10, \
             "the changed .prot was not encrypted again"
         # --- step 12: add participants list.
-        # Must stay last among the .prot-relevant steps: it replaces the instructor's
-        # keyfingerprint but not their pubkey, so any later .prot rebuild would fail to encrypt.
         configfilename = c.AUTHOR_CONFIG_FILENAME  # we are in myinputdir
         config = b.slurp(configfilename)
-        # obtain a suitable keyfingerprint from env, stop if not supplied
-        fingerprintlist = os.environ.get("SEDRILA_MYCRYPTTEST_FINGERPRINTS", "")
-        if not fingerprintlist:
-            return
-        fingerprints = fingerprintlist.split(",")  # config will use the first only
-        # patch the config to provide participants list and keyfingerprint
+        # patch the config to provide the participants list; it already names the fixture's key
         config = config.replace('file: ""', 'file: participants.tsv')
-        config = config.replace(f'keyfingerprint: {PROT_FINGERPRINT}', f'keyfingerprint: {fingerprints[0]}')
         b.spit(configfilename, config)
-        course12, actual_out12 = call_sedrila_author("step 12: check participantslist",
-                                                     myoutputdir, catcher)
-        encrypted_participantslist = b.slurp_bytes(os.path.join(myoutputdir, c.PARTICIPANTSLIST_FILE))
-        participantslist = mycrypt.decrypt_gpg(encrypted_participantslist)
+        # Unlike a .prot file, the participants list is encrypted via the system keyring,
+        # so the build itself must run against the throwaway one, not just the decryption:
+        with tb.throwaway_gpg_home() as fingerprint:
+            assert fingerprint == PROT_FINGERPRINT, "fixture config and key file have diverged"
+            course12, actual_out12 = call_sedrila_author("step 12: check participantslist",
+                                                         myoutputdir, catcher)
+            encrypted_participantslist = b.slurp_bytes(os.path.join(myoutputdir,
+                                                                    c.PARTICIPANTSLIST_FILE))
+            participantslist = mycrypt.decrypt_gpg(encrypted_participantslist)
         assert participantslist == b"123\n124"
         # TODO 3: check bottomlinkslist
 

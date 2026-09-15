@@ -20,20 +20,20 @@ instructors:
     email: o.instructor@inf.fu-berlin.de
     gitaccount: oinstr
     webaccount: oinstr
-    keyfingerprint: 7C76880A4D2606842DAE7C79F21374C4A7C68E05
+    keyfingerprint: C72724404C29E973D851563C32529CAC47C6EB6E
     pubkey: |
       -----BEGIN PGP PUBLIC KEY BLOCK-----
 
-      mDMEaqlyIBYJKwYBBAHaRw8BAQdABSQewuGU9fJhuNtTamCfa1mGLcWsMVzHDxJU
-      GM/E4zC0HXNlZHJpbGEtcHJvdC10ZXN0QGV4YW1wbGUub3JniJAEExYKADgWIQR8
-      dogKTSYGhC2ufHnyE3TEp8aOBQUCaqlyIAIbAwULCQgHAgYVCgkICwIEFgIDAQIe
-      AQIXgAAKCRDyE3TEp8aOBVHzAQCPLbXCIHCXPCrUlzoCkL6y+hnPlmYpg6c4J/7f
-      Nf6KzgD9G8sA967eS4DoOu915uv6pG4Ec9rNljagTwAlv+BjOQC4OARqqXIgEgor
-      BgEEAZdVAQUBAQdArcUOTK41MA7jjdGLFbnW/gafDWwL8sfjZl5Hwlzz2SYDAQgH
-      iHgEGBYKACAWIQR8dogKTSYGhC2ufHnyE3TEp8aOBQUCaqlyIAIbDAAKCRDyE3TE
-      p8aOBSkkAPwM2aeLQCBmtI56US1gP61CEI9NnSpPVrGCpMypk8FhCAEAiR5unLRo
-      R/EMZ8qo0zQj5rvlImo+iuAPUMuydFsYOwg=
-      =X+et
+      mDMEaqmNWBYJKwYBBAHaRw8BAQdAKOuoBe1hkeTX6DXd+SkAB1oqt+nqdpF15or9
+      LjXl8z+0HXNlZHJpbGEtcHJvdC10ZXN0QGV4YW1wbGUub3JniJAEExYKADgWIQTH
+      JyRATCnpc9hRVjwyUpysR8brbgUCaqmNWAIbAwULCQgHAgYVCgkICwIEFgIDAQIe
+      AQIXgAAKCRAyUpysR8brbnBqAP9S8Yxss+bhlZjBQjaIz/6krQGzdW1fmbiG0w1J
+      v30fDgD/bDdacliiXRTLdwp9Ri4tQs27WxFTX8SqNCScbeYaQwq4OARqqY1YEgor
+      BgEEAZdVAQUBAQdAYV320qHM+ZGwLUPf6/9js/Svv2zqInNGcmHAMPPvHk4DAQgH
+      iHgEGBYKACAWIQTHJyRATCnpc9hRVjwyUpysR8brbgUCaqmNWAIbDAAKCRAyUpys
+      R8brbsPnAQCuFNJVYRSRDKBFveDyvqSXNiWPDg+GHbTmTIEMGWjZ7gD+MK0cqomJ
+      05o63Xjm5J+Yhk3jZk6xjl1xTh8x3Tis3Q4=
+      =sOsF
       -----END PGP PUBLIC KEY BLOCK-----
     status: |
       Currently reviewing submissions from last week.

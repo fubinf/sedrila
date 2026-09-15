@@ -12,7 +12,7 @@ import sdrl.participant
 
 import tests.testbase as tb
 
-TEST_REPO = "git@github.com:fubinf/sedrila-test1.git"
+TEST_REPO = "https://github.com/fubinf/sedrila-test1.git"  # public: readable without credentials
 METADATA_FILE = f"{os.path.dirname(__file__)}/data/{c.METADATA_FILE}"
 
 student_yaml = """
@@ -29,7 +29,7 @@ def test_participant(capfd):
     Tests sdrl.repo, sdrl.participant.
     Deep-integrationey test: Accesses external server, creates+deletes directories etc.
     """
-    with tb.TempDirEnvironContextMgr() as mgr:
+    with tb.TempDirEnvironContextMgr(GIT_TERMINAL_PROMPT="0") as mgr:
         empty = argparse.Namespace()
         
         # ----- test clone:
@@ -39,7 +39,7 @@ def test_participant(capfd):
         sgit.clone(TEST_REPO, "studentdir")
         git_stderr = capfd.readouterr().err
         assert "Cloning into" in git_stderr
-        assert not "Permission denied" in git_stderr, "clone failed, do you have an ssh key?"
+        assert not "fatal:" in git_stderr, f"clone of {TEST_REPO} failed: {git_stderr}"
         with open("studentdir/student.yaml", 'wt') as f:
             f.write(student_yaml)
         

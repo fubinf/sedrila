@@ -25,5 +25,9 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y graphviz
       - name: Install tox
         run: pip install tox tox-gh-actions
+      - name: Ensure a git identity exists
+        run: |
+          git config --global --get user.name  || git config --global user.name  "SeDriLa CI"
+          git config --global --get user.email || git config --global user.email "ci@example.org"
       - name: Run tests
         run: tox
