@@ -473,7 +473,8 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         if not keyfingerprints:
             return
         for root, dirs, files in os.walk(self.chapterdir):
-            for filename in files:
+            dirs.sort()  # sort both, so ProtFile order does not depend on the filesystem
+            for filename in sorted(files):
                 if not filename.endswith('.md'):
                     continue
                 filepath = os.path.join(root, filename)
