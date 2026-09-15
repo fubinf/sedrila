@@ -12,7 +12,6 @@ def expander(macrocall: macros.Macrocall):
 
 def test_expand_macros():
     b._testmode_reset()
-    macros._testmode_reset()
     macros.register_macro('MA', 0, macros.MM.INNER, expander)
     macros.register_macro('MB', 1, macros.MM.INNER, expander)
     macros.register_macro('MC', 2, macros.MM.INNER, expander)
@@ -22,7 +21,6 @@ def test_expand_macros():
 
 def test_expand_nonexisting_macro(capsys):
     b._testmode_reset()
-    macros._testmode_reset()
     macros.register_macro('MA', 0, macros.MM.INNER, expander)
     assert macros.expand_macros("-", "-", "[MABC]") == "[MABC]"
     out, err = capsys.readouterr()
@@ -31,7 +29,6 @@ def test_expand_nonexisting_macro(capsys):
 
 def test_expand_macros_off():
     b._testmode_reset()
-    macros._testmode_reset()
     macros.register_macro('MA', 0, macros.MM.INNER, expander)
     markup = ("before [MA] \n"
               "<!-- sedrila: macros off -->\n"
@@ -55,7 +52,6 @@ def test_expand_macros_off_two_phase():
     Otherwise Markdown moves same-line post-block content inside the block,
     preventing late-phase expansion of macros that follow the block."""
     b._testmode_reset()
-    macros._testmode_reset()
     macros.register_macro('MA', 0, macros.MM.INNER, expander)
     md = md_lib.Markdown()
     off = "<!-- sedrila: macros off -->"
@@ -75,7 +71,6 @@ def test_expand_macros_off_two_phase():
 
 def test_expand_macro_with_wrong_args(capsys):
     b._testmode_reset()
-    macros._testmode_reset()
     macros.register_macro('MA', 0, macros.MM.INNER, expander)
     macros.register_macro('MB', 1, macros.MM.INNER, expander)
     macros.register_macro('MC', 2, macros.MM.INNER, expander)

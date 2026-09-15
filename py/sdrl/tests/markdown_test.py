@@ -70,7 +70,7 @@ def test_macrocall(layout, markup, output):
     def expander(macrocall: macros.Macrocall):
         return f"{macrocall.macrocall_text}"
 
-    macros._testmode_reset()
+    b._testmode_reset()
     macros.register_macro('START', 0, macros.MM.BLOCKSTART, expander)
     macros.register_macro('END', 0, macros.MM.BLOCKEND, expander)
     rendered = render(markup)

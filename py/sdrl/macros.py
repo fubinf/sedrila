@@ -250,3 +250,6 @@ def _testmode_reset():
     global macrodefs_early, macrodefs_late, macrostate
     macrodefs_early, macrodefs_late = (dict(), dict())
     macrostate = dict()
+
+
+b.register_testmode_reset(_testmode_reset)

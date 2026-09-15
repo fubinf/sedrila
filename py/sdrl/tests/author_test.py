@@ -15,7 +15,6 @@ import mycrypt
 import sdrl.constants as c
 import sdrl.course as course
 import sdrl.coursebuilder as coursebuilder
-import sdrl.macros as macros
 import sdrl.subcmd.author as author
 
 INPUTDIR = "py/sdrl/tests/authordir"  # where test data is copied from
@@ -352,7 +351,6 @@ def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -
     pargs.targetdir = outputdir
     # ----- do call akin to sdrl.subcmd.author.execute():
     b._testmode_reset()  # noqa
-    macros._testmode_reset()  # noqa
     b.set_loglevel(pargs.log)
     targetdir_s = pargs.targetdir
     targetdir_i = author._targetdir_i(pargs.targetdir)

@@ -48,12 +48,10 @@ decision was to keep the current structure.
 
 ### Known limitations
 
-`_snippet_cache` is keyed by pathname only and is never cleared, so it assumes one build per
-process. That holds for `sedrila author`, but not for in-process rebuilds: `author_test.py`
-builds at least nine times in one process while modifying sources in between, and gets away
-with it only because its test course contains no `[SNIPPET::...]`. Such a caller would have to
-clear the dict as well, just as `author_test.py` already resets module state via
-`b._testmode_reset()` and `macros._testmode_reset()`.
+`_snippet_cache` is keyed by pathname only, so it assumes one build per process.
+That holds for `sedrila author`, but not for in-process rebuilds such as those of
+`author_test.py`, which builds several times in one process. 
+To make this work, we register a `_testmode_reset()` operation at module load time.
 Also, a newly added `[SNIPPET::...]` becomes a tracked dependency only in the next build,
 inheriting the one-run delay of the `includefiles` mechanism.
 """
@@ -534,4 +532,9 @@ def expand_snippet(course, macrocall) -> str:
         macrocall.md.includefiles.add(os.path.normpath(fullpath))
     return _format_snippet_for_macro(snippet)
 
-    
+
+def _testmode_reset():
+    _snippet_cache.clear()
+
+
+b.register_testmode_reset(_testmode_reset)

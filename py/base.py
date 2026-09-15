@@ -26,6 +26,7 @@ loglevel = logging.ERROR
 loglevels = dict(DEBUG=logging.DEBUG, INFO=logging.INFO, WARNING=logging.WARNING,
                  ERROR=logging.ERROR, CRITICAL=logging.CRITICAL)
 register_files_callback: tg.Callable[[str], None]
+_testmode_resetters: list[tg.Callable[[], None]] = []  # see register_testmode_reset()
 
 OStr = tg.Optional[str]
 StrAnyDict = collections.abc.Mapping[str, tg.Any]  # JSON or YAML structure
@@ -45,6 +46,18 @@ def set_loglevel(level: str):
 def set_register_files_callback(callback: tg.Callable[[str], None]):
     global register_files_callback
     register_files_callback = callback
+
+
+def register_testmode_reset(myfunc: tg.Callable[[], None]):
+    """
+    Register myfunc to be called by _testmode_reset(), which tests use to obtain a
+    clean slate between two runs of code that keeps state in module-level variables.
+    Modules that have such state call this once, at import time.
+    myfunc takes no arguments, returns nothing, and resets its own module only;
+    the resetters must be idempotent; the order in which they run is not defined.
+    """
+    if myfunc not in _testmode_resetters:  # importing a module twice must not register it twice
+        _testmode_resetters.append(myfunc)
 
 
 class Mode(enum.Enum):
@@ -353,10 +366,16 @@ def _process_params(msg: str, file: tg.Optional[str], file2: tg.Optional[str]):
 
 
 def _testmode_reset():
-    """reset error counter; avoid text wrapping of b.error() etc."""
+    """
+    Reset error counter; avoid text wrapping of b.error() etc.;
+    then reset the module-level state of every module that has called
+    register_testmode_reset().
+    """
     global num_errors, msgs_seen, starttime
     starttime = time.time()
     num_errors = 0
     msgs_seen = set()
     rich.get_console()._width = 10000
     set_register_files_callback(lambda s: None)
+    for resetter in _testmode_resetters:
+        resetter()
