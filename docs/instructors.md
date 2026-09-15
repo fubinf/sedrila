@@ -174,7 +174,7 @@ Manual entries display the author's instructions for what to check.
 
 #### 2.3.3 Validation rules
 
-Comparison uses `@PROT_SPEC` blocks from author protocols (see `authors.md` section 2.3.2):
+Comparison uses `@PROT_SPEC` blocks from author protocols (see `authors.md` section 2.11):
 
 - `command_re=`: Student command must contain a regex match (search); if omitted, command check passes automatically
 - `output_re=`: Student output must contain a regex match (search); if omitted, output check passes automatically
