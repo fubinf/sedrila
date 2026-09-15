@@ -561,7 +561,7 @@ class Coursebuilder(sdrl.partbuilder.PartbuilderMixin, Course):
         if course:
             prot_basename = os.path.splitext(os.path.basename(elem.sourcefile))[0]
             task = course.directory.get_the(Task, prot_basename)
-            if task and getattr(task, 'skipthis', False):
+            if task and getattr(task, 'to_be_skipped', False):
                 report = b.warning
         for error in errors:
             report(error, file=elem.sourcefile)

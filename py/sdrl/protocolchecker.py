@@ -236,22 +236,20 @@ class ProtocolValidator:
         self.extractor = ProtocolExtractor()
 
     def validate_file(self, filepath: str) -> list[str]:
-        """Validate protocol annotations in a file."""
+        """Validate protocol annotations in a file. Messages name the line, not the file:
+        the caller reports them with b.error(..., file=filepath), which prepends the filename."""
         errors = []
         protocol = self.extractor.extract_from_file(filepath)
         for entry in protocol.entries:
             rule = entry.check_rule
             if rule:
-                rule_errors = self._validate_check_rule(rule, entry.line_number)
-                errors.extend([f"{filepath}:{err}" for err in rule_errors])
+                errors.extend(self._validate_check_rule(rule, entry.line_number))
                 # Check if the rule matches the actual command and output
                 if not rule.skip:
                     if rule.command_re:
-                        match_errors = self._validate_rule_matches_command(rule, entry, entry.line_number)
-                        errors.extend([f"{filepath}:{err}" for err in match_errors])
+                        errors.extend(self._validate_rule_matches_command(rule, entry, entry.line_number))
                     if rule.output_re:
-                        match_errors = self._validate_rule_matches_output(rule, entry, entry.line_number)
-                        errors.extend([f"{filepath}:{err}" for err in match_errors])
+                        errors.extend(self._validate_rule_matches_output(rule, entry, entry.line_number))
         return errors
 
     def _validate_check_rule(self, rule: CheckRule, line_num: int) -> list[str]:

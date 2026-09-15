@@ -19,6 +19,7 @@ import sdrl.subcmd.author as author
 
 INPUTDIR = "py/sdrl/tests/authordir"  # where test data is copied from
 OUTPUTDIR = "py/sdrl/tests/author_tmp"  # where it and the test outputs go
+PROT_FINGERPRINT = "7C76880A4D2606842DAE7C79F21374C4A7C68E05"  # fixture instructor's throwaway pubkey
 
 expected_output1 = """../out/myarchive.zip
 ../out/instructor/itree.zip
@@ -91,6 +92,18 @@ expected_out9 = """../out/tg12-overview.svg
 ../out/glossary.html
 """
 
+expected_output10 = """File 'altdir/ch1/tg11/task112.prot':
+   line 12: command_re pattern '^NOPE$' does not match the following command: echo hello
+File 'altdir/ch1/tg11/task112.prot':
+   line 18: Unknown key 'bogus' in @PROT_SPEC block. Valid keys: command_re, output_re, exitcode, skip, manual, extra, comment
+File 'altdir/ch1/tg13draft/task131.prot':
+   line 4: command_re pattern '^ALSO-NOPE$' does not match the following command: echo hi
+../out/task112.html
+"""  # noqa
+
+expected_output11 = """../out/task112.html
+"""
+
 expected_filelist1 = [
     'chapter-ch1.html', 'course.json',
     'favicon-32x32.png',
@@ -101,7 +114,8 @@ expected_filelist1 = [
     'myarchive.zip',
     'resource.txt',
     'sedrila.css', 'sidebar.js',
-    'task111r+a.html', 'task112.html', 'task113.html', 'task121.html', 'task122.html',
+    'task111r+a.html', 'task112.html', 'task112.prot.crypt',
+    'task113.html', 'task121.html', 'task122.html', 'task131.prot.crypt',
     'tg11-overview.svg', 'tg11.html', 'tg12-overview.svg', 'tg12.html',
 ]
 
@@ -321,7 +335,39 @@ def test_sedrila_author(capfd):
                                                     myoutputdir, catcher)
         check_output2(course9, actual_out9, expected_out9, filelist=expected_filelist7)
         check_glossaryitem_concept3b(os.path.join(myoutputdir, "glossary.html"), expected_glossaryitem_step9)
-        # --- step 10: add participants list
+        # --- step 10: break the @PROT_SPEC blocks of both .prot files:
+        b.spit("altdir/ch1/tg11/task112.prot",
+               b.slurp("altdir/ch1/tg11/task112.prot").replace("command_re=^echo hello$",
+                                                               "command_re=^NOPE$")
+                                                      .replace("skip=1", "bogus=1"))
+        b.spit("altdir/ch1/tg13draft/task131.prot",
+               b.slurp("altdir/ch1/tg13draft/task131.prot").replace("command_re=^echo hi$",
+                                                                    "command_re=^ALSO-NOPE$"))
+        time.sleep(1)
+        course10, actual_out10 = call_sedrila_author("step 10: break both .prot files",
+                                                     myoutputdir, catcher)
+        # task112 is included by the stage filter and so yields errors,
+        # task131 is excluded (via its taskgroup) and so yields only a warning:
+        check_output2(course10, actual_out10, expected_output10, errors=2, filelist=expected_filelist7)
+        check_protfiles_are_encrypted(myoutputdir)
+        # --- step 11: repair both .prot files (else their messages pollute every later step):
+        mtime_crypt10 = os.path.getmtime(os.path.join(myoutputdir, "task112.prot.crypt"))
+        b.spit("altdir/ch1/tg11/task112.prot",
+               b.slurp("altdir/ch1/tg11/task112.prot").replace("command_re=^NOPE$",
+                                                               "command_re=^echo hello$")
+                                                      .replace("bogus=1", "skip=1"))
+        b.spit("altdir/ch1/tg13draft/task131.prot",
+               b.slurp("altdir/ch1/tg13draft/task131.prot").replace("command_re=^ALSO-NOPE$",
+                                                                    "command_re=^echo hi$"))
+        time.sleep(1)
+        course11, actual_out11 = call_sedrila_author("step 11: repair both .prot files",
+                                                     myoutputdir, catcher)
+        check_output2(course11, actual_out11, expected_output11, filelist=expected_filelist7)
+        assert os.path.getmtime(os.path.join(myoutputdir, "task112.prot.crypt")) > mtime_crypt10, \
+            "the changed .prot was not encrypted again"
+        # --- step 12: add participants list.
+        # Must stay last among the .prot-relevant steps: it replaces the instructor's
+        # keyfingerprint but not their pubkey, so any later .prot rebuild would fail to encrypt.
         configfilename = c.AUTHOR_CONFIG_FILENAME  # we are in myinputdir
         config = b.slurp(configfilename)
         # obtain a suitable keyfingerprint from env, stop if not supplied
@@ -331,9 +377,9 @@ def test_sedrila_author(capfd):
         fingerprints = fingerprintlist.split(",")  # config will use the first only
         # patch the config to provide participants list and keyfingerprint
         config = config.replace('file: ""', 'file: participants.tsv')
-        config = config.replace('keyfingerprint: ABCDEF0123', f'keyfingerprint: {fingerprints[0]}')
+        config = config.replace(f'keyfingerprint: {PROT_FINGERPRINT}', f'keyfingerprint: {fingerprints[0]}')
         b.spit(configfilename, config)
-        course10, actual_out10 = call_sedrila_author("step 10: check participantslist",
+        course12, actual_out12 = call_sedrila_author("step 12: check participantslist",
                                                      myoutputdir, catcher)
         encrypted_participantslist = b.slurp_bytes(os.path.join(myoutputdir, c.PARTICIPANTSLIST_FILE))
         participantslist = mycrypt.decrypt_gpg(encrypted_participantslist)
@@ -428,6 +474,14 @@ def check_mermaid_usage1():
         loads_mermaid = 'mermaid.min.js' in content
         assert has_diagram == (filename == "task113.html"), f"unexpected diagram state in {filename}"
         assert loads_mermaid == has_diagram, f"wrong mermaid.min.js loading state in {filename}"
+
+
+def check_protfiles_are_encrypted(outputdir: str):
+    """Students receive the .prot files as ciphertext only; the specs must not be readable."""
+    for filename in ("task112.prot.crypt", "task131.prot.crypt"):
+        ciphertext = b.slurp(os.path.join(outputdir, filename))
+        assert ciphertext.startswith("-----BEGIN PGP MESSAGE-----"), f"{filename} is not encrypted"
+        assert "@PROT_SPEC" not in ciphertext, f"{filename} exposes the specification"
 
 
 def check_glossaryitem_concept3b(glossaryfilename: str, expected_item: str):

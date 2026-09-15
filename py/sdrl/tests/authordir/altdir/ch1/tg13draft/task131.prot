@@ -1,0 +1,5 @@
+@PROT_SPEC
+command_re=^echo hi$
+user@host /tmp 10:00:00 1
+$ echo hi
+hi

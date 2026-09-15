@@ -20,8 +20,21 @@ instructors:
     email: o.instructor@inf.fu-berlin.de
     gitaccount: oinstr
     webaccount: oinstr
-    keyfingerprint: ABCDEF0123
-    pubkey: .
+    keyfingerprint: 7C76880A4D2606842DAE7C79F21374C4A7C68E05
+    pubkey: |
+      -----BEGIN PGP PUBLIC KEY BLOCK-----
+
+      mDMEaqlyIBYJKwYBBAHaRw8BAQdABSQewuGU9fJhuNtTamCfa1mGLcWsMVzHDxJU
+      GM/E4zC0HXNlZHJpbGEtcHJvdC10ZXN0QGV4YW1wbGUub3JniJAEExYKADgWIQR8
+      dogKTSYGhC2ufHnyE3TEp8aOBQUCaqlyIAIbAwULCQgHAgYVCgkICwIEFgIDAQIe
+      AQIXgAAKCRDyE3TEp8aOBVHzAQCPLbXCIHCXPCrUlzoCkL6y+hnPlmYpg6c4J/7f
+      Nf6KzgD9G8sA967eS4DoOu915uv6pG4Ec9rNljagTwAlv+BjOQC4OARqqXIgEgor
+      BgEEAZdVAQUBAQdArcUOTK41MA7jjdGLFbnW/gafDWwL8sfjZl5Hwlzz2SYDAQgH
+      iHgEGBYKACAWIQR8dogKTSYGhC2ufHnyE3TEp8aOBQUCaqlyIAIbDAAKCRDyE3TE
+      p8aOBSkkAPwM2aeLQCBmtI56US1gP61CEI9NnSpPVrGCpMypk8FhCAEAiR5unLRo
+      R/EMZ8qo0zQj5rvlImo+iuAPUMuydFsYOwg=
+      =X+et
+      -----END PGP PUBLIC KEY BLOCK-----
     status: |
       Currently reviewing submissions from last week.
       Response time may be 2-3 days.

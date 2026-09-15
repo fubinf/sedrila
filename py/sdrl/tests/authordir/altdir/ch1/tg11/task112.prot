@@ -1,0 +1,19 @@
+@PROT_SPEC
+command_re=^ls -la$
+output_re=\btotal\b
+user@host /tmp 10:00:00 1
+$ ls -la
+total 16
+-rw-r--r-- 1 u u 0 Jan 1 12:00 file.txt
+
+@PROT_SPEC
+command_re=^echo hello$
+user@host /tmp 10:00:05 2
+$ echo hello
+hello
+
+@PROT_SPEC
+skip=1
+user@host /tmp 10:00:09 3
+$ pwd
+/tmp
