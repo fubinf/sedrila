@@ -24,10 +24,13 @@ class CheckRule:
     extra_text: typing.Optional[str] = None
     comment: typing.Optional[str] = None
     unknown_keys: typing.List[str] = None  # Track unknown key-value pairs for error reporting
+    malformed_values: typing.List[str] = None  # Track known keys with an unparsable value
 
     def __post_init__(self):
         if self.unknown_keys is None:
             self.unknown_keys = []
+        if self.malformed_values is None:
+            self.malformed_values = []
 
 
 @dataclass
@@ -178,7 +181,11 @@ class ProtocolExtractor:
                 current_block = None
                 continue
             if stripped.startswith("exitcode="):
-                rule.exitcode = int(stripped[len("exitcode="):].strip())
+                value = stripped[len("exitcode="):].strip()
+                try:
+                    rule.exitcode = int(value)
+                except ValueError:  # leave exitcode unset, _validate_check_rule() will report it
+                    rule.malformed_values.append(f"exitcode={value}")
                 current_block = None
                 continue
             if stripped.startswith("skip="):
@@ -256,6 +263,9 @@ class ProtocolValidator:
                 key = unknown.split('=', 1)[0]
                 errors.append(f"line {line_num}: Unknown key '{key}' in @PROT_SPEC block. "
                             f"Valid keys: command_re, output_re, exitcode, skip, manual, extra, comment")
+        for malformed in rule.malformed_values:
+            key, _, value = malformed.partition('=')
+            errors.append(f"line {line_num}: {key} needs an integer value, got '{value}'")
         if rule.exitcode is not None and not (0 <= rule.exitcode <= 255):
             errors.append(f"line {line_num}: exitcode must be between 0 and 255 (got {rule.exitcode})")
         if rule.skip and (rule.command_re or rule.output_re or rule.manual or rule.exitcode is not None):
@@ -272,7 +282,8 @@ class ProtocolValidator:
                 errors.append(f"line {line_num}: Invalid output_re '{rule.output_re}': {e}")
         if rule.manual and not rule.manual_text:
             errors.append(f"line {line_num}: manual requires inline text or continuation lines")
-        if not any([rule.command_re, rule.output_re, rule.skip, rule.manual]) and not rule.unknown_keys:
+        if (not any([rule.command_re, rule.output_re, rule.skip, rule.manual])
+                and not rule.unknown_keys and not rule.malformed_values):
             errors.append(f"line {line_num}: specification contains neither automated check nor manual/skip")
         if rule.extra_text and not any([rule.command_re, rule.output_re, rule.skip, rule.manual]):
             errors.append(f"line {line_num}: extra= without command_re/output_re/skip/manual is not useful")

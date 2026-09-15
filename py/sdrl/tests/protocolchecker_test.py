@@ -288,3 +288,25 @@ def test_extra_without_checks_warns():
         errors = protocolchecker.ProtocolValidator().validate_file(f.name)
         assert any("extra= without command_re/output_re/skip/manual" in e for e in errors), \
             f"Expected warning about extra= without checks, got: {errors}"
+
+
+def test_nonnumeric_exitcode_is_reported_not_raised():
+    """A typo in exitcode= must produce an error message, not a ValueError."""
+    content = _dedent(
+        """
+        @PROT_SPEC
+        command_re=^ls$
+        exitcode=abc
+        user@host /tmp 10:00:00 1
+        $ ls
+        file.txt
+        """
+    )
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".prot") as f:
+        f.write(content)
+        f.flush()
+        errors = protocolchecker.ProtocolValidator().validate_file(f.name)
+    assert any("exitcode needs an integer value, got 'abc'" in e for e in errors), \
+        f"Expected malformed exitcode error, got: {errors}"
+    assert not any("between 0 and 255" in e for e in errors), \
+        f"Unparsable exitcode must not also trigger the range check, got: {errors}"
