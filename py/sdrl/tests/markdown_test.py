@@ -105,3 +105,19 @@ def test_uses_mermaid():
     """mermaid.js must be pulled into a page only if that page has a diagram on it."""
     assert md.uses_mermaid(render(mermaid_markup_in))
     assert not md.uses_mermaid(render("before\n\n```python\nA --> B\n```\n\nafter"))
+
+
+@pytest.mark.parametrize(
+    ['layout', 'markup', 'output'], [
+        ['own line',
+         'text\n<!-- @LINK_SPEC: status=403 -->\n[link](https://example.com)\ntext',
+         '<p>text\n<a href="https://example.com">link</a>\ntext</p>',
+         ],
+        ['inside a sentence',
+         'See <!-- @LINK_SPEC: status=403 -->[link](https://example.com) for details.',
+         '<p>See <a href="https://example.com">link</a> for details.</p>',
+         ],
+    ])
+def test_link_spec_comment_keeps_paragraph(layout, markup, output):
+    """@LINK_SPEC comments are for the linkchecker only and must not split the paragraph."""
+    assert render(markup) == output

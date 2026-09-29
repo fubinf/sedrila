@@ -253,6 +253,19 @@ def test_multiple_links_on_same_line(tmp_path):
     assert urls == {TEST_URL_EXAMPLE, TEST_URL_SEDRILA}
 
 
+def test_link_spec_in_same_line_as_link(tmp_path):
+    """A @LINK_SPEC comment may stand inside a line; its rule applies to the next link only."""
+    markdown = f"""# Test File
+    See <!-- @LINK_SPEC: status=403 -->[Restricted]({TEST_URL_EXAMPLE}) and [Other]({TEST_URL_SEDRILA}) here.
+    """
+    path = write_markdown(tmp_path, markdown)
+    links = linkchecker.LinkExtractor().extract_links_from_file(path)
+    by_url = {link.url: link for link in links}
+    assert len(links) == 2, f"Expected 2 links, got {len(links)}"
+    assert by_url[TEST_URL_EXAMPLE].validation_rule.expected_status == 403
+    assert by_url[TEST_URL_SEDRILA].validation_rule is None
+
+
 def create_test_course_structure(base_dir):
     """Create a minimal multi-stage course structure for maintainer tests."""
     ch_dir = os.path.join(base_dir, TEST_CHDIR_NAME)
