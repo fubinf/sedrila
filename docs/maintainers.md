@@ -94,9 +94,13 @@ Available rule parameters:
 - `ignore_cert=true`: Skip certificate validation
 
 
-## 5. Program Testing: `check-programs`
+## 4. Program Testing: `check-programs`
 
-Program testing executes stored commands from `.prot` files and verifies output matches expected results.
+Program testing executes stored commands from `.prot` files and verifies that their output 
+matches the expected results.
+This functionality is fragile; its implementation makes a number of assumptions about the overall setup
+that may not all become clear from the present documentation.
+See `.github/workflows` in the GitHub sedrila source tree for more information.
 
 How it works:
 
@@ -109,7 +113,7 @@ How it works:
 - Generates report: `program_test_report.md` in `targetdir_i`
 
 
-### 5.1 @TEST_SPEC block format
+### 4.1 @TEST_SPEC block format
 
 `@TEST_SPEC` blocks contain metadata for automated testing.
 Placement and syntax:
@@ -170,7 +174,7 @@ but lacks `@TEST_SPEC` itself, a warning is issued during `sedrila author build`
 Example: `Task 'go-pointers' is missing @TEST_SPEC but appears in dependency chain: go-functions -> go-pointers -> go-http-server`.
 These warnings don't interrupt the build or testing; they just indicate potential gaps in test coverage.
 
-### 5.2 Operating environment and dependencies
+### 4.2 Operating environment and dependencies
 
 Program testing requires language runtimes and package dependencies specified via `@TEST_SPEC` blocks.
 
@@ -210,7 +214,7 @@ Each test runs in a temporary isolated directory with only required files;
 the directory is automatically cleaned up after testing (success or failure).
 
 
-### 5.3 Automated vs. Manual vs. Skip
+### 4.3 Automated vs. Manual vs. Skip
 
 Test execution mode is determined by `@PROT_SPEC` block content:
 
