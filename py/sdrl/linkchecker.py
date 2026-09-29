@@ -79,7 +79,7 @@ class LinkExtractor:
             link_spec_match = self.link_spec_regex.search(line)
             if link_spec_match:
                 current_validation_rule = self._parse_validation_rule(link_spec_match.group(1))
-                continue
+                line = self.link_spec_regex.sub('', line)  # a link may follow on the same line
             # Extract standard Markdown links: [text](url)
             for match in self.markdown_regex.finditer(line):
                 text, url = match.groups()
@@ -525,7 +525,7 @@ class LinkCheckReporter:
             lines.append("Sorted by URL. See below for sorting by source file path.  \n")
             linkspec_url = "https://sedrila.readthedocs.io/en/latest/maintainers/#4-link-checking-check-links"
             lines.append("Either fix the link or ignore the error by placing "
-                         "`<!-- @LINK_SPEC: status=403 -->` (etc.) on the line preceding the link.  \n"
+                         "`<!-- @LINK_SPEC: status=403 -->` (etc.) directly in front of the link.  \n"
                          f"See the [@LINK_SPEC documentation]({linkspec_url}).\n\n")
             lines.append("| Status | URL | File | Line |\n")
             lines.append("|------------|-----|------|------|\n")

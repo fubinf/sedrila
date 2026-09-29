@@ -35,6 +35,7 @@ class SedrilaExtension(mde.Extension):
 class SedrilaPreprocessor(mdpre.Preprocessor):
     def run(self, lines: list[str]) -> list[str]:
         content = "\n".join(lines)  # we work on the entire markup at once
+        content = re.sub(r"<!--\s*@LINK_SPEC:.*?-->[ \t]*\n?", "", content)  # only for linkchecker; drop so it cannot split paragraphs
         content = self.perhaps_suppress_instructorinfo(content)  
         content = self.make_replacements(content)
         content = macros.expand_macros(self.md.context_sourcefile, self.md.partname, content,

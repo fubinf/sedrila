@@ -64,7 +64,7 @@ See there for example configuration and output.
 
 **Custom rules:** By default, links are considered successful if they return 2xx or 3xx status codes.
 You can specify custom validation rules using HTML comments before links.
-A validation rule applies only to the next link below it. 
+A validation rule applies only to the next link after it, whether on a following line or later on the same line.
 Syntax:
 
 ```markdown
@@ -76,6 +76,12 @@ Syntax:
 
 <!-- @LINK_SPEC: status=302, timeout=30, ignore_cert=true -->
 [Complex validation](https://redirect.example.com)
+```
+
+A link with a `@LINK_SPEC` annotation may also appear in the middle of a sentence:
+
+```markdown
+See <!-- @LINK_SPEC: status=403 -->[this page](https://example.com/restricted) for details.
 ```
 
 Available rule parameters:
