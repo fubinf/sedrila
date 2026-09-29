@@ -1143,9 +1143,17 @@ Notes:
 
 ### 3.0 Installation
 
+Install `sedrila` with your favorite Python application install mechanism, e.g. 
+`pipx install sedrila`.
+
+`sedrila` uses the Python `graphviz` package to render task dependency overview diagrams
+on each taskgroup landing page.
+This rendering requires a system library you must install manually, besides installing
+`sedrila` itself. See here: https://pypi.org/project/graphviz/
+
 If you make use of `PROT_SPEC` anywhere, `sedrila` will need to encrypt the prot files
 in order to include them available to instructors.
-To do that, it will make use of GNUpg much like `instructor` use of `sedrila` will.
+To do that, `sedrila` will make use of GNUpg (much like `instructor` use of `sedrila` will).
 Therefore, you need to perform the same setup as an instructor; 
 see Section 1.1 in the [instructors documentation](instructors.md).
 
