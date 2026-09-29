@@ -523,7 +523,7 @@ class LinkCheckReporter:
         if failed_results:
             lines.append("## Failed Links\n\n")
             lines.append("Sorted by URL. See below for sorting by source file path.  \n")
-            linkspec_url = "https://sedrila.readthedocs.io/en/latest/maintainers/#4-link-checking-check-links"
+            linkspec_url = "https://sedrila.readthedocs.io/en/latest/maintainers/#3-link-checking-check-links"
             lines.append("Either fix the link or ignore the error by placing "
                          "`<!-- @LINK_SPEC: status=403 -->` (etc.) directly in front of the link.  \n"
                          f"See the [@LINK_SPEC documentation]({linkspec_url}).\n\n")
