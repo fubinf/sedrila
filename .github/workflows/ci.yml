@@ -31,3 +31,16 @@ jobs:
           git config --global --get user.email || git config --global user.email "ci@example.org"
       - name: Run tests
         run: tox
+
+  layering:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Install package and import-linter
+        run: pip install . "import-linter>=2.15"
+      - name: Check module layering
+        run: lint-imports --no-logo
