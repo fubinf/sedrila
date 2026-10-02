@@ -487,7 +487,7 @@ class Coursebuilder(sedrila.framework.partbuilder.PartbuilderMixin, Course):
                     pass
 
     def _read_config(self, configdict: b.StrAnyDict):
-        schema_text = importlib.resources.files("sedrila.schema").joinpath("sedrila-yaml.schema.json").read_text()
+        schema_text = importlib.resources.files("sedrila.course").joinpath("sedrila-yaml.schema.json").read_text()
         schema = json.loads(schema_text)
         validator = jsonschema.Draft202012Validator(schema)
         errors = sorted(validator.iter_errors(configdict), key=lambda e: e.json_path)
