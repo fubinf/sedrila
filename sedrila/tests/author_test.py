@@ -1,0 +1,509 @@
+# pytest tests
+import argparse
+import contextlib
+import glob
+import os.path
+import re
+import shutil
+import time
+import zipfile
+
+import bs4
+
+import sedrila.base.base as b
+import sedrila.base.mycrypt as mycrypt
+import sedrila.base2.constants as c
+import sedrila.course.course as course
+import sedrila.course.coursebuilder as coursebuilder
+import sedrila.subcmd.author as author
+
+import sedrila.tests.testbase as tb
+
+INPUTDIR = "sedrila/tests/authordir"  # where test data is copied from
+OUTPUTDIR = "sedrila/tests/author_tmp"  # where it and the test outputs go
+PROT_FINGERPRINT = "C72724404C29E973D851563C32529CAC47C6EB6E"  # fixture instructor's throwaway pubkey
+
+expected_output1 = """../out/myarchive.zip
+../out/instructor/itree.zip
+File 'ch/ch1/tg11/task111r+a.md':
+   [TREEREF::/nonexisting.txt]: itreedir file 'itree.zip/nonexisting.txt' not found
+File 'ch/glossary.md':
+   [TERM::Concept 3]: Term 'Concept 3' is already defined
+../out/tg11-overview.svg
+../out/tg12-overview.svg
+../out/index.html
+../out/chapter-ch1.html
+../out/tg11.html
+../out/tg12.html
+../out/task111r+a.html
+../out/task112.html
+../out/task113.html
+../out/task121.html
+../out/task122.html
+../out/glossary.html
+File 'ch/ch1/tg11/task111r+a.md':
+   [TERMREF::Concept 4 undefined] references undefined glossary term 'Concept 4 undefined' (file 'ch/ch1/tg11/task111r+a.md' in part 'task111r+a')
+File 'ch/glossary.md':
+   Term 'Concept 2 undefined' is used in 'explains:' field (in task111r+a) but lacks a glossary definition
+"""
+
+expected_output2 = """File 'ch/ch1/tg11/task111r+a.md':
+   [TREEREF::/nonexisting.txt]: itreedir file 'itree.zip/nonexisting.txt' not found
+File 'ch/glossary.md':
+   [TERM::Concept 3]: Term 'Concept 3' is already defined
+../out/glossary.html
+File 'ch/ch1/tg11/task111r+a.md':
+   [TERMREF::Concept 4 undefined] references undefined glossary term 'Concept 4 undefined' (file 'ch/ch1/tg11/task111r+a.md' in part 'task111r+a')
+File 'ch/glossary.md':
+   Term 'Concept 2 undefined' is used in 'explains:' field (in task111r+a) but lacks a glossary definition
+"""
+
+expected_output3 = """../out/instructor/itree.zip
+../out/task111r+a.html
+../out/glossary.html
+"""
+
+expected_output4 = """../out/tg12-overview.svg
+../out/index.html
+../out/tg12.html
+../out/task121.html
+../out/task122.html
+"""
+
+expected_output5 = """../out/instructor/task121.html
+"""
+
+expected_output6 = """../out/instructor/task121.html
+"""
+
+expected_output7 = """../out/tg12-overview.svg
+../out/index.html
+../out/tg12.html
+../out/task121new.html
+../out/task122.html
+deleted: ../out/task121.html
+deleted: ../out/instructor/task121.html
+"""
+
+expected_output8 = """../out/task121new.html
+../out/glossary.html
+"""
+
+expected_out9 = """../out/tg12-overview.svg
+../out/task121new.html
+../out/glossary.html
+"""
+
+expected_output10 = """File 'altdir/ch1/tg11/task112.prot':
+   line 12: command_re pattern '^NOPE$' does not match the following command: echo hello
+File 'altdir/ch1/tg11/task112.prot':
+   line 18: Unknown key 'bogus' in @PROT_SPEC block. Valid keys: command_re, output_re, exitcode, skip, manual, extra, comment
+File 'altdir/ch1/tg13draft/task131.prot':
+   line 4: command_re pattern '^ALSO-NOPE$' does not match the following command: echo hi
+../out/task112.html
+"""  # noqa
+
+expected_output11 = """../out/task112.html
+"""
+
+expected_filelist1 = [
+    'chapter-ch1.html', 'course.json',
+    'favicon-32x32.png',
+    'glossary.html',
+    'index.html', 'instructor',
+    'local.css',
+    'mermaid.min.js',
+    'myarchive.zip',
+    'resource.txt',
+    'sedrila.css', 'sidebar.js',
+    'task111r+a.html', 'task112.html', 'task112.prot.crypt',
+    'task113.html', 'task121.html', 'task122.html', 'task131.prot.crypt',
+    'tg11-overview.svg', 'tg11.html', 'tg12-overview.svg', 'tg12.html',
+]
+
+expected_sidebar_task111 = """<nav class="sidebar" id="sidebar">
+
+  <div class="indent0 no-stage"><a href="chapter-ch1.html" title="Chapter 1">ch1</a></div>
+    <div class="indent1 no-stage"><a href="tg11.html" title="Task group 1.1">tg11</a></div>
+      <div class="indent2 stage-alpha"><a href="task112.html" title="Task 1.1.2">task112</a> <span class="difficulty2" title="Difficulty: low">⚫︎</span> <span class="timevalue-decoration" title="Timevalue: 1.5 hours">1.5</span><span class="assumed-by-decoration" title="assumed by: task111r+a"></span></div>
+      <div class="indent2 stage-alpha"><a href="task113.html" title="Task 1.1.3">task113</a> <span class="difficulty3" title="Difficulty: medium">⚫︎</span> <span class="timevalue-decoration" title="Timevalue: 2.0 hours">2.0</span><span class="required-by-decoration" title="required by: task111r+a"></span></div>
+      <div class="indent2 stage-beta"><a href="task111r+a.html" title="Task 1.1.1 requires+assumes">task111r+a</a> <span class="difficulty1" title="Difficulty: verylow">⚫︎</span> <span class="timevalue-decoration" title="Timevalue: 1.0 hours">1.0</span><span class="assumes-decoration" title="assumes: task112"></span><span class="requires-decoration" title="requires: task113"></span></div>
+    <div class="indent1 stage-alpha"><a href="tg12.html" title="Task group 1.2">tg12</a></div>
+  <div class="indent0 no-stage"><a href="glossary.html">Glossary of terms</a></div>
+  </nav>
+"""  # noqa
+
+expected_body_task111 = """
+<div class="pagetype-task pagetype-task-difficulty1" id="taskbody">
+ <section class="section section-background">
+  <div class="section-subtypes section-background-subtypes">
+   <div class="section-subtype section-background-default">
+   </div>
+  </div>
+  <h2>
+   Section_Background
+  </h2>
+  <p>
+   Section "Background" of Task 1.1.1.
+Here, we mention
+   <a class="glossary-termref-term" href="glossary.html#concept-3">
+    Concept 3
+    <span class="glossary-termref-suffix">
+    </span>
+   </a>
+   ,
+   <a class="glossary-termref-term" href="glossary.html#concept-3">
+    ditto
+    <span class="glossary-termref-suffix">
+    </span>
+   </a>
+   ,
+   <a class="glossary-termref-term" href="glossary.html#concept-3">
+    Concept 3s
+    <span class="glossary-termref-suffix">
+    </span>
+   </a>
+   and also
+   <a class="glossary-termref-term" href="glossary.html#concept-4-undefined">
+    Concept 4 undefined
+    <span class="glossary-termref-suffix">
+    </span>
+   </a>
+   .
+  </p>
+  <div class="blockmacro blockmacro-warning">
+   <strong>
+    Warning:
+   </strong>
+   <p>
+    Body of Warning
+   </p>
+  </div>
+  <div class="blockmacro blockmacro-notice">
+   <strong>
+    Note:
+   </strong>
+   <p>
+    Enumeration:
+    <span class="enumeration-ec">
+     1
+    </span>
+    ,
+    <span class="enumeration-ec">
+     2
+    </span>
+    .
+   </p>
+  </div>
+  <details class="blockmacro blockmacro-hint">
+   <summary>
+    <strong>
+     Hint: My Hint
+    </strong>
+   </summary>
+   <p>
+    <span class="treeref-prefix">
+    </span>
+    <span class="treeref">
+     dummy.txt
+    </span>
+    <span class="treeref-suffix">
+    </span>
+    <span class="treeref-prefix">
+    </span>
+    <span class="treeref">
+     ???
+    </span>
+    <span class="treeref-suffix">
+    </span>
+   </p>
+  </details>
+ </section>
+</div>
+
+"""
+
+expected_glossaryitem_step9 = """<div class='glossary-term-block'>
+<a id='concept-3b'></a>
+<a id='concept-2-undefined'></a>
+<a id='concept-4-undefined'></a>
+<span class='glossary-term-heading'>Concept 3b | Concept 2 undefined | Concept 4 undefined</span>
+
+</div>
+
+<div class='glossary-term-linkblock'>
+ <div class='glossary-term-links-explainedby'>
+   <a href='task111r+a.html' class='partref-link'>task111r+a</a>, <a href='task112.html' class='partref-link'>task112</a>
+ </div>
+ <div class='glossary-term-links-mentionedby'>
+  <a href='task111r+a.html' class='partref-link'>task111r+a</a>
+ </div>
+</div>"""
+
+class Catcher:
+    """Retrieve multiline stretches from captured output based on prominent textual block markers."""
+    BEGIN = "########## %s ##########"
+    END = "---------- %s END ----------"
+
+    def __init__(self, capfd):
+        self.capfd = capfd
+
+    def print_begin(self, marker: str):
+        print(self.BEGIN % marker)
+
+    def print_end(self, marker: str):
+        print(self.END % marker)
+
+    def get_block(self, marker: str) -> str:
+        """Return output from between the marker lines created by print_begin/print_end."""
+        actual_output, actual_err = self.capfd.readouterr()
+        assert actual_err == ""
+        print(actual_output)  # make it available again
+        regexp = f"{re.escape(self.BEGIN % marker)}\\n(.*){re.escape(self.END % marker)}"
+        mm = re.search(regexp, actual_output, re.DOTALL)
+        assert mm, f"marker '{marker}' not found"
+        return mm.group(1)
+
+
+def test_sedrila_author(capfd):
+    """System test. Lots of hardcoded knowledge about the input and output of sedrila author."""
+    # ----- prepare:
+    shutil.rmtree(OUTPUTDIR, ignore_errors=True)  # do our best to get rid of old outputs
+    os.mkdir(OUTPUTDIR)
+    myinputdir = os.path.join(OUTPUTDIR, "in")
+    myoutputdir = os.path.join(OUTPUTDIR, "out")
+    shutil.copytree(INPUTDIR, myinputdir)  # test will modify the input data
+    os.mkdir(myoutputdir)  # test outputs: sedrila-generated website
+    catcher = Catcher(capfd)
+    # ----- run tests:
+    myoutputdir = os.path.join("..", "out")  # during the test, we are in myinputdir
+    with contextlib.chdir(myinputdir):
+        b.suppress_msg_duplicates(True)
+        # --- step 1: create and check output as-is:
+        course1, actual_output1 = call_sedrila_author("step 1: initial build", myoutputdir, catcher)
+        check_output1(course1, actual_output1, expected_output1, errors=3)
+        # --- step 2: build same config again:
+        course2, actual_output2 = call_sedrila_author("step 2: identical rebuild", myoutputdir, catcher)
+        check_output2(course2, actual_output2, expected_output2, errors=3)
+        # --- step 3: repair errors:
+        b.spit("ch/glossary.md",
+               b.slurp("ch/glossary.md").replace("[TERM0::Concept 3|Concept 3b]",
+                                                 "[TERM0::Concept 3b|Concept 2 undefined|Concept 4 undefined]"))
+        b.spit("itree.zip/nonexisting.txt", "now it exists!")
+        time.sleep(1)  # ensure build's timestamp_start is strictly after spit mtime
+        course3, actual_output3 = call_sedrila_author("step 3: repair errors", myoutputdir, catcher)
+        check_output2(course3, actual_output3, expected_output3)
+        # --- step 4: modify task121 topmatter (changes toc in entire taskgroup):
+        b.spit("ch/ch1/tg12/task121.md",
+               b.slurp("ch/ch1/tg12/task121.md").replace("timevalue: 2.5",
+                                                         "timevalue: 3.0"))
+        time.sleep(1)
+        course4, actual_output4 = call_sedrila_author("step 4: modify task121 topmatter", myoutputdir, catcher)
+        check_output2(course4, actual_output4, expected_output4)
+        # --- step 5: modify instructor includefile:
+        b.spit("ch/include.md",
+               b.slurp("ch/include.md") + "Some more.\n")
+        time.sleep(1)
+        course5, actual_output5 = call_sedrila_author("step 5: modify instructor includefile",
+                                                      myoutputdir, catcher)
+        check_output2(course5, actual_output5, expected_output5)
+        # --- step 6: modify task body_i:
+        b.spit("ch/ch1/tg12/task121.md",
+               b.slurp("ch/ch1/tg12/task121.md").replace("[ENDINSTRUCTOR]", "more!\n[ENDINSTRUCTOR]"))
+        time.sleep(1)
+        course6, actual_output6 = call_sedrila_author("step 6: modify [INSTRUCTOR] section", myoutputdir, catcher)
+        check_output2(course6, actual_output6, expected_output6)
+        # --- step 7: rename task121:
+        os.rename("ch/ch1/tg12/task121.md", "ch/ch1/tg12/task121new.md")
+        time.sleep(1)
+        course7, actual_output7 = call_sedrila_author("step 7: rename task121", myoutputdir, catcher)
+        expected_filelist7 = list(expected_filelist1)
+        pos = expected_filelist7.index("task121.html")
+        expected_filelist7[pos] = "task121new.html"
+        check_output2(course7, actual_output7, expected_output7, filelist=expected_filelist7)
+        # --- step 8: task121new:[TERMREF::Concept 5]:
+        b.spit("ch/ch1/tg12/task121new.md",
+               b.slurp("ch/ch1/tg12/task121new.md").replace("Body of Task 1.2.1", "[TERMREF::Concept 5]"))
+        time.sleep(1)
+        course8, actual_output8 = call_sedrila_author("step 8: task121new:[TERMREF::Concept 5]",
+                                                      myoutputdir, catcher)
+        check_output2(course8, actual_output8, expected_output8, filelist=expected_filelist7)
+        # --- step 9: task121new: add explains: Concept 5
+        b.spit("ch/ch1/tg12/task121new.md",
+               b.slurp("ch/ch1/tg12/task121new.md").replace("difficulty: ",
+                                                            "explains: Concept 5\ndifficulty: "))
+        time.sleep(1)
+        course9, actual_out9 = call_sedrila_author("step 9: task121new: add explains: Concept 5",
+                                                    myoutputdir, catcher)
+        check_output2(course9, actual_out9, expected_out9, filelist=expected_filelist7)
+        check_glossaryitem_concept3b(os.path.join(myoutputdir, "glossary.html"), expected_glossaryitem_step9)
+        # --- step 10: break the @PROT_SPEC blocks of both .prot files:
+        b.spit("altdir/ch1/tg11/task112.prot",
+               b.slurp("altdir/ch1/tg11/task112.prot").replace("command_re=^echo hello$",
+                                                               "command_re=^NOPE$")
+                                                      .replace("skip=1", "bogus=1"))
+        b.spit("altdir/ch1/tg13draft/task131.prot",
+               b.slurp("altdir/ch1/tg13draft/task131.prot").replace("command_re=^echo hi$",
+                                                                    "command_re=^ALSO-NOPE$"))
+        time.sleep(1)
+        course10, actual_out10 = call_sedrila_author("step 10: break both .prot files",
+                                                     myoutputdir, catcher)
+        # task112 is included by the stage filter and so yields errors,
+        # task131 is excluded (via its taskgroup) and so yields only a warning:
+        check_output2(course10, actual_out10, expected_output10, errors=2, filelist=expected_filelist7)
+        check_protfiles_are_encrypted(myoutputdir)
+        # --- step 11: repair both .prot files (else their messages pollute every later step):
+        mtime_crypt10 = os.path.getmtime(os.path.join(myoutputdir, "task112.prot.crypt"))
+        b.spit("altdir/ch1/tg11/task112.prot",
+               b.slurp("altdir/ch1/tg11/task112.prot").replace("command_re=^NOPE$",
+                                                               "command_re=^echo hello$")
+                                                      .replace("bogus=1", "skip=1"))
+        b.spit("altdir/ch1/tg13draft/task131.prot",
+               b.slurp("altdir/ch1/tg13draft/task131.prot").replace("command_re=^ALSO-NOPE$",
+                                                                    "command_re=^echo hi$"))
+        time.sleep(1)
+        course11, actual_out11 = call_sedrila_author("step 11: repair both .prot files",
+                                                     myoutputdir, catcher)
+        check_output2(course11, actual_out11, expected_output11, filelist=expected_filelist7)
+        assert os.path.getmtime(os.path.join(myoutputdir, "task112.prot.crypt")) > mtime_crypt10, \
+            "the changed .prot was not encrypted again"
+        # --- step 12: add participants list.
+        configfilename = c.AUTHOR_CONFIG_FILENAME  # we are in myinputdir
+        config = b.slurp(configfilename)
+        # patch the config to provide the participants list; it already names the fixture's key
+        config = config.replace('file: ""', 'file: participants.tsv')
+        b.spit(configfilename, config)
+        # Unlike a .prot file, the participants list is encrypted via the system keyring,
+        # so the build itself must run against the throwaway one, not just the decryption:
+        with tb.throwaway_gpg_home() as fingerprint:
+            assert fingerprint == PROT_FINGERPRINT, "fixture config and key file have diverged"
+            course12, actual_out12 = call_sedrila_author("step 12: check participantslist",
+                                                         myoutputdir, catcher)
+            encrypted_participantslist = b.slurp_bytes(os.path.join(myoutputdir,
+                                                                    c.PARTICIPANTSLIST_FILE))
+            participantslist = mycrypt.decrypt_gpg(encrypted_participantslist)
+        assert participantslist == b"123\n124"
+        # TODO 3: check bottomlinkslist
+
+
+def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -> tuple[coursebuilder.Coursebuilder, str]:
+    pargs = argparse.Namespace()
+    pargs.config = c.AUTHOR_CONFIG_FILENAME
+    pargs.clean = start_clean
+    pargs.sums = False
+    pargs.include_stage = "alpha"
+    pargs.log = "INFO" if not step.startswith("step X:") else "DEBUG"  # report built files or help debug
+    pargs.targetdir = outputdir
+    # ----- do call akin to sedrila.subcmd.author.execute():
+    b._testmode_reset()  # noqa
+    b.set_loglevel(pargs.log)
+    targetdir_s = pargs.targetdir
+    targetdir_i = author._targetdir_i(pargs.targetdir)
+    catcher.print_begin(step)
+    author.prepare_directories(targetdir_s, targetdir_i)
+    this_course = author.create_and_build_course(pargs, targetdir_i, targetdir_s)
+    catcher.print_end(step)
+    return this_course, catcher.get_block(step)
+
+
+def check_output1(course: coursebuilder.Coursebuilder, actual_output1: str, expected_output1: str, errors: int):
+    with contextlib.chdir(course.targetdir_s):
+        check_filelist(expected_filelist1)
+        assert os.path.exists(os.path.join(course.targetdir_i, c.HTACCESS_FILE))
+        check_toc1()
+        check_task_html1()
+        check_mermaid_usage1()
+        check_zipfile1()
+        _compare_line_by_line(actual_output1, expected_output1)
+        assert b.num_errors == errors  # see expected_output1: 2 errors, 1 warning
+
+
+def check_output2(course: coursebuilder.Coursebuilder, actual_output2: str, expected_output2: str, 
+                  errors: int = 0, filelist=expected_filelist1):
+    with contextlib.chdir(course.targetdir_s):
+        check_filelist(filelist)
+        _compare_line_by_line(actual_output2, expected_output2)
+        assert b.num_errors == errors  # as before
+
+
+def check_filelist(expected_filelist: list[str]):
+    actual_filelist = sorted(glob.glob('*'))
+    if actual_filelist != expected_filelist:
+        print("expected:", expected_filelist)
+        print("actual:  ", actual_filelist)
+        assert False, "filelists do not match"
+    assert os.path.exists('instructor/itree.zip')
+
+
+def check_toc1():
+    with open("task111r+a.html", encoding='utf8') as fp:
+        actual_soup = bs4.BeautifulSoup(fp, features='html5lib', from_encoding='utf8')
+        expected_soup = bs4.BeautifulSoup(expected_sidebar_task111, features='html5lib')
+    actual_sidebar_task111_tag = str(actual_soup.find(id='sidebar'))
+    expected_sidebar_task111_tag = str(expected_soup.find(id='sidebar'))
+    # _compare_line_by_line(actual_sidebar, expected_sidebar, strip=True, force_doublequotes=True)
+    _compare_line_by_line(actual_sidebar_task111_tag, expected_sidebar_task111_tag, strip=True)
+
+
+def check_task_html1():
+    # ----- check the complex task111r+a:
+    with open("task111r+a.html", encoding='utf8') as fp:
+        actual_soup = bs4.BeautifulSoup(fp, features='html5lib', from_encoding='utf8')
+        expected_soup = bs4.BeautifulSoup(expected_body_task111, features='html5lib')
+    assert actual_soup.find('title').text == actual_soup.find('h1').text == "Task 1.1.1 requires+assumes"
+    actual_body = actual_soup.find(id='taskbody')
+    expected_body = expected_soup.find(id='taskbody')
+    actual_html = actual_body.prettify()
+    expected_html = expected_body.prettify()
+    _compare_line_by_line(actual_html, expected_html)
+    # ----- check resetting of enumerations in task112:
+    with open("task112.html", encoding='utf8') as fp:
+        content = fp.read()
+    expected = "<span class='enumeration-ec'>1</span>"
+    if expected not in content:
+        print(content)
+        assert expected in content
+
+
+def check_mermaid_usage1():
+    """mermaid.js is loaded on the one page that has a diagram (task113) and nowhere else."""
+    for filename in sorted(glob.glob('*.html')):
+        content = b.slurp(filename)
+        has_diagram = '<div class="mermaid">' in content
+        loads_mermaid = 'mermaid.min.js' in content
+        assert has_diagram == (filename == "task113.html"), f"unexpected diagram state in {filename}"
+        assert loads_mermaid == has_diagram, f"wrong mermaid.min.js loading state in {filename}"
+
+
+def check_protfiles_are_encrypted(outputdir: str):
+    """Students receive the .prot files as ciphertext only; the specs must not be readable."""
+    for filename in ("task112.prot.crypt", "task131.prot.crypt"):
+        ciphertext = b.slurp(os.path.join(outputdir, filename))
+        assert ciphertext.startswith("-----BEGIN PGP MESSAGE-----"), f"{filename} is not encrypted"
+        assert "@PROT_SPEC" not in ciphertext, f"{filename} exposes the specification"
+
+
+def check_glossaryitem_concept3b(glossaryfilename: str, expected_item: str):
+    glossary = b.slurp(glossaryfilename)
+    glossarylines = glossary.split('\n')
+    itemlines = expected_item.split('\n')
+    pos0 = glossarylines.index("<a id='concept-3b'></a>") - 1 # that string should be 2nd line of expected_item
+    glossarypart = '\n'.join(glossarylines[pos0:pos0+len(itemlines)])
+    _compare_line_by_line(glossarypart, expected_item)
+
+def check_zipfile1():
+    with zipfile.ZipFile("myarchive.zip") as zipf:
+        assert zipf.namelist() == ["myarchive/zipped.txt"]
+
+
+def _compare_line_by_line(actual: str, expected: str, strip=False):
+    actual_lines = actual.split('\n')
+    expected_lines = expected.split('\n')
+    for i in range(len(actual_lines)):
+        if strip:
+            if actual_lines[i].strip() != expected_lines[i].strip():
+                assert (i+1, actual_lines[i].strip()) == (i+1, expected_lines[i].strip())
+        else:
+            if actual_lines[i] != expected_lines[i]:
+                assert (i+1, actual_lines[i]) == (i+1, expected_lines[i])
+    assert len(actual_lines) == len(expected_lines)

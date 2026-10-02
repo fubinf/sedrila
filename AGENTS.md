@@ -29,12 +29,12 @@ by means of signed commits.
 # Run all tests
 pytest
 
-# Run tests from specific module (tests are in py/tests/ and py/sdrl/tests/)
-pytest py/tests/base_test.py
-pytest py/sdrl/tests/macros_test.py
+# Run tests from specific module (tests are in sedrila/tests/ and sedrila/subcmd/tests/)
+pytest sedrila/tests/base_test.py
+pytest sedrila/tests/macros_test.py
 
-# Run with specific Python path (configured in pyproject.toml)
-PYTHONPATH=py pytest
+# Check the module layering (configured in pyproject.toml, see "Module Layering" below)
+poetry run lint-imports
 
 # Build package
 poetry build
@@ -97,10 +97,10 @@ Each level has:
 ### Incremental Build System
 
 The author command uses a sophisticated caching mechanism:
-- **`cache.py`**: Core cache implementation tracking file dependencies and modification times
-- **`sdrl/elements.py`**: Defines Element types (inputs, outputs, intermediate products)
-- **`sdrl/directory.py`**: Orchestrates build by processing Element types in dependency order
-- **`sdrl/course.py`**: Defines Course, Chapter, Taskgroup, Task classes with builder variants
+- **`sedrila/base/cache.py`**: Core cache implementation tracking file dependencies and modification times
+- **`sedrila/mech/elements.py`**: Defines Element types (inputs, outputs, intermediate products)
+- **`sedrila/mech/directory.py`**: Orchestrates build by processing Element types in dependency order
+- **`sedrila/course/course.py`**: Defines Course, Chapter, Taskgroup, Task classes with builder variants
 
 Builder classes (e.g., `Coursebuilder`, `Taskbuilder`) are used in author mode and inherit from corresponding base classes used in student/instructor modes.
 
@@ -108,8 +108,8 @@ Builder classes (e.g., `Coursebuilder`, `Taskbuilder`) are used in author mode a
 
 The codebase follows strict layering (enforced by convention):  TODO 2: add new parts
 
-- **Layer 0**: `base` - Basic utilities
-- **Layer 1**: `cache`, `sgit` - Domain-independent modules
+- **Layer 0**: `sedrila.base.base` - Basic utilities
+- **Layer 1**: `sedrila.base.cache`, `sedrila.base.sgit`, `sedrila.base.mycrypt` - Domain-independent modules
 - **Layer 2**: Domain model building blocks
   - 2.1: `sdrl.constants`, `sdrl.html`
   - 2.2: `sdrl.repo`, `sdrl.macros`, `sdrl.markdown`, `sdrl.argparser`
@@ -117,6 +117,12 @@ The codebase follows strict layering (enforced by convention):  TODO 2: add new 
   - 2.4: `sdrl.elements`, `sdrl.directory`, `sdrl.partbuilder`
 - **Layer 3**: `sdrl.course`, `sdrl.course_si`, `sdrl.coursebuilder`, `sdrl.participant` - Domain model top-level parts
 - **Layer 4**: `sdrl.subcmd.*` (author, student, instructor, maintainer, evaluator)
+  - 2.1: `sedrila.base2.constants`, `sedrila.base2.html`
+  - 2.2: `sedrila.base2.repo`, `sedrila.base2.macros`, `sedrila.base2.markdown`, `sedrila.base2.argparser`
+  - 2.3: `sedrila.mech.macroexpanders`, `sedrila.mech.replacements`, `sedrila.mech.glossary`
+  - 2.4: `sedrila.mech.elements`, `sedrila.mech.directory`, `sedrila.mech.partbuilder`
+- **Layer 3**: `sedrila.course.course`, `sedrila.course.course_si`, `sedrila.course.coursebuilder`, `sedrila.course.participant` - Domain model top-level parts
+- **Layer 4**: `sedrila.subcmd.*` (author, student, instructor, maintainer, evaluator)
 
 ### Markdown Extensions ("Macros")
 
@@ -142,12 +148,12 @@ It also shows their progress (accepted/rejected tasks and their timevalue sum).
 3. Updates `submission.yaml` with `ACCEPT`/`REJECTOID`/`REJECT` marks
 4. Creates cryptographically signed commit
 
-Progresses through states: FRESH → CHECKING → CHECKED (defined in `sdrl/constants.py`).
+Progresses through states: FRESH → CHECKING → CHECKED (defined in `sedrila/base2/constants.py`).
 
 ## Code Style
 
 - Follow PEP 8 with soft limit 100 chars, hard limit 120 chars per line
-- Import modules globally, not individual names (use abbreviations like `import base as b`)
+- Import modules globally, not individual names (use abbreviations like `import sedrila.base.base as b`)
 - Prefer few larger modules over many small ones
 - Use block comments ending in colons for structure: `# ----- section name:`
 - Write helpful comments, avoid stating the obvious
@@ -167,16 +173,6 @@ The project uses numbered TODO markers:
 - `course.json` - Generated metadata (used by student/instructor modes)
 - `student.yaml` - Student identification (in student repos)
 - `submission.yaml` - Task submission and evaluation tracking
-
-## Known Issues / Planned Refactoring
-
-There is a documented need to restructure directories (see README.md):
-- `py` → `sedrila`
-- `sedrila/sdrl/*` → `sedrila/*`
-- `templates` → `sedrila/templates`
-- `baseresources` → `sedrila/baseresources`
-
-This refactoring will affect import statements throughout the codebase.
 
 ## Status / Next step
 

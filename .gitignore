@@ -3,8 +3,8 @@
 out/
 out.bak/
 .idea/
-py/sdrl/tests/data/sedrila-test1
-py/sdrl/tests/author_tmp
+sedrila/tests/data/sedrila-test1
+sedrila/tests/author_tmp
 poetry.lock
 
 # Byte-compiled / optimized / DLL files
