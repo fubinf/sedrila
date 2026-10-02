@@ -34,19 +34,16 @@ classifiers = [  # https://pypi.org/classifiers/
 
 # https://python-poetry.org/docs/pyproject/#packages
 packages = [
-    { include = "*.py", from = "py" },
-    { include = "sdrl/*.py", from = "py" },
-    { include = "sdrl/subcmd/*.py", from = "py" },
-    { include = "sdrl/schema", from = "py" },
-    { include = "sdrl/webapp/*.py", from = "py" },
-    { include = "sdrl/webapp/files/*", from = "py" },
+    { include = "sedrila" },
+]
+exclude = [  # test code and data are not part of the distribution
+    "sedrila/tests",
+    "sedrila/cmd/tests",
 ]
 include = [
     "README.md", 
     "LICENSE", 
     "pyproject.toml",
-    "templates/*",
-    "baseresources/*",
 ]
 
 # https://python-poetry.org/docs/pyproject/#dependencies-and-dependency-groups
@@ -76,12 +73,13 @@ waitress = "^3.0"
 [tool.poetry.group.dev.dependencies]  # ordered alphabetically
 beautifulsoup4 = "^4.12"
 html5lib = "^1.1"
+import-linter = "^2.15"
 mkdocs = "^1.6"
 pytest = "^9.1"
 
 # https://python-poetry.org/docs/pyproject/#scripts
 [tool.poetry.scripts]
-sedrila = "sedrila:main"
+sedrila = "sedrila.__main__:main"
 
 # for  poetry publish  use:
 # export POETRY_HTTP_BASIC_PYPI_USERNAME=<username>
@@ -89,8 +87,7 @@ sedrila = "sedrila:main"
 
 # https://docs.pytest.org/en/latest/reference/customize.html
 [tool.pytest.ini_options]
-pythonpath = "py"
-testpaths = ["py"]
+testpaths = ["sedrila"]
 
 [tool.tox]
 legacy_tox_ini = """
@@ -110,3 +107,41 @@ python =
     3.11: py311
     3.14: py314
 """
+
+[tool.importlinter]
+# run with 'lint-imports' or 'import-linter lint'
+# https://import-linter.readthedocs.io/en/stable/contract_types.html
+root_package = "sedrila"
+
+[[tool.importlinter.contracts]]
+name = "SeDriLa layering"
+type = "layers"
+layers = [
+    # Layers listed highest to lowest; 'a | b' means 'independent' (may not import), 'a : b' means 'siblings' (may import)
+    # Modules not listed are unconstrained.
+    "sedrila.__main__",  # L6: main
+    "sedrila.cmd.author : sedrila.cmd.student : sedrila.cmd.instructor : sedrila.cmd.maintainer : sedrila.cmd.evaluator : sedrila.cmd.server : sedrila.cmd.cli",  # L5.2: commands
+    "sedrila.subcmd.rename | sedrila.webapp",  # L5.1: subcommands
+    "sedrila.course.course : sedrila.course.coursebuilder : sedrila.course.course_si : sedrila.course.participant : sedrila.course.programchecker : sedrila.course.repo : sedrila.course.glossary : sedrila.course.report",  # L4: course
+    "sedrila.framework.macros : sedrila.framework.markdown : sedrila.framework.elements : sedrila.framework.directory : sedrila.framework.partbuilder : sedrila.framework.macroexpanders",  # L3: framework
+    "sedrila.mech.replacements | sedrila.mech.snippetchecker | sedrila.mech.linkchecker | sedrila.mech.protocolchecker",  # L2.3: mechanisms
+    "sedrila.base2.argparser",  # L2.2: mechanisms base 
+    "sedrila.base2.constants : sedrila.base2.html",  # L2.1: domain base
+    "sedrila.base.cache | sedrila.base.sgit | sedrila.base.mycrypt",  # L1: domain-independent utils
+    "sedrila.base.base", # L0: generic utils
+]
+ignore_imports = [
+    # Function-level ("lazy") imports violating the layering, ignored for now: import-linter sees them like any
+    # top-level import, but they are mostly workarounds for import cycles. Top-level violations are NOT listed here.
+    # If one of these entries stops matching (import removed), import-linter complains; delete the entry then.
+    "sedrila.framework.directory -> sedrila.course.course",
+    "sedrila.framework.directory -> sedrila.course.coursebuilder",
+    "sedrila.framework.directory -> sedrila.course.glossary",
+    "sedrila.framework.elements -> sedrila.course.course",
+    "sedrila.framework.partbuilder -> sedrila.course.course",
+    "sedrila.framework.partbuilder -> sedrila.course.coursebuilder",
+    "sedrila.framework.macroexpanders -> sedrila.course.course",
+    "sedrila.framework.macroexpanders -> sedrila.course.coursebuilder",
+    "sedrila.framework.macroexpanders -> sedrila.course.programchecker",
+    "sedrila.mech.snippetchecker -> sedrila.framework.macros",
+]

@@ -16,41 +16,12 @@ Find the [documentation at readthedocs](https://sedrila.readthedocs.io).
 ## 1. Ideas for future versions
 
 
-### 1.1 A currently needed refactoring: Target directory structure
-
-The current layout of the source tree is wrong.
-Currently, the `templates` and `baseresources` directories will end up 
-as top-level directories when the package is installed,
-which means they will clash with any top-level modules of that name
-anywhere in our dependencies.
-
-We need to perform the following refactorings to arrive at a proper structure:
-
-- `py` --> `sedrila`: This will be the top level directory that gets installed.
-- `sedrila/sdrl/*` --> `sedrila/*`: We remove the now-intermediate namespace.
-  This implies joining the current `sdrl/tests` into `sedrila/tests`.
-- `templates` --> `sedrila/templates`: The HTML templates simply become part of the
-  tree to be installed.
-- `baseresources` --> `sedrila/baseresources`: Ditto.
-
-These changes require a lot of changes of import statements.
-For instance, the current module `base` will become `sedrila.base`
-and `sdrl.course` will become `sedrila.course`.
-The logic for computing `sedrila_libdir` in `courses.py` must be adapted.
-`SedrilaArgParser.get_version()` must be adapted.
-The files lists in `pyproject.toml` must be corrected.
-
-Also: Perhaps use deply for checking the layer structure described in internal_notes.md:
-https://github.com/vashkatsi/deply
-
-
-### 1.2 `instructor`
+### 1.1 `instructor`
 
 - Reject submissions where `course_url` is different from what it was in that repo's first accepted submission.
 
 
-
-### 1.3 `student`
+### 1.2 `student`
 
 - ...
 

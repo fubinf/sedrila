@@ -1,6 +1,8 @@
 # sedrila CHANGELOG
 
 ## Version 3.x (upcoming)
+- `author`: `[INCLUDE]` can now be nested
+- `author`: FIX: `LINK_CHECK` comments no longer end the current paragraph
 - ... 
 
 ## Version 3.2.0 (2026-08-21)

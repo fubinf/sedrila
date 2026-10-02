@@ -140,7 +140,7 @@ A task is **submittable** if it exists AND is not in state `ACCEPT` AND has `rem
 
 ### LC1: `sedrila student` prepares list of submittable tasks
 
-The `sedrila student` submission command (see `subcmd/student.py:cmd_prepare`):
+The `sedrila student` submission command (see `cmd/student.py:cmd_prepare`):
 - determines each task's state from the commit history,
 - finds all worktime entries in the commit history,
 - reads the existing `submission.yaml`, ignoring entries for non-submittable tasks
@@ -156,14 +156,14 @@ and re-added as `NOCHECK` if eligible. Non-submittable tasks are also removed by
 ### LC2: student selects tasks for submission
 
 sedrila then starts the webapp in which the student can toggle submittable tasks between
-`CHECK` and `NONCHECK` (see `subcmd/student.py:cmd_webapp`), each time persisting `submission.yaml`.
+`CHECK` and `NONCHECK` (see `cmd/student.py:cmd_webapp`), each time persisting `submission.yaml`.
 The student commits the resulting `submission.yaml`.
 Note that sedrila cannot keep the student from modifying `submission.yaml` arbitrarily before the commit.
 
 
 ### LC3: `sedrila instructor` cleans up `submission.yaml`
 
-`sedrila instructor` (see `subcmd/instructor.py:prepare_workdir`) treats `submission.yaml`
+`sedrila instructor` (see `cmd/instructor.py:prepare_workdir`) treats `submission.yaml`
 as untrusted when in state `SUBMISSION_STATE_FRESH` (i.e. the most recent commit that touches
 `submission.yaml` used the message `"submission.yaml"`, meaning it is a student submission commit).
 In this state, sedrila removes all entries with a mark other than `CHECK` and persists the result,
@@ -231,18 +231,10 @@ and participate in incremental builds by checking if their dependencies have cha
 
 ## 5. Layering
 
-Import dependencies between modules should obey the following layering, 
-from lowest to highest:
-
-- Layer 0 (basic modules): `sedrila.base.base`
-- Layer 1 (domain-independent modules): `sedrila.base.cache`, `sedrila.base.sgit`
-- Layer 2 (domain model):
-    - 2.1 basic parts: `sedrila.base2.constants`, `sedrila.base2.html`
-    - 2.2 technology-centric parts: `sedrila.base2.repo`, `sedrila.interactive`, `sedrila.base2.macros`, `sedrila.base2.markdown`, `sedrila.base2.argparser`
-    - 2.3 authoring: `sedrila.mech.macroexpanders`, `sedrila.mech.replacements`, `sedrila.mech.glossary`
-    - 2.4 build mechanism: `sedrila.mech.elements`, `sedrila.mech.directory`, `sedrila.mech.partbuilder`
-- Layer 3 (integration layer): `sedrila.course.course`, `sedrila.course.participant`
-- Layer 4 (control layer, main business logic): `sedrila.subcmd.*`
+Import dependencies between modules should obey the layering that is described by the
+`import-linter` configuration in 
+[`pyproject.toml` in the repo](https://github.com/fubinf/sedrila/blob/main/pyproject.toml).
+We have a few cyclic-ish spots, but they should become fewer, not more.
 
 
 ## 6. Simplicity principles, style
