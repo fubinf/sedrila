@@ -21,7 +21,7 @@ cd sedrila
 poetry install
 alias act_poetry="source $(poetry env info --path)/bin/activate"
 act_poetry
-alias sedrila="python `pwd`/py/sedrila.py"
+alias sedrila="PYTHONPATH=`pwd` python -m sedrila"
 sedrila --help
 ```
 

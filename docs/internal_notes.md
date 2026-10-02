@@ -172,7 +172,7 @@ transitioning to `SUBMISSION_STATE_CHECKING`.
 In addition, `filter_submission()` (called from `Student.__init__`) removes entries for
 non-submittable tasks regardless of state, ensuring rejected-for-good tasks never appear.
 
-The four repo-level process states (see `sdrl.constants`) are:
+The four repo-level process states (see `sedrila.base2.constants`) are:
 - **SUBMISSION_STATE_FRESH**: untrusted student submission commit — filter before use.
 - **SUBMISSION_STATE_CHECKING**: `submission.yaml` is git-modified (filtered but not yet committed).
   Entries are trusted. Initially only `CHECK` entries; later turned into `ACCEPT`/`REJECT`/`REJECTOID`.
@@ -234,15 +234,15 @@ and participate in incremental builds by checking if their dependencies have cha
 Import dependencies between modules should obey the following layering, 
 from lowest to highest:
 
-- Layer 0 (basic modules): `base`
-- Layer 1 (domain-independent modules): `cache`, `git`
+- Layer 0 (basic modules): `sedrila.base.base`
+- Layer 1 (domain-independent modules): `sedrila.base.cache`, `sedrila.base.sgit`
 - Layer 2 (domain model):
-    - 2.1 basic parts: `sdrl.constants`, `sdrl.html`
-    - 2.2 technology-centric parts: `sdrl.repo`, `sdrl.interactive`, `sdrl.macros`, `sdrl.markdown`, `sdrl.argparser`
-    - 2.3 authoring: `sdrl.macroexpanders`, `sdrl.replacements`, `sdrl.glossary`
-    - 2.4 build mechanism: `sdrl.elements`, `sdrl.directory`, `sdrl.partbuilder`
-- Layer 3 (integration layer): `sdrl.course`, `sdrl.participant`
-- Layer 4 (control layer, main business logic): `sdrl.subcmd.*`
+    - 2.1 basic parts: `sedrila.base2.constants`, `sedrila.base2.html`
+    - 2.2 technology-centric parts: `sedrila.base2.repo`, `sedrila.interactive`, `sedrila.base2.macros`, `sedrila.base2.markdown`, `sedrila.base2.argparser`
+    - 2.3 authoring: `sedrila.mech.macroexpanders`, `sedrila.mech.replacements`, `sedrila.mech.glossary`
+    - 2.4 build mechanism: `sedrila.mech.elements`, `sedrila.mech.directory`, `sedrila.mech.partbuilder`
+- Layer 3 (integration layer): `sedrila.course.course`, `sedrila.course.participant`
+- Layer 4 (control layer, main business logic): `sedrila.subcmd.*`
 
 
 ## 6. Simplicity principles, style

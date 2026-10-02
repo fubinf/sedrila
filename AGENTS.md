@@ -111,18 +111,25 @@ The codebase follows strict layering (enforced by convention):  TODO 2: add new 
 - **Layer 0**: `sedrila.base.base` - Basic utilities
 - **Layer 1**: `sedrila.base.cache`, `sedrila.base.sgit`, `sedrila.base.mycrypt` - Domain-independent modules
 - **Layer 2**: Domain model building blocks
-  - 2.1: `sdrl.constants`, `sdrl.html`
-  - 2.2: `sdrl.repo`, `sdrl.macros`, `sdrl.markdown`, `sdrl.argparser`
-  - 2.3: `sdrl.macroexpanders`, `sdrl.replacements`, `sdrl.glossary`
-  - 2.4: `sdrl.elements`, `sdrl.directory`, `sdrl.partbuilder`
-- **Layer 3**: `sdrl.course`, `sdrl.course_si`, `sdrl.coursebuilder`, `sdrl.participant` - Domain model top-level parts
-- **Layer 4**: `sdrl.subcmd.*` (author, student, instructor, maintainer, evaluator)
   - 2.1: `sedrila.base2.constants`, `sedrila.base2.html`
   - 2.2: `sedrila.base2.repo`, `sedrila.base2.macros`, `sedrila.base2.markdown`, `sedrila.base2.argparser`
   - 2.3: `sedrila.mech.macroexpanders`, `sedrila.mech.replacements`, `sedrila.mech.glossary`
   - 2.4: `sedrila.mech.elements`, `sedrila.mech.directory`, `sedrila.mech.partbuilder`
 - **Layer 3**: `sedrila.course.course`, `sedrila.course.course_si`, `sedrila.course.coursebuilder`, `sedrila.course.participant` - Domain model top-level parts
 - **Layer 4**: `sedrila.subcmd.*` (author, student, instructor, maintainer, evaluator)
+
+Physically, layers 0+1 form package `sedrila.base`, layers 2.1+2.2 form `sedrila.base2`,
+layers 2.3+2.4 form `sedrila.mech`, and layers 3+3.5 (except `webapp`) form `sedrila.course`;
+layer 4 is `sedrila.subcmd`, `sedrila.webapp` and `sedrila.__main__` stay top-level.
+
+So that's 8 layers.
+Sideways imports (of packages of the same layer) are allowed only in layers 2.4 and 3.
+
+The `import-linter` configuration in `pyproject.toml` additionally places modules not named above:
+the checkers (`snippetchecker`, `linkchecker`, `protocolchecker` in 2.3, `programchecker` in 3),
+a layer 3.5 (`report`, `rename`, `webapp`; between 3 and 4), and `sedrila.__main__` as layer 5.
+It deviates from the text above in allowing sideways imports in layer 4, too.
+Known violations exist; function-level imports that violate the layering are listed in `ignore_imports`.
 
 ### Markdown Extensions ("Macros")
 
