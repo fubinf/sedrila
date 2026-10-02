@@ -53,7 +53,7 @@ import sedrila.base2.constants as c
 import sedrila.course.course
 import sedrila.course.course_si
 import sedrila.course.participant
-import sedrila.base2.repo as repo
+import sedrila.course.repo as repo
 
 
 # CLI: sedrila evaluator

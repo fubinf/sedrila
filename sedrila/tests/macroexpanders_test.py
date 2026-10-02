@@ -2,8 +2,8 @@
 import unittest.mock
 
 import sedrila.base.base as b
-import sedrila.base2.macros as macros
-import sedrila.mech.macroexpanders
+import sedrila.framework.macros as macros
+import sedrila.framework.macroexpanders
 
 import sedrila.tests.testbase as tb
 
@@ -34,7 +34,7 @@ def test_expand_prot():
         b.spit("myfile.prot", prot)
         call = macros.Macrocall(unittest.mock.MagicMock(), "notask.md", "notask",
                                 f"[PROT::myfile.prot]", "PROT", "myfile.prot", None)
-        prot_output = sedrila.mech.macroexpanders.expand_prot(CourseDummy(), call)
+        prot_output = sedrila.framework.macroexpanders.expand_prot(CourseDummy(), call)
         print(prot_output)
         assert prot_output == prot_expected_output
 
@@ -46,7 +46,7 @@ def test_includefile_path():
     def func(arg: str, itree_mode=False) -> str:
         call = macros.Macrocall(None, "ch/chapter/group/task.md", "task",
                                 f"[INCLUDE::{arg}]", "INCLUDE", arg, None)
-        return sedrila.mech.macroexpanders.includefile_path(CourseDummy(), call, itree_mode)
+        return sedrila.framework.macroexpanders.includefile_path(CourseDummy(), call, itree_mode)
 
     assert func("other") == "ch/chapter/group/other"
     assert func("/other2") == "ch/other2"

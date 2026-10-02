@@ -1,4 +1,4 @@
-"""Whitebox-ish unit tests for sedrila.mech.elements.TaskgroupDiagram."""
+"""Whitebox-ish unit tests for sedrila.framework.elements.TaskgroupDiagram."""
 import logging
 import os
 import shutil
@@ -6,8 +6,8 @@ import unittest.mock as mock
 
 import sedrila.base.base as b
 import sedrila.base.cache as c
-import sedrila.mech.directory as dir
-import sedrila.mech.elements as el
+import sedrila.framework.directory as dir
+import sedrila.framework.elements as el
 
 TESTDIR = "sedrila/tests/elements_taskgroupdiagram_tmp"
 

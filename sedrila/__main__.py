@@ -4,8 +4,8 @@ import click
 
 import sedrila.base.base as b
 import sedrila.base2.argparser
-import sedrila.subcmd  # this is where the subcommands will be found
-import sedrila.subcmd.cli
+import sedrila.cmd  # this is where the subcommands will be found
+import sedrila.cmd.cli
 
 
 def main():  # uses sys.argv
@@ -16,7 +16,7 @@ def main():  # uses sys.argv
         # legacy cli (will be removed)  TODO 3 after 2027-04
         sys.argv.pop(1)  # consume 'old' prefix
         parser = sedrila.base2.argparser.SedrilaArgParser(description="-")  # description is set lazily
-        parser.scan("sedrila.subcmd.*")
+        parser.scan("sedrila.cmd.*")
         args = parser.parse_args()
         try:
             parser.execute_subcommand(args)
@@ -25,7 +25,7 @@ def main():  # uses sys.argv
     else:
         # new CLI:
         try:
-            sedrila.subcmd.cli.cli()
+            sedrila.cmd.cli.cli()
         except b.CritialError:
             pass  # b.critical has already printed a message
 

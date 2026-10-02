@@ -8,7 +8,7 @@ import gnupg
 
 import sedrila.base.base as b
 import sedrila.base.cache as cache
-import sedrila.mech.directory
+import sedrila.framework.directory
 
 # The repo's own throwaway keypair (see the header comment in the .asc file), used by
 # throwaway_gpg_home() so that no test needs a personal GPG key:
@@ -93,5 +93,5 @@ def throwaway_gpg_home():
         shutil.rmtree(gpghome, ignore_errors=True)
 
 
-def get_directory() -> sedrila.mech.directory.Directory:
-    return sedrila.mech.directory.Directory(cache.SedrilaCache("", False))
+def get_directory() -> sedrila.framework.directory.Directory:
+    return sedrila.framework.directory.Directory(cache.SedrilaCache("", False))

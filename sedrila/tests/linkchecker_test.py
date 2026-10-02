@@ -11,11 +11,11 @@ import sedrila.base.cache as cache
 import sedrila.base2.constants as c
 import sedrila.course.course
 import sedrila.course.coursebuilder
-import sedrila.mech.directory as dir
-import sedrila.mech.elements
+import sedrila.framework.directory as dir
+import sedrila.framework.elements
 import sedrila.mech.linkchecker as linkchecker
-import sedrila.base2.macros
-import sedrila.subcmd.maintainer as maintainer
+import sedrila.framework.macros
+import sedrila.cmd.maintainer as maintainer
 import yaml
 
 # Test constants
@@ -77,9 +77,9 @@ def course_env(include_stage: str):
             os.makedirs(targetdir_s, exist_ok=True)
             os.makedirs(targetdir_i, exist_ok=True)
             os.chdir(tmpdir)
-            sedrila.base2.macros.macrodefs_early.clear()
-            sedrila.base2.macros.macrodefs_late.clear()
-            sedrila.base2.macros.macrostate.clear()
+            sedrila.framework.macros.macrodefs_early.clear()
+            sedrila.framework.macros.macrodefs_late.clear()
+            sedrila.framework.macros.macrostate.clear()
             the_cache = cache.SedrilaCache(os.path.join(targetdir_i, c.CACHE_FILENAME), start_clean=True)
             b.set_register_files_callback(the_cache.set_file_dirty)
             directory = dir.Directory(the_cache)
@@ -97,7 +97,7 @@ def course_env(include_stage: str):
                 directory.get_all(sedrila.course.course.Task)
             ))
             for part in allparts:
-                topmatter_elem = directory.get_the(sedrila.mech.elements.Topmatter, part.name)
+                topmatter_elem = directory.get_the(sedrila.framework.elements.Topmatter, part.name)
                 topmatter_elem.do_build()
                 part.process_topmatter(part.sourcefile, topmatter_elem.value, course)
             yield course

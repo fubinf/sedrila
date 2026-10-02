@@ -19,7 +19,7 @@ import sedrila.base.sgit as sgit
 import sedrila.base2.constants as c
 import sedrila.course.course
 import sedrila.course.course_si
-import sedrila.base2.repo as r
+import sedrila.course.repo as r
 
 
 _context: 'Context'  # global singleton, see make_context(), get_context()

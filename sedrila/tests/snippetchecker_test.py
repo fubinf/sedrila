@@ -5,7 +5,7 @@ import types
 import yaml
 from textwrap import dedent # for code format
 
-import sedrila.base2.macros as macros
+import sedrila.framework.macros as macros
 import sedrila.mech.snippetchecker as snippetchecker
 
 def _prepare_relative_file(base_dir: str, relative_path: str, content: str | None = None) -> str:

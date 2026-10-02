@@ -9,10 +9,10 @@ import yaml
 
 import sedrila.base.base as b
 import sedrila.base.cache as cache
-import sedrila.mech.directory as dir
-import sedrila.mech.elements as el
+import sedrila.framework.directory as dir
+import sedrila.framework.elements as el
 import sedrila.base2.html as h
-import sedrila.base2.markdown as md
+import sedrila.framework.markdown as md
 
 
 class PartbuilderMixin:  # to be mixed into a Part class

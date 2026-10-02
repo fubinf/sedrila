@@ -3,8 +3,8 @@
 import markdown as md_lib
 
 import sedrila.base.base as b
-import sedrila.base2.macros as macros
-import sedrila.mech.macroexpanders
+import sedrila.framework.macros as macros
+import sedrila.framework.macroexpanders
 
 def expander(macrocall: macros.Macrocall):
     return f"{macrocall.macroname}({macrocall.arg1},{macrocall.arg2})"

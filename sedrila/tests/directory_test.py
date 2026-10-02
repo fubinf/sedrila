@@ -3,7 +3,7 @@ import logging
 import unittest.mock as mock
 
 import sedrila.base.base as b
-from sedrila.mech.directory import Directory
+from sedrila.framework.directory import Directory
 
 
 def setup_function():

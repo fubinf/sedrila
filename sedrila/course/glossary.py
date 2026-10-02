@@ -5,13 +5,13 @@ import typing as tg
 import sedrila.base.base as b
 import sedrila.base.cache as cache
 import sedrila.base2.constants as c
-import sedrila.mech.elements as el
-import sedrila.base2.macros as macros
-import sedrila.base2.markdown as md
-import sedrila.mech.partbuilder
+import sedrila.framework.elements as el
+import sedrila.framework.macros as macros
+import sedrila.framework.markdown as md
+import sedrila.framework.partbuilder
 
 
-class Glossary(sedrila.mech.partbuilder.PartbuilderMixin, el.Part):
+class Glossary(sedrila.framework.partbuilder.PartbuilderMixin, el.Part):
     """
     Processed in two phases: in phase 1, term references and term definitions are collected.
     Links to term definitions can already be generated because they have a canonical form:

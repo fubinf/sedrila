@@ -19,18 +19,18 @@ import jsonschema
 import sedrila.base.base as b
 import sedrila.base.mycrypt as mycrypt
 import sedrila.base2.constants as c
-import sedrila.mech.elements as el
-import sedrila.mech.glossary as glossary
+import sedrila.framework.elements as el
+import sedrila.course.glossary as glossary
 import sedrila.base2.html as h
-import sedrila.base2.macros as macros
-import sedrila.mech.partbuilder
+import sedrila.framework.macros as macros
+import sedrila.framework.partbuilder
 from sedrila.course.course import Task, Taskgroup, Chapter, Course
 
 sedrila_libdir = os.path.dirname(os.path.dirname(__file__))  # holds templates/ and baseresources/
 
 
 @functools.total_ordering
-class Taskbuilder(sedrila.mech.partbuilder.PartbuilderMixin, Task):
+class Taskbuilder(sedrila.framework.partbuilder.PartbuilderMixin, Task):
     TEMPLATENAME = "task.html"
     explains: list[str] = []  # terms (for backlinks in glossary)
     assumed_by: list[str] = []  # tasknames: inverse of assumes
@@ -172,7 +172,7 @@ class Taskbuilder(sedrila.mech.partbuilder.PartbuilderMixin, Task):
         return "".join(links)
 
 
-class Chapterbuilder(sedrila.mech.partbuilder.PartbuilderMixin, Chapter):
+class Chapterbuilder(sedrila.framework.partbuilder.PartbuilderMixin, Chapter):
     TEMPLATENAME = "chapter.html"
     course: 'Coursebuilder'
     taskgroups: list['Taskgroupbuilder']
@@ -191,7 +191,7 @@ class Chapterbuilder(sedrila.mech.partbuilder.PartbuilderMixin, Chapter):
 
     @functools.cached_property
     def toc(self) -> str:
-        return sedrila.mech.partbuilder.toc(self)
+        return sedrila.framework.partbuilder.toc(self)
 
     def as_json(self) -> b.StrAnyDict:
         result = dict(name=self.name, slug=self.name,  # slug for backwards compatibility, TODO 3: remove 2025-01
@@ -217,7 +217,7 @@ class Chapterbuilder(sedrila.mech.partbuilder.PartbuilderMixin, Chapter):
         self.find_zipdirs()
 
 
-class Taskgroupbuilder(sedrila.mech.partbuilder.PartbuilderMixin, Taskgroup):
+class Taskgroupbuilder(sedrila.framework.partbuilder.PartbuilderMixin, Taskgroup):
     TEMPLATENAME = "taskgroup.html"
     chapter: Chapterbuilder
     tasks: list['Taskbuilder']
@@ -242,7 +242,7 @@ class Taskgroupbuilder(sedrila.mech.partbuilder.PartbuilderMixin, Taskgroup):
 
     @functools.cached_property
     def toc(self) -> str:
-        return sedrila.mech.partbuilder.toc(self)
+        return sedrila.framework.partbuilder.toc(self)
 
     def as_json(self) -> b.StrAnyDict:
         result = dict(name=self.name, slug=self.name,  # slug for backwards compatibility, TODO 3: remove 2025-01
@@ -294,7 +294,7 @@ class Taskgroupbuilder(sedrila.mech.partbuilder.PartbuilderMixin, Taskgroup):
                                     targetdir_i=self.course.targetdir_i)
 
 
-class Coursebuilder(sedrila.mech.partbuilder.PartbuilderMixin, Course):
+class Coursebuilder(sedrila.framework.partbuilder.PartbuilderMixin, Course):
     """Course with the additions required for author mode. (Chapter, Taskgroup, Task have both in one.)"""
     MUSTCOPY_ADDITIONAL = ', chapterdir, altdir, stages'
     CANCOPY_ADDITIONAL = (', baseresourcedir, itreedir, templatedir'
@@ -356,7 +356,7 @@ class Coursebuilder(sedrila.mech.partbuilder.PartbuilderMixin, Course):
 
     @functools.cached_property
     def toc(self) -> str:
-        return sedrila.mech.partbuilder.toc(self)
+        return sedrila.framework.partbuilder.toc(self)
 
     def add_inverse_links(self):
         """add Task.required_by/Task.assumed_by lists."""

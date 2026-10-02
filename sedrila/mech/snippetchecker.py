@@ -62,7 +62,7 @@ from typing import Callable, Optional
 
 import sedrila.base.base as b
 import sedrila.base2.constants as c
-import sedrila.base2.macros as macros
+import sedrila.framework.macros as macros
 
 IDENTIFIER_RE = re.compile(r'^[A-Za-z0-9_]+$')
 _snippet_cache: dict[str, list['CodeSnippet']] = {}

@@ -8,7 +8,7 @@ import textwrap
 import requests
 
 import sedrila.base.base as b
-import sedrila.base2.markdown as md
+import sedrila.framework.markdown as md
 import sedrila.course.participant
 
 

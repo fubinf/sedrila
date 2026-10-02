@@ -12,7 +12,7 @@ import typing as tg
 
 import sedrila.base.base as b
 import sedrila.base2.constants as c
-import sedrila.mech.elements as el
+import sedrila.framework.elements as el
 import sedrila.base2.html as h
 
 

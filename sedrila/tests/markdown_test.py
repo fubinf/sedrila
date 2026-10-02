@@ -2,8 +2,8 @@
 import pytest
 
 import sedrila.base.base as b
-import sedrila.base2.markdown as md
-import sedrila.base2.macros as macros
+import sedrila.framework.markdown as md
+import sedrila.framework.macros as macros
 
 mermaid_markup_in = """before
 

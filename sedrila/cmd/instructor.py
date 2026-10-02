@@ -15,7 +15,7 @@ import sedrila.base.sgit as sgit
 import sedrila.base2.constants as c
 import sedrila.course.course
 import sedrila.course.participant
-import sedrila.base2.repo as r
+import sedrila.course.repo as r
 import sedrila.course.report
 import sedrila.webapp
 
@@ -161,8 +161,8 @@ def execute(pargs: argparse.Namespace):
 
 
 def run_command_loop(context, menu: str, helptext: str, cmds: dict[str, tg.Callable]):
-    import sedrila.subcmd.student
-    sedrila.subcmd.student.run_command_loop(context, menu, helptext, cmds)
+    import sedrila.cmd.student
+    sedrila.cmd.student.run_command_loop(context, menu, helptext, cmds)
 
 
 def cmd_webapp1(ctx: sedrila.course.participant.Context):
@@ -176,8 +176,8 @@ def cmd_webapp2(ctx: sedrila.course.participant.Context):
 
 
 def cmd_edit(ctx: sedrila.course.participant.Context):
-    import sedrila.subcmd.student
-    sedrila.subcmd.student.cmd_edit(ctx)
+    import sedrila.cmd.student
+    sedrila.cmd.student.cmd_edit(ctx)
 
 
 def cmd_commit_and_push(ctx: sedrila.course.participant.Context):

@@ -1,4 +1,4 @@
-"""Unit tests for sedrila/subcmd/student.py."""
+"""Unit tests for sedrila/cmd/student.py."""
 import argparse
 import logging
 import types
@@ -8,7 +8,7 @@ import pytest
 
 import sedrila.base.base as b
 import sedrila.base2.constants as c
-import sedrila.subcmd.student as student
+import sedrila.cmd.student as student
 
 
 def setup_function():

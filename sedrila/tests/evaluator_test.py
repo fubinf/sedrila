@@ -2,8 +2,8 @@ import datetime as dt
 
 import pandas as pd
 
-import sedrila.subcmd.evaluator as evaluator
-import sedrila.base2.repo as repo
+import sedrila.cmd.evaluator as evaluator
+import sedrila.course.repo as repo
 
 
 def test_as_events_df_adds_week_and_date_columns():

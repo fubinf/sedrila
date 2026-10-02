@@ -1,4 +1,4 @@
-"""Unit tests for sedrila/subcmd/author.py."""
+"""Unit tests for sedrila/cmd/author.py."""
 import argparse
 import logging
 import os
@@ -9,7 +9,7 @@ import pytest
 
 import sedrila.base.base as b
 import sedrila.base2.constants as c
-import sedrila.subcmd.author as author
+import sedrila.cmd.author as author
 
 
 def setup_function():

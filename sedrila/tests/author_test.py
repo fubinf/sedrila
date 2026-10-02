@@ -15,7 +15,7 @@ import sedrila.base.mycrypt as mycrypt
 import sedrila.base2.constants as c
 import sedrila.course.course as course
 import sedrila.course.coursebuilder as coursebuilder
-import sedrila.subcmd.author as author
+import sedrila.cmd.author as author
 
 import sedrila.tests.testbase as tb
 
@@ -394,7 +394,7 @@ def call_sedrila_author(step: str, outputdir: str, catcher, start_clean=False) -
     pargs.include_stage = "alpha"
     pargs.log = "INFO" if not step.startswith("step X:") else "DEBUG"  # report built files or help debug
     pargs.targetdir = outputdir
-    # ----- do call akin to sedrila.subcmd.author.execute():
+    # ----- do call akin to sedrila.cmd.author.execute():
     b._testmode_reset()  # noqa
     b.set_loglevel(pargs.log)
     targetdir_s = pargs.targetdir

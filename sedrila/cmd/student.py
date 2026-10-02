@@ -15,7 +15,7 @@ import sedrila.base.sgit as sgit
 import sedrila.base2.constants as c
 import sedrila.course.course
 import sedrila.course.participant
-import sedrila.base2.repo as r
+import sedrila.course.repo as r
 import sedrila.course.report
 import sedrila.webapp
 

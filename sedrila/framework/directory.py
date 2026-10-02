@@ -13,10 +13,10 @@ class Directory:
     This order is also fully determined by the Element types alone.
     """
     def __init__(self, cache):
-        import sedrila.mech.elements as el
+        import sedrila.framework.elements as el
         import sedrila.course.course as course
         import sedrila.course.coursebuilder as coursebuilder
-        import sedrila.mech.glossary as glossary
+        import sedrila.course.glossary as glossary
         self.cache = cache
         self.managed_types = [
             # Each has a downcased dict attribute use by get_the()/make_the().
@@ -34,12 +34,12 @@ class Directory:
             dictname = thistype.__name__.lower()
             setattr(self, dictname, dict())
 
-    def get_the(self, mytype: type, name: str) -> 'sedrila.mech.elements.Element':
+    def get_the(self, mytype: type, name: str) -> 'sedrila.framework.elements.Element':
         """Retrieve existing object from the directory."""
         the_dict = self._getdict(mytype)
         return the_dict.get(name)
 
-    def make_the(self, mytype: type, name: str, **kwargs) -> 'sedrila.mech.elements.Element':
+    def make_the(self, mytype: type, name: str, **kwargs) -> 'sedrila.framework.elements.Element':
         """Instantiate object and store it in the directory. Must be a new entry."""
         the_dict = self._getdict(mytype)
         if name in the_dict:
@@ -55,7 +55,7 @@ class Directory:
             b.debug(f"take_the: overwriting internal entry {mytype.__name__}({name})")
         the_dict[name] = instance
 
-    def make_or_get_the(self, mytype: type, name: str, **kwargs) -> 'sedrila.mech.elements.Element':
+    def make_or_get_the(self, mytype: type, name: str, **kwargs) -> 'sedrila.framework.elements.Element':
         instance = self.get_the(mytype, name)
         return instance if instance else self.make_the(mytype, name, **kwargs)
 
@@ -86,7 +86,7 @@ class Directory:
         return result
 
     def get_all_outputfiles(self) -> tg.Iterator:
-        import sedrila.mech.elements as el
+        import sedrila.framework.elements as el
         iterators = [self.get_all(t) for t in self.managed_types
                      if issubclass(t, el.Outputfile)]
         return itertools.chain(*iterators)

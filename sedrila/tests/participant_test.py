@@ -26,7 +26,7 @@ partner_gituser: ""
 
 def test_participant(capfd):
     """
-    Tests sedrila.base2.repo, sedrila.course.participant.
+    Tests sedrila.course.repo, sedrila.course.participant.
     Deep-integrationey test: Accesses external server, creates+deletes directories etc.
     """
     with tb.TempDirEnvironContextMgr(GIT_TERMINAL_PROMPT="0") as mgr:
@@ -94,8 +94,8 @@ def test_participant(capfd):
         def checked_state(workdir, fingerprints):
             return c.SUBMISSION_STATE_CHECKED
 
-        with unittest.mock.patch('sedrila.base2.repo.is_allowed_signer', new=all_signers_allowed), \
-             unittest.mock.patch('sedrila.base2.repo.submission_state', new=checked_state):  # simulate CHECKED state
+        with unittest.mock.patch('sedrila.course.repo.is_allowed_signer', new=all_signers_allowed), \
+             unittest.mock.patch('sedrila.course.repo.submission_state', new=checked_state):  # simulate CHECKED state
             ctx = sedrila.course.participant.make_context(empty, ["studentdir"], is_instructor=True)
         student = ctx.studentlist[0]  # there is only one
         print("#4:", student.submission)

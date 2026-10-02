@@ -1,11 +1,11 @@
-"""Unit tests for sedrila/subcmd/server.py."""
+"""Unit tests for sedrila/cmd/server.py."""
 import argparse
 import http.server
 import unittest.mock as mock
 
 import pytest
 
-import sedrila.subcmd.server as server
+import sedrila.cmd.server as server
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────

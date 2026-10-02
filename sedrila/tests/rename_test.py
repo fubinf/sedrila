@@ -4,8 +4,8 @@ import os
 import pytest
 
 import sedrila.base.base as b
-import sedrila.course.rename
-from sedrila.course.rename import _Collector
+import sedrila.subcmd.rename
+from sedrila.subcmd.rename import _Collector
 
 
 def setup_function():
@@ -17,7 +17,7 @@ def setup_function():
 
 def test_replace_requires_assumes():
     def r_ra(line):
-        return sedrila.course.rename._replace_requires_assumes(line, "ol-d", "new")
+        return sedrila.subcmd.rename._replace_requires_assumes(line, "ol-d", "new")
 
     # ----- matches:
     assert r_ra("assumes: ol-d") == "assumes: new"
@@ -35,7 +35,7 @@ def test_replace_requires_assumes():
 
 def test_replace_macros():
     def r_m3(line, oldname, newname):
-        return sedrila.course.rename._replace_macros(line, oldname, newname)
+        return sedrila.subcmd.rename._replace_macros(line, oldname, newname)
     def r_m(line):
         return r_m3(line, "ol-d", "new")
 
@@ -61,7 +61,7 @@ def test_replace_macros():
 
 def test_rewrite_prot():
     def r_p(line):
-        return sedrila.course.rename._replace_protline(line, "ol-d", "new")
+        return sedrila.subcmd.rename._replace_protline(line, "ol-d", "new")
 
     # ----- matches:
     assert r_p("ol-d") == "new"
@@ -114,7 +114,7 @@ def test_rename_and_collect_renames_dir(tmp_path):
         "oldname": {"file.md": "content"},
     })
     c = _Collector()
-    sedrila.course.rename._rename_and_collect_across(str(tmp_path), "oldname", "newname", c)
+    sedrila.subcmd.rename._rename_and_collect_across(str(tmp_path), "oldname", "newname", c)
     assert not os.path.exists(str(tmp_path / "oldname"))
     assert os.path.isdir(str(tmp_path / "newname"))
     assert len(c.dirs_renamed) == 1
@@ -126,7 +126,7 @@ def test_rename_and_collect_renames_file(tmp_path):
         "oldname.md": "assumes: other",
     })
     c = _Collector()
-    sedrila.course.rename._rename_and_collect_across(str(tmp_path), "oldname", "newname", c)
+    sedrila.subcmd.rename._rename_and_collect_across(str(tmp_path), "oldname", "newname", c)
     assert not os.path.exists(str(tmp_path / "oldname.md"))
     assert os.path.exists(str(tmp_path / "newname.md"))
     assert len(c.files_renamed) == 1
@@ -138,7 +138,7 @@ def test_rename_and_collect_collects_md_files(tmp_path):
         "unrelated.txt": "text",
     })
     c = _Collector()
-    sedrila.course.rename._rename_and_collect_across(str(tmp_path), "oldname", "newname", c)
+    sedrila.subcmd.rename._rename_and_collect_across(str(tmp_path), "oldname", "newname", c)
     assert any("other.md" in f for f in c.md_files)
     assert not any(".txt" in f for f in c.md_files)
 
@@ -148,7 +148,7 @@ def test_rename_and_collect_skips_hidden_dirs(tmp_path):
         ".hidden": {"oldname.md": "content"},
     })
     c = _Collector()
-    sedrila.course.rename._rename_and_collect_across(str(tmp_path), "oldname", "newname", c)
+    sedrila.subcmd.rename._rename_and_collect_across(str(tmp_path), "oldname", "newname", c)
     assert os.path.exists(str(tmp_path / ".hidden" / "oldname.md"))  # untouched
     assert c.md_files == []
 
@@ -158,7 +158,7 @@ def test_rename_and_collect_prot_file_collected(tmp_path):
         "oldname.prot": "some prot content",
     })
     c = _Collector()
-    sedrila.course.rename._rename_and_collect_across(str(tmp_path), "oldname", "newname", c)
+    sedrila.subcmd.rename._rename_and_collect_across(str(tmp_path), "oldname", "newname", c)
     assert any("newname.prot" in f for f in c.prot_files)
 
 
@@ -169,7 +169,7 @@ def test_process_markdown_files_replaces_content(tmp_path):
     md.write_text("assumes: oldpart\n[PARTREF::oldpart]\n", encoding='utf8')
     c = _Collector()
     c.md_files.append(str(md))
-    sedrila.course.rename._process_markdown_files(c, "oldpart", "newpart")
+    sedrila.subcmd.rename._process_markdown_files(c, "oldpart", "newpart")
     result = md.read_text(encoding='utf8')
     assert "oldpart" not in result
     assert "newpart" in result
@@ -182,7 +182,7 @@ def test_process_markdown_files_no_change_not_written(tmp_path):
     mtime_before = os.stat(str(md)).st_mtime
     c = _Collector()
     c.md_files.append(str(md))
-    sedrila.course.rename._process_markdown_files(c, "oldpart", "newpart")
+    sedrila.subcmd.rename._process_markdown_files(c, "oldpart", "newpart")
     mtime_after = os.stat(str(md)).st_mtime
     assert mtime_before == mtime_after  # file not touched
 
@@ -194,7 +194,7 @@ def test_process_prot_files_replaces_content(tmp_path):
     prot.write_text("user@host ~/work/oldpart\n", encoding='utf8')
     c = _Collector()
     c.prot_files.append(str(prot))
-    sedrila.course.rename._process_prot_files(c, "oldpart", "newpart")
+    sedrila.subcmd.rename._process_prot_files(c, "oldpart", "newpart")
     result = prot.read_text(encoding='utf8')
     assert "oldpart" not in result
     assert "newpart" in result
@@ -214,7 +214,7 @@ def test_rename_part_end_to_end(tmp_path):
         },
         "other.md": "requires: oldpart\n",
     })
-    sedrila.course.rename.rename_part(
+    sedrila.subcmd.rename.rename_part(
         str(chapterdir), str(altdir), str(itreedir), "oldpart", "newpart"
     )
     assert os.path.isdir(str(chapterdir / "newpart"))

@@ -12,7 +12,7 @@ import markdown.preprocessors as mdpre
 import markdown.postprocessors as mdpost
 
 import sedrila.base.base as b
-import sedrila.base2.macros as macros
+import sedrila.framework.macros as macros
 import sedrila.mech.replacements as replacements
 
 # a ```mermaid ... ``` fenced block (fence lines may carry trailing whitespace):

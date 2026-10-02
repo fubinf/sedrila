@@ -8,8 +8,8 @@ import html
 import sedrila.base2.constants as c
 import sedrila.course.course
 import sedrila.course.coursebuilder
-import sedrila.base2.macros as macros
-import sedrila.base2.markdown as md
+import sedrila.framework.macros as macros
+import sedrila.framework.markdown as md
 import sedrila.mech.snippetchecker as snippetchecker
 
 
@@ -86,7 +86,7 @@ def expand_treeref(course: sedrila.course.coursebuilder.Coursebuilder, macrocall
 
 def _register_encrypted_prot(course: sedrila.course.coursebuilder.Coursebuilder, prot_filepath: str):
     """Register a .prot file to be encrypted and saved as .prot.crypt in the student directory."""
-    import sedrila.mech.elements as el
+    import sedrila.framework.elements as el
     keyfingerprints = [instructor['keyfingerprint']
                        for instructor in course.configdict['instructors']
                        if instructor.get('keyfingerprint', None) and instructor.get('pubkey', None)]
@@ -123,7 +123,7 @@ def _register_encrypted_prot(course: sedrila.course.coursebuilder.Coursebuilder,
 
 def expand_prot(course: sedrila.course.course.Course, macrocall: macros.Macrocall) -> str:
     """[PROT::somedir/file.prot]. Plain paths in viewer mode, INCLUDE-style paths in author mode."""
-    import sedrila.mech.elements as el
+    import sedrila.framework.elements as el
     path = macrocall.arg1
     author_mode = isinstance(course, sedrila.course.coursebuilder.Coursebuilder)  # in viewer mode we receive a dummy
     b.debug(f"expand_prot: {macrocall.arg1}, author_mode={author_mode}")
@@ -195,7 +195,7 @@ def prot_html(content: str) -> str:
     # Parse specs once (before filtering) to determine colors and spec blocks
     import sedrila.mech.protocolchecker as protocolchecker
     import sedrila.course.programchecker as programchecker_mod
-    import sedrila.base2.markdown as md
+    import sedrila.framework.markdown as md
     try:
         extractor = protocolchecker.ProtocolExtractor()
         proto = extractor.extract_from_content(content)

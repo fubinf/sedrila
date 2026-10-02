@@ -14,8 +14,8 @@ import sedrila.base.cache as cache
 import sedrila.base2.constants as c
 import sedrila.course.course
 import sedrila.course.coursebuilder
-import sedrila.mech.directory as dir
-import sedrila.mech.elements
+import sedrila.framework.directory as dir
+import sedrila.framework.elements
 
 
 # CLI: sedrila maintainer
@@ -89,7 +89,7 @@ def check_links_command2(targetdir: str, config: str, include_stage: str, batch:
                 try:
                     md_content = reporter.render_markdown_report(results, max_workers=checker.max_workers)
                     md_report = directory.make_the(
-                        sedrila.mech.elements.ReportFile,
+                        sedrila.framework.elements.ReportFile,
                         "link_check_report.md",
                         content=md_content,
                         markdown_files=markdown_files,
@@ -178,7 +178,7 @@ def check_programs_command2(targetdir: str, config: str, batch: bool, include_st
             with open(md_temp_path, 'r', encoding='utf-8') as f:
                 md_content = f.read()
             md_report = directory.make_the(
-                sedrila.mech.elements.ReportFile,
+                sedrila.framework.elements.ReportFile,
                 "program_test_report.md",
                 content=md_content,
                 markdown_files=None,
@@ -325,7 +325,7 @@ def execute(pargs: argparse.Namespace):
 
 def _build_metadata_only(directory: dir.Directory):
     """Build only the elements needed for metadata and stage evaluation."""
-    import sedrila.mech.elements as el
+    import sedrila.framework.elements as el
     # Build in dependency order (same as directory.managed_types)
     build_types = [
         el.Sourcefile,      # Register source files
@@ -383,7 +383,7 @@ def check_links_command(pargs: argparse.Namespace):
                 try:
                     md_content = reporter.render_markdown_report(results, max_workers=checker.max_workers)
                     md_report = directory.make_the(
-                        sedrila.mech.elements.ReportFile,
+                        sedrila.framework.elements.ReportFile,
                         "link_check_report.md",
                         content=md_content,
                         markdown_files=markdown_files,
@@ -503,7 +503,7 @@ def check_programs_command(pargs: argparse.Namespace):
             with open(md_temp_path, 'r', encoding='utf-8') as f:
                 md_content = f.read()
             md_report = directory.make_the(
-                sedrila.mech.elements.ReportFile,
+                sedrila.framework.elements.ReportFile,
                 "program_test_report.md",
                 content=md_content,
                 markdown_files=None,

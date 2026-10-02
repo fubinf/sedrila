@@ -1,4 +1,4 @@
-"""Unit tests for sedrila/subcmd/maintainer.py."""
+"""Unit tests for sedrila/cmd/maintainer.py."""
 import argparse
 import logging
 import types
@@ -8,7 +8,7 @@ import pytest
 
 import sedrila.base.base as b
 import sedrila.base2.constants as c
-import sedrila.subcmd.maintainer as maintainer
+import sedrila.cmd.maintainer as maintainer
 
 
 def setup_function():

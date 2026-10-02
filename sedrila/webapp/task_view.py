@@ -10,7 +10,7 @@ import bottle  # https://bottlepy.org/docs/dev/
 
 import sedrila.base.base as b
 import sedrila.base2.constants as c
-import sedrila.base2.markdown as md
+import sedrila.framework.markdown as md
 import sedrila.course.participant
 
 from sedrila.webapp.resources import CSS, SEDRILA_UPDATE_URL

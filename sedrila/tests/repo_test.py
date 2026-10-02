@@ -12,8 +12,8 @@ import sedrila.base.sgit as sgit
 import sedrila.base2.constants as c
 import sedrila.course.course
 import sedrila.course.course_si
-import sedrila.base2.repo as r
-import sedrila.subcmd.student
+import sedrila.course.repo as r
+import sedrila.cmd.student
 
 import sedrila.tests.testbase as tb
 

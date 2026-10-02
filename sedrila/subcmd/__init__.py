@@ -1,1 +1,1 @@
-# sedrila.subcmd must be a module
+"""Subcommand-like functionality that is not a cmd: rename"""

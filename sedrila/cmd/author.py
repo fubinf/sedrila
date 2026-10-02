@@ -15,10 +15,10 @@ import sedrila.base.cache as cache
 import sedrila.base2.constants as c
 import sedrila.course.course
 import sedrila.course.coursebuilder
-import sedrila.mech.elements as el
-import sedrila.mech.directory as dir
-import sedrila.mech.macroexpanders as macroexpanders
-import sedrila.course.rename
+import sedrila.framework.elements as el
+import sedrila.framework.directory as dir
+import sedrila.framework.macroexpanders as macroexpanders
+import sedrila.subcmd.rename
 import sedrila.course.report
 
 # CLI:
@@ -150,7 +150,7 @@ def execute(pargs: argparse.Namespace):
 def do_rename(configfile: str, old_partname: str, new_partname: str):
     config = b.slurp_yaml(configfile, os.environ)
     chapterdir, altdir, itreedir = config['chapterdir'], config['altdir'], config['itreedir']
-    sedrila.course.rename.rename_part(chapterdir, altdir, itreedir, old_partname, new_partname)
+    sedrila.subcmd.rename.rename_part(chapterdir, altdir, itreedir, old_partname, new_partname)
     
     
 def create_and_build_course(pargs, targetdir_i, targetdir_s) -> sedrila.course.coursebuilder.Coursebuilder:

@@ -149,11 +149,11 @@ def expand_macros(sourcefile: str, partname: str, markup: str, is_early_phase=Fa
 def expand_macro(sourcefile: str, partname: str, mm: re.Match, is_early_phase=False) -> str:
     """Apply matching macrodef or report error or wait for late phase to report it then."""
     global macrodefs_early, macrodefs_late
-    import sedrila.base2.markdown
+    import sedrila.framework.markdown
     macrodefs = (macrodefs_early if is_early_phase else macrodefs_late)
     ppre, call, ppost = mm.group('ppre'), mm.group('macrocall'), mm.group('ppost')
     macroname, arg1, arg2 = mm.group('name'), mm.group('arg1'), mm.group('arg2')
-    macrocall = Macrocall(md=sedrila.base2.markdown.md, filename=sourcefile, partname=partname,
+    macrocall = Macrocall(md=sedrila.framework.markdown.md, filename=sourcefile, partname=partname,
                           macrocall_text=call,
                           macroname=macroname, arg1=arg1, arg2=arg2)
     my_numargs = (arg1 is not None) + (arg2 is not None)

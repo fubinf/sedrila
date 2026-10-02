@@ -140,9 +140,9 @@ import yaml
 
 import sedrila.base.base as b
 import sedrila.base.cache as c
-import sedrila.mech.directory as dir
-import sedrila.base2.macros as macros
-import sedrila.base2.markdown as md
+import sedrila.framework.directory as dir
+import sedrila.framework.macros as macros
+import sedrila.framework.markdown as md
 
 
 class Element:  # abstract class
