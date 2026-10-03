@@ -5,7 +5,6 @@ out.bak/
 .idea/
 sedrila/tests/data/sedrila-test1
 sedrila/tests/author_tmp
-poetry.lock
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
