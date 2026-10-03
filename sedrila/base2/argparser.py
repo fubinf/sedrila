@@ -20,7 +20,7 @@ class SedrilaArgParser(ap_sub.ArgumentParser):
         if os.path.exists(pyprojectfile):
             with open(pyprojectfile, 'rb') as f:
                 toml = tomllib.load(f)
-                return toml['tool']['poetry']['version']
+                return toml['project']['version']
         import importlib.metadata
         return importlib.metadata.version("sedrila")
 

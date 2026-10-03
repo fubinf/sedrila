@@ -14,7 +14,7 @@ def test_get_version_from_whl_path(tmp_path):
     """get_version() finds pyproject.toml one level above sedrila/ (whl layout)."""
     # whl layout:  <tmp>/sedrila/base2/argparser.py  and  <tmp>/pyproject.toml
     fake_toml = tmp_path / "pyproject.toml"
-    fake_toml.write_bytes(b'[tool.poetry]\nversion = "9.8.7"\n')
+    fake_toml.write_bytes(b'[project]\nversion = "9.8.7"\n')
 
     fake_argparser_file = str(tmp_path / "sedrila" / "base2" / "argparser.py")
 
@@ -22,7 +22,7 @@ def test_get_version_from_whl_path(tmp_path):
         with mock.patch('os.path.exists', return_value=True):
             with mock.patch('builtins.open', mock.mock_open(read_data=fake_toml.read_bytes())):
                 import tomllib
-                with mock.patch('tomllib.load', return_value={'tool': {'poetry': {'version': '9.8.7'}}}):
+                with mock.patch('tomllib.load', return_value={'project': {'version': '9.8.7'}}):
                     version = ap.SedrilaArgParser.get_version()
     assert version == "9.8.7"
 
