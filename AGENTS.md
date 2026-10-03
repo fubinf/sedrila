@@ -18,7 +18,7 @@ them into HTML efficiently (incremental build).
 Support for students and instructors revolves around submitting task solutions for inspection (students)
 and accepting/rejecting such solutions (instructors). 
 Acceptance/rejection is recorded in the student's git repository used for creating and submitting solutions
-by means of signed commits.
+by means of signed commits (involving GPG).
 
 
 ## Development Commands
@@ -29,34 +29,25 @@ by means of signed commits.
 # Run all tests
 pytest
 
-# Run tests from specific module (tests are in sedrila/tests/ and sedrila/cmd/tests/)
-pytest sedrila/tests/base_test.py
-pytest sedrila/tests/macros_test.py
-
-# Check the module layering (configured in pyproject.toml, see "Module Layering" below)
-poetry run lint-imports
+# Check the module layering (configured in pyproject.toml)
+uv run lint-imports
 
 # Build package
-poetry build
+uv build
 
 # Install dependencies
-poetry install
+uv sync
 ```
 
 ### Running the Tool
 
 ```bash
-# Author mode: Build a course website
-sedrila author build --config sedrila.yaml --log DEBUG targetdir
-
-# Author mode with incremental build (default)
-sedrila author build sedrila.yaml outputdir
-
-# Include immature-stage tasks in build
-sedrila author build --include_stage alpha outputdir
+# Author mode: Build a course website with incremental build
+sedrila author build --config sedrila.yaml --include_stage alpha --log DEBUG targetdir
+sedrila author build outputdir  # using sedrila.yaml by default and only mature tasks
 
 # Student mode: View progress and prepare submissions
-sedrila student init  # Initialize student.yaml
+sedrila student init  # Initialize student.yaml (interactive)
 sedrila student import-keys  # teach GPG about the instructors
 sedrila student menu  # Select tasks for submission and submit them
 
@@ -84,15 +75,15 @@ sedrila author rename OldTaskName NewTaskName
 
 ```
 Course
-└── Chapter (chapter-*.html)
-    └── Taskgroup (subdirectory)
+└── Chapter (rendered to chapter-*.html)
+    └── Taskgroup (from subdirectory)
         └── Task (*.md files, rendered to *.html)
 ```
 
 Each level has:
 - An `index.md` file with YAML metadata header
 - Optional `stage:` attribute for phased content release
-- Tasks have: `timevalue` (expected hours), `difficulty` (1-5), `assumes`/`requires` (dependencies)
+- Tasks have: `timevalue` (expected hours), `difficulty` (1-4), `assumes`/`requires` (dependencies)
 
 ### Incremental Build System
 
@@ -103,11 +94,6 @@ The author command uses a sophisticated caching mechanism:
 - **`sedrila/course/course.py`**: Defines Course, Chapter, Taskgroup, Task classes with builder variants
 
 Builder classes (e.g., `Coursebuilder`, `Taskbuilder`) are used in author mode and inherit from corresponding base classes used in student/instructor modes.
-
-### Module Layering
-
-The architecture is mostly layered (with a few exceptions).
-Run `lint-imports --no-logo` to detect fresh violations.
 
 ### Markdown Extensions ("Macros")
 
@@ -153,11 +139,11 @@ The project uses numbered TODO markers:
 
 ## Important Files
 
-- `pyproject.toml` - Poetry package configuration
+- `pyproject.toml` - uv/hatchling package configuration
 - `sedrila.yaml` - Course configuration (for author mode)
 - `course.json` - Generated metadata (used by student/instructor modes)
 - `student.yaml` - Student identification (in student repos)
-- `submission.yaml` - Task submission and evaluation tracking
+- `submission.yaml` - Task submission and evaluation tracking (in student repos)
 
 ## Status / Next step
 
